@@ -28,3 +28,6 @@ Thumbs.db
 
 # Logs
 *.log
+
+# Go
+backend/bin/

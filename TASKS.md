@@ -11,6 +11,8 @@ docs/specs/NNN-nom/tasks.md. Les petites tâches isolées (bug, retouche) peuven
 
 ## À faire
 <!-- Par ordre de priorité. Rempli par /cadrage à partir des fonctionnalités du MVP. -->
+- [ ] Remplacer l'identifiant d'app `com.example.ivia` (Android `build.gradle.kts`, iOS `project.pbxproj`) avant toute publication
+- [ ] Configurer le hook de formatage (`.claude/hooks/format.mjs`) : `gofmt -w` pour `.go`, `dart format` pour `.dart`
 
 ## Terminé
 <!-- Déplacer ici au fur et à mesure. -->

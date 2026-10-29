@@ -26,20 +26,34 @@ Il est rempli par la skill /cadrage (ou à la main en suivant les commentaires).
 ## Stack
 
 <!-- Une ligne par couche, avec version majeure. Ex : "Frontend : Next.js 16 (App Router), TypeScript strict" -->
+- Backend : Go 1.27, bibliothèque standard (`net/http`, `log/slog`), sans framework.
+- Mobile : Flutter 3.47 / Dart 3.13, cibles iOS et Android.
 
 ## Structure du dépôt
 
 <!-- Les dossiers importants et leur rôle, en 5 à 10 lignes max. -->
+- `backend/` — API Go (module `ivia/backend`)
+  - `cmd/api/` — point d'entrée du serveur
+  - `internal/server/` — routes et handlers HTTP
+- `mobile/` — application Flutter (`lib/` code, `test/` tests)
 
 ## Commandes
 
 <!-- Commandes EXACTES. L'agent les utilise pour vérifier son propre travail. -->
-- Installer :
-- Démarrer en local :
-- Lint :
-- Typecheck :
-- Tests :
-- Build :
+Backend (depuis `backend/`) :
+- Installer : `go mod download`
+- Démarrer en local : `go run ./cmd/api` (port `PORT`, 8080 par défaut)
+- Lint : `gofmt -l .` (doit être vide) et `go vet ./...`
+- Typecheck : `go build ./...`
+- Tests : `go test ./...`
+- Build : `go build -o bin/api ./cmd/api`
+
+Mobile (depuis `mobile/`) :
+- Installer : `flutter pub get`
+- Démarrer en local : `flutter run`
+- Lint / typecheck : `flutter analyze`
+- Tests : `flutter test`
+- Build : `flutter build apk` / `flutter build ios --no-codesign`
 
 ## Règles d'architecture non négociables
 
