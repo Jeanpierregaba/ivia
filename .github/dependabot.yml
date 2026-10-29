@@ -1,0 +1,8 @@
+# Mises à jour automatiques des dépendances. Ajoute l'écosystème de ta stack pendant /cadrage
+# (npm, pip, cargo, gomod…) : https://docs.github.com/code-security/dependabot
+version: 2
+updates:
+  - package-ecosystem: github-actions
+    directory: /
+    schedule:
+      interval: weekly

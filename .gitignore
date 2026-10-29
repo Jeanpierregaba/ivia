@@ -1,0 +1,30 @@
+# Dépendances et builds
+node_modules/
+dist/
+build/
+.next/
+out/
+coverage/
+__pycache__/
+*.pyc
+.venv/
+
+# Secrets — garder uniquement .env.example
+.env
+.env.*
+!.env.example
+*.pem
+*.key
+
+# Claude Code (réglages personnels)
+.claude/settings.local.json
+
+# Éditeurs et système
+.idea/
+.vscode/*
+!.vscode/extensions.json
+.DS_Store
+Thumbs.db
+
+# Logs
+*.log

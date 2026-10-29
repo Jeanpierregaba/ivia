@@ -1,0 +1,38 @@
+# Intégration continue — à compléter pendant /cadrage (étape « Outillage »).
+# Tant que ce n'est pas fait, la CI affiche seulement un avertissement.
+name: CI
+
+on:
+  push:
+    branches: [main]
+  pull_request:
+
+permissions:
+  contents: read
+
+jobs:
+  verify:
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/checkout@v4
+
+      - name: CI non configurée
+        run: echo "::warning::La CI n'est pas encore configurée — lance /cadrage (étape Outillage)."
+
+      # --- Exemple Node.js (à adapter) ---
+      # - uses: actions/setup-node@v4
+      #   with:
+      #     node-version: 22
+      #     cache: npm
+      # - run: npm ci
+      # - run: npm run lint
+      # - run: npm run typecheck
+      # - run: npm test
+      # - run: npm run build
+      # - run: npm audit --audit-level=high
+
+      # --- Exemple Python (à adapter) ---
+      # - uses: astral-sh/setup-uv@v6
+      # - run: uv sync --frozen
+      # - run: uv run ruff check .
+      # - run: uv run pytest
