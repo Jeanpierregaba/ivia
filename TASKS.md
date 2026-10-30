@@ -67,7 +67,7 @@ si la livraison prend du retard (voir `docs/PRD.md`).
 - [ ] Vérification de l'entreprise chez Meta et modèle de message OTP WhatsApp
 - [ ] Nom de domaine et adresse d'envoi des e-mails (SPF, DKIM) pour Brevo
 - [ ] Liste des quartiers de Lomé (données de départ)
-- [ ] Charte graphique et design system, puis remplir `docs/DESIGN.md` (avant le premier écran de la 001)
+- [ ] Charte : fournir les logos en SVG et l'icône adaptative Android, valider les couleurs « proposé » de `docs/DESIGN.md`, maquettes Figma
 - [ ] Identifiants des 3 apps (remplacent `com.example.ivia`)
 - [ ] Boutiques et livreurs pilotes pour les tests terrain
 
