@@ -1,0 +1,22 @@
+# Services de développement local. Démarrer : docker compose up -d --wait
+services:
+  postgres:
+    image: postgres:18-alpine
+    environment:
+      POSTGRES_USER: ivia
+      POSTGRES_DB: ivia
+      # Local uniquement : pas de mot de passe, le port n'est exposé que sur 127.0.0.1.
+      POSTGRES_HOST_AUTH_METHOD: trust
+    ports:
+      - "127.0.0.1:${POSTGRES_PORT:-5432}:5432"
+    volumes:
+      # Depuis PostgreSQL 18, l'image attend le volume sur /var/lib/postgresql.
+      - postgres-data:/var/lib/postgresql
+    healthcheck:
+      test: ["CMD-SHELL", "pg_isready -U ivia -d ivia"]
+      interval: 2s
+      timeout: 5s
+      retries: 15
+
+volumes:
+  postgres-data:

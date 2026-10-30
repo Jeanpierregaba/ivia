@@ -12,6 +12,7 @@ docs/specs/NNN-nom/tasks.md. Les petites tâches isolées (bug, retouche) peuven
 ## À faire
 <!-- Par ordre de priorité. Rempli par /cadrage à partir des fonctionnalités du MVP. -->
 - [ ] Remplacer l'identifiant d'app `com.example.ivia` (Android `build.gradle.kts`, iOS `project.pbxproj`) avant toute publication
+- [ ] Choisir l'outil de migrations SQL (au `/cadrage`, avec le modèle de données) : la base est vide
 - [ ] Configurer le hook de formatage (`.claude/hooks/format.mjs`) : `gofmt -w` pour `.go`, `dart format` pour `.dart`
 
 ## Terminé

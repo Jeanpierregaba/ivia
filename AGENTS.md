@@ -27,6 +27,7 @@ Il est rempli par la skill /cadrage (ou à la main en suivant les commentaires).
 
 <!-- Une ligne par couche, avec version majeure. Ex : "Frontend : Next.js 16 (App Router), TypeScript strict" -->
 - Backend : Go 1.27, bibliothèque standard (`net/http`, `log/slog`), sans framework.
+- Base de données : PostgreSQL 18 (Docker Compose en local), driver `pgx/v5` (`pgxpool`).
 - Mobile : Flutter 3.47 / Dart 3.13, cibles iOS et Android.
 
 ## Structure du dépôt
@@ -35,17 +36,23 @@ Il est rempli par la skill /cadrage (ou à la main en suivant les commentaires).
 - `backend/` — API Go (module `ivia/backend`)
   - `cmd/api/` — point d'entrée du serveur
   - `internal/server/` — routes et handlers HTTP
+  - `internal/database/` — connexion PostgreSQL
+- `docker-compose.yml` — services locaux (PostgreSQL)
 - `mobile/` — application Flutter (`lib/` code, `test/` tests)
 
 ## Commandes
 
 <!-- Commandes EXACTES. L'agent les utilise pour vérifier son propre travail. -->
-Backend (depuis `backend/`) :
+Base de données (depuis la racine) :
+- Démarrer : `docker compose up -d --wait` · Arrêter : `docker compose stop`
+- Console SQL : `docker compose exec postgres psql -U ivia -d ivia`
+
+Backend (depuis `backend/`) — `DATABASE_URL` doit être exportée (valeur locale dans `.env.example`) :
 - Installer : `go mod download`
 - Démarrer en local : `go run ./cmd/api` (port `PORT`, 8080 par défaut)
 - Lint : `gofmt -l .` (doit être vide) et `go vet ./...`
 - Typecheck : `go build ./...`
-- Tests : `go test ./...`
+- Tests : `go test ./...` (`TestOpen` est ignoré sans `DATABASE_URL`)
 - Build : `go build -o bin/api ./cmd/api`
 
 Mobile (depuis `mobile/`) :

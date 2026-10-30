@@ -11,6 +11,7 @@ import (
 	"syscall"
 	"time"
 
+	"ivia/backend/internal/database"
 	"ivia/backend/internal/server"
 )
 
@@ -27,18 +28,28 @@ func run(logger *slog.Logger) error {
 	if port == "" {
 		port = "8080"
 	}
+	databaseURL := os.Getenv("DATABASE_URL")
+	if databaseURL == "" {
+		return errors.New("DATABASE_URL non définie (voir .env.example)")
+	}
+
+	ctx, stop := signal.NotifyContext(context.Background(), os.Interrupt, syscall.SIGTERM)
+	defer stop()
+
+	db, err := database.Open(ctx, databaseURL)
+	if err != nil {
+		return err
+	}
+	defer db.Close()
 
 	srv := &http.Server{
 		Addr:              ":" + port,
-		Handler:           server.New(logger),
+		Handler:           server.New(logger, db),
 		ReadHeaderTimeout: 5 * time.Second,
 		ReadTimeout:       10 * time.Second,
 		WriteTimeout:      10 * time.Second,
 		IdleTimeout:       60 * time.Second,
 	}
-
-	ctx, stop := signal.NotifyContext(context.Background(), os.Interrupt, syscall.SIGTERM)
-	defer stop()
 
 	errCh := make(chan error, 1)
 	go func() {

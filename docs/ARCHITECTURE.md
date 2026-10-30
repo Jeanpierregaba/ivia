@@ -33,6 +33,7 @@ où vivent les secrets de chaque environnement. -->
 ## Choix techniques
 <!-- Liste des ADR avec une ligne de résumé chacun. Ex :
 - [ADR-0001](decisions/0001-choix-de-la-stack.md) — Stack : Next.js + Postgres (Supabase) -->
+- [ADR-0001](decisions/0001-stack-go-flutter-postgresql.md) — Stack : Go (stdlib) + Flutter + PostgreSQL 18 (pgx)
 
 ## Points d'attention
 <!-- Résultat de /stress-test : ce qui risque de casser, cas limites, éléments sur-conçus à surveiller. -->

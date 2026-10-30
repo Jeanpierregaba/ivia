@@ -14,13 +14,29 @@ jobs:
     defaults:
       run:
         working-directory: backend
+    services:
+      # Même image que docker-compose.yml.
+      postgres:
+        image: postgres:18-alpine
+        env:
+          POSTGRES_USER: ivia
+          POSTGRES_DB: ivia
+          POSTGRES_HOST_AUTH_METHOD: trust
+        ports:
+          - 5432:5432
+        options: >-
+          --health-cmd "pg_isready -U ivia -d ivia"
+          --health-interval 2s
+          --health-timeout 5s
+          --health-retries 15
+    env:
+      DATABASE_URL: postgres://ivia@localhost:5432/ivia?sslmode=disable
     steps:
       - uses: actions/checkout@v7
       - uses: actions/setup-go@v7
         with:
           go-version-file: backend/go.mod
-          # Pas encore de go.sum (aucune dépendance externe) : réactiver le cache quand il existera.
-          cache: false
+          cache-dependency-path: backend/go.sum
       - name: gofmt
         run: test -z "$(gofmt -l .)"
       - run: go vet ./...
