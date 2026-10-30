@@ -11,9 +11,8 @@ Il est rempli par la skill /cadrage (ou à la main en suivant les commentaires).
 
 ## Statut du cadrage
 
-**NON FAIT**
+**FAIT (2026-10-30)** — reste le squelette mobile (3 apps) et back-office, voir `TASKS.md`.
 
-<!-- /cadrage remplace "NON FAIT" par "FAIT (AAAA-MM-JJ)" une fois les docs remplies. -->
 
 > Tant que le statut est « NON FAIT » : si l'utilisateur demande de coder une fonctionnalité,
 > propose-lui d'abord de lancer `/cadrage` (ou de suivre `.claude/skills/cadrage/SKILL.md`).
@@ -21,24 +20,31 @@ Il est rempli par la skill /cadrage (ou à la main en suivant les commentaires).
 
 ## Le projet en une phrase
 
-<!-- Résumé du PRD : quoi, pour qui. Détail : docs/PRD.md -->
+Plateforme e-commerce à Lomé : l'acheteur trouve un produit, paie par Mobile Money (Flooz,
+T-Money), puis le retire en boutique ou se fait livrer par un livreur de la plateforme.
+Trois apps Flutter (acheteur, marchand, livreur), un back-office Next.js, une API Go.
+Détail : `docs/PRD.md`.
 
 ## Stack
 
-<!-- Une ligne par couche, avec version majeure. Ex : "Frontend : Next.js 16 (App Router), TypeScript strict" -->
-- Backend : Go 1.27, bibliothèque standard (`net/http`, `log/slog`), sans framework.
-- Base de données : PostgreSQL 18 (Docker Compose en local), driver `pgx/v5` (`pgxpool`).
-- Mobile : Flutter 3.47 / Dart 3.13, cibles iOS et Android.
+Détail et versions : `docs/ARCHITECTURE.md`.
+- Backend : Go 1.27, bibliothèque standard (`net/http`, `log/slog`), monolithe modulaire.
+- Données : PostgreSQL 18 + PostGIS 3.6, `pgx/v5`, `sqlc` (requêtes), `goose` (migrations), `River` (tâches de fond).
+- Mobile : Flutter 3.47 / Dart 3.13, pub workspace ; Riverpod 3, go_router, dio. Android d'abord.
+- Back-office : Next.js 16 (App Router), React 19, TypeScript strict, Tailwind 4, Node 24 LTS, pnpm.
+- Services : Mobile Money via agrégateur (à choisir), Brevo (e-mail OTP), FCM (push), Google Maps SDK, Cloudflare R2, Sentry.
 
 ## Structure du dépôt
 
-<!-- Les dossiers importants et leur rôle, en 5 à 10 lignes max. -->
 - `backend/` — API Go (module `ivia/backend`)
-  - `cmd/api/` — point d'entrée du serveur
-  - `internal/server/` — routes et handlers HTTP
-  - `internal/database/` — connexion PostgreSQL
-- `docker-compose.yml` — services locaux (PostgreSQL)
-- `mobile/` — application Flutter (`lib/` code, `test/` tests)
+  - `cmd/api/` — point d'entrée (API + workers River)
+  - `internal/<module>/` — un dossier par domaine (auth, users, shops, catalog, orders, payments, delivery…)
+  - `internal/platform/` — config, base, middlewares HTTP, stockage
+  - `db/migrations/` — migrations goose · `api/openapi.yaml` — contrat de l'API
+- `mobile/` — pub workspace : `apps/buyer`, `apps/seller`, `apps/driver`, `packages/api_client`, `packages/ui`
+- `admin/` — back-office Next.js
+- `infra/` — déploiement (Compose de production, Caddy, sauvegardes)
+- `docker-compose.yml` — services locaux (PostGIS)
 
 ## Commandes
 
@@ -64,13 +70,41 @@ Mobile (depuis `mobile/`) :
 
 ## Règles d'architecture non négociables
 
-<!-- Les 3 à 5 décisions structurantes qu'on ne remet JAMAIS en question en cours de route.
-Chacune renvoie à son ADR. Ex : "Toute écriture en base passe par la couche services/ (ADR-0003)" -->
+1. **Aucun client ne touche la base** : apps et back-office passent par l'API REST `/v1`
+   ([ADR-0003](docs/decisions/0003-back-office-nextjs.md)).
+2. **Un module ne lit ni n'écrit les tables d'un autre** : il appelle son service. Couches
+   handlers → service → store (sqlc) ([ADR-0004](docs/decisions/0004-monolithe-modulaire-sqlc-goose.md)).
+3. **Contrôle d'accès dans le backend, à chaque requête** : rôle (middleware) **et** propriété de
+   la ressource (service). Ressource d'autrui ⇒ 404 ([ADR-0006](docs/decisions/0006-authentification-otp-sessions.md)).
+4. **Un paiement n'est réussi que sur webhook vérifié** (signature, montant, idempotence), jamais
+   sur le retour de l'app ([ADR-0007](docs/decisions/0007-paiement-mobile-money.md)).
+5. **Statut de commande modifié uniquement par la machine à états du module `orders`**, qui écrit
+   `order_status_events` dans la même transaction (diagramme dans `docs/ARCHITECTURE.md`).
+6. **Concurrence garantie par la base** : stock réservé par mise à jour conditionnelle, un seul
+   livreur actif par commande et une seule mission par livreur par index uniques partiels.
+7. **Services externes derrière une interface Go** avec une implémentation factice pour le local
+   et les tests (`PaymentProvider`, `OTPSender`, `PushSender`, `ObjectStore`).
 
 ## Conventions de code
 
-<!-- Nommage, organisation des fichiers, gestion d'erreurs, style. Uniquement ce qui n'est pas
-déjà imposé par le linter/formatter. -->
+- **Langue** : code, noms de tables, routes et codes de statut en anglais (vocabulaire du PRD :
+  `shop`, `order`, `delivery_offer`, `settlement`…) ; commentaires, docs et textes affichés en français.
+- **Argent** : FCFA entiers (`int64` en Go, `bigint` en SQL, suffixe `_xof`). Jamais de `float`.
+- **Dates** : `timestamptz` en UTC en base ; affichage et périodes de règlement en `Africa/Lome`.
+- **Identifiants** : `uuid` générés par la base.
+- **API** : JSON en `snake_case` ; erreurs au format `{"error": {"code": "...", "message": "..."}}`,
+  `code` stable en anglais, `message` en français lisible par l'utilisateur. Toute route est décrite
+  dans `backend/api/openapi.yaml` **dans le même commit**.
+- **Go** : erreurs enveloppées (`fmt.Errorf("contexte : %w", err)`), `context.Context` en premier
+  argument, pas de variable globale mutable, `slog` pour les logs (jamais de code OTP, jeton,
+  numéro complet ni donnée de paiement).
+- **SQL** : une migration goose par changement, jamais modifiée une fois fusionnée ; requêtes dans
+  des fichiers `.sql` lus par sqlc, jamais de SQL construit par concaténation.
+- **Flutter** : écrans dans `lib/features/<fonctionnalité>/` ; appels API uniquement via
+  `packages/api_client` ; couleurs et styles uniquement via `packages/ui` (charte : `docs/DESIGN.md`).
+- **Next.js** : composants serveur par défaut ; appels API uniquement côté serveur ; types
+  générés depuis `openapi.yaml`, jamais écrits à la main.
+- **Tests** : à côté du code (`*_test.go`, `test/` en Dart, `*.test.ts`).
 
 ## Workflow de l'agent
 
@@ -99,7 +133,7 @@ déjà imposé par le linter/formatter. -->
 | Ce qu'on construit et pourquoi | `docs/PRD.md` |
 | Comment c'est construit | `docs/ARCHITECTURE.md` |
 | Charte visuelle, composants, parcours | `docs/DESIGN.md` |
-| Fonctionnalités IA : prompts, évals, coûts | `docs/AI.md`, `evals/` |
+| Fonctionnalités IA : prompts, évals, coûts (aucune au MVP) | `docs/AI.md`, `evals/` |
 | Une décision technique et sa justification | `docs/decisions/NNNN-titre.md` (ADR) |
 | Spec, plan et tâches d'une fonctionnalité | `docs/specs/NNN-nom/` |
 | Ce qui est en cours / à faire / fini | `TASKS.md` |

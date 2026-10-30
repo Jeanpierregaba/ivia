@@ -1,0 +1,63 @@
+openapi: 3.1.0
+info:
+  title: API ivia
+  version: 0.1.0
+  description: >
+    Contrat de l'API REST utilisée par les apps acheteur, marchand, livreur et le back-office.
+    Toute nouvelle route est décrite ici dans le même commit que son code.
+servers:
+  - url: http://localhost:8080
+    description: Local
+paths:
+  /health:
+    get:
+      summary: Le processus répond (ne sollicite pas la base)
+      operationId: getHealth
+      responses:
+        "200":
+          description: Processus vivant
+          content:
+            application/json:
+              schema:
+                $ref: "#/components/schemas/Status"
+  /ready:
+    get:
+      summary: L'API peut servir des requêtes (la base répond)
+      operationId: getReady
+      responses:
+        "200":
+          description: Prête
+          content:
+            application/json:
+              schema:
+                $ref: "#/components/schemas/Status"
+        "503":
+          description: Base injoignable
+          content:
+            application/json:
+              schema:
+                $ref: "#/components/schemas/Status"
+components:
+  schemas:
+    Status:
+      type: object
+      required: [status]
+      properties:
+        status:
+          type: string
+          enum: [ok, unavailable]
+    Error:
+      description: Format commun de toutes les erreurs de l'API.
+      type: object
+      required: [error]
+      properties:
+        error:
+          type: object
+          required: [code, message]
+          properties:
+            code:
+              type: string
+              description: Code stable en anglais (ex. `otp_expired`).
+            message:
+              type: string
+              description: Message en français, affichable à l'utilisateur.

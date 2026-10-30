@@ -11,8 +11,8 @@ import (
 	"syscall"
 	"time"
 
-	"ivia/backend/internal/database"
-	"ivia/backend/internal/server"
+	"ivia/backend/internal/platform/database"
+	"ivia/backend/internal/platform/httpapi"
 )
 
 func main() {
@@ -42,9 +42,13 @@ func run(logger *slog.Logger) error {
 	}
 	defer db.Close()
 
+	if err := database.Migrate(ctx, db); err != nil {
+		return err
+	}
+
 	srv := &http.Server{
 		Addr:              ":" + port,
-		Handler:           server.New(logger, db),
+		Handler:           httpapi.New(logger, db),
 		ReadHeaderTimeout: 5 * time.Second,
 		ReadTimeout:       10 * time.Second,
 		WriteTimeout:      10 * time.Second,

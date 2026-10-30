@@ -1,5 +1,5 @@
-// Package server expose l'API HTTP du backend.
-package server
+// Package httpapi assemble le routeur HTTP de l'API et les routes transverses (santé).
+package httpapi
 
 import (
 	"context"

@@ -1,11 +1,8 @@
 # RULES — Interdits stricts
 
-<!--
-Ce ne sont PAS des préférences de style (ça va dans AGENTS.md) : ce sont des interdits que l'agent
-ne doit JAMAIS enfreindre, quelle que soit la demande. Les règles déjà imposées techniquement
-(permissions et hooks dans .claude/settings.json) sont marquées [bloqué].
-Complète avec les règles propres au projet pendant /cadrage.
--->
+Interdits que personne (agent ou développeur) ne doit enfreindre, quelle que soit la demande.
+Les préférences de style sont dans `AGENTS.md`. Les règles imposées techniquement (permissions et
+hooks dans `.claude/settings.json`) sont marquées [bloqué].
 
 ## Code et dépendances
 - Ne jamais ajouter une dépendance sans vérifier qu'elle existe, qu'elle est maintenue et qu'elle est
@@ -28,4 +25,36 @@ Complète avec les règles propres au projet pendant /cadrage.
 - Ne jamais committer directement sur la branche principale une fois le projet en production.
 
 ## Spécifiques au projet
-<!-- Ex : "Toute requête à la base passe par le contrôle d'accès défini dans ARCHITECTURE.md" -->
+
+**Argent et commandes**
+- Ne jamais marquer un paiement réussi ni faire avancer une commande payée ailleurs que dans le
+  traitement du webhook vérifié ou la revérification par l'API du prestataire.
+- Ne jamais changer le statut d'une commande en dehors de la machine à états du module `orders`.
+- Ne jamais modifier ni supprimer une ligne de `order_status_events`, `payment_events`, `refunds`,
+  `admin_audit_log`, ni un relevé `settlements` marqué réglé. On corrige par une nouvelle ligne.
+- Ne jamais utiliser de nombre à virgule (`float`, `double`, `numeric` avec décimales) pour un montant.
+- Ne jamais appeler la vraie API de paiement, ni envoyer un vrai e-mail, WhatsApp ou SMS depuis
+  les tests ou l'environnement local : utiliser les implémentations factices.
+
+**Accès et données personnelles**
+- Ne jamais attribuer les rôles `driver` ou `admin` par l'inscription ou par une route
+  accessible à un non-admin.
+- Ne jamais renvoyer le numéro ou l'adresse d'un acheteur à un livreur hors de sa mission en cours,
+  ni à un marchand.
+- Ne jamais écrire de donnée personnelle (numéro complet, e-mail, adresse, position), de code OTP,
+  de jeton ou de donnée de paiement dans les logs, Sentry ou une URL.
+- Ne jamais placer de clé de service (prestataire de paiement, Brevo, R2, Firebase admin) dans une
+  app mobile ou dans du code exécuté par le navigateur. Seule la clé Google Maps, restreinte aux
+  apps, est embarquée.
+- Ne jamais rendre public le bucket des documents des livreurs.
+
+**Architecture**
+- Ne jamais accéder à la base depuis une app mobile ou depuis le back-office Next.js.
+- Ne jamais lire ou écrire les tables d'un autre module backend.
+- Ne jamais appeler une API Google payante (Directions, Geocoding, Places…) sans un ADR qui
+  l'accepte et chiffre son coût.
+- Ne jamais modifier un ADR accepté : en écrire un nouveau qui le remplace.
+
+**Collaboration**
+- Dès l'arrivée du second développeur, tout changement passe par une branche et une pull request
+  relue par l'autre ; pas de push direct sur `main`.
