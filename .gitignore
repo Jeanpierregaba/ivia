@@ -31,3 +31,5 @@ Thumbs.db
 
 # Go
 backend/bin/
+# Fichiers envoyés en local (STORAGE=local)
+backend/var/

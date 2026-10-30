@@ -1,63 +1,6919 @@
-openapi: 3.1.0
+# Contrat de l'API ivia (OpenAPI 3.1). Source de vérité des routes : à tenir à jour avec le code.
+openapi: "3.1.0"
 info:
-  title: API ivia
-  version: 0.1.0
-  description: >
-    Contrat de l'API REST utilisée par les apps acheteur, marchand, livreur et le back-office.
-    Toute nouvelle route est décrite ici dans le même commit que son code.
+  title: "API ivia"
+  version: "1.0.0"
+  description: "Contrat de l'API REST utilisée par les apps acheteur, marchand, livreur et le back-office.\nToute nouvelle route est décrite ici dans le même commit que son code ; le test `TestOpenAPICoversAllRoutes` échoue sinon.\n\nAuthentification : `Authorization: Bearer <jeton>` (POST /v1/auth/verify). `x-roles` indique le rôle requis (`any` : tout utilisateur connecté). Une ressource d'un autre utilisateur renvoie 404.\n\nMontants en FCFA entiers (`_xof`). Dates en UTC (RFC 3339). Listes paginées : `limit`, `offset`, `next_offset`."
 servers:
-  - url: http://localhost:8080
+  - url: "http://localhost:8080"
     description: Local
+security:
+  - bearer: []
 paths:
-  /health:
+  "/health":
     get:
-      summary: Le processus répond (ne sollicite pas la base)
+      summary: "Le processus répond (ne sollicite pas la base)"
+      tags:
+        - "Santé"
       operationId: getHealth
+      security: []
       responses:
         "200":
-          description: Processus vivant
+          description: "Succès"
           content:
             application/json:
               schema:
-                $ref: "#/components/schemas/Status"
-  /ready:
+                "$ref": "#/components/schemas/Status"
+        default:
+          description: "Erreur (voir `code`)"
+          content:
+            application/json:
+              schema:
+                "$ref": "#/components/schemas/Error"
+  "/ready":
     get:
-      summary: L'API peut servir des requêtes (la base répond)
+      summary: "L'API peut servir des requêtes (la base répond)"
+      tags:
+        - "Santé"
       operationId: getReady
+      security: []
       responses:
         "200":
-          description: Prête
+          description: "Prête (503 si la base est injoignable)"
           content:
             application/json:
               schema:
-                $ref: "#/components/schemas/Status"
-        "503":
-          description: Base injoignable
+                "$ref": "#/components/schemas/Status"
+        default:
+          description: "Erreur (voir `code`)"
           content:
             application/json:
               schema:
-                $ref: "#/components/schemas/Status"
+                "$ref": "#/components/schemas/Error"
+  "/v1/auth/otp":
+    post:
+      summary: "Envoyer un code de connexion"
+      tags:
+        - Connexion
+      operationId: postAuthOtp
+      description: "Même réponse que le compte existe ou non. 1 code par minute et 10 par jour par destinataire (429 `otp_rate_limited`, `otp_daily_limit`). Seul le canal `email` est ouvert au lancement."
+      security: []
+      requestBody:
+        required: true
+        content:
+          application/json:
+            schema:
+              type: object
+              properties:
+                channel:
+                  type: string
+                  enum:
+                    - email
+                    - whatsapp
+                    - sms
+                recipient:
+                  type: string
+              required:
+                - recipient
+      responses:
+        "202":
+          description: "Succès"
+          content:
+            application/json:
+              schema:
+                "$ref": "#/components/schemas/OTPRequested"
+        default:
+          description: "Erreur (voir `code`)"
+          content:
+            application/json:
+              schema:
+                "$ref": "#/components/schemas/Error"
+  "/v1/auth/verify":
+    post:
+      summary: "Vérifier le code et ouvrir une session"
+      tags:
+        - Connexion
+      operationId: postAuthVerify
+      description: "Crée le compte (rôle buyer) à la première connexion. Erreurs : `otp_invalid`, `otp_expired`, `otp_too_many_attempts` (5 essais)."
+      security: []
+      requestBody:
+        required: true
+        content:
+          application/json:
+            schema:
+              type: object
+              properties:
+                channel:
+                  type: string
+                  enum:
+                    - email
+                    - whatsapp
+                    - sms
+                recipient:
+                  type: string
+                code:
+                  type: string
+              required:
+                - recipient
+                - code
+      responses:
+        "200":
+          description: "Succès"
+          content:
+            application/json:
+              schema:
+                "$ref": "#/components/schemas/Session"
+        default:
+          description: "Erreur (voir `code`)"
+          content:
+            application/json:
+              schema:
+                "$ref": "#/components/schemas/Error"
+  "/v1/auth/logout":
+    post:
+      summary: "Se déconnecter (session courante)"
+      tags:
+        - Connexion
+      operationId: postAuthLogout
+      x-roles:
+        - any
+      responses:
+        "204":
+          description: "Effectué"
+        default:
+          description: "Erreur (voir `code`)"
+          content:
+            application/json:
+              schema:
+                "$ref": "#/components/schemas/Error"
+  "/v1/auth/logout-all":
+    post:
+      summary: "Se déconnecter de tous les appareils"
+      tags:
+        - Connexion
+      operationId: postAuthLogoutAll
+      x-roles:
+        - any
+      responses:
+        "204":
+          description: "Effectué"
+        default:
+          description: "Erreur (voir `code`)"
+          content:
+            application/json:
+              schema:
+                "$ref": "#/components/schemas/Error"
+  "/v1/me":
+    get:
+      summary: "Mon profil"
+      tags:
+        - Compte
+      operationId: getMe
+      x-roles:
+        - any
+      responses:
+        "200":
+          description: "Succès"
+          content:
+            application/json:
+              schema:
+                "$ref": "#/components/schemas/User"
+        default:
+          description: "Erreur (voir `code`)"
+          content:
+            application/json:
+              schema:
+                "$ref": "#/components/schemas/Error"
+    patch:
+      summary: "Modifier mon profil"
+      tags:
+        - Compte
+      operationId: patchMe
+      x-roles:
+        - any
+      requestBody:
+        required: true
+        content:
+          application/json:
+            schema:
+              type: object
+              properties:
+                first_name:
+                  type: string
+                last_name:
+                  type: string
+                phone:
+                  type: string
+                  description: "Mobile togolais ; chaîne vide pour effacer."
+      responses:
+        "200":
+          description: "Succès"
+          content:
+            application/json:
+              schema:
+                "$ref": "#/components/schemas/User"
+        default:
+          description: "Erreur (voir `code`)"
+          content:
+            application/json:
+              schema:
+                "$ref": "#/components/schemas/Error"
+    delete:
+      summary: "Supprimer mon compte"
+      tags:
+        - Compte
+      operationId: deleteMe
+      description: "Données personnelles effacées, commandes et paiements conservés. Refusé avec une commande ou une mission en cours (`active_orders`, `active_shop_orders`, `active_mission`)."
+      x-roles:
+        - any
+      responses:
+        "204":
+          description: "Effectué"
+        default:
+          description: "Erreur (voir `code`)"
+          content:
+            application/json:
+              schema:
+                "$ref": "#/components/schemas/Error"
+  "/v1/me/addresses":
+    get:
+      summary: "Mon carnet d'adresses"
+      tags:
+        - Compte
+      operationId: getMeAddresses
+      x-roles:
+        - any
+      responses:
+        "200":
+          description: "Succès"
+          content:
+            application/json:
+              schema:
+                type: object
+                properties:
+                  items:
+                    type: array
+                    items:
+                      "$ref": "#/components/schemas/Address"
+                required:
+                  - items
+        default:
+          description: "Erreur (voir `code`)"
+          content:
+            application/json:
+              schema:
+                "$ref": "#/components/schemas/Error"
+    post:
+      summary: "Ajouter une adresse"
+      tags:
+        - Compte
+      operationId: postMeAddresses
+      x-roles:
+        - any
+      requestBody:
+        required: true
+        content:
+          application/json:
+            schema:
+              "$ref": "#/components/schemas/AddressInput"
+      responses:
+        "201":
+          description: "Succès"
+          content:
+            application/json:
+              schema:
+                "$ref": "#/components/schemas/Address"
+        default:
+          description: "Erreur (voir `code`)"
+          content:
+            application/json:
+              schema:
+                "$ref": "#/components/schemas/Error"
+  "/v1/me/addresses/{id}":
+    put:
+      summary: "Remplacer une adresse"
+      tags:
+        - Compte
+      operationId: putMeAddressesById
+      parameters:
+        - name: id
+          in: path
+          required: true
+          schema:
+            type: string
+            format: uuid
+      x-roles:
+        - any
+      requestBody:
+        required: true
+        content:
+          application/json:
+            schema:
+              "$ref": "#/components/schemas/AddressInput"
+      responses:
+        "200":
+          description: "Succès"
+          content:
+            application/json:
+              schema:
+                "$ref": "#/components/schemas/Address"
+        default:
+          description: "Erreur (voir `code`)"
+          content:
+            application/json:
+              schema:
+                "$ref": "#/components/schemas/Error"
+    delete:
+      summary: "Supprimer une adresse"
+      tags:
+        - Compte
+      operationId: deleteMeAddressesById
+      parameters:
+        - name: id
+          in: path
+          required: true
+          schema:
+            type: string
+            format: uuid
+      x-roles:
+        - any
+      responses:
+        "204":
+          description: "Effectué"
+        default:
+          description: "Erreur (voir `code`)"
+          content:
+            application/json:
+              schema:
+                "$ref": "#/components/schemas/Error"
+  "/v1/me/devices":
+    put:
+      summary: "Enregistrer le jeton push de l'appareil"
+      tags:
+        - Compte
+      operationId: putMeDevices
+      x-roles:
+        - any
+      requestBody:
+        required: true
+        content:
+          application/json:
+            schema:
+              type: object
+              properties:
+                token:
+                  type: string
+                platform:
+                  type: string
+                  enum:
+                    - android
+                    - ios
+                app:
+                  type: string
+                  enum:
+                    - buyer
+                    - seller
+                    - driver
+              required:
+                - token
+                - platform
+                - app
+      responses:
+        "204":
+          description: "Effectué"
+        default:
+          description: "Erreur (voir `code`)"
+          content:
+            application/json:
+              schema:
+                "$ref": "#/components/schemas/Error"
+    delete:
+      summary: "Retirer le jeton push de l'appareil"
+      tags:
+        - Compte
+      operationId: deleteMeDevices
+      x-roles:
+        - any
+      requestBody:
+        required: true
+        content:
+          application/json:
+            schema:
+              type: object
+              properties:
+                token:
+                  type: string
+              required:
+                - token
+      responses:
+        "204":
+          description: "Effectué"
+        default:
+          description: "Erreur (voir `code`)"
+          content:
+            application/json:
+              schema:
+                "$ref": "#/components/schemas/Error"
+  "/v1/neighborhoods":
+    get:
+      summary: "Quartiers actifs"
+      tags:
+        - Quartiers
+      operationId: getNeighborhoods
+      security: []
+      responses:
+        "200":
+          description: "Succès"
+          content:
+            application/json:
+              schema:
+                type: object
+                properties:
+                  items:
+                    type: array
+                    items:
+                      "$ref": "#/components/schemas/Neighborhood"
+                required:
+                  - items
+        default:
+          description: "Erreur (voir `code`)"
+          content:
+            application/json:
+              schema:
+                "$ref": "#/components/schemas/Error"
+  "/v1/uploads":
+    post:
+      summary: "Préparer l'envoi d'un fichier"
+      tags:
+        - Fichiers
+      operationId: postUploads
+      description: "URL signée valable 5 minutes ; type et taille exacte imposés. PDF réservé aux documents des livreurs (compartiment privé)."
+      x-roles:
+        - any
+      requestBody:
+        required: true
+        content:
+          application/json:
+            schema:
+              type: object
+              properties:
+                purpose:
+                  type: string
+                  enum:
+                    - product_image
+                    - shop_logo
+                    - driver_document
+                content_type:
+                  type: string
+                  enum:
+                    - image/jpeg
+                    - image/png
+                    - image/webp
+                    - application/pdf
+                size_bytes:
+                  type: integer
+                  maximum: 5242880
+              required:
+                - purpose
+                - content_type
+                - size_bytes
+      responses:
+        "201":
+          description: "Succès"
+          content:
+            application/json:
+              schema:
+                "$ref": "#/components/schemas/Upload"
+        default:
+          description: "Erreur (voir `code`)"
+          content:
+            application/json:
+              schema:
+                "$ref": "#/components/schemas/Error"
+  "/v1/notifications":
+    get:
+      summary: "Mes notifications"
+      tags:
+        - Notifications
+      operationId: getNotifications
+      parameters:
+        - name: app
+          in: query
+          required: false
+          schema:
+            type: string
+            enum:
+              - buyer
+              - seller
+              - driver
+              - admin
+        - name: limit
+          in: query
+          required: false
+          schema:
+            type: integer
+            minimum: 1
+            maximum: 100
+            default: 20
+        - name: offset
+          in: query
+          required: false
+          schema:
+            type: integer
+            minimum: 0
+            maximum: 10000
+            default: 0
+      x-roles:
+        - any
+      responses:
+        "200":
+          description: "Succès"
+          content:
+            application/json:
+              schema:
+                type: object
+                properties:
+                  items:
+                    type: array
+                    items:
+                      "$ref": "#/components/schemas/Notification"
+                  next_offset:
+                    type:
+                      - integer
+                      - "null"
+                  unread_count:
+                    type: integer
+                    format: int64
+                required:
+                  - items
+                  - next_offset
+                  - unread_count
+        default:
+          description: "Erreur (voir `code`)"
+          content:
+            application/json:
+              schema:
+                "$ref": "#/components/schemas/Error"
+  "/v1/notifications/{id}/read":
+    post:
+      summary: "Marquer une notification comme lue"
+      tags:
+        - Notifications
+      operationId: postNotificationsByIdRead
+      parameters:
+        - name: id
+          in: path
+          required: true
+          schema:
+            type: string
+            format: uuid
+      x-roles:
+        - any
+      responses:
+        "204":
+          description: "Effectué"
+        default:
+          description: "Erreur (voir `code`)"
+          content:
+            application/json:
+              schema:
+                "$ref": "#/components/schemas/Error"
+  "/v1/notifications/read-all":
+    post:
+      summary: "Tout marquer comme lu"
+      tags:
+        - Notifications
+      operationId: postNotificationsReadAll
+      parameters:
+        - name: app
+          in: query
+          required: false
+          schema:
+            type: string
+            enum:
+              - buyer
+              - seller
+              - driver
+              - admin
+      x-roles:
+        - any
+      responses:
+        "204":
+          description: "Effectué"
+        default:
+          description: "Erreur (voir `code`)"
+          content:
+            application/json:
+              schema:
+                "$ref": "#/components/schemas/Error"
+  "/v1/categories":
+    get:
+      summary: "Catégories actives"
+      tags:
+        - Catalogue
+      operationId: getCategories
+      security: []
+      responses:
+        "200":
+          description: "Succès"
+          content:
+            application/json:
+              schema:
+                type: object
+                properties:
+                  items:
+                    type: array
+                    items:
+                      "$ref": "#/components/schemas/Category"
+                required:
+                  - items
+        default:
+          description: "Erreur (voir `code`)"
+          content:
+            application/json:
+              schema:
+                "$ref": "#/components/schemas/Error"
+  "/v1/products/{id}":
+    get:
+      summary: "Fiche produit"
+      tags:
+        - Catalogue
+      operationId: getProductsById
+      parameters:
+        - name: id
+          in: path
+          required: true
+          schema:
+            type: string
+            format: uuid
+      security: []
+      responses:
+        "200":
+          description: "Succès"
+          content:
+            application/json:
+              schema:
+                type: object
+                properties:
+                  product:
+                    "$ref": "#/components/schemas/Product"
+                  shop:
+                    "$ref": "#/components/schemas/PublicShop"
+                required:
+                  - product
+                  - shop
+        default:
+          description: "Erreur (voir `code`)"
+          content:
+            application/json:
+              schema:
+                "$ref": "#/components/schemas/Error"
+  "/v1/shops/{id}":
+    get:
+      summary: "Fiche boutique"
+      tags:
+        - Boutiques
+      operationId: getShopsById
+      parameters:
+        - name: id
+          in: path
+          required: true
+          schema:
+            type: string
+            format: uuid
+      security: []
+      responses:
+        "200":
+          description: "Succès"
+          content:
+            application/json:
+              schema:
+                "$ref": "#/components/schemas/PublicShop"
+        default:
+          description: "Erreur (voir `code`)"
+          content:
+            application/json:
+              schema:
+                "$ref": "#/components/schemas/Error"
+  "/v1/shops/{id}/products":
+    get:
+      summary: "Produits d'une boutique"
+      tags:
+        - Catalogue
+      operationId: getShopsByIdProducts
+      parameters:
+        - name: id
+          in: path
+          required: true
+          schema:
+            type: string
+            format: uuid
+        - name: limit
+          in: query
+          required: false
+          schema:
+            type: integer
+            minimum: 1
+            maximum: 100
+            default: 20
+        - name: offset
+          in: query
+          required: false
+          schema:
+            type: integer
+            minimum: 0
+            maximum: 10000
+            default: 0
+      security: []
+      responses:
+        "200":
+          description: "Succès"
+          content:
+            application/json:
+              schema:
+                type: object
+                properties:
+                  items:
+                    type: array
+                    items:
+                      "$ref": "#/components/schemas/Product"
+                  next_offset:
+                    type:
+                      - integer
+                      - "null"
+                required:
+                  - items
+                  - next_offset
+        default:
+          description: "Erreur (voir `code`)"
+          content:
+            application/json:
+              schema:
+                "$ref": "#/components/schemas/Error"
+  "/v1/search/products":
+    get:
+      summary: "Rechercher des produits"
+      tags:
+        - Recherche
+      operationId: getSearchProducts
+      parameters:
+        - name: q
+          in: query
+          required: false
+          schema:
+            type: string
+          description: "Texte (tolère les fautes de frappe)."
+        - name: category_id
+          in: query
+          required: false
+          schema:
+            type: string
+            format: uuid
+        - name: shop_id
+          in: query
+          required: false
+          schema:
+            type: string
+            format: uuid
+        - name: min_price
+          in: query
+          required: false
+          schema:
+            type: integer
+            format: int64
+            description: "Montant en FCFA (entier)."
+        - name: max_price
+          in: query
+          required: false
+          schema:
+            type: integer
+            format: int64
+            description: "Montant en FCFA (entier)."
+        - name: neighborhood_id
+          in: query
+          required: false
+          schema:
+            type: string
+            format: uuid
+        - name: lat
+          in: query
+          required: false
+          schema:
+            type: number
+        - name: lng
+          in: query
+          required: false
+          schema:
+            type: number
+        - name: radius_m
+          in: query
+          required: false
+          schema:
+            type: integer
+            minimum: 100
+            maximum: 50000
+          description: "« Autour de moi » (lat et lng requis)."
+        - name: in_stock
+          in: query
+          required: false
+          schema:
+            type: boolean
+        - name: sort
+          in: query
+          required: false
+          schema:
+            type: string
+            enum:
+              - relevance
+              - distance
+              - price_asc
+              - price_desc
+        - name: limit
+          in: query
+          required: false
+          schema:
+            type: integer
+            minimum: 1
+            maximum: 100
+            default: 20
+        - name: offset
+          in: query
+          required: false
+          schema:
+            type: integer
+            minimum: 0
+            maximum: 10000
+            default: 0
+      security: []
+      responses:
+        "200":
+          description: "Succès"
+          content:
+            application/json:
+              schema:
+                type: object
+                properties:
+                  items:
+                    type: array
+                    items:
+                      "$ref": "#/components/schemas/ProductHit"
+                  next_offset:
+                    type:
+                      - integer
+                      - "null"
+                required:
+                  - items
+                  - next_offset
+        default:
+          description: "Erreur (voir `code`)"
+          content:
+            application/json:
+              schema:
+                "$ref": "#/components/schemas/Error"
+  "/v1/search/shops":
+    get:
+      summary: "Rechercher des boutiques"
+      tags:
+        - Recherche
+      operationId: getSearchShops
+      parameters:
+        - name: q
+          in: query
+          required: false
+          schema:
+            type: string
+        - name: neighborhood_id
+          in: query
+          required: false
+          schema:
+            type: string
+            format: uuid
+        - name: lat
+          in: query
+          required: false
+          schema:
+            type: number
+        - name: lng
+          in: query
+          required: false
+          schema:
+            type: number
+        - name: radius_m
+          in: query
+          required: false
+          schema:
+            type: integer
+            minimum: 100
+            maximum: 50000
+        - name: sort
+          in: query
+          required: false
+          schema:
+            type: string
+            enum:
+              - relevance
+              - distance
+        - name: limit
+          in: query
+          required: false
+          schema:
+            type: integer
+            minimum: 1
+            maximum: 100
+            default: 20
+        - name: offset
+          in: query
+          required: false
+          schema:
+            type: integer
+            minimum: 0
+            maximum: 10000
+            default: 0
+      security: []
+      responses:
+        "200":
+          description: "Succès"
+          content:
+            application/json:
+              schema:
+                type: object
+                properties:
+                  items:
+                    type: array
+                    items:
+                      "$ref": "#/components/schemas/ShopHit"
+                  next_offset:
+                    type:
+                      - integer
+                      - "null"
+                required:
+                  - items
+                  - next_offset
+        default:
+          description: "Erreur (voir `code`)"
+          content:
+            application/json:
+              schema:
+                "$ref": "#/components/schemas/Error"
+  "/v1/shops":
+    post:
+      summary: "Créer une boutique"
+      tags:
+        - Boutiques
+      operationId: postShops
+      description: "La boutique est en attente de validation par l'admin ; son créateur obtient le rôle seller."
+      x-roles:
+        - any
+      requestBody:
+        required: true
+        content:
+          application/json:
+            schema:
+              "$ref": "#/components/schemas/ShopInput"
+      responses:
+        "201":
+          description: "Succès"
+          content:
+            application/json:
+              schema:
+                "$ref": "#/components/schemas/Shop"
+        default:
+          description: "Erreur (voir `code`)"
+          content:
+            application/json:
+              schema:
+                "$ref": "#/components/schemas/Error"
+  "/v1/seller/shops":
+    get:
+      summary: "Mes boutiques"
+      tags:
+        - Marchand
+      operationId: getSellerShops
+      x-roles:
+        - seller
+      responses:
+        "200":
+          description: "Succès"
+          content:
+            application/json:
+              schema:
+                type: object
+                properties:
+                  items:
+                    type: array
+                    items:
+                      "$ref": "#/components/schemas/Shop"
+                required:
+                  - items
+        default:
+          description: "Erreur (voir `code`)"
+          content:
+            application/json:
+              schema:
+                "$ref": "#/components/schemas/Error"
+  "/v1/seller/shops/{id}":
+    get:
+      summary: "Une de mes boutiques"
+      tags:
+        - Marchand
+      operationId: getSellerShopsById
+      parameters:
+        - name: id
+          in: path
+          required: true
+          schema:
+            type: string
+            format: uuid
+      x-roles:
+        - seller
+      responses:
+        "200":
+          description: "Succès"
+          content:
+            application/json:
+              schema:
+                "$ref": "#/components/schemas/Shop"
+        default:
+          description: "Erreur (voir `code`)"
+          content:
+            application/json:
+              schema:
+                "$ref": "#/components/schemas/Error"
+    patch:
+      summary: "Modifier ma boutique"
+      tags:
+        - Marchand
+      operationId: patchSellerShopsById
+      parameters:
+        - name: id
+          in: path
+          required: true
+          schema:
+            type: string
+            format: uuid
+      x-roles:
+        - seller
+      requestBody:
+        required: true
+        content:
+          application/json:
+            schema:
+              "$ref": "#/components/schemas/ShopInput"
+      responses:
+        "200":
+          description: "Succès"
+          content:
+            application/json:
+              schema:
+                "$ref": "#/components/schemas/Shop"
+        default:
+          description: "Erreur (voir `code`)"
+          content:
+            application/json:
+              schema:
+                "$ref": "#/components/schemas/Error"
+  "/v1/seller/shops/{id}/products":
+    get:
+      summary: "Tous les produits de ma boutique"
+      tags:
+        - Marchand
+      operationId: getSellerShopsByIdProducts
+      parameters:
+        - name: id
+          in: path
+          required: true
+          schema:
+            type: string
+            format: uuid
+        - name: limit
+          in: query
+          required: false
+          schema:
+            type: integer
+            minimum: 1
+            maximum: 100
+            default: 20
+        - name: offset
+          in: query
+          required: false
+          schema:
+            type: integer
+            minimum: 0
+            maximum: 10000
+            default: 0
+      x-roles:
+        - seller
+      responses:
+        "200":
+          description: "Succès"
+          content:
+            application/json:
+              schema:
+                type: object
+                properties:
+                  items:
+                    type: array
+                    items:
+                      "$ref": "#/components/schemas/Product"
+                  next_offset:
+                    type:
+                      - integer
+                      - "null"
+                required:
+                  - items
+                  - next_offset
+        default:
+          description: "Erreur (voir `code`)"
+          content:
+            application/json:
+              schema:
+                "$ref": "#/components/schemas/Error"
+    post:
+      summary: "Ajouter un produit"
+      tags:
+        - Marchand
+      operationId: postSellerShopsByIdProducts
+      parameters:
+        - name: id
+          in: path
+          required: true
+          schema:
+            type: string
+            format: uuid
+      x-roles:
+        - seller
+      requestBody:
+        required: true
+        content:
+          application/json:
+            schema:
+              "$ref": "#/components/schemas/ProductInput"
+      responses:
+        "201":
+          description: "Succès"
+          content:
+            application/json:
+              schema:
+                "$ref": "#/components/schemas/Product"
+        default:
+          description: "Erreur (voir `code`)"
+          content:
+            application/json:
+              schema:
+                "$ref": "#/components/schemas/Error"
+  "/v1/seller/products/{id}":
+    get:
+      summary: "Un de mes produits"
+      tags:
+        - Marchand
+      operationId: getSellerProductsById
+      parameters:
+        - name: id
+          in: path
+          required: true
+          schema:
+            type: string
+            format: uuid
+      x-roles:
+        - seller
+      responses:
+        "200":
+          description: "Succès"
+          content:
+            application/json:
+              schema:
+                "$ref": "#/components/schemas/Product"
+        default:
+          description: "Erreur (voir `code`)"
+          content:
+            application/json:
+              schema:
+                "$ref": "#/components/schemas/Error"
+    patch:
+      summary: "Modifier un produit"
+      tags:
+        - Marchand
+      operationId: patchSellerProductsById
+      description: "Le mode de stock ne change pas après la création. image_keys absent : photos inchangées."
+      parameters:
+        - name: id
+          in: path
+          required: true
+          schema:
+            type: string
+            format: uuid
+      x-roles:
+        - seller
+      requestBody:
+        required: true
+        content:
+          application/json:
+            schema:
+              "$ref": "#/components/schemas/ProductInput"
+      responses:
+        "200":
+          description: "Succès"
+          content:
+            application/json:
+              schema:
+                "$ref": "#/components/schemas/Product"
+        default:
+          description: "Erreur (voir `code`)"
+          content:
+            application/json:
+              schema:
+                "$ref": "#/components/schemas/Error"
+  "/v1/seller/products/{id}/stock":
+    put:
+      summary: "Fixer la quantité en stock"
+      tags:
+        - Marchand
+      operationId: putSellerProductsByIdStock
+      parameters:
+        - name: id
+          in: path
+          required: true
+          schema:
+            type: string
+            format: uuid
+      x-roles:
+        - seller
+      requestBody:
+        required: true
+        content:
+          application/json:
+            schema:
+              type: object
+              properties:
+                quantity:
+                  type: integer
+                note:
+                  type: string
+              required:
+                - quantity
+      responses:
+        "200":
+          description: "Succès"
+          content:
+            application/json:
+              schema:
+                "$ref": "#/components/schemas/Product"
+        default:
+          description: "Erreur (voir `code`)"
+          content:
+            application/json:
+              schema:
+                "$ref": "#/components/schemas/Error"
+  "/v1/seller/products/{id}/stock-movements":
+    get:
+      summary: "Journal du stock"
+      tags:
+        - Marchand
+      operationId: getSellerProductsByIdStockMovements
+      parameters:
+        - name: id
+          in: path
+          required: true
+          schema:
+            type: string
+            format: uuid
+        - name: limit
+          in: query
+          required: false
+          schema:
+            type: integer
+            minimum: 1
+            maximum: 100
+            default: 20
+        - name: offset
+          in: query
+          required: false
+          schema:
+            type: integer
+            minimum: 0
+            maximum: 10000
+            default: 0
+      x-roles:
+        - seller
+      responses:
+        "200":
+          description: "Succès"
+          content:
+            application/json:
+              schema:
+                type: object
+                properties:
+                  items:
+                    type: array
+                    items:
+                      "$ref": "#/components/schemas/StockMovement"
+                  next_offset:
+                    type:
+                      - integer
+                      - "null"
+                required:
+                  - items
+                  - next_offset
+        default:
+          description: "Erreur (voir `code`)"
+          content:
+            application/json:
+              schema:
+                "$ref": "#/components/schemas/Error"
+  "/v1/cart":
+    get:
+      summary: "Mon panier"
+      tags:
+        - Panier
+      operationId: getCart
+      x-roles:
+        - buyer
+      responses:
+        "200":
+          description: "Succès"
+          content:
+            application/json:
+              schema:
+                "$ref": "#/components/schemas/Cart"
+        default:
+          description: "Erreur (voir `code`)"
+          content:
+            application/json:
+              schema:
+                "$ref": "#/components/schemas/Error"
+    delete:
+      summary: "Vider mon panier"
+      tags:
+        - Panier
+      operationId: deleteCart
+      x-roles:
+        - buyer
+      responses:
+        "204":
+          description: "Effectué"
+        default:
+          description: "Erreur (voir `code`)"
+          content:
+            application/json:
+              schema:
+                "$ref": "#/components/schemas/Error"
+  "/v1/cart/items":
+    put:
+      summary: "Fixer la quantité d'un produit"
+      tags:
+        - Panier
+      operationId: putCartItems
+      description: "0 retire le produit. Produit d'une autre boutique : 409 `cart_shop_conflict`, sauf replace_cart=true (le panier est vidé)."
+      x-roles:
+        - buyer
+      requestBody:
+        required: true
+        content:
+          application/json:
+            schema:
+              type: object
+              properties:
+                product_id:
+                  type: string
+                  format: uuid
+                quantity:
+                  type: integer
+                  minimum: 0
+                  maximum: 99
+                replace_cart:
+                  type: boolean
+              required:
+                - product_id
+                - quantity
+      responses:
+        "200":
+          description: "Succès"
+          content:
+            application/json:
+              schema:
+                "$ref": "#/components/schemas/Cart"
+        default:
+          description: "Erreur (voir `code`)"
+          content:
+            application/json:
+              schema:
+                "$ref": "#/components/schemas/Error"
+  "/v1/orders/quote":
+    post:
+      summary: "Récapitulatif avant commande"
+      tags:
+        - Commandes
+      operationId: postOrdersQuote
+      x-roles:
+        - buyer
+      requestBody:
+        required: true
+        content:
+          application/json:
+            schema:
+              "$ref": "#/components/schemas/CheckoutInput"
+      responses:
+        "200":
+          description: "Succès"
+          content:
+            application/json:
+              schema:
+                "$ref": "#/components/schemas/Quote"
+        default:
+          description: "Erreur (voir `code`)"
+          content:
+            application/json:
+              schema:
+                "$ref": "#/components/schemas/Error"
+  "/v1/orders":
+    post:
+      summary: "Commander le panier"
+      tags:
+        - Commandes
+      operationId: postOrders
+      description: "Réserve le stock suivi et vide le panier. La commande expire sans paiement réussi dans le délai (15 min par défaut). Profil complet exigé (`profile_incomplete`)."
+      x-roles:
+        - buyer
+      requestBody:
+        required: true
+        content:
+          application/json:
+            schema:
+              "$ref": "#/components/schemas/CheckoutInput"
+      responses:
+        "201":
+          description: "Succès"
+          content:
+            application/json:
+              schema:
+                "$ref": "#/components/schemas/BuyerOrder"
+        default:
+          description: "Erreur (voir `code`)"
+          content:
+            application/json:
+              schema:
+                "$ref": "#/components/schemas/Error"
+    get:
+      summary: "Mes commandes"
+      tags:
+        - Commandes
+      operationId: getOrders
+      parameters:
+        - name: limit
+          in: query
+          required: false
+          schema:
+            type: integer
+            minimum: 1
+            maximum: 100
+            default: 20
+        - name: offset
+          in: query
+          required: false
+          schema:
+            type: integer
+            minimum: 0
+            maximum: 10000
+            default: 0
+      x-roles:
+        - buyer
+      responses:
+        "200":
+          description: "Succès"
+          content:
+            application/json:
+              schema:
+                type: object
+                properties:
+                  items:
+                    type: array
+                    items:
+                      "$ref": "#/components/schemas/BuyerOrder"
+                  next_offset:
+                    type:
+                      - integer
+                      - "null"
+                required:
+                  - items
+                  - next_offset
+        default:
+          description: "Erreur (voir `code`)"
+          content:
+            application/json:
+              schema:
+                "$ref": "#/components/schemas/Error"
+  "/v1/orders/{id}":
+    get:
+      summary: "Suivi d'une commande"
+      tags:
+        - Commandes
+      operationId: getOrdersById
+      parameters:
+        - name: id
+          in: path
+          required: true
+          schema:
+            type: string
+            format: uuid
+      x-roles:
+        - buyer
+      responses:
+        "200":
+          description: "Succès"
+          content:
+            application/json:
+              schema:
+                "$ref": "#/components/schemas/BuyerOrder"
+        default:
+          description: "Erreur (voir `code`)"
+          content:
+            application/json:
+              schema:
+                "$ref": "#/components/schemas/Error"
+  "/v1/orders/{id}/cancel":
+    post:
+      summary: "Annuler ma commande"
+      tags:
+        - Commandes
+      operationId: postOrdersByIdCancel
+      description: "Possible tant que la boutique n'a pas accepté ; une commande payée part en remboursement."
+      parameters:
+        - name: id
+          in: path
+          required: true
+          schema:
+            type: string
+            format: uuid
+      x-roles:
+        - buyer
+      responses:
+        "200":
+          description: "Succès"
+          content:
+            application/json:
+              schema:
+                "$ref": "#/components/schemas/BuyerOrder"
+        default:
+          description: "Erreur (voir `code`)"
+          content:
+            application/json:
+              schema:
+                "$ref": "#/components/schemas/Error"
+  "/v1/orders/{id}/delivery":
+    get:
+      summary: "Livreur de ma commande"
+      tags:
+        - Commandes
+      operationId: getOrdersByIdDelivery
+      parameters:
+        - name: id
+          in: path
+          required: true
+          schema:
+            type: string
+            format: uuid
+      x-roles:
+        - buyer
+      responses:
+        "200":
+          description: "Succès"
+          content:
+            application/json:
+              schema:
+                type: object
+                properties:
+                  delivery:
+                    oneOf:
+                      - "$ref": "#/components/schemas/DeliveryInfo"
+                      - type: "null"
+                required:
+                  - delivery
+        default:
+          description: "Erreur (voir `code`)"
+          content:
+            application/json:
+              schema:
+                "$ref": "#/components/schemas/Error"
+  "/v1/orders/{id}/payments":
+    post:
+      summary: "Payer par Mobile Money"
+      tags:
+        - Paiements
+      operationId: postOrdersByIdPayments
+      description: "Lance le paiement chez le prestataire ; l'acheteur valide sur son téléphone. Le statut ne change que sur notification vérifiée du prestataire."
+      parameters:
+        - name: id
+          in: path
+          required: true
+          schema:
+            type: string
+            format: uuid
+      x-roles:
+        - buyer
+      requestBody:
+        required: true
+        content:
+          application/json:
+            schema:
+              type: object
+              properties:
+                operator:
+                  type: string
+                  enum:
+                    - flooz
+                    - tmoney
+                phone:
+                  type: string
+              required:
+                - operator
+                - phone
+      responses:
+        "201":
+          description: "Succès"
+          content:
+            application/json:
+              schema:
+                "$ref": "#/components/schemas/Payment"
+        default:
+          description: "Erreur (voir `code`)"
+          content:
+            application/json:
+              schema:
+                "$ref": "#/components/schemas/Error"
+    get:
+      summary: "Paiements d'une commande"
+      tags:
+        - Paiements
+      operationId: getOrdersByIdPayments
+      parameters:
+        - name: id
+          in: path
+          required: true
+          schema:
+            type: string
+            format: uuid
+      x-roles:
+        - buyer
+      responses:
+        "200":
+          description: "Succès"
+          content:
+            application/json:
+              schema:
+                type: object
+                properties:
+                  items:
+                    type: array
+                    items:
+                      "$ref": "#/components/schemas/Payment"
+                required:
+                  - items
+        default:
+          description: "Erreur (voir `code`)"
+          content:
+            application/json:
+              schema:
+                "$ref": "#/components/schemas/Error"
+  "/v1/payments/{id}":
+    get:
+      summary: "État d'un paiement"
+      tags:
+        - Paiements
+      operationId: getPaymentsById
+      parameters:
+        - name: id
+          in: path
+          required: true
+          schema:
+            type: string
+            format: uuid
+      x-roles:
+        - buyer
+      responses:
+        "200":
+          description: "Succès"
+          content:
+            application/json:
+              schema:
+                "$ref": "#/components/schemas/Payment"
+        default:
+          description: "Erreur (voir `code`)"
+          content:
+            application/json:
+              schema:
+                "$ref": "#/components/schemas/Error"
+  "/v1/webhooks/payments/{provider}":
+    post:
+      summary: "Notification du prestataire de paiement"
+      tags:
+        - Paiements
+      operationId: postWebhooksPaymentsByProvider
+      description: "Réservé au prestataire. 401 si la signature est invalide. Répond immédiatement ; traitement en tâche de fond, idempotent."
+      parameters:
+        - name: provider
+          in: path
+          required: true
+          schema:
+            type: string
+      security: []
+      requestBody:
+        required: true
+        content:
+          application/json:
+            schema:
+              type: object
+              description: "Format propre au prestataire ; signature vérifiée sur le corps brut."
+      responses:
+        "204":
+          description: "Reçu"
+        default:
+          description: "Erreur (voir `code`)"
+          content:
+            application/json:
+              schema:
+                "$ref": "#/components/schemas/Error"
+  "/v1/dev/payments/{id}/simulate":
+    post:
+      summary: "[Local] Simuler l'issue d'un paiement"
+      tags:
+        - "Développement"
+      operationId: postDevPaymentsByIdSimulate
+      description: "Faux prestataire uniquement, environnements local et test. Passe par le même chemin qu'un webhook signé."
+      parameters:
+        - name: id
+          in: path
+          required: true
+          schema:
+            type: string
+            format: uuid
+      x-roles:
+        - any
+      requestBody:
+        required: true
+        content:
+          application/json:
+            schema:
+              type: object
+              properties:
+                outcome:
+                  type: string
+                  enum:
+                    - succeeded
+                    - failed
+                amount_xof:
+                  type: integer
+                  format: int64
+                  description: "Montant en FCFA (entier)."
+              required:
+                - outcome
+      responses:
+        "200":
+          description: "Succès"
+          content:
+            application/json:
+              schema:
+                type: object
+                properties:
+                  status:
+                    type: string
+                required:
+                  - status
+        default:
+          description: "Erreur (voir `code`)"
+          content:
+            application/json:
+              schema:
+                "$ref": "#/components/schemas/Error"
+  "/v1/dev/otp":
+    post:
+      summary: "[Local] Dernier code envoyé à un destinataire"
+      tags:
+        - "Développement"
+      operationId: postDevOtp
+      description: "Environnements local et test uniquement (envoi des codes dans les journaux)."
+      security: []
+      requestBody:
+        required: true
+        content:
+          application/json:
+            schema:
+              type: object
+              properties:
+                recipient:
+                  type: string
+              required:
+                - recipient
+      responses:
+        "200":
+          description: "Succès"
+          content:
+            application/json:
+              schema:
+                type: object
+                properties:
+                  code:
+                    type: string
+                required:
+                  - code
+        default:
+          description: "Erreur (voir `code`)"
+          content:
+            application/json:
+              schema:
+                "$ref": "#/components/schemas/Error"
+  "/v1/seller/orders":
+    get:
+      summary: "Commandes de mes boutiques"
+      tags:
+        - Marchand
+      operationId: getSellerOrders
+      parameters:
+        - name: shop_id
+          in: query
+          required: false
+          schema:
+            type: string
+            format: uuid
+        - name: status
+          in: query
+          required: false
+          schema:
+            type: string
+            enum:
+              - pending_payment
+              - expired
+              - awaiting_seller
+              - accepted
+              - preparing
+              - ready_for_pickup
+              - awaiting_driver
+              - driver_assigned
+              - picked_up
+              - delivered
+              - delivery_failed
+              - returned_to_shop
+              - completed
+              - cancelled
+              - refunded
+        - name: limit
+          in: query
+          required: false
+          schema:
+            type: integer
+            minimum: 1
+            maximum: 100
+            default: 20
+        - name: offset
+          in: query
+          required: false
+          schema:
+            type: integer
+            minimum: 0
+            maximum: 10000
+            default: 0
+      x-roles:
+        - seller
+      responses:
+        "200":
+          description: "Succès"
+          content:
+            application/json:
+              schema:
+                type: object
+                properties:
+                  items:
+                    type: array
+                    items:
+                      "$ref": "#/components/schemas/SellerOrder"
+                  next_offset:
+                    type:
+                      - integer
+                      - "null"
+                required:
+                  - items
+                  - next_offset
+        default:
+          description: "Erreur (voir `code`)"
+          content:
+            application/json:
+              schema:
+                "$ref": "#/components/schemas/Error"
+  "/v1/seller/orders/{id}":
+    get:
+      summary: "Une commande de ma boutique"
+      tags:
+        - Marchand
+      operationId: getSellerOrdersById
+      parameters:
+        - name: id
+          in: path
+          required: true
+          schema:
+            type: string
+            format: uuid
+      x-roles:
+        - seller
+      responses:
+        "200":
+          description: "Succès"
+          content:
+            application/json:
+              schema:
+                "$ref": "#/components/schemas/SellerOrder"
+        default:
+          description: "Erreur (voir `code`)"
+          content:
+            application/json:
+              schema:
+                "$ref": "#/components/schemas/Error"
+  "/v1/seller/orders/{id}/accept":
+    post:
+      summary: "Accepter (et confirmer la disponibilité)"
+      tags:
+        - Marchand
+      operationId: postSellerOrdersByIdAccept
+      parameters:
+        - name: id
+          in: path
+          required: true
+          schema:
+            type: string
+            format: uuid
+      x-roles:
+        - seller
+      responses:
+        "200":
+          description: "Succès"
+          content:
+            application/json:
+              schema:
+                "$ref": "#/components/schemas/SellerOrder"
+        default:
+          description: "Erreur (voir `code`)"
+          content:
+            application/json:
+              schema:
+                "$ref": "#/components/schemas/Error"
+  "/v1/seller/orders/{id}/reject":
+    post:
+      summary: Refuser
+      tags:
+        - Marchand
+      operationId: postSellerOrdersByIdReject
+      parameters:
+        - name: id
+          in: path
+          required: true
+          schema:
+            type: string
+            format: uuid
+      x-roles:
+        - seller
+      requestBody:
+        required: true
+        content:
+          application/json:
+            schema:
+              "$ref": "#/components/schemas/Reason"
+      responses:
+        "200":
+          description: "Succès"
+          content:
+            application/json:
+              schema:
+                "$ref": "#/components/schemas/SellerOrder"
+        default:
+          description: "Erreur (voir `code`)"
+          content:
+            application/json:
+              schema:
+                "$ref": "#/components/schemas/Error"
+  "/v1/seller/orders/{id}/preparing":
+    post:
+      summary: "Passer en préparation"
+      tags:
+        - Marchand
+      operationId: postSellerOrdersByIdPreparing
+      parameters:
+        - name: id
+          in: path
+          required: true
+          schema:
+            type: string
+            format: uuid
+      x-roles:
+        - seller
+      responses:
+        "200":
+          description: "Succès"
+          content:
+            application/json:
+              schema:
+                "$ref": "#/components/schemas/SellerOrder"
+        default:
+          description: "Erreur (voir `code`)"
+          content:
+            application/json:
+              schema:
+                "$ref": "#/components/schemas/Error"
+  "/v1/seller/orders/{id}/ready":
+    post:
+      summary: "Commande prête"
+      tags:
+        - Marchand
+      operationId: postSellerOrdersByIdReady
+      description: "Retrait : prête à retirer. Livraison : lance la recherche d'un livreur."
+      parameters:
+        - name: id
+          in: path
+          required: true
+          schema:
+            type: string
+            format: uuid
+      x-roles:
+        - seller
+      responses:
+        "200":
+          description: "Succès"
+          content:
+            application/json:
+              schema:
+                "$ref": "#/components/schemas/SellerOrder"
+        default:
+          description: "Erreur (voir `code`)"
+          content:
+            application/json:
+              schema:
+                "$ref": "#/components/schemas/Error"
+  "/v1/seller/orders/{id}/handover":
+    post:
+      summary: "Remise en boutique (code de l'acheteur)"
+      tags:
+        - Marchand
+      operationId: postSellerOrdersByIdHandover
+      description: "5 essais au maximum (`handover_code_invalid`, puis `handover_locked`)."
+      parameters:
+        - name: id
+          in: path
+          required: true
+          schema:
+            type: string
+            format: uuid
+      x-roles:
+        - seller
+      requestBody:
+        required: true
+        content:
+          application/json:
+            schema:
+              type: object
+              properties:
+                code:
+                  type: string
+              required:
+                - code
+      responses:
+        "200":
+          description: "Succès"
+          content:
+            application/json:
+              schema:
+                "$ref": "#/components/schemas/SellerOrder"
+        default:
+          description: "Erreur (voir `code`)"
+          content:
+            application/json:
+              schema:
+                "$ref": "#/components/schemas/Error"
+  "/v1/seller/orders/{id}/confirm-return":
+    post:
+      summary: "Confirmer le retour d'un colis non livré"
+      tags:
+        - Marchand
+      operationId: postSellerOrdersByIdConfirmReturn
+      parameters:
+        - name: id
+          in: path
+          required: true
+          schema:
+            type: string
+            format: uuid
+      x-roles:
+        - seller
+      responses:
+        "200":
+          description: "Succès"
+          content:
+            application/json:
+              schema:
+                "$ref": "#/components/schemas/SellerOrder"
+        default:
+          description: "Erreur (voir `code`)"
+          content:
+            application/json:
+              schema:
+                "$ref": "#/components/schemas/Error"
+  "/v1/seller/orders/{id}/delivery":
+    get:
+      summary: "Livreur d'une commande"
+      tags:
+        - Marchand
+      operationId: getSellerOrdersByIdDelivery
+      parameters:
+        - name: id
+          in: path
+          required: true
+          schema:
+            type: string
+            format: uuid
+      x-roles:
+        - seller
+      responses:
+        "200":
+          description: "Succès"
+          content:
+            application/json:
+              schema:
+                type: object
+                properties:
+                  delivery:
+                    oneOf:
+                      - "$ref": "#/components/schemas/DeliveryInfo"
+                      - type: "null"
+                required:
+                  - delivery
+        default:
+          description: "Erreur (voir `code`)"
+          content:
+            application/json:
+              schema:
+                "$ref": "#/components/schemas/Error"
+  "/v1/seller/shops/{id}/settlements":
+    get:
+      summary: "Relevés de ma boutique"
+      tags:
+        - Marchand
+      operationId: getSellerShopsByIdSettlements
+      parameters:
+        - name: id
+          in: path
+          required: true
+          schema:
+            type: string
+            format: uuid
+        - name: limit
+          in: query
+          required: false
+          schema:
+            type: integer
+            minimum: 1
+            maximum: 100
+            default: 20
+        - name: offset
+          in: query
+          required: false
+          schema:
+            type: integer
+            minimum: 0
+            maximum: 10000
+            default: 0
+      x-roles:
+        - seller
+      responses:
+        "200":
+          description: "Succès"
+          content:
+            application/json:
+              schema:
+                type: object
+                properties:
+                  items:
+                    type: array
+                    items:
+                      "$ref": "#/components/schemas/Settlement"
+                  next_offset:
+                    type:
+                      - integer
+                      - "null"
+                required:
+                  - items
+                  - next_offset
+        default:
+          description: "Erreur (voir `code`)"
+          content:
+            application/json:
+              schema:
+                "$ref": "#/components/schemas/Error"
+  "/v1/seller/settlements/{id}":
+    get:
+      summary: "Un relevé"
+      tags:
+        - Marchand
+      operationId: getSellerSettlementsById
+      parameters:
+        - name: id
+          in: path
+          required: true
+          schema:
+            type: string
+            format: uuid
+      x-roles:
+        - seller
+      responses:
+        "200":
+          description: "Succès"
+          content:
+            application/json:
+              schema:
+                "$ref": "#/components/schemas/Settlement"
+        default:
+          description: "Erreur (voir `code`)"
+          content:
+            application/json:
+              schema:
+                "$ref": "#/components/schemas/Error"
+  "/v1/driver/me":
+    get:
+      summary: "Mon dossier de livreur"
+      tags:
+        - Livreur
+      operationId: getDriverMe
+      x-roles:
+        - any
+      responses:
+        "200":
+          description: "Succès"
+          content:
+            application/json:
+              schema:
+                "$ref": "#/components/schemas/Driver"
+        default:
+          description: "Erreur (voir `code`)"
+          content:
+            application/json:
+              schema:
+                "$ref": "#/components/schemas/Error"
+  "/v1/driver/application":
+    put:
+      summary: "Déposer ou corriger ma candidature"
+      tags:
+        - Livreur
+      operationId: putDriverApplication
+      description: "Le rôle driver n'est donné qu'après validation par un admin."
+      x-roles:
+        - any
+      requestBody:
+        required: true
+        content:
+          application/json:
+            schema:
+              type: object
+              properties:
+                vehicle_type:
+                  type: string
+                  enum:
+                    - motorbike
+                    - car
+                vehicle_plate:
+                  type: string
+                vehicle_description:
+                  type: string
+              required:
+                - vehicle_type
+                - vehicle_plate
+      responses:
+        "200":
+          description: "Succès"
+          content:
+            application/json:
+              schema:
+                "$ref": "#/components/schemas/Driver"
+        default:
+          description: "Erreur (voir `code`)"
+          content:
+            application/json:
+              schema:
+                "$ref": "#/components/schemas/Error"
+  "/v1/driver/application/documents":
+    post:
+      summary: "Ajouter un document au dossier"
+      tags:
+        - Livreur
+      operationId: postDriverApplicationDocuments
+      x-roles:
+        - any
+      requestBody:
+        required: true
+        content:
+          application/json:
+            schema:
+              type: object
+              properties:
+                kind:
+                  type: string
+                  enum:
+                    - id_card
+                    - driving_license
+                    - vehicle_registration
+                    - photo
+                    - other
+                object_key:
+                  type: string
+              required:
+                - kind
+                - object_key
+      responses:
+        "201":
+          description: "Succès"
+          content:
+            application/json:
+              schema:
+                "$ref": "#/components/schemas/Driver"
+        default:
+          description: "Erreur (voir `code`)"
+          content:
+            application/json:
+              schema:
+                "$ref": "#/components/schemas/Error"
+  "/v1/driver/availability":
+    put:
+      summary: "Passer en ligne / hors ligne"
+      tags:
+        - Livreur
+      operationId: putDriverAvailability
+      x-roles:
+        - driver
+      requestBody:
+        required: true
+        content:
+          application/json:
+            schema:
+              type: object
+              properties:
+                online:
+                  type: boolean
+              required:
+                - online
+      responses:
+        "200":
+          description: "Succès"
+          content:
+            application/json:
+              schema:
+                "$ref": "#/components/schemas/Driver"
+        default:
+          description: "Erreur (voir `code`)"
+          content:
+            application/json:
+              schema:
+                "$ref": "#/components/schemas/Error"
+  "/v1/driver/location":
+    post:
+      summary: "Envoyer ma position"
+      tags:
+        - Livreur
+      operationId: postDriverLocation
+      description: "Toutes les 30 s quand le livreur est en ligne ; refusé hors ligne (`driver_offline`)."
+      x-roles:
+        - driver
+      requestBody:
+        required: true
+        content:
+          application/json:
+            schema:
+              type: object
+              properties:
+                lat:
+                  type: number
+                lng:
+                  type: number
+                accuracy_m:
+                  type: integer
+                recorded_at:
+                  type: string
+                  format: date-time
+              required:
+                - lat
+                - lng
+      responses:
+        "204":
+          description: "Effectué"
+        default:
+          description: "Erreur (voir `code`)"
+          content:
+            application/json:
+              schema:
+                "$ref": "#/components/schemas/Error"
+  "/v1/driver/offers/current":
+    get:
+      summary: "Proposition en attente"
+      tags:
+        - Livreur
+      operationId: getDriverOffersCurrent
+      description: "À interroger toutes les 10 s quand le livreur est en ligne."
+      x-roles:
+        - driver
+      responses:
+        "200":
+          description: "Succès"
+          content:
+            application/json:
+              schema:
+                type: object
+                properties:
+                  offer:
+                    oneOf:
+                      - "$ref": "#/components/schemas/Offer"
+                      - type: "null"
+                required:
+                  - offer
+        default:
+          description: "Erreur (voir `code`)"
+          content:
+            application/json:
+              schema:
+                "$ref": "#/components/schemas/Error"
+  "/v1/driver/offers/{id}/accept":
+    post:
+      summary: "Accepter une proposition"
+      tags:
+        - Livreur
+      operationId: postDriverOffersByIdAccept
+      description: "`offer_expired` si le délai est passé ou si la mission a été attribuée."
+      parameters:
+        - name: id
+          in: path
+          required: true
+          schema:
+            type: string
+            format: uuid
+      x-roles:
+        - driver
+      responses:
+        "200":
+          description: "Succès"
+          content:
+            application/json:
+              schema:
+                "$ref": "#/components/schemas/Mission"
+        default:
+          description: "Erreur (voir `code`)"
+          content:
+            application/json:
+              schema:
+                "$ref": "#/components/schemas/Error"
+  "/v1/driver/offers/{id}/decline":
+    post:
+      summary: "Refuser une proposition"
+      tags:
+        - Livreur
+      operationId: postDriverOffersByIdDecline
+      parameters:
+        - name: id
+          in: path
+          required: true
+          schema:
+            type: string
+            format: uuid
+      x-roles:
+        - driver
+      responses:
+        "204":
+          description: "Effectué"
+        default:
+          description: "Erreur (voir `code`)"
+          content:
+            application/json:
+              schema:
+                "$ref": "#/components/schemas/Error"
+  "/v1/driver/missions/current":
+    get:
+      summary: "Mission en cours"
+      tags:
+        - Livreur
+      operationId: getDriverMissionsCurrent
+      x-roles:
+        - driver
+      responses:
+        "200":
+          description: "Succès"
+          content:
+            application/json:
+              schema:
+                type: object
+                properties:
+                  mission:
+                    oneOf:
+                      - "$ref": "#/components/schemas/Mission"
+                      - type: "null"
+                required:
+                  - mission
+        default:
+          description: "Erreur (voir `code`)"
+          content:
+            application/json:
+              schema:
+                "$ref": "#/components/schemas/Error"
+  "/v1/driver/missions":
+    get:
+      summary: "Historique de mes missions"
+      tags:
+        - Livreur
+      operationId: getDriverMissions
+      parameters:
+        - name: limit
+          in: query
+          required: false
+          schema:
+            type: integer
+            minimum: 1
+            maximum: 100
+            default: 20
+        - name: offset
+          in: query
+          required: false
+          schema:
+            type: integer
+            minimum: 0
+            maximum: 10000
+            default: 0
+      x-roles:
+        - driver
+      responses:
+        "200":
+          description: "Succès"
+          content:
+            application/json:
+              schema:
+                type: object
+                properties:
+                  items:
+                    type: array
+                    items:
+                      "$ref": "#/components/schemas/Mission"
+                  next_offset:
+                    type:
+                      - integer
+                      - "null"
+                required:
+                  - items
+                  - next_offset
+        default:
+          description: "Erreur (voir `code`)"
+          content:
+            application/json:
+              schema:
+                "$ref": "#/components/schemas/Error"
+  "/v1/driver/missions/{id}/arrived-at-shop":
+    post:
+      summary: "Arrivé à la boutique"
+      tags:
+        - Livreur
+      operationId: postDriverMissionsByIdArrivedAtShop
+      parameters:
+        - name: id
+          in: path
+          required: true
+          schema:
+            type: string
+            format: uuid
+      x-roles:
+        - driver
+      responses:
+        "200":
+          description: "Succès"
+          content:
+            application/json:
+              schema:
+                "$ref": "#/components/schemas/Mission"
+        default:
+          description: "Erreur (voir `code`)"
+          content:
+            application/json:
+              schema:
+                "$ref": "#/components/schemas/Error"
+  "/v1/driver/missions/{id}/picked-up":
+    post:
+      summary: "Colis récupéré"
+      tags:
+        - Livreur
+      operationId: postDriverMissionsByIdPickedUp
+      parameters:
+        - name: id
+          in: path
+          required: true
+          schema:
+            type: string
+            format: uuid
+      x-roles:
+        - driver
+      responses:
+        "200":
+          description: "Succès"
+          content:
+            application/json:
+              schema:
+                "$ref": "#/components/schemas/Mission"
+        default:
+          description: "Erreur (voir `code`)"
+          content:
+            application/json:
+              schema:
+                "$ref": "#/components/schemas/Error"
+  "/v1/driver/missions/{id}/arrived-at-customer":
+    post:
+      summary: "Arrivé chez le client"
+      tags:
+        - Livreur
+      operationId: postDriverMissionsByIdArrivedAtCustomer
+      parameters:
+        - name: id
+          in: path
+          required: true
+          schema:
+            type: string
+            format: uuid
+      x-roles:
+        - driver
+      responses:
+        "200":
+          description: "Succès"
+          content:
+            application/json:
+              schema:
+                "$ref": "#/components/schemas/Mission"
+        default:
+          description: "Erreur (voir `code`)"
+          content:
+            application/json:
+              schema:
+                "$ref": "#/components/schemas/Error"
+  "/v1/driver/missions/{id}/deliver":
+    post:
+      summary: "Remise au client (code de l'acheteur)"
+      tags:
+        - Livreur
+      operationId: postDriverMissionsByIdDeliver
+      parameters:
+        - name: id
+          in: path
+          required: true
+          schema:
+            type: string
+            format: uuid
+      x-roles:
+        - driver
+      requestBody:
+        required: true
+        content:
+          application/json:
+            schema:
+              type: object
+              properties:
+                code:
+                  type: string
+              required:
+                - code
+      responses:
+        "200":
+          description: "Succès"
+          content:
+            application/json:
+              schema:
+                "$ref": "#/components/schemas/Mission"
+        default:
+          description: "Erreur (voir `code`)"
+          content:
+            application/json:
+              schema:
+                "$ref": "#/components/schemas/Error"
+  "/v1/driver/missions/{id}/fail":
+    post:
+      summary: "Déclarer l'échec de la livraison"
+      tags:
+        - Livreur
+      operationId: postDriverMissionsByIdFail
+      description: "Après 10 minutes sur place (`wait_required`) et deux appels. Le livreur rapporte ensuite le colis en boutique."
+      parameters:
+        - name: id
+          in: path
+          required: true
+          schema:
+            type: string
+            format: uuid
+      x-roles:
+        - driver
+      requestBody:
+        required: true
+        content:
+          application/json:
+            schema:
+              type: object
+              properties:
+                reason:
+                  type: string
+                call_attempts:
+                  type: integer
+                  minimum: 2
+              required:
+                - call_attempts
+      responses:
+        "200":
+          description: "Succès"
+          content:
+            application/json:
+              schema:
+                "$ref": "#/components/schemas/Mission"
+        default:
+          description: "Erreur (voir `code`)"
+          content:
+            application/json:
+              schema:
+                "$ref": "#/components/schemas/Error"
+  "/v1/driver/missions/{id}/withdraw":
+    post:
+      summary: "Se désister avant la récupération"
+      tags:
+        - Livreur
+      operationId: postDriverMissionsByIdWithdraw
+      parameters:
+        - name: id
+          in: path
+          required: true
+          schema:
+            type: string
+            format: uuid
+      x-roles:
+        - driver
+      requestBody:
+        required: true
+        content:
+          application/json:
+            schema:
+              "$ref": "#/components/schemas/Reason"
+      responses:
+        "204":
+          description: "Effectué"
+        default:
+          description: "Erreur (voir `code`)"
+          content:
+            application/json:
+              schema:
+                "$ref": "#/components/schemas/Error"
+  "/v1/admin/users":
+    get:
+      summary: Comptes
+      tags:
+        - Admin
+      operationId: getAdminUsers
+      parameters:
+        - name: q
+          in: query
+          required: false
+          schema:
+            type: string
+        - name: role
+          in: query
+          required: false
+          schema:
+            type: string
+            enum:
+              - buyer
+              - seller
+              - driver
+              - admin
+        - name: limit
+          in: query
+          required: false
+          schema:
+            type: integer
+            minimum: 1
+            maximum: 100
+            default: 20
+        - name: offset
+          in: query
+          required: false
+          schema:
+            type: integer
+            minimum: 0
+            maximum: 10000
+            default: 0
+      x-roles:
+        - admin
+      responses:
+        "200":
+          description: "Succès"
+          content:
+            application/json:
+              schema:
+                type: object
+                properties:
+                  items:
+                    type: array
+                    items:
+                      "$ref": "#/components/schemas/User"
+                  next_offset:
+                    type:
+                      - integer
+                      - "null"
+                required:
+                  - items
+                  - next_offset
+        default:
+          description: "Erreur (voir `code`)"
+          content:
+            application/json:
+              schema:
+                "$ref": "#/components/schemas/Error"
+  "/v1/admin/users/{id}":
+    get:
+      summary: "Un compte"
+      tags:
+        - Admin
+      operationId: getAdminUsersById
+      parameters:
+        - name: id
+          in: path
+          required: true
+          schema:
+            type: string
+            format: uuid
+      x-roles:
+        - admin
+      responses:
+        "200":
+          description: "Succès"
+          content:
+            application/json:
+              schema:
+                "$ref": "#/components/schemas/User"
+        default:
+          description: "Erreur (voir `code`)"
+          content:
+            application/json:
+              schema:
+                "$ref": "#/components/schemas/Error"
+  "/v1/admin/users/{id}/grant-admin":
+    post:
+      summary: "Donner le rôle admin"
+      tags:
+        - Admin
+      operationId: postAdminUsersByIdGrantAdmin
+      parameters:
+        - name: id
+          in: path
+          required: true
+          schema:
+            type: string
+            format: uuid
+      x-roles:
+        - admin
+      requestBody:
+        required: true
+        content:
+          application/json:
+            schema:
+              "$ref": "#/components/schemas/Reason"
+      responses:
+        "200":
+          description: "Succès"
+          content:
+            application/json:
+              schema:
+                "$ref": "#/components/schemas/User"
+        default:
+          description: "Erreur (voir `code`)"
+          content:
+            application/json:
+              schema:
+                "$ref": "#/components/schemas/Error"
+  "/v1/admin/users/{id}/revoke-admin":
+    post:
+      summary: "Retirer le rôle admin"
+      tags:
+        - Admin
+      operationId: postAdminUsersByIdRevokeAdmin
+      parameters:
+        - name: id
+          in: path
+          required: true
+          schema:
+            type: string
+            format: uuid
+      x-roles:
+        - admin
+      requestBody:
+        required: true
+        content:
+          application/json:
+            schema:
+              "$ref": "#/components/schemas/Reason"
+      responses:
+        "200":
+          description: "Succès"
+          content:
+            application/json:
+              schema:
+                "$ref": "#/components/schemas/User"
+        default:
+          description: "Erreur (voir `code`)"
+          content:
+            application/json:
+              schema:
+                "$ref": "#/components/schemas/Error"
+  "/v1/admin/settings":
+    get:
+      summary: "Paramètres"
+      tags:
+        - Admin
+      operationId: getAdminSettings
+      x-roles:
+        - admin
+      responses:
+        "200":
+          description: "Succès"
+          content:
+            application/json:
+              schema:
+                "$ref": "#/components/schemas/Settings"
+        default:
+          description: "Erreur (voir `code`)"
+          content:
+            application/json:
+              schema:
+                "$ref": "#/components/schemas/Error"
+    patch:
+      summary: "Modifier les paramètres"
+      tags:
+        - Admin
+      operationId: patchAdminSettings
+      x-roles:
+        - admin
+      requestBody:
+        required: true
+        content:
+          application/json:
+            schema:
+              "$ref": "#/components/schemas/SettingsPatch"
+      responses:
+        "200":
+          description: "Succès"
+          content:
+            application/json:
+              schema:
+                "$ref": "#/components/schemas/Settings"
+        default:
+          description: "Erreur (voir `code`)"
+          content:
+            application/json:
+              schema:
+                "$ref": "#/components/schemas/Error"
+  "/v1/admin/audit-log":
+    get:
+      summary: "Journal des actions admin"
+      tags:
+        - Admin
+      operationId: getAdminAuditLog
+      parameters:
+        - name: admin_id
+          in: query
+          required: false
+          schema:
+            type: string
+            format: uuid
+        - name: target_type
+          in: query
+          required: false
+          schema:
+            type: string
+        - name: target_id
+          in: query
+          required: false
+          schema:
+            type: string
+        - name: limit
+          in: query
+          required: false
+          schema:
+            type: integer
+            minimum: 1
+            maximum: 100
+            default: 20
+        - name: offset
+          in: query
+          required: false
+          schema:
+            type: integer
+            minimum: 0
+            maximum: 10000
+            default: 0
+      x-roles:
+        - admin
+      responses:
+        "200":
+          description: "Succès"
+          content:
+            application/json:
+              schema:
+                type: object
+                properties:
+                  items:
+                    type: array
+                    items:
+                      "$ref": "#/components/schemas/AuditRecord"
+                  next_offset:
+                    type:
+                      - integer
+                      - "null"
+                required:
+                  - items
+                  - next_offset
+        default:
+          description: "Erreur (voir `code`)"
+          content:
+            application/json:
+              schema:
+                "$ref": "#/components/schemas/Error"
+  "/v1/admin/neighborhoods":
+    get:
+      summary: "Tous les quartiers"
+      tags:
+        - Admin
+      operationId: getAdminNeighborhoods
+      x-roles:
+        - admin
+      responses:
+        "200":
+          description: "Succès"
+          content:
+            application/json:
+              schema:
+                type: object
+                properties:
+                  items:
+                    type: array
+                    items:
+                      "$ref": "#/components/schemas/Neighborhood"
+                required:
+                  - items
+        default:
+          description: "Erreur (voir `code`)"
+          content:
+            application/json:
+              schema:
+                "$ref": "#/components/schemas/Error"
+    post:
+      summary: "Ajouter un quartier"
+      tags:
+        - Admin
+      operationId: postAdminNeighborhoods
+      x-roles:
+        - admin
+      requestBody:
+        required: true
+        content:
+          application/json:
+            schema:
+              "$ref": "#/components/schemas/NeighborhoodInput"
+      responses:
+        "201":
+          description: "Succès"
+          content:
+            application/json:
+              schema:
+                "$ref": "#/components/schemas/Neighborhood"
+        default:
+          description: "Erreur (voir `code`)"
+          content:
+            application/json:
+              schema:
+                "$ref": "#/components/schemas/Error"
+  "/v1/admin/neighborhoods/{id}":
+    patch:
+      summary: "Modifier un quartier"
+      tags:
+        - Admin
+      operationId: patchAdminNeighborhoodsById
+      parameters:
+        - name: id
+          in: path
+          required: true
+          schema:
+            type: string
+            format: uuid
+      x-roles:
+        - admin
+      requestBody:
+        required: true
+        content:
+          application/json:
+            schema:
+              "$ref": "#/components/schemas/NeighborhoodInput"
+      responses:
+        "200":
+          description: "Succès"
+          content:
+            application/json:
+              schema:
+                "$ref": "#/components/schemas/Neighborhood"
+        default:
+          description: "Erreur (voir `code`)"
+          content:
+            application/json:
+              schema:
+                "$ref": "#/components/schemas/Error"
+  "/v1/admin/categories":
+    get:
+      summary: "Toutes les catégories"
+      tags:
+        - Admin
+      operationId: getAdminCategories
+      x-roles:
+        - admin
+      responses:
+        "200":
+          description: "Succès"
+          content:
+            application/json:
+              schema:
+                type: object
+                properties:
+                  items:
+                    type: array
+                    items:
+                      "$ref": "#/components/schemas/Category"
+                required:
+                  - items
+        default:
+          description: "Erreur (voir `code`)"
+          content:
+            application/json:
+              schema:
+                "$ref": "#/components/schemas/Error"
+    post:
+      summary: "Ajouter une catégorie"
+      tags:
+        - Admin
+      operationId: postAdminCategories
+      x-roles:
+        - admin
+      requestBody:
+        required: true
+        content:
+          application/json:
+            schema:
+              "$ref": "#/components/schemas/CategoryInput"
+      responses:
+        "201":
+          description: "Succès"
+          content:
+            application/json:
+              schema:
+                "$ref": "#/components/schemas/Category"
+        default:
+          description: "Erreur (voir `code`)"
+          content:
+            application/json:
+              schema:
+                "$ref": "#/components/schemas/Error"
+  "/v1/admin/categories/{id}":
+    patch:
+      summary: "Modifier une catégorie"
+      tags:
+        - Admin
+      operationId: patchAdminCategoriesById
+      parameters:
+        - name: id
+          in: path
+          required: true
+          schema:
+            type: string
+            format: uuid
+      x-roles:
+        - admin
+      requestBody:
+        required: true
+        content:
+          application/json:
+            schema:
+              "$ref": "#/components/schemas/CategoryInput"
+      responses:
+        "200":
+          description: "Succès"
+          content:
+            application/json:
+              schema:
+                "$ref": "#/components/schemas/Category"
+        default:
+          description: "Erreur (voir `code`)"
+          content:
+            application/json:
+              schema:
+                "$ref": "#/components/schemas/Error"
+  "/v1/admin/shops":
+    get:
+      summary: Boutiques
+      tags:
+        - Admin
+      operationId: getAdminShops
+      parameters:
+        - name: status
+          in: query
+          required: false
+          schema:
+            type: string
+            enum:
+              - pending_review
+              - published
+              - rejected
+              - suspended
+        - name: q
+          in: query
+          required: false
+          schema:
+            type: string
+        - name: limit
+          in: query
+          required: false
+          schema:
+            type: integer
+            minimum: 1
+            maximum: 100
+            default: 20
+        - name: offset
+          in: query
+          required: false
+          schema:
+            type: integer
+            minimum: 0
+            maximum: 10000
+            default: 0
+      x-roles:
+        - admin
+      responses:
+        "200":
+          description: "Succès"
+          content:
+            application/json:
+              schema:
+                type: object
+                properties:
+                  items:
+                    type: array
+                    items:
+                      "$ref": "#/components/schemas/Shop"
+                  next_offset:
+                    type:
+                      - integer
+                      - "null"
+                required:
+                  - items
+                  - next_offset
+        default:
+          description: "Erreur (voir `code`)"
+          content:
+            application/json:
+              schema:
+                "$ref": "#/components/schemas/Error"
+  "/v1/admin/shops/{id}":
+    get:
+      summary: "Une boutique"
+      tags:
+        - Admin
+      operationId: getAdminShopsById
+      parameters:
+        - name: id
+          in: path
+          required: true
+          schema:
+            type: string
+            format: uuid
+      x-roles:
+        - admin
+      responses:
+        "200":
+          description: "Succès"
+          content:
+            application/json:
+              schema:
+                "$ref": "#/components/schemas/Shop"
+        default:
+          description: "Erreur (voir `code`)"
+          content:
+            application/json:
+              schema:
+                "$ref": "#/components/schemas/Error"
+  "/v1/admin/shops/{id}/approve":
+    post:
+      summary: "Valider (publier) une boutique"
+      tags:
+        - Admin
+      operationId: postAdminShopsByIdApprove
+      parameters:
+        - name: id
+          in: path
+          required: true
+          schema:
+            type: string
+            format: uuid
+      x-roles:
+        - admin
+      requestBody:
+        required: true
+        content:
+          application/json:
+            schema:
+              "$ref": "#/components/schemas/Reason"
+      responses:
+        "200":
+          description: "Succès"
+          content:
+            application/json:
+              schema:
+                "$ref": "#/components/schemas/Shop"
+        default:
+          description: "Erreur (voir `code`)"
+          content:
+            application/json:
+              schema:
+                "$ref": "#/components/schemas/Error"
+  "/v1/admin/shops/{id}/reject":
+    post:
+      summary: "Refuser une boutique (motif obligatoire)"
+      tags:
+        - Admin
+      operationId: postAdminShopsByIdReject
+      parameters:
+        - name: id
+          in: path
+          required: true
+          schema:
+            type: string
+            format: uuid
+      x-roles:
+        - admin
+      requestBody:
+        required: true
+        content:
+          application/json:
+            schema:
+              "$ref": "#/components/schemas/Reason"
+      responses:
+        "200":
+          description: "Succès"
+          content:
+            application/json:
+              schema:
+                "$ref": "#/components/schemas/Shop"
+        default:
+          description: "Erreur (voir `code`)"
+          content:
+            application/json:
+              schema:
+                "$ref": "#/components/schemas/Error"
+  "/v1/admin/shops/{id}/suspend":
+    post:
+      summary: "Suspendre une boutique (motif obligatoire)"
+      tags:
+        - Admin
+      operationId: postAdminShopsByIdSuspend
+      parameters:
+        - name: id
+          in: path
+          required: true
+          schema:
+            type: string
+            format: uuid
+      x-roles:
+        - admin
+      requestBody:
+        required: true
+        content:
+          application/json:
+            schema:
+              "$ref": "#/components/schemas/Reason"
+      responses:
+        "200":
+          description: "Succès"
+          content:
+            application/json:
+              schema:
+                "$ref": "#/components/schemas/Shop"
+        default:
+          description: "Erreur (voir `code`)"
+          content:
+            application/json:
+              schema:
+                "$ref": "#/components/schemas/Error"
+  "/v1/admin/shops/{id}/reinstate":
+    post:
+      summary: "Rétablir une boutique"
+      tags:
+        - Admin
+      operationId: postAdminShopsByIdReinstate
+      parameters:
+        - name: id
+          in: path
+          required: true
+          schema:
+            type: string
+            format: uuid
+      x-roles:
+        - admin
+      requestBody:
+        required: true
+        content:
+          application/json:
+            schema:
+              "$ref": "#/components/schemas/Reason"
+      responses:
+        "200":
+          description: "Succès"
+          content:
+            application/json:
+              schema:
+                "$ref": "#/components/schemas/Shop"
+        default:
+          description: "Erreur (voir `code`)"
+          content:
+            application/json:
+              schema:
+                "$ref": "#/components/schemas/Error"
+  "/v1/admin/drivers":
+    get:
+      summary: Livreurs
+      tags:
+        - Admin
+      operationId: getAdminDrivers
+      parameters:
+        - name: review_status
+          in: query
+          required: false
+          schema:
+            type: string
+            enum:
+              - pending_review
+              - approved
+              - rejected
+        - name: suspended
+          in: query
+          required: false
+          schema:
+            type: boolean
+        - name: limit
+          in: query
+          required: false
+          schema:
+            type: integer
+            minimum: 1
+            maximum: 100
+            default: 20
+        - name: offset
+          in: query
+          required: false
+          schema:
+            type: integer
+            minimum: 0
+            maximum: 10000
+            default: 0
+      x-roles:
+        - admin
+      responses:
+        "200":
+          description: "Succès"
+          content:
+            application/json:
+              schema:
+                type: object
+                properties:
+                  items:
+                    type: array
+                    items:
+                      "$ref": "#/components/schemas/AdminDriver"
+                  next_offset:
+                    type:
+                      - integer
+                      - "null"
+                required:
+                  - items
+                  - next_offset
+        default:
+          description: "Erreur (voir `code`)"
+          content:
+            application/json:
+              schema:
+                "$ref": "#/components/schemas/Error"
+  "/v1/admin/drivers/{id}":
+    get:
+      summary: "Dossier d'un livreur (documents en lien temporaire)"
+      tags:
+        - Admin
+      operationId: getAdminDriversById
+      parameters:
+        - name: id
+          in: path
+          required: true
+          schema:
+            type: string
+            format: uuid
+      x-roles:
+        - admin
+      responses:
+        "200":
+          description: "Succès"
+          content:
+            application/json:
+              schema:
+                "$ref": "#/components/schemas/AdminDriver"
+        default:
+          description: "Erreur (voir `code`)"
+          content:
+            application/json:
+              schema:
+                "$ref": "#/components/schemas/Error"
+  "/v1/admin/drivers/{id}/approve":
+    post:
+      summary: "Valider un livreur (donne le rôle driver)"
+      tags:
+        - Admin
+      operationId: postAdminDriversByIdApprove
+      parameters:
+        - name: id
+          in: path
+          required: true
+          schema:
+            type: string
+            format: uuid
+      x-roles:
+        - admin
+      requestBody:
+        required: true
+        content:
+          application/json:
+            schema:
+              "$ref": "#/components/schemas/Reason"
+      responses:
+        "200":
+          description: "Succès"
+          content:
+            application/json:
+              schema:
+                "$ref": "#/components/schemas/AdminDriver"
+        default:
+          description: "Erreur (voir `code`)"
+          content:
+            application/json:
+              schema:
+                "$ref": "#/components/schemas/Error"
+  "/v1/admin/drivers/{id}/reject":
+    post:
+      summary: "Refuser une candidature (motif obligatoire)"
+      tags:
+        - Admin
+      operationId: postAdminDriversByIdReject
+      parameters:
+        - name: id
+          in: path
+          required: true
+          schema:
+            type: string
+            format: uuid
+      x-roles:
+        - admin
+      requestBody:
+        required: true
+        content:
+          application/json:
+            schema:
+              "$ref": "#/components/schemas/Reason"
+      responses:
+        "200":
+          description: "Succès"
+          content:
+            application/json:
+              schema:
+                "$ref": "#/components/schemas/AdminDriver"
+        default:
+          description: "Erreur (voir `code`)"
+          content:
+            application/json:
+              schema:
+                "$ref": "#/components/schemas/Error"
+  "/v1/admin/drivers/{id}/suspend":
+    post:
+      summary: "Suspendre un livreur (motif obligatoire)"
+      tags:
+        - Admin
+      operationId: postAdminDriversByIdSuspend
+      parameters:
+        - name: id
+          in: path
+          required: true
+          schema:
+            type: string
+            format: uuid
+      x-roles:
+        - admin
+      requestBody:
+        required: true
+        content:
+          application/json:
+            schema:
+              "$ref": "#/components/schemas/Reason"
+      responses:
+        "200":
+          description: "Succès"
+          content:
+            application/json:
+              schema:
+                "$ref": "#/components/schemas/AdminDriver"
+        default:
+          description: "Erreur (voir `code`)"
+          content:
+            application/json:
+              schema:
+                "$ref": "#/components/schemas/Error"
+  "/v1/admin/drivers/{id}/reinstate":
+    post:
+      summary: "Rétablir un livreur"
+      tags:
+        - Admin
+      operationId: postAdminDriversByIdReinstate
+      parameters:
+        - name: id
+          in: path
+          required: true
+          schema:
+            type: string
+            format: uuid
+      x-roles:
+        - admin
+      requestBody:
+        required: true
+        content:
+          application/json:
+            schema:
+              "$ref": "#/components/schemas/Reason"
+      responses:
+        "200":
+          description: "Succès"
+          content:
+            application/json:
+              schema:
+                "$ref": "#/components/schemas/AdminDriver"
+        default:
+          description: "Erreur (voir `code`)"
+          content:
+            application/json:
+              schema:
+                "$ref": "#/components/schemas/Error"
+  "/v1/admin/orders":
+    get:
+      summary: Commandes
+      tags:
+        - Admin
+      operationId: getAdminOrders
+      parameters:
+        - name: status
+          in: query
+          required: false
+          schema:
+            type: string
+            enum:
+              - pending_payment
+              - expired
+              - awaiting_seller
+              - accepted
+              - preparing
+              - ready_for_pickup
+              - awaiting_driver
+              - driver_assigned
+              - picked_up
+              - delivered
+              - delivery_failed
+              - returned_to_shop
+              - completed
+              - cancelled
+              - refunded
+        - name: shop_id
+          in: query
+          required: false
+          schema:
+            type: string
+            format: uuid
+        - name: buyer_id
+          in: query
+          required: false
+          schema:
+            type: string
+            format: uuid
+        - name: number
+          in: query
+          required: false
+          schema:
+            type: integer
+            format: int64
+        - name: limit
+          in: query
+          required: false
+          schema:
+            type: integer
+            minimum: 1
+            maximum: 100
+            default: 20
+        - name: offset
+          in: query
+          required: false
+          schema:
+            type: integer
+            minimum: 0
+            maximum: 10000
+            default: 0
+      x-roles:
+        - admin
+      responses:
+        "200":
+          description: "Succès"
+          content:
+            application/json:
+              schema:
+                type: object
+                properties:
+                  items:
+                    type: array
+                    items:
+                      "$ref": "#/components/schemas/AdminOrder"
+                  next_offset:
+                    type:
+                      - integer
+                      - "null"
+                required:
+                  - items
+                  - next_offset
+        default:
+          description: "Erreur (voir `code`)"
+          content:
+            application/json:
+              schema:
+                "$ref": "#/components/schemas/Error"
+  "/v1/admin/orders/{id}":
+    get:
+      summary: "Une commande"
+      tags:
+        - Admin
+      operationId: getAdminOrdersById
+      parameters:
+        - name: id
+          in: path
+          required: true
+          schema:
+            type: string
+            format: uuid
+      x-roles:
+        - admin
+      responses:
+        "200":
+          description: "Succès"
+          content:
+            application/json:
+              schema:
+                "$ref": "#/components/schemas/AdminOrder"
+        default:
+          description: "Erreur (voir `code`)"
+          content:
+            application/json:
+              schema:
+                "$ref": "#/components/schemas/Error"
+  "/v1/admin/orders/{id}/cancel":
+    post:
+      summary: "Annuler une commande (motif obligatoire)"
+      tags:
+        - Admin
+      operationId: postAdminOrdersByIdCancel
+      parameters:
+        - name: id
+          in: path
+          required: true
+          schema:
+            type: string
+            format: uuid
+      x-roles:
+        - admin
+      requestBody:
+        required: true
+        content:
+          application/json:
+            schema:
+              "$ref": "#/components/schemas/Reason"
+      responses:
+        "200":
+          description: "Succès"
+          content:
+            application/json:
+              schema:
+                "$ref": "#/components/schemas/AdminOrder"
+        default:
+          description: "Erreur (voir `code`)"
+          content:
+            application/json:
+              schema:
+                "$ref": "#/components/schemas/Error"
+  "/v1/admin/orders/{id}/unlock-handover":
+    post:
+      summary: "Débloquer le code de remise"
+      tags:
+        - Admin
+      operationId: postAdminOrdersByIdUnlockHandover
+      parameters:
+        - name: id
+          in: path
+          required: true
+          schema:
+            type: string
+            format: uuid
+      x-roles:
+        - admin
+      requestBody:
+        required: true
+        content:
+          application/json:
+            schema:
+              "$ref": "#/components/schemas/Reason"
+      responses:
+        "200":
+          description: "Succès"
+          content:
+            application/json:
+              schema:
+                "$ref": "#/components/schemas/AdminOrder"
+        default:
+          description: "Erreur (voir `code`)"
+          content:
+            application/json:
+              schema:
+                "$ref": "#/components/schemas/Error"
+  "/v1/admin/orders/{id}/unassign-driver":
+    post:
+      summary: "Retirer le livreur (avant récupération)"
+      tags:
+        - Admin
+      operationId: postAdminOrdersByIdUnassignDriver
+      parameters:
+        - name: id
+          in: path
+          required: true
+          schema:
+            type: string
+            format: uuid
+      x-roles:
+        - admin
+      requestBody:
+        required: true
+        content:
+          application/json:
+            schema:
+              "$ref": "#/components/schemas/Reason"
+      responses:
+        "204":
+          description: "Effectué"
+        default:
+          description: "Erreur (voir `code`)"
+          content:
+            application/json:
+              schema:
+                "$ref": "#/components/schemas/Error"
+  "/v1/admin/orders/{id}/refund":
+    post:
+      summary: "Rembourser une commande de la file"
+      tags:
+        - Admin
+      operationId: postAdminOrdersByIdRefund
+      description: "Lance le transfert Mobile Money ; la commande passe à « remboursée » quand le prestataire le confirme."
+      parameters:
+        - name: id
+          in: path
+          required: true
+          schema:
+            type: string
+            format: uuid
+      x-roles:
+        - admin
+      requestBody:
+        required: true
+        content:
+          application/json:
+            schema:
+              "$ref": "#/components/schemas/Reason"
+      responses:
+        "202":
+          description: "Succès"
+          content:
+            application/json:
+              schema:
+                "$ref": "#/components/schemas/AdminPayment"
+        default:
+          description: "Erreur (voir `code`)"
+          content:
+            application/json:
+              schema:
+                "$ref": "#/components/schemas/Error"
+  "/v1/admin/refund-queue":
+    get:
+      summary: "File de remboursement"
+      tags:
+        - Admin
+      operationId: getAdminRefundQueue
+      parameters:
+        - name: limit
+          in: query
+          required: false
+          schema:
+            type: integer
+            minimum: 1
+            maximum: 100
+            default: 20
+        - name: offset
+          in: query
+          required: false
+          schema:
+            type: integer
+            minimum: 0
+            maximum: 10000
+            default: 0
+      x-roles:
+        - admin
+      responses:
+        "200":
+          description: "Succès"
+          content:
+            application/json:
+              schema:
+                type: object
+                properties:
+                  items:
+                    type: array
+                    items:
+                      "$ref": "#/components/schemas/AdminOrder"
+                  next_offset:
+                    type:
+                      - integer
+                      - "null"
+                required:
+                  - items
+                  - next_offset
+        default:
+          description: "Erreur (voir `code`)"
+          content:
+            application/json:
+              schema:
+                "$ref": "#/components/schemas/Error"
+  "/v1/admin/payments":
+    get:
+      summary: Paiements
+      tags:
+        - Admin
+      operationId: getAdminPayments
+      parameters:
+        - name: status
+          in: query
+          required: false
+          schema:
+            type: string
+            enum:
+              - pending
+              - succeeded
+              - failed
+              - expired
+              - refund_pending
+              - refunded
+        - name: order_id
+          in: query
+          required: false
+          schema:
+            type: string
+            format: uuid
+        - name: duplicates
+          in: query
+          required: false
+          schema:
+            type: boolean
+        - name: limit
+          in: query
+          required: false
+          schema:
+            type: integer
+            minimum: 1
+            maximum: 100
+            default: 20
+        - name: offset
+          in: query
+          required: false
+          schema:
+            type: integer
+            minimum: 0
+            maximum: 10000
+            default: 0
+      x-roles:
+        - admin
+      responses:
+        "200":
+          description: "Succès"
+          content:
+            application/json:
+              schema:
+                type: object
+                properties:
+                  items:
+                    type: array
+                    items:
+                      "$ref": "#/components/schemas/AdminPayment"
+                  next_offset:
+                    type:
+                      - integer
+                      - "null"
+                required:
+                  - items
+                  - next_offset
+        default:
+          description: "Erreur (voir `code`)"
+          content:
+            application/json:
+              schema:
+                "$ref": "#/components/schemas/Error"
+  "/v1/admin/payments/{id}":
+    get:
+      summary: "Un paiement et ses événements"
+      tags:
+        - Admin
+      operationId: getAdminPaymentsById
+      parameters:
+        - name: id
+          in: path
+          required: true
+          schema:
+            type: string
+            format: uuid
+      x-roles:
+        - admin
+      responses:
+        "200":
+          description: "Succès"
+          content:
+            application/json:
+              schema:
+                "$ref": "#/components/schemas/AdminPayment"
+        default:
+          description: "Erreur (voir `code`)"
+          content:
+            application/json:
+              schema:
+                "$ref": "#/components/schemas/Error"
+  "/v1/admin/payments/{id}/verify":
+    post:
+      summary: "Revérifier un paiement auprès du prestataire"
+      tags:
+        - Admin
+      operationId: postAdminPaymentsByIdVerify
+      parameters:
+        - name: id
+          in: path
+          required: true
+          schema:
+            type: string
+            format: uuid
+      x-roles:
+        - admin
+      responses:
+        "200":
+          description: "Succès"
+          content:
+            application/json:
+              schema:
+                "$ref": "#/components/schemas/AdminPayment"
+        default:
+          description: "Erreur (voir `code`)"
+          content:
+            application/json:
+              schema:
+                "$ref": "#/components/schemas/Error"
+  "/v1/admin/payments/{id}/refund":
+    post:
+      summary: "Rembourser un paiement reçu en double"
+      tags:
+        - Admin
+      operationId: postAdminPaymentsByIdRefund
+      parameters:
+        - name: id
+          in: path
+          required: true
+          schema:
+            type: string
+            format: uuid
+      x-roles:
+        - admin
+      requestBody:
+        required: true
+        content:
+          application/json:
+            schema:
+              "$ref": "#/components/schemas/Reason"
+      responses:
+        "202":
+          description: "Succès"
+          content:
+            application/json:
+              schema:
+                "$ref": "#/components/schemas/AdminPayment"
+        default:
+          description: "Erreur (voir `code`)"
+          content:
+            application/json:
+              schema:
+                "$ref": "#/components/schemas/Error"
+  "/v1/admin/refunds":
+    get:
+      summary: "Remboursements exécutés"
+      tags:
+        - Admin
+      operationId: getAdminRefunds
+      parameters:
+        - name: order_id
+          in: query
+          required: false
+          schema:
+            type: string
+            format: uuid
+        - name: limit
+          in: query
+          required: false
+          schema:
+            type: integer
+            minimum: 1
+            maximum: 100
+            default: 20
+        - name: offset
+          in: query
+          required: false
+          schema:
+            type: integer
+            minimum: 0
+            maximum: 10000
+            default: 0
+      x-roles:
+        - admin
+      responses:
+        "200":
+          description: "Succès"
+          content:
+            application/json:
+              schema:
+                type: object
+                properties:
+                  items:
+                    type: array
+                    items:
+                      "$ref": "#/components/schemas/Refund"
+                  next_offset:
+                    type:
+                      - integer
+                      - "null"
+                required:
+                  - items
+                  - next_offset
+        default:
+          description: "Erreur (voir `code`)"
+          content:
+            application/json:
+              schema:
+                "$ref": "#/components/schemas/Error"
+  "/v1/admin/delivery-alerts":
+    get:
+      summary: "Commandes sans livreur (alertes)"
+      tags:
+        - Admin
+      operationId: getAdminDeliveryAlerts
+      x-roles:
+        - admin
+      responses:
+        "200":
+          description: "Succès"
+          content:
+            application/json:
+              schema:
+                type: object
+                properties:
+                  items:
+                    type: array
+                    items:
+                      "$ref": "#/components/schemas/Alert"
+                required:
+                  - items
+        default:
+          description: "Erreur (voir `code`)"
+          content:
+            application/json:
+              schema:
+                "$ref": "#/components/schemas/Error"
+  "/v1/admin/deliveries/export":
+    get:
+      summary: "Livraisons par livreur sur une période"
+      tags:
+        - Admin
+      operationId: getAdminDeliveriesExport
+      description: "format=csv : fichier CSV (séparateur ;) pour la paie."
+      parameters:
+        - name: from
+          in: query
+          required: true
+          schema:
+            type: string
+            format: date
+        - name: to
+          in: query
+          required: true
+          schema:
+            type: string
+            format: date
+        - name: format
+          in: query
+          required: false
+          schema:
+            type: string
+            enum:
+              - json
+              - csv
+      x-roles:
+        - admin
+      responses:
+        "200":
+          description: "Succès"
+          content:
+            application/json:
+              schema:
+                type: object
+                properties:
+                  from:
+                    type: string
+                    format: date
+                  to:
+                    type: string
+                    format: date
+                  items:
+                    type: array
+                    items:
+                      "$ref": "#/components/schemas/ExportRow"
+                required:
+                  - from
+                  - to
+                  - items
+        default:
+          description: "Erreur (voir `code`)"
+          content:
+            application/json:
+              schema:
+                "$ref": "#/components/schemas/Error"
+  "/v1/admin/settlements/preview":
+    get:
+      summary: "Prévisualiser un relevé"
+      tags:
+        - Admin
+      operationId: getAdminSettlementsPreview
+      parameters:
+        - name: shop_id
+          in: query
+          required: true
+          schema:
+            type: string
+            format: uuid
+        - name: from
+          in: query
+          required: true
+          schema:
+            type: string
+            format: date
+        - name: to
+          in: query
+          required: true
+          schema:
+            type: string
+            format: date
+      x-roles:
+        - admin
+      responses:
+        "200":
+          description: "Succès"
+          content:
+            application/json:
+              schema:
+                "$ref": "#/components/schemas/Settlement"
+        default:
+          description: "Erreur (voir `code`)"
+          content:
+            application/json:
+              schema:
+                "$ref": "#/components/schemas/Error"
+  "/v1/admin/settlements":
+    get:
+      summary: "Relevés"
+      tags:
+        - Admin
+      operationId: getAdminSettlements
+      parameters:
+        - name: shop_id
+          in: query
+          required: false
+          schema:
+            type: string
+            format: uuid
+        - name: status
+          in: query
+          required: false
+          schema:
+            type: string
+            enum:
+              - open
+              - settled
+        - name: limit
+          in: query
+          required: false
+          schema:
+            type: integer
+            minimum: 1
+            maximum: 100
+            default: 20
+        - name: offset
+          in: query
+          required: false
+          schema:
+            type: integer
+            minimum: 0
+            maximum: 10000
+            default: 0
+      x-roles:
+        - admin
+      responses:
+        "200":
+          description: "Succès"
+          content:
+            application/json:
+              schema:
+                type: object
+                properties:
+                  items:
+                    type: array
+                    items:
+                      "$ref": "#/components/schemas/Settlement"
+                  next_offset:
+                    type:
+                      - integer
+                      - "null"
+                required:
+                  - items
+                  - next_offset
+        default:
+          description: "Erreur (voir `code`)"
+          content:
+            application/json:
+              schema:
+                "$ref": "#/components/schemas/Error"
+    post:
+      summary: "Créer un relevé"
+      tags:
+        - Admin
+      operationId: postAdminSettlements
+      description: "Commandes remises sur la période (dates de Lomé, bornes incluses), jamais déjà réglées."
+      x-roles:
+        - admin
+      requestBody:
+        required: true
+        content:
+          application/json:
+            schema:
+              type: object
+              properties:
+                shop_id:
+                  type: string
+                  format: uuid
+                period_start:
+                  type: string
+                  format: date
+                period_end:
+                  type: string
+                  format: date
+                note:
+                  type: string
+              required:
+                - shop_id
+                - period_start
+                - period_end
+      responses:
+        "201":
+          description: "Succès"
+          content:
+            application/json:
+              schema:
+                "$ref": "#/components/schemas/Settlement"
+        default:
+          description: "Erreur (voir `code`)"
+          content:
+            application/json:
+              schema:
+                "$ref": "#/components/schemas/Error"
+  "/v1/admin/settlements/{id}":
+    get:
+      summary: "Un relevé"
+      tags:
+        - Admin
+      operationId: getAdminSettlementsById
+      parameters:
+        - name: id
+          in: path
+          required: true
+          schema:
+            type: string
+            format: uuid
+      x-roles:
+        - admin
+      responses:
+        "200":
+          description: "Succès"
+          content:
+            application/json:
+              schema:
+                "$ref": "#/components/schemas/Settlement"
+        default:
+          description: "Erreur (voir `code`)"
+          content:
+            application/json:
+              schema:
+                "$ref": "#/components/schemas/Error"
+    delete:
+      summary: "Supprimer un relevé non réglé"
+      tags:
+        - Admin
+      operationId: deleteAdminSettlementsById
+      parameters:
+        - name: id
+          in: path
+          required: true
+          schema:
+            type: string
+            format: uuid
+      x-roles:
+        - admin
+      requestBody:
+        required: true
+        content:
+          application/json:
+            schema:
+              "$ref": "#/components/schemas/Reason"
+      responses:
+        "204":
+          description: "Effectué"
+        default:
+          description: "Erreur (voir `code`)"
+          content:
+            application/json:
+              schema:
+                "$ref": "#/components/schemas/Error"
+  "/v1/admin/settlements/{id}/mark-settled":
+    post:
+      summary: "Marquer un relevé comme réglé"
+      tags:
+        - Admin
+      operationId: postAdminSettlementsByIdMarkSettled
+      parameters:
+        - name: id
+          in: path
+          required: true
+          schema:
+            type: string
+            format: uuid
+      x-roles:
+        - admin
+      requestBody:
+        required: true
+        content:
+          application/json:
+            schema:
+              type: object
+              properties:
+                settlement_reference:
+                  type: string
+                note:
+                  type: string
+              required:
+                - settlement_reference
+      responses:
+        "200":
+          description: "Succès"
+          content:
+            application/json:
+              schema:
+                "$ref": "#/components/schemas/Settlement"
+        default:
+          description: "Erreur (voir `code`)"
+          content:
+            application/json:
+              schema:
+                "$ref": "#/components/schemas/Error"
+  "/v1/admin/metrics":
+    get:
+      summary: "Indicateurs métier"
+      tags:
+        - Admin
+      operationId: getAdminMetrics
+      description: "Par défaut, les 30 derniers jours."
+      parameters:
+        - name: from
+          in: query
+          required: false
+          schema:
+            type: string
+            format: date
+        - name: to
+          in: query
+          required: false
+          schema:
+            type: string
+            format: date
+      x-roles:
+        - admin
+      responses:
+        "200":
+          description: "Succès"
+          content:
+            application/json:
+              schema:
+                "$ref": "#/components/schemas/Dashboard"
+        default:
+          description: "Erreur (voir `code`)"
+          content:
+            application/json:
+              schema:
+                "$ref": "#/components/schemas/Error"
 components:
+  securitySchemes:
+    bearer:
+      type: http
+      scheme: bearer
+      description: "Jeton de session opaque."
   schemas:
     Status:
       type: object
-      required: [status]
       properties:
         status:
           type: string
-          enum: [ok, unavailable]
+          enum:
+            - ok
+            - unavailable
+      required:
+        - status
     Error:
-      description: Format commun de toutes les erreurs de l'API.
       type: object
-      required: [error]
       properties:
         error:
           type: object
-          required: [code, message]
           properties:
             code:
               type: string
-              description: Code stable en anglais (ex. `otp_expired`).
+              description: "Code stable en anglais (ex. `otp_expired`)."
             message:
               type: string
-              description: Message en français, affichable à l'utilisateur.
+              description: "Message en français, affichable à l'utilisateur."
+            fields:
+              type: object
+              additionalProperties:
+                type: string
+              description: "Erreurs par champ (validation_failed)."
+          required:
+            - code
+            - message
+      required:
+        - error
+      description: "Format commun de toutes les erreurs de l'API."
+    Point:
+      type: object
+      properties:
+        lat:
+          type: number
+        lng:
+          type: number
+      required:
+        - lat
+        - lng
+    User:
+      type: object
+      properties:
+        id:
+          type: string
+          format: uuid
+        email:
+          type:
+            - string
+            - "null"
+        phone:
+          type:
+            - string
+            - "null"
+        first_name:
+          type: string
+        last_name:
+          type: string
+        roles:
+          type: array
+          items:
+            type: string
+            enum:
+              - buyer
+              - seller
+              - driver
+              - admin
+        profile_complete:
+          type: boolean
+        created_at:
+          type: string
+          format: date-time
+      required:
+        - id
+        - email
+        - phone
+        - first_name
+        - last_name
+        - roles
+        - profile_complete
+        - created_at
+    OTPRequested:
+      type: object
+      properties:
+        channel:
+          type: string
+          enum:
+            - email
+            - whatsapp
+            - sms
+        expires_in_seconds:
+          type: integer
+        resend_after_seconds:
+          type: integer
+      required:
+        - channel
+        - expires_in_seconds
+        - resend_after_seconds
+    Session:
+      type: object
+      properties:
+        token:
+          type: string
+          description: "Jeton opaque à envoyer en `Authorization: Bearer`."
+        expires_at:
+          type: string
+          format: date-time
+        is_new_user:
+          type: boolean
+        user:
+          "$ref": "#/components/schemas/User"
+      required:
+        - token
+        - expires_at
+        - is_new_user
+        - user
+    Address:
+      type: object
+      properties:
+        id:
+          type: string
+          format: uuid
+        label:
+          type: string
+        address_text:
+          type: string
+        neighborhood_id:
+          type:
+            - string
+            - "null"
+          format: uuid
+        neighborhood_name:
+          type: string
+        location:
+          "$ref": "#/components/schemas/Point"
+        instructions:
+          type: string
+        created_at:
+          type: string
+          format: date-time
+        updated_at:
+          type: string
+          format: date-time
+      required:
+        - id
+        - label
+        - address_text
+        - neighborhood_id
+        - neighborhood_name
+        - location
+        - instructions
+        - created_at
+        - updated_at
+    AddressInput:
+      type: object
+      properties:
+        label:
+          type: string
+        address_text:
+          type: string
+        neighborhood_id:
+          type:
+            - string
+            - "null"
+          format: uuid
+        location:
+          "$ref": "#/components/schemas/Point"
+        instructions:
+          type: string
+      required:
+        - label
+        - address_text
+        - location
+    Neighborhood:
+      type: object
+      properties:
+        id:
+          type: string
+          format: uuid
+        city:
+          type: string
+        name:
+          type: string
+        is_active:
+          type: boolean
+        center:
+          oneOf:
+            - "$ref": "#/components/schemas/Point"
+            - type: "null"
+      required:
+        - id
+        - city
+        - name
+        - is_active
+        - center
+    NeighborhoodInput:
+      type: object
+      properties:
+        name:
+          type: string
+        city:
+          type: string
+        is_active:
+          type: boolean
+        center:
+          oneOf:
+            - "$ref": "#/components/schemas/Point"
+            - type: "null"
+      required:
+        - name
+    PublicShop:
+      type: object
+      properties:
+        id:
+          type: string
+          format: uuid
+        name:
+          type: string
+        description:
+          type: string
+        phone:
+          type: string
+        address_text:
+          type: string
+        neighborhood_id:
+          type:
+            - string
+            - "null"
+          format: uuid
+        neighborhood_name:
+          type: string
+        location:
+          "$ref": "#/components/schemas/Point"
+        logo_url:
+          type:
+            - string
+            - "null"
+        accepting_orders:
+          type: boolean
+      required:
+        - id
+        - name
+        - description
+        - phone
+        - address_text
+        - neighborhood_id
+        - neighborhood_name
+        - location
+        - logo_url
+        - accepting_orders
+    Shop:
+      type: object
+      properties:
+        id:
+          type: string
+          format: uuid
+        owner_id:
+          type: string
+          format: uuid
+        name:
+          type: string
+        description:
+          type: string
+        phone:
+          type: string
+        address_text:
+          type: string
+        neighborhood_id:
+          type:
+            - string
+            - "null"
+          format: uuid
+        neighborhood_name:
+          type: string
+        location:
+          "$ref": "#/components/schemas/Point"
+        logo_url:
+          type:
+            - string
+            - "null"
+        status:
+          type: string
+          enum:
+            - pending_review
+            - published
+            - rejected
+            - suspended
+        status_reason:
+          type: string
+        accepting_orders:
+          type: boolean
+        reviewed_at:
+          type:
+            - string
+            - "null"
+          format: date-time
+        created_at:
+          type: string
+          format: date-time
+        updated_at:
+          type: string
+          format: date-time
+      required:
+        - id
+        - owner_id
+        - name
+        - description
+        - phone
+        - address_text
+        - neighborhood_id
+        - neighborhood_name
+        - location
+        - logo_url
+        - status
+        - status_reason
+        - accepting_orders
+        - reviewed_at
+        - created_at
+        - updated_at
+    ShopInput:
+      type: object
+      properties:
+        name:
+          type: string
+        description:
+          type: string
+        phone:
+          type: string
+          description: "Numéro mobile togolais."
+        address_text:
+          type: string
+        neighborhood_id:
+          type:
+            - string
+            - "null"
+          format: uuid
+        location:
+          "$ref": "#/components/schemas/Point"
+        logo_key:
+          type:
+            - string
+            - "null"
+          description: "Clé obtenue par POST /v1/uploads (shop_logo)."
+        accepting_orders:
+          type: boolean
+      required:
+        - name
+        - phone
+        - address_text
+        - location
+    Category:
+      type: object
+      properties:
+        id:
+          type: string
+          format: uuid
+        name:
+          type: string
+        parent_id:
+          type:
+            - string
+            - "null"
+          format: uuid
+        position:
+          type: integer
+        is_active:
+          type: boolean
+        updated_at:
+          type: string
+          format: date-time
+      required:
+        - id
+        - name
+        - parent_id
+        - position
+        - is_active
+        - updated_at
+    CategoryInput:
+      type: object
+      properties:
+        name:
+          type: string
+        parent_id:
+          type:
+            - string
+            - "null"
+          format: uuid
+        position:
+          type: integer
+        is_active:
+          type: boolean
+      required:
+        - name
+    Image:
+      type: object
+      properties:
+        url:
+          type: string
+        object_key:
+          type: string
+        position:
+          type: integer
+      required:
+        - url
+        - object_key
+        - position
+    Product:
+      type: object
+      properties:
+        id:
+          type: string
+          format: uuid
+        shop_id:
+          type: string
+          format: uuid
+        category_id:
+          type: string
+          format: uuid
+        name:
+          type: string
+        description:
+          type: string
+        price_xof:
+          type: integer
+          format: int64
+          description: "Montant en FCFA (entier)."
+        parcel_size:
+          type: string
+          enum:
+            - small
+            - medium
+            - large
+        stock_mode:
+          type: string
+          enum:
+            - tracked
+            - untracked
+        stock_quantity:
+          type:
+            - integer
+            - "null"
+        available:
+          type: boolean
+        is_active:
+          type: boolean
+        images:
+          type: array
+          items:
+            "$ref": "#/components/schemas/Image"
+        created_at:
+          type: string
+          format: date-time
+        updated_at:
+          type: string
+          format: date-time
+      required:
+        - id
+        - shop_id
+        - category_id
+        - name
+        - description
+        - price_xof
+        - parcel_size
+        - stock_mode
+        - stock_quantity
+        - available
+        - is_active
+        - images
+        - created_at
+        - updated_at
+    ProductInput:
+      type: object
+      properties:
+        category_id:
+          type: string
+          format: uuid
+        name:
+          type: string
+        description:
+          type: string
+        price_xof:
+          type: integer
+          format: int64
+          description: "Montant en FCFA (entier)."
+        parcel_size:
+          type: string
+          enum:
+            - small
+            - medium
+            - large
+        stock_mode:
+          type: string
+          enum:
+            - tracked
+            - untracked
+          description: "À la création seulement."
+        stock_quantity:
+          type: integer
+          description: "Obligatoire à la création d'un produit suivi."
+        is_active:
+          type: boolean
+        image_keys:
+          type: array
+          items:
+            type: string
+            description: "Clés product_image ; la première est la photo principale (6 au plus)."
+      required:
+        - category_id
+        - name
+        - price_xof
+        - parcel_size
+    StockMovement:
+      type: object
+      properties:
+        id:
+          type: integer
+          format: int64
+        delta:
+          type: integer
+        quantity_after:
+          type: integer
+        reason:
+          type: string
+          enum:
+            - initial
+            - adjustment
+            - order_reserved
+            - order_released
+        order_id:
+          type:
+            - string
+            - "null"
+          format: uuid
+        note:
+          type: string
+        created_at:
+          type: string
+          format: date-time
+      required:
+        - id
+        - delta
+        - quantity_after
+        - reason
+        - order_id
+        - note
+        - created_at
+    ProductHit:
+      type: object
+      properties:
+        id:
+          type: string
+          format: uuid
+        shop_id:
+          type: string
+          format: uuid
+        name:
+          type: string
+        price_xof:
+          type: integer
+          format: int64
+          description: "Montant en FCFA (entier)."
+        parcel_size:
+          type: string
+        shop_name:
+          type: string
+        neighborhood_id:
+          type:
+            - string
+            - "null"
+          format: uuid
+        image_url:
+          type:
+            - string
+            - "null"
+        in_stock:
+          type: boolean
+        distance_m:
+          type:
+            - integer
+            - "null"
+      required:
+        - id
+        - shop_id
+        - name
+        - price_xof
+        - parcel_size
+        - shop_name
+        - neighborhood_id
+        - image_url
+        - in_stock
+        - distance_m
+    ShopHit:
+      type: object
+      properties:
+        id:
+          type: string
+          format: uuid
+        name:
+          type: string
+        description:
+          type: string
+        neighborhood_id:
+          type:
+            - string
+            - "null"
+          format: uuid
+        logo_url:
+          type:
+            - string
+            - "null"
+        accepting_orders:
+          type: boolean
+        distance_m:
+          type:
+            - integer
+            - "null"
+      required:
+        - id
+        - name
+        - description
+        - neighborhood_id
+        - logo_url
+        - accepting_orders
+        - distance_m
+    CartItem:
+      type: object
+      properties:
+        product_id:
+          type: string
+          format: uuid
+        name:
+          type: string
+        image_url:
+          type:
+            - string
+            - "null"
+        unit_price_xof:
+          type: integer
+          format: int64
+          description: "Montant en FCFA (entier)."
+        quantity:
+          type: integer
+        line_total_xof:
+          type: integer
+          format: int64
+          description: "Montant en FCFA (entier)."
+        parcel_size:
+          type: string
+        issue:
+          type: string
+          description: "Vide si la ligne est commandable."
+      required:
+        - product_id
+        - name
+        - image_url
+        - unit_price_xof
+        - quantity
+        - line_total_xof
+        - parcel_size
+        - issue
+    Cart:
+      type: object
+      properties:
+        shop:
+          oneOf:
+            - "$ref": "#/components/schemas/PublicShop"
+            - type: "null"
+        items:
+          type: array
+          items:
+            "$ref": "#/components/schemas/CartItem"
+        subtotal_xof:
+          type: integer
+          format: int64
+          description: "Montant en FCFA (entier)."
+        orderable:
+          type: boolean
+      required:
+        - shop
+        - items
+        - subtotal_xof
+        - orderable
+    CheckoutInput:
+      type: object
+      properties:
+        fulfillment:
+          type: string
+          enum:
+            - pickup
+            - delivery
+        address_id:
+          type:
+            - string
+            - "null"
+          format: uuid
+        vehicle_type:
+          type:
+            - string
+            - "null"
+          enum:
+            - motorbike
+            - car
+        client_request_id:
+          type:
+            - string
+            - "null"
+          format: uuid
+          description: "Rend la création idempotente."
+      required:
+        - fulfillment
+    OrderItem:
+      type: object
+      properties:
+        product_id:
+          type: string
+          format: uuid
+        product_name:
+          type: string
+        unit_price_xof:
+          type: integer
+          format: int64
+          description: "Montant en FCFA (entier)."
+        quantity:
+          type: integer
+        line_total_xof:
+          type: integer
+          format: int64
+          description: "Montant en FCFA (entier)."
+        parcel_size:
+          type: string
+        stock_mode:
+          type: string
+      required:
+        - product_id
+        - product_name
+        - unit_price_xof
+        - quantity
+        - line_total_xof
+        - parcel_size
+        - stock_mode
+    VehicleQuote:
+      type: object
+      properties:
+        vehicle_type:
+          type: string
+          enum:
+            - motorbike
+            - car
+        delivery_fee_xof:
+          type: integer
+          format: int64
+          description: "Montant en FCFA (entier)."
+      required:
+        - vehicle_type
+        - delivery_fee_xof
+    Quote:
+      type: object
+      properties:
+        shop_id:
+          type: string
+          format: uuid
+        fulfillment:
+          type: string
+          enum:
+            - pickup
+            - delivery
+        items:
+          type: array
+          items:
+            "$ref": "#/components/schemas/OrderItem"
+        subtotal_xof:
+          type: integer
+          format: int64
+          description: "Montant en FCFA (entier)."
+        parcel_size:
+          type: string
+        vehicle_options:
+          type: array
+          items:
+            "$ref": "#/components/schemas/VehicleQuote"
+        vehicle_type:
+          type:
+            - string
+            - "null"
+        delivery_distance_m:
+          type:
+            - integer
+            - "null"
+        delivery_fee_xof:
+          type: integer
+          format: int64
+          description: "Montant en FCFA (entier)."
+        total_xof:
+          type: integer
+          format: int64
+          description: "Montant en FCFA (entier)."
+        payment_timeout_minutes:
+          type: integer
+      required:
+        - shop_id
+        - fulfillment
+        - items
+        - subtotal_xof
+        - parcel_size
+        - vehicle_options
+        - vehicle_type
+        - delivery_distance_m
+        - delivery_fee_xof
+        - total_xof
+        - payment_timeout_minutes
+    OrderEvent:
+      type: object
+      properties:
+        from_status:
+          type:
+            - string
+            - "null"
+        to_status:
+          type: string
+          enum:
+            - pending_payment
+            - expired
+            - awaiting_seller
+            - accepted
+            - preparing
+            - ready_for_pickup
+            - awaiting_driver
+            - driver_assigned
+            - picked_up
+            - delivered
+            - delivery_failed
+            - returned_to_shop
+            - completed
+            - cancelled
+            - refunded
+        actor_type:
+          type: string
+          enum:
+            - buyer
+            - seller
+            - driver
+            - admin
+            - system
+        reason:
+          type: string
+        created_at:
+          type: string
+          format: date-time
+      required:
+        - from_status
+        - to_status
+        - actor_type
+        - reason
+        - created_at
+    DeliveryAddress:
+      type: object
+      properties:
+        address_text:
+          type: string
+        neighborhood:
+          type: string
+        instructions:
+          type: string
+        location:
+          "$ref": "#/components/schemas/Point"
+      required:
+        - address_text
+        - neighborhood
+        - instructions
+        - location
+    BuyerOrder:
+      type: object
+      properties:
+        id:
+          type: string
+          format: uuid
+        number:
+          type: integer
+          format: int64
+        reference:
+          type: string
+          description: "Ex. IV-000123."
+        status:
+          type: string
+          enum:
+            - pending_payment
+            - expired
+            - awaiting_seller
+            - accepted
+            - preparing
+            - ready_for_pickup
+            - awaiting_driver
+            - driver_assigned
+            - picked_up
+            - delivered
+            - delivery_failed
+            - returned_to_shop
+            - completed
+            - cancelled
+            - refunded
+        fulfillment:
+          type: string
+          enum:
+            - pickup
+            - delivery
+        vehicle_type:
+          type:
+            - string
+            - "null"
+        parcel_size:
+          type: string
+        subtotal_xof:
+          type: integer
+          format: int64
+          description: "Montant en FCFA (entier)."
+        delivery_fee_xof:
+          type: integer
+          format: int64
+          description: "Montant en FCFA (entier)."
+        total_xof:
+          type: integer
+          format: int64
+          description: "Montant en FCFA (entier)."
+        delivery_address:
+          oneOf:
+            - "$ref": "#/components/schemas/DeliveryAddress"
+            - type: "null"
+        cancel_reason:
+          type: string
+        payment_deadline_at:
+          type: string
+          format: date-time
+        seller_deadline_at:
+          type:
+            - string
+            - "null"
+          format: date-time
+        paid_at:
+          type:
+            - string
+            - "null"
+          format: date-time
+        accepted_at:
+          type:
+            - string
+            - "null"
+          format: date-time
+        ready_at:
+          type:
+            - string
+            - "null"
+          format: date-time
+        picked_up_at:
+          type:
+            - string
+            - "null"
+          format: date-time
+        completed_at:
+          type:
+            - string
+            - "null"
+          format: date-time
+        cancelled_at:
+          type:
+            - string
+            - "null"
+          format: date-time
+        refunded_at:
+          type:
+            - string
+            - "null"
+          format: date-time
+        created_at:
+          type: string
+          format: date-time
+        updated_at:
+          type: string
+          format: date-time
+        items:
+          type: array
+          items:
+            "$ref": "#/components/schemas/OrderItem"
+        events:
+          type: array
+          items:
+            "$ref": "#/components/schemas/OrderEvent"
+        handover_code:
+          type:
+            - string
+            - "null"
+          description: "Code à 4 chiffres, visible une fois la commande payée et jusqu'à la remise."
+        shop:
+          "$ref": "#/components/schemas/PublicShop"
+      required:
+        - id
+        - number
+        - reference
+        - status
+        - fulfillment
+        - vehicle_type
+        - parcel_size
+        - subtotal_xof
+        - delivery_fee_xof
+        - total_xof
+        - delivery_address
+        - cancel_reason
+        - payment_deadline_at
+        - seller_deadline_at
+        - paid_at
+        - accepted_at
+        - ready_at
+        - picked_up_at
+        - completed_at
+        - cancelled_at
+        - refunded_at
+        - created_at
+        - updated_at
+        - items
+        - events
+        - handover_code
+        - shop
+    SellerOrder:
+      type: object
+      properties:
+        id:
+          type: string
+          format: uuid
+        number:
+          type: integer
+          format: int64
+        reference:
+          type: string
+          description: "Ex. IV-000123."
+        status:
+          type: string
+          enum:
+            - pending_payment
+            - expired
+            - awaiting_seller
+            - accepted
+            - preparing
+            - ready_for_pickup
+            - awaiting_driver
+            - driver_assigned
+            - picked_up
+            - delivered
+            - delivery_failed
+            - returned_to_shop
+            - completed
+            - cancelled
+            - refunded
+        fulfillment:
+          type: string
+          enum:
+            - pickup
+            - delivery
+        vehicle_type:
+          type:
+            - string
+            - "null"
+        parcel_size:
+          type: string
+        subtotal_xof:
+          type: integer
+          format: int64
+          description: "Montant en FCFA (entier)."
+        delivery_fee_xof:
+          type: integer
+          format: int64
+          description: "Montant en FCFA (entier)."
+        total_xof:
+          type: integer
+          format: int64
+          description: "Montant en FCFA (entier)."
+        delivery_address:
+          type: "null"
+          description: "Jamais l'adresse de l'acheteur au marchand."
+        cancel_reason:
+          type: string
+        payment_deadline_at:
+          type: string
+          format: date-time
+        seller_deadline_at:
+          type:
+            - string
+            - "null"
+          format: date-time
+        paid_at:
+          type:
+            - string
+            - "null"
+          format: date-time
+        accepted_at:
+          type:
+            - string
+            - "null"
+          format: date-time
+        ready_at:
+          type:
+            - string
+            - "null"
+          format: date-time
+        picked_up_at:
+          type:
+            - string
+            - "null"
+          format: date-time
+        completed_at:
+          type:
+            - string
+            - "null"
+          format: date-time
+        cancelled_at:
+          type:
+            - string
+            - "null"
+          format: date-time
+        refunded_at:
+          type:
+            - string
+            - "null"
+          format: date-time
+        created_at:
+          type: string
+          format: date-time
+        updated_at:
+          type: string
+          format: date-time
+        items:
+          type: array
+          items:
+            "$ref": "#/components/schemas/OrderItem"
+        events:
+          type: array
+          items:
+            "$ref": "#/components/schemas/OrderEvent"
+        shop_id:
+          type: string
+          format: uuid
+        buyer_first_name:
+          type: string
+        commission_xof:
+          type: integer
+          format: int64
+          description: "Montant en FCFA (entier)."
+        net_xof:
+          type: integer
+          format: int64
+          description: "Montant en FCFA (entier)."
+        handover_attempts:
+          type: integer
+      required:
+        - id
+        - number
+        - reference
+        - status
+        - fulfillment
+        - vehicle_type
+        - parcel_size
+        - subtotal_xof
+        - delivery_fee_xof
+        - total_xof
+        - delivery_address
+        - cancel_reason
+        - payment_deadline_at
+        - seller_deadline_at
+        - paid_at
+        - accepted_at
+        - ready_at
+        - picked_up_at
+        - completed_at
+        - cancelled_at
+        - refunded_at
+        - created_at
+        - updated_at
+        - items
+        - events
+        - shop_id
+        - buyer_first_name
+        - commission_xof
+        - net_xof
+        - handover_attempts
+    AdminOrder:
+      type: object
+      properties:
+        id:
+          type: string
+          format: uuid
+        number:
+          type: integer
+          format: int64
+        reference:
+          type: string
+          description: "Ex. IV-000123."
+        status:
+          type: string
+          enum:
+            - pending_payment
+            - expired
+            - awaiting_seller
+            - accepted
+            - preparing
+            - ready_for_pickup
+            - awaiting_driver
+            - driver_assigned
+            - picked_up
+            - delivered
+            - delivery_failed
+            - returned_to_shop
+            - completed
+            - cancelled
+            - refunded
+        fulfillment:
+          type: string
+          enum:
+            - pickup
+            - delivery
+        vehicle_type:
+          type:
+            - string
+            - "null"
+        parcel_size:
+          type: string
+        subtotal_xof:
+          type: integer
+          format: int64
+          description: "Montant en FCFA (entier)."
+        delivery_fee_xof:
+          type: integer
+          format: int64
+          description: "Montant en FCFA (entier)."
+        total_xof:
+          type: integer
+          format: int64
+          description: "Montant en FCFA (entier)."
+        delivery_address:
+          oneOf:
+            - "$ref": "#/components/schemas/DeliveryAddress"
+            - type: "null"
+        cancel_reason:
+          type: string
+        payment_deadline_at:
+          type: string
+          format: date-time
+        seller_deadline_at:
+          type:
+            - string
+            - "null"
+          format: date-time
+        paid_at:
+          type:
+            - string
+            - "null"
+          format: date-time
+        accepted_at:
+          type:
+            - string
+            - "null"
+          format: date-time
+        ready_at:
+          type:
+            - string
+            - "null"
+          format: date-time
+        picked_up_at:
+          type:
+            - string
+            - "null"
+          format: date-time
+        completed_at:
+          type:
+            - string
+            - "null"
+          format: date-time
+        cancelled_at:
+          type:
+            - string
+            - "null"
+          format: date-time
+        refunded_at:
+          type:
+            - string
+            - "null"
+          format: date-time
+        created_at:
+          type: string
+          format: date-time
+        updated_at:
+          type: string
+          format: date-time
+        items:
+          type: array
+          items:
+            "$ref": "#/components/schemas/OrderItem"
+        events:
+          type: array
+          items:
+            "$ref": "#/components/schemas/OrderEvent"
+        buyer_id:
+          type: string
+          format: uuid
+        shop_id:
+          type: string
+          format: uuid
+        commission_rate_bp:
+          type: integer
+        commission_xof:
+          type: integer
+          format: int64
+          description: "Montant en FCFA (entier)."
+        refund_due_xof:
+          type: integer
+          format: int64
+          description: "Montant en FCFA (entier)."
+        handover_attempts:
+          type: integer
+        delivery_distance_m:
+          type:
+            - integer
+            - "null"
+      required:
+        - id
+        - number
+        - reference
+        - status
+        - fulfillment
+        - vehicle_type
+        - parcel_size
+        - subtotal_xof
+        - delivery_fee_xof
+        - total_xof
+        - delivery_address
+        - cancel_reason
+        - payment_deadline_at
+        - seller_deadline_at
+        - paid_at
+        - accepted_at
+        - ready_at
+        - picked_up_at
+        - completed_at
+        - cancelled_at
+        - refunded_at
+        - created_at
+        - updated_at
+        - items
+        - events
+        - buyer_id
+        - shop_id
+        - commission_rate_bp
+        - commission_xof
+        - refund_due_xof
+        - handover_attempts
+        - delivery_distance_m
+    Payment:
+      type: object
+      properties:
+        id:
+          type: string
+          format: uuid
+        order_id:
+          type: string
+          format: uuid
+        status:
+          type: string
+          enum:
+            - pending
+            - succeeded
+            - failed
+            - expired
+            - refund_pending
+            - refunded
+        amount_xof:
+          type: integer
+          format: int64
+          description: "Montant en FCFA (entier)."
+        currency:
+          type: string
+          enum:
+            - XOF
+        operator:
+          type: string
+          enum:
+            - flooz
+            - tmoney
+        phone_masked:
+          type: string
+        failure_reason:
+          type: string
+        is_duplicate:
+          type: boolean
+        created_at:
+          type: string
+          format: date-time
+        updated_at:
+          type: string
+          format: date-time
+        instructions:
+          type: string
+      required:
+        - id
+        - order_id
+        - status
+        - amount_xof
+        - currency
+        - operator
+        - phone_masked
+        - failure_reason
+        - is_duplicate
+        - created_at
+        - updated_at
+    PaymentEvent:
+      type: object
+      properties:
+        id:
+          type: integer
+          format: int64
+        source:
+          type: string
+          enum:
+            - webhook
+            - verify
+        event_id:
+          type: string
+        status:
+          type: string
+        amount_xof:
+          type: integer
+          format: int64
+          description: "Montant en FCFA (entier)."
+        currency:
+          type: string
+        received_at:
+          type: string
+          format: date-time
+      required:
+        - id
+        - source
+        - event_id
+        - status
+        - amount_xof
+        - currency
+        - received_at
+    AdminPayment:
+      type: object
+      properties:
+        id:
+          type: string
+          format: uuid
+        order_id:
+          type: string
+          format: uuid
+        status:
+          type: string
+          enum:
+            - pending
+            - succeeded
+            - failed
+            - expired
+            - refund_pending
+            - refunded
+        amount_xof:
+          type: integer
+          format: int64
+          description: "Montant en FCFA (entier)."
+        currency:
+          type: string
+          enum:
+            - XOF
+        operator:
+          type: string
+          enum:
+            - flooz
+            - tmoney
+        phone_masked:
+          type: string
+        failure_reason:
+          type: string
+        is_duplicate:
+          type: boolean
+        created_at:
+          type: string
+          format: date-time
+        updated_at:
+          type: string
+          format: date-time
+        buyer_id:
+          type: string
+          format: uuid
+        provider:
+          type: string
+        reference:
+          type: string
+        provider_ref:
+          type:
+            - string
+            - "null"
+        succeeded_at:
+          type:
+            - string
+            - "null"
+          format: date-time
+        events:
+          type: array
+          items:
+            "$ref": "#/components/schemas/PaymentEvent"
+      required:
+        - id
+        - order_id
+        - status
+        - amount_xof
+        - currency
+        - operator
+        - phone_masked
+        - failure_reason
+        - is_duplicate
+        - created_at
+        - updated_at
+        - buyer_id
+        - provider
+        - reference
+    Refund:
+      type: object
+      properties:
+        id:
+          type: string
+          format: uuid
+        payment_id:
+          type: string
+          format: uuid
+        order_id:
+          type: string
+          format: uuid
+        amount_xof:
+          type: integer
+          format: int64
+          description: "Montant en FCFA (entier)."
+        status:
+          type: string
+          enum:
+            - succeeded
+            - failed
+        failure_reason:
+          type: string
+        reason:
+          type: string
+        requested_by:
+          type: string
+          format: uuid
+        requested_at:
+          type: string
+          format: date-time
+        created_at:
+          type: string
+          format: date-time
+        provider_ref:
+          type:
+            - string
+            - "null"
+      required:
+        - id
+        - payment_id
+        - order_id
+        - amount_xof
+        - status
+        - failure_reason
+        - reason
+        - requested_by
+        - requested_at
+        - created_at
+        - provider_ref
+    Upload:
+      type: object
+      properties:
+        object_key:
+          type: string
+        upload:
+          type: object
+          properties:
+            method:
+              type: string
+              enum:
+                - PUT
+            url:
+              type: string
+            headers:
+              type: object
+              additionalProperties:
+                type: string
+            expires_at:
+              type: string
+              format: date-time
+          required:
+            - method
+            - url
+            - headers
+            - expires_at
+      required:
+        - object_key
+        - upload
+      description: "Envoyer le fichier tel quel avec la méthode, l'URL et les en-têtes indiqués, puis transmettre object_key."
+    Notification:
+      type: object
+      properties:
+        id:
+          type: string
+          format: uuid
+        app:
+          type: string
+          enum:
+            - buyer
+            - seller
+            - driver
+            - admin
+        kind:
+          type: string
+        title:
+          type: string
+        body:
+          type: string
+        data:
+          type: object
+          additionalProperties:
+            type: string
+        read_at:
+          type:
+            - string
+            - "null"
+          format: date-time
+        created_at:
+          type: string
+          format: date-time
+      required:
+        - id
+        - app
+        - kind
+        - title
+        - body
+        - data
+        - read_at
+        - created_at
+    Document:
+      type: object
+      properties:
+        id:
+          type: string
+          format: uuid
+        kind:
+          type: string
+          enum:
+            - id_card
+            - driving_license
+            - vehicle_registration
+            - photo
+            - other
+        url:
+          type: string
+          description: "Lien temporaire (10 min), fourni aux admins seulement."
+        created_at:
+          type: string
+          format: date-time
+      required:
+        - id
+        - kind
+        - created_at
+    Driver:
+      type: object
+      properties:
+        user_id:
+          type: string
+          format: uuid
+        status:
+          type: string
+          enum:
+            - pending_review
+            - rejected
+            - suspended
+            - offline
+            - available
+            - busy
+        review_status:
+          type: string
+          enum:
+            - pending_review
+            - approved
+            - rejected
+        review_note:
+          type: string
+        reviewed_at:
+          type:
+            - string
+            - "null"
+          format: date-time
+        suspended_at:
+          type:
+            - string
+            - "null"
+          format: date-time
+        suspension_reason:
+          type: string
+        availability:
+          type: string
+          enum:
+            - offline
+            - available
+            - busy
+        vehicle_type:
+          type: string
+          enum:
+            - motorbike
+            - car
+        vehicle_plate:
+          type: string
+        vehicle_description:
+          type: string
+        last_location_at:
+          type:
+            - string
+            - "null"
+          format: date-time
+        documents:
+          type: array
+          items:
+            "$ref": "#/components/schemas/Document"
+        created_at:
+          type: string
+          format: date-time
+      required:
+        - user_id
+        - status
+        - review_status
+        - review_note
+        - reviewed_at
+        - suspended_at
+        - suspension_reason
+        - availability
+        - vehicle_type
+        - vehicle_plate
+        - vehicle_description
+        - last_location_at
+        - documents
+        - created_at
+    AdminDriver:
+      type: object
+      properties:
+        user_id:
+          type: string
+          format: uuid
+        status:
+          type: string
+          enum:
+            - pending_review
+            - rejected
+            - suspended
+            - offline
+            - available
+            - busy
+        review_status:
+          type: string
+          enum:
+            - pending_review
+            - approved
+            - rejected
+        review_note:
+          type: string
+        reviewed_at:
+          type:
+            - string
+            - "null"
+          format: date-time
+        suspended_at:
+          type:
+            - string
+            - "null"
+          format: date-time
+        suspension_reason:
+          type: string
+        availability:
+          type: string
+          enum:
+            - offline
+            - available
+            - busy
+        vehicle_type:
+          type: string
+          enum:
+            - motorbike
+            - car
+        vehicle_plate:
+          type: string
+        vehicle_description:
+          type: string
+        last_location_at:
+          type:
+            - string
+            - "null"
+          format: date-time
+        documents:
+          type: array
+          items:
+            "$ref": "#/components/schemas/Document"
+        created_at:
+          type: string
+          format: date-time
+        first_name:
+          type: string
+        phone:
+          type: string
+      required:
+        - user_id
+        - status
+        - review_status
+        - review_note
+        - reviewed_at
+        - suspended_at
+        - suspension_reason
+        - availability
+        - vehicle_type
+        - vehicle_plate
+        - vehicle_description
+        - last_location_at
+        - documents
+        - created_at
+        - first_name
+        - phone
+    Offer:
+      type: object
+      properties:
+        id:
+          type: string
+          format: uuid
+        order_id:
+          type: string
+          format: uuid
+        order_reference:
+          type: string
+        shop_name:
+          type: string
+        shop_address:
+          type: string
+        shop_neighborhood:
+          type: string
+        delivery_neighborhood:
+          type: string
+        distance_to_shop_m:
+          type: integer
+        shop_to_client_m:
+          type: integer
+        parcel_size:
+          type: string
+        earning_xof:
+          type: integer
+          format: int64
+          description: "Montant en FCFA (entier)."
+        expires_at:
+          type: string
+          format: date-time
+      required:
+        - id
+        - order_id
+        - order_reference
+        - shop_name
+        - shop_address
+        - shop_neighborhood
+        - delivery_neighborhood
+        - distance_to_shop_m
+        - shop_to_client_m
+        - parcel_size
+        - earning_xof
+        - expires_at
+    MissionPOI:
+      type: object
+      properties:
+        name:
+          type: string
+        phone:
+          type: string
+        address_text:
+          type: string
+        neighborhood:
+          type: string
+        instructions:
+          type: string
+        location:
+          "$ref": "#/components/schemas/Point"
+      required:
+        - name
+        - phone
+        - address_text
+        - neighborhood
+        - location
+    Mission:
+      type: object
+      properties:
+        id:
+          type: string
+          format: uuid
+        order_id:
+          type: string
+          format: uuid
+        order_reference:
+          type: string
+        status:
+          type: string
+          enum:
+            - assigned
+            - at_shop
+            - picked_up
+            - at_customer
+            - delivered
+            - returning
+            - returned
+            - withdrawn
+            - cancelled
+        fee_xof:
+          type: integer
+          format: int64
+          description: "Montant en FCFA (entier)."
+        items_count:
+          type: integer
+        parcel_size:
+          type: string
+        shop:
+          "$ref": "#/components/schemas/MissionPOI"
+        customer:
+          oneOf:
+            - "$ref": "#/components/schemas/MissionPOI"
+            - type: "null"
+          description: "Uniquement pendant la mission (jusqu'à la remise ou l'échec)."
+        assigned_at:
+          type: string
+          format: date-time
+        arrived_shop_at:
+          type:
+            - string
+            - "null"
+          format: date-time
+        picked_up_at:
+          type:
+            - string
+            - "null"
+          format: date-time
+        arrived_customer_at:
+          type:
+            - string
+            - "null"
+          format: date-time
+        delivered_at:
+          type:
+            - string
+            - "null"
+          format: date-time
+        failed_at:
+          type:
+            - string
+            - "null"
+          format: date-time
+        failure_reason:
+          type: string
+      required:
+        - id
+        - order_id
+        - order_reference
+        - status
+        - fee_xof
+        - items_count
+        - parcel_size
+        - shop
+        - customer
+        - assigned_at
+        - arrived_shop_at
+        - picked_up_at
+        - arrived_customer_at
+        - delivered_at
+        - failed_at
+        - failure_reason
+    DeliveryInfo:
+      type: object
+      properties:
+        status:
+          type: string
+        driver_first_name:
+          type: string
+        vehicle_type:
+          type: string
+        vehicle_plate:
+          type: string
+        assigned_at:
+          type: string
+          format: date-time
+        picked_up_at:
+          type:
+            - string
+            - "null"
+          format: date-time
+      required:
+        - status
+        - driver_first_name
+        - vehicle_type
+        - vehicle_plate
+        - assigned_at
+        - picked_up_at
+    ExportRow:
+      type: object
+      properties:
+        driver_id:
+          type: string
+          format: uuid
+        first_name:
+          type: string
+        vehicle_type:
+          type: string
+        delivered:
+          type: integer
+          format: int64
+        failed:
+          type: integer
+          format: int64
+        withdrawn:
+          type: integer
+          format: int64
+        delivered_fees_xof:
+          type: integer
+          format: int64
+          description: "Montant en FCFA (entier)."
+      required:
+        - driver_id
+        - first_name
+        - vehicle_type
+        - delivered
+        - failed
+        - withdrawn
+        - delivered_fees_xof
+    Alert:
+      type: object
+      properties:
+        order_id:
+          type: string
+          format: uuid
+        started_at:
+          type: string
+          format: date-time
+        offers_count:
+          type: integer
+        alerted_at:
+          type: string
+          format: date-time
+      required:
+        - order_id
+        - started_at
+        - offers_count
+        - alerted_at
+    SettlementLine:
+      type: object
+      properties:
+        order_id:
+          type: string
+          format: uuid
+        order_reference:
+          type: string
+        completed_at:
+          type: string
+          format: date-time
+        subtotal_xof:
+          type: integer
+          format: int64
+          description: "Montant en FCFA (entier)."
+        commission_xof:
+          type: integer
+          format: int64
+          description: "Montant en FCFA (entier)."
+        net_xof:
+          type: integer
+          format: int64
+          description: "Montant en FCFA (entier)."
+      required:
+        - order_id
+        - order_reference
+        - completed_at
+        - subtotal_xof
+        - commission_xof
+        - net_xof
+    Settlement:
+      type: object
+      properties:
+        id:
+          type: string
+          format: uuid
+        shop_id:
+          type: string
+          format: uuid
+        shop_name:
+          type: string
+        period_start:
+          type: string
+          format: date
+        period_end:
+          type: string
+          format: date
+        orders_count:
+          type: integer
+        gross_xof:
+          type: integer
+          format: int64
+          description: "Montant en FCFA (entier)."
+        commission_xof:
+          type: integer
+          format: int64
+          description: "Montant en FCFA (entier)."
+        net_xof:
+          type: integer
+          format: int64
+          description: "Montant en FCFA (entier)."
+        status:
+          type: string
+          enum:
+            - preview
+            - open
+            - settled
+        settled_at:
+          type:
+            - string
+            - "null"
+          format: date-time
+        settlement_reference:
+          type: string
+        note:
+          type: string
+        created_at:
+          type: string
+          format: date-time
+        lines:
+          type: array
+          items:
+            "$ref": "#/components/schemas/SettlementLine"
+      required:
+        - shop_id
+        - period_start
+        - period_end
+        - orders_count
+        - gross_xof
+        - commission_xof
+        - net_xof
+        - status
+    Settings:
+      type: object
+      properties:
+        commission_rate_bp:
+          type: integer
+          description: "Points de base : 1000 = 10 %."
+        motorbike_base_fee_xof:
+          type: integer
+          format: int64
+          description: "Montant en FCFA (entier)."
+        motorbike_per_km_xof:
+          type: integer
+          format: int64
+          description: "Montant en FCFA (entier)."
+        car_base_fee_xof:
+          type: integer
+          format: int64
+          description: "Montant en FCFA (entier)."
+        car_per_km_xof:
+          type: integer
+          format: int64
+          description: "Montant en FCFA (entier)."
+        distance_coefficient_pct:
+          type: integer
+          description: "130 = × 1,3."
+        payment_timeout_minutes:
+          type: integer
+        seller_response_timeout_minutes:
+          type: integer
+        driver_offer_timeout_seconds:
+          type: integer
+        assignment_max_offers:
+          type: integer
+        assignment_alert_minutes:
+          type: integer
+        updated_at:
+          type: string
+          format: date-time
+      required:
+        - commission_rate_bp
+        - motorbike_base_fee_xof
+        - motorbike_per_km_xof
+        - car_base_fee_xof
+        - car_per_km_xof
+        - distance_coefficient_pct
+        - payment_timeout_minutes
+        - seller_response_timeout_minutes
+        - driver_offer_timeout_seconds
+        - assignment_max_offers
+        - assignment_alert_minutes
+        - updated_at
+    SettingsPatch:
+      type: object
+      properties:
+        commission_rate_bp:
+          type: integer
+          description: "Points de base : 1000 = 10 %."
+        motorbike_base_fee_xof:
+          type: integer
+          format: int64
+          description: "Montant en FCFA (entier)."
+        motorbike_per_km_xof:
+          type: integer
+          format: int64
+          description: "Montant en FCFA (entier)."
+        car_base_fee_xof:
+          type: integer
+          format: int64
+          description: "Montant en FCFA (entier)."
+        car_per_km_xof:
+          type: integer
+          format: int64
+          description: "Montant en FCFA (entier)."
+        distance_coefficient_pct:
+          type: integer
+          description: "130 = × 1,3."
+        payment_timeout_minutes:
+          type: integer
+        seller_response_timeout_minutes:
+          type: integer
+        driver_offer_timeout_seconds:
+          type: integer
+        assignment_max_offers:
+          type: integer
+        assignment_alert_minutes:
+          type: integer
+        reason:
+          type: string
+    AuditRecord:
+      type: object
+      properties:
+        id:
+          type: integer
+          format: int64
+        admin_id:
+          type:
+            - string
+            - "null"
+          format: uuid
+        action:
+          type: string
+        target_type:
+          type: string
+        target_id:
+          type: string
+        before:
+          description: "État avant (JSON libre)."
+        after:
+          description: "État après (JSON libre)."
+        reason:
+          type: string
+        created_at:
+          type: string
+          format: date-time
+      required:
+        - id
+        - admin_id
+        - action
+        - target_type
+        - target_id
+        - before
+        - after
+        - reason
+        - created_at
+    Dashboard:
+      type: object
+      properties:
+        from:
+          type: string
+          format: date
+        to:
+          type: string
+          format: date
+        orders:
+          type: object
+          properties:
+            paid_orders:
+              type: integer
+              format: int64
+            completed_orders:
+              type: integer
+              format: int64
+            cancelled_after_payment:
+              type: integer
+              format: int64
+            expired_orders:
+              type: integer
+              format: int64
+            cancellation_rate_pct:
+              type: number
+            gmv_xof:
+              type: integer
+              format: int64
+              description: "Montant en FCFA (entier)."
+            commission_xof:
+              type: integer
+              format: int64
+              description: "Montant en FCFA (entier)."
+            median_ready_to_delivered_minutes:
+              type: number
+            paid_per_day:
+              type: array
+              items:
+                type: object
+                properties:
+                  day:
+                    type: string
+                    format: date
+                  count:
+                    type: integer
+                    format: int64
+                required:
+                  - day
+                  - count
+          required:
+            - paid_orders
+            - completed_orders
+            - cancelled_after_payment
+            - expired_orders
+            - cancellation_rate_pct
+            - gmv_xof
+            - commission_xof
+            - median_ready_to_delivered_minutes
+            - paid_per_day
+        delivery:
+          type: object
+          properties:
+            assigned:
+              type: integer
+              format: int64
+            assigned_within_10_min_pct:
+              type: number
+            median_assignment_minutes:
+              type: number
+          required:
+            - assigned
+            - assigned_within_10_min_pct
+            - median_assignment_minutes
+        payments_pending_over_15_min:
+          type: integer
+          format: int64
+      required:
+        - from
+        - to
+        - orders
+        - delivery
+        - payments_pending_over_15_min
+    Reason:
+      type: object
+      properties:
+        reason:
+          type: string

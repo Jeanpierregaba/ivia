@@ -1,10 +1,33 @@
 # ivia
 
-<!-- Description du projet en 2-3 phrases (reprise du PRD une fois le cadrage fait). -->
+Plateforme e-commerce à Lomé : l'acheteur trouve un produit près de chez lui, le paie par Mobile
+Money (Flooz, T-Money), puis le retire en boutique ou se le fait livrer par un livreur de la
+plateforme. Une API Go, trois apps Flutter (acheteur, marchand, livreur) et un back-office Next.js.
 
 ## Démarrer
 
-<!-- Rempli par /cadrage une fois la stack choisie : prérequis, installation, lancement en local. -->
+**Prérequis** : Go 1.27 (la version exacte est téléchargée automatiquement d'après `backend/go.mod`),
+Docker Desktop, [sqlc 1.31](https://docs.sqlc.dev) pour régénérer le code SQL.
+
+```bash
+# 1. Base de données PostgreSQL + PostGIS (port 5432 ; POSTGRES_PORT=5434 si le port est pris)
+docker compose up -d --wait
+
+# 2. API (depuis backend/) — migrations appliquées au démarrage
+cd backend
+export DATABASE_URL="postgres://ivia@localhost:5432/ivia?sslmode=disable"
+go run ./cmd/manage seed-dev     # comptes et boutique de démonstration
+go run ./cmd/api                 # http://localhost:8080/health
+
+# 3. Tests (contre la base Docker)
+go test ./...
+```
+
+En local, tout fonctionne sans compte externe : les codes de connexion s'affichent dans les journaux
+de l'API (et `POST /v1/dev/otp`), les paiements passent par un faux prestataire
+(`POST /v1/dev/payments/{id}/simulate`), les fichiers sont stockés sur le disque. Le contrat de
+l'API est dans [`backend/api/openapi.yaml`](backend/api/openapi.yaml) et les variables dans
+[`.env.example`](.env.example).
 
 ---
 

@@ -1,8 +1,19 @@
-# Mises à jour automatiques des dépendances. Ajoute l'écosystème de ta stack pendant /cadrage
-# (npm, pip, cargo, gomod…) : https://docs.github.com/code-security/dependabot
+# Mises à jour automatiques des dépendances : https://docs.github.com/code-security/dependabot
+# River est volontairement suivi de près : version pré-1.0, notes de version à lire avant de fusionner (ADR 0005).
 version: 2
 updates:
   - package-ecosystem: github-actions
     directory: /
+    schedule:
+      interval: weekly
+  - package-ecosystem: gomod
+    directory: /backend
+    schedule:
+      interval: weekly
+    groups:
+      river:
+        patterns: ["github.com/riverqueue/*"]
+  - package-ecosystem: pub
+    directory: /mobile
     schedule:
       interval: weekly
