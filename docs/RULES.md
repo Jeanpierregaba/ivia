@@ -57,4 +57,10 @@ hooks dans `.claude/settings.json`) sont marquées [bloqué].
 
 **Collaboration**
 - Dès l'arrivée du second développeur, tout changement passe par une branche et une pull request
-  relue par l'autre ; pas de push direct sur `main`.
+  relue par l'autre ; pas de push direct sur `main` ni sur `develop`.
+- Flux de branches :
+  - `main` : version stable, ne reçoit que des fusions de `develop` ;
+  - `develop` : intégration, reçoit les pull requests des branches de travail ;
+  - une branche de travail par développeur (`jeanpierre`…) ou par fonctionnalité
+    (`feat/001-otp-login`…), créée depuis `develop` et mise à jour depuis `develop` avant la PR.
+- Une pull request n'est fusionnée que si la CI est verte.
