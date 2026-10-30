@@ -1,0 +1,21 @@
+name: ivia_driver
+description: "Application livreur ivia"
+publish_to: none
+version: 0.1.0+1
+
+environment:
+  sdk: ^3.13.5
+resolution: workspace
+
+dependencies:
+  flutter:
+    sdk: flutter
+  ivia_api_client: any
+  ivia_ui: any
+
+dev_dependencies:
+  flutter_test:
+    sdk: flutter
+
+flutter:
+  uses-material-design: true

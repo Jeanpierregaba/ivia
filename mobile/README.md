@@ -1,17 +1,16 @@
-# ivia
+# mobile — apps Flutter ivia
 
-Application mobile ivia
+Pub workspace ([ADR 0002](../docs/decisions/0002-trois-apps-flutter-workspace.md)) :
 
-## Getting Started
+| Dossier | Paquet | Rôle |
+|---|---|---|
+| `apps/buyer` | `ivia_buyer` | App acheteur (« ivia ») |
+| `apps/seller` | `ivia_seller` | App marchand (« ivia Marchand ») |
+| `apps/driver` | `ivia_driver` | App livreur (« ivia Livreur ») |
+| `packages/ui` | `ivia_ui` | Thème Material 3, tokens et police Parkinsans ([charte](../docs/DESIGN.md)) |
+| `packages/api_client` | `ivia_api_client` | Accès à l'API, seul point de contact avec le backend |
 
-This project is a starting point for a Flutter application.
+Les commandes (installer, lancer, tester, construire) sont dans [`AGENTS.md`](../AGENTS.md#commandes).
 
-A few resources to get you started if this is your first Flutter project:
-
-- [Learn Flutter](https://docs.flutter.dev/get-started/learn-flutter)
-- [Write your first Flutter app](https://docs.flutter.dev/get-started/codelab)
-- [Flutter learning resources](https://docs.flutter.dev/reference/learning-resources)
-
-For help getting started with Flutter development, view the
-[online documentation](https://docs.flutter.dev/), which offers tutorials,
-samples, guidance on mobile development, and a full API reference.
+Règles : les écrans utilisent `Theme.of(context)` et les tokens de `ivia_ui`, jamais de couleur,
+taille de police ou rayon en dur ; tout appel réseau passe par `ivia_api_client`.

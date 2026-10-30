@@ -1,0 +1,27 @@
+name: ivia_ui
+description: "Thème, tokens et composants visuels ivia (charte : docs/DESIGN.md)."
+publish_to: none
+version: 0.1.0
+
+environment:
+  sdk: ^3.13.5
+resolution: workspace
+
+dependencies:
+  flutter:
+    sdk: flutter
+
+dev_dependencies:
+  flutter_test:
+    sdk: flutter
+
+flutter:
+  fonts:
+    - family: Parkinsans
+      fonts:
+        - asset: fonts/Parkinsans-Regular.ttf
+          weight: 400
+        - asset: fonts/Parkinsans-SemiBold.ttf
+          weight: 600
+        - asset: fonts/Parkinsans-Bold.ttf
+          weight: 700
