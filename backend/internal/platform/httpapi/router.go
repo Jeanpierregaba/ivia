@@ -38,8 +38,9 @@ type Options struct {
 
 // Router enregistre les routes des modules et applique les middlewares.
 type Router struct {
-	mux  *http.ServeMux
-	opts Options
+	mux      *http.ServeMux
+	opts     Options
+	patterns []string
 }
 
 // NewRouter crée le routeur avec les routes de santé.
@@ -64,17 +65,25 @@ func (rt *Router) Handler() http.Handler {
 	return h
 }
 
+// Patterns retourne les routes enregistrées (« MÉTHODE /chemin »), pour vérifier le contrat OpenAPI.
+func (rt *Router) Patterns() []string { return rt.patterns }
+
+func (rt *Router) handle(pattern string, h http.Handler) {
+	rt.patterns = append(rt.patterns, pattern)
+	rt.mux.Handle(pattern, h)
+}
+
 // Logger retourne le logger du routeur.
 func (rt *Router) Logger() *slog.Logger { return rt.opts.Logger }
 
 // Public enregistre une route accessible sans authentification.
 func (rt *Router) Public(pattern string, h HandlerFunc) {
-	rt.mux.Handle(pattern, rt.wrap(h))
+	rt.handle(pattern, rt.wrap(h))
 }
 
 // Auth enregistre une route réservée aux utilisateurs connectés, quel que soit leur rôle.
 func (rt *Router) Auth(pattern string, h HandlerFunc) {
-	rt.mux.Handle(pattern, rt.wrap(rt.requireAuth(nil, h)))
+	rt.handle(pattern, rt.wrap(rt.requireAuth(nil, h)))
 }
 
 // Roles enregistre une route réservée aux utilisateurs ayant au moins un des rôles.
@@ -82,12 +91,12 @@ func (rt *Router) Roles(pattern string, h HandlerFunc, roles ...identity.Role) {
 	if len(roles) == 0 {
 		panic("httpapi: Roles sans rôle pour " + pattern)
 	}
-	rt.mux.Handle(pattern, rt.wrap(rt.requireAuth(roles, h)))
+	rt.handle(pattern, rt.wrap(rt.requireAuth(roles, h)))
 }
 
 // Raw enregistre un handler standard (webhooks, fichiers locaux) sans traduction d'erreur.
 func (rt *Router) Raw(pattern string, h http.Handler) {
-	rt.mux.Handle(pattern, h)
+	rt.handle(pattern, h)
 }
 
 func (rt *Router) wrap(h HandlerFunc) http.Handler {

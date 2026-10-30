@@ -44,6 +44,8 @@ type App struct {
 	DB      *database.DB
 	Queue   *jobs.Queue
 	Handler http.Handler
+	// Routes enregistrées (« MÉTHODE /chemin »).
+	Routes []string
 
 	Admin         *admin.Service
 	Geo           *geo.Service
@@ -136,11 +138,11 @@ func New(cfg config.Config, logger *slog.Logger, pool *pgxpool.Pool, opts Option
 	}
 	enq.Set(a.Queue)
 
-	a.Handler = a.routes()
+	a.Handler, a.Routes = a.routes()
 	return a, nil
 }
 
-func (a *App) routes() http.Handler {
+func (a *App) routes() (http.Handler, []string) {
 	rt := httpapi.NewRouter(httpapi.Options{
 		Logger: a.Logger, DB: a.DB.Pool, Auth: a.Auth, TrustProxyHeaders: a.Config.TrustProxyHeaders,
 	})
@@ -182,7 +184,7 @@ func (a *App) routes() http.Handler {
 			})
 		}
 	}
-	return rt.Handler()
+	return rt.Handler(), rt.Patterns()
 }
 
 func (a *App) buildStorage() (storage.ObjectStore, error) {

@@ -61,13 +61,15 @@ erDiagram
 | geo | `neighborhoods` | Quartiers de Lomé (nom, polygone optionnel) |
 | shops | `shops` | Statut `pending_review` → `published` / `suspended` ; position obligatoire |
 | catalog | `categories`, `products`, `product_images` | `parcel_size` (`small`/`medium`/`large`), `stock_mode` (`tracked`/`untracked`), colonne `tsvector` pour la recherche |
-| stock | `stock_movements` | Journal des mouvements ; quantité disponible = colonne `products.stock_qty` mise à jour dans la même transaction |
+| stock | `stock_levels`, `stock_movements` | Quantité disponible dans `stock_levels` (et non dans `products`, pour qu'aucun autre module n'écrive dans les tables du catalogue), `CHECK (quantity >= 0)` : survente impossible ; journal des mouvements en ajout seul, écrit dans la même transaction |
 | cart | `carts`, `cart_items` | Un panier par acheteur, lié à une seule boutique |
 | orders | `orders`, `order_items`, `order_status_events` | Copie du prix, du nom et de la commission à la commande ; historique des statuts **en ajout seul** ; code de remise en clair (affiché à l'acheteur) + compteur d'essais (5 max) |
-| payments | `payments`, `payment_events`, `refunds` | `payment_events` garde chaque webhook brut ; aucune ligne modifiée après coup : un remboursement est une nouvelle ligne `refunds`. Ces trois tables et `settlements` forment la trace financière |
+| payments | `payments`, `payment_events`, `refunds` | `payment_events` garde chaque événement du prestataire (unique par prestataire et identifiant : idempotence) ; `payment_events` et `refunds` sont en ajout seul (trigger). Un remboursement n'est écrit dans `refunds` qu'une fois son résultat connu ; l'état « en cours » est porté par `payments.status = 'refund_pending'`. Statuts d'un paiement : `pending`, `succeeded`, `failed`, `expired`, `refund_pending`, `refunded` ; un paiement reçu pour une commande déjà payée est marqué `is_duplicate` et remboursable. Ces trois tables et `settlements` forment la trace financière |
 | delivery | `drivers`, `driver_documents`, `delivery_offers`, `deliveries` | Index uniques partiels : une seule `delivery` active **par commande** et **par livreur** |
 | notifications | `notifications` | Liste consultable dans les apps + envoi push |
-| settlements | `settlements` | Relevé par boutique et période (fuseau `Africa/Lome`), marqué réglé par l'admin ; un remboursement postérieur au règlement est déduit du relevé suivant (solde négatif possible) |
+| settlements | `settlements`, `settlement_lines` | Relevé par boutique et période (fuseau `Africa/Lome`) des commandes remises : net = produits − commission (les frais de livraison restent à la plateforme). Une commande n'entre que dans un relevé (`settlement_lines.order_id` unique) ; un relevé réglé est figé (trigger). Une commande remise n'est jamais remboursée par la machine à états : aucune déduction n'est donc nécessaire |
+| search | vues `search_products`, `search_shops` | Lecture seule du catalogue publié ([ADR 0009](decisions/0009-recherche-vues-lecture-seule.md)) |
+| uploads, reports | — | Pas de table : URL signées d'envoi de fichiers ; indicateurs calculés par les modules propriétaires des données |
 | admin | `settings`, `admin_audit_log` | Commission, barème et coefficient de distance, délais ; journal **en ajout seul** de chaque action admin (qui, quoi, quand, avant/après) |
 
 **Cycle de vie d'une commande** (codes utilisés dans le code et l'API) :
@@ -77,21 +79,25 @@ stateDiagram-v2
   [*] --> pending_payment
   pending_payment --> awaiting_seller : webhook paiement réussi
   pending_payment --> expired : 15 min sans paiement réussi
+  pending_payment --> cancelled : l'acheteur renonce avant de payer
   expired --> awaiting_seller : paiement tardif, stock disponible
   expired --> cancelled : paiement tardif, stock indisponible
   awaiting_seller --> accepted : marchand accepte
   awaiting_seller --> cancelled : refus marchand / 15 min sans réponse / annulation acheteur
   accepted --> preparing
+  accepted --> cancelled : admin
+  preparing --> cancelled : admin
+  ready_for_pickup --> cancelled : admin
   preparing --> ready_for_pickup : retrait
   preparing --> awaiting_driver : livraison
   ready_for_pickup --> completed : code de remise saisi par le marchand
   awaiting_driver --> driver_assigned : un livreur accepte
   awaiting_driver --> cancelled : admin annule (après alerte)
-  driver_assigned --> awaiting_driver : livreur se désiste
+  driver_assigned --> awaiting_driver : livreur se désiste / admin le retire
   driver_assigned --> picked_up : récupération confirmée
   picked_up --> delivered : code de remise saisi par le livreur
   picked_up --> delivery_failed : client absent ou injoignable
-  delivery_failed --> returned_to_shop : marchand confirme le retour
+  delivery_failed --> returned_to_shop : marchand (ou admin) confirme le retour
   cancelled --> refunded : remboursement confirmé
   returned_to_shop --> refunded : produits remboursés
 ```
@@ -100,6 +106,11 @@ stateDiagram-v2
   remboursement** du back-office. `expired` sans paiement ne demande aucun remboursement.
 - Le stock réservé est rendu à `expired`, `cancelled` et `returned_to_shop`.
 - `accepted`, `preparing` et au-delà : seul l'admin peut annuler.
+- La table des transitions permises et de leurs auteurs est dans `backend/internal/orders/statemachine.go`
+  (testée transition par transition). Un paiement reçu pour une commande annulée avant paiement
+  l'ajoute à la file de remboursement (événement `cancelled → cancelled` dans l'historique).
+- Code de remise : 5 essais ; chaque mauvais essai est compté même si la requête échoue, puis le code
+  est bloqué jusqu'au déblocage par un admin (journalisé).
 
 Toute transition passe par une seule fonction du module `orders`, qui vérifie qu'elle est permise
 (machine à états), l'écrit dans `order_status_events` avec son auteur, et crée les tâches qui en
@@ -140,7 +151,14 @@ flowchart LR
 - **Monolithe modulaire** : `backend/internal/<module>/` avec trois couches (handlers HTTP →
   service métier → store sqlc). Un module n'utilise **jamais** les tables d'un autre : il appelle
   son service. Les dépendances entre modules vont dans un seul sens (ex. `orders` → `catalog`,
-  jamais l'inverse) ; les réactions à un événement passent par des tâches River.
+  `payments` → `orders`, `delivery` → `orders`, jamais l'inverse) ; les réactions à un événement
+  passent par des tâches River (ex. `orders.status_changed`, traitée par `delivery`).
+- **Transactions partagées** : la transaction en cours voyage dans le `context.Context`
+  (`database.DB.InTx`) ; un service appelé pendant la transaction d'un autre y participe. Une
+  commande, sa réservation de stock, son historique, ses notifications et ses tâches de fond sont
+  ainsi écrits atomiquement sans qu'un module touche aux tables d'un autre.
+- **Suppression de compte** : le module `users` orchestre ; les autres modules s'y branchent par
+  des interfaces (`DeletionGuard` pour refuser, `DeletionHook` pour effacer leurs données).
 - **Contrat d'API** : `backend/api/openapi.yaml` décrit chaque route. Les types TypeScript du
   back-office en sont générés (`openapi-typescript`) ; le client Dart est écrit à la main dans
   `mobile/packages/api_client`.
@@ -164,9 +182,13 @@ flowchart LR
 ```
 backend/
   cmd/api/                 point d'entrée (API + workers)
+  cmd/manage/              administration : grant-admin, seed-dev, migrate
   internal/<module>/       auth, users, geo, shops, catalog, stock, search, cart, orders,
-                           payments, delivery, notifications, settlements, admin
-  internal/platform/       config, base, HTTP (middlewares, erreurs), stockage R2
+                           payments, delivery, notifications, settlements, admin, uploads, reports
+                           (queries.sql → store/ généré par sqlc ; service ; handler ; jobs)
+  internal/app/            assemblage des modules (serveur, ligne de commande, tests de bout en bout)
+  internal/platform/       config, base (transactions par contexte), HTTP, River, stockage R2,
+                           erreurs, validation, limitation de débit
   db/migrations/           migrations goose (SQL)
   api/openapi.yaml         contrat de l'API
 mobile/                    Dart pub workspace
@@ -269,6 +291,7 @@ Chaque intégration est derrière une interface Go (`PaymentProvider`, `OTPSende
 - [ADR-0006](decisions/0006-authentification-otp-sessions.md) — Connexion par OTP multi-canal et sessions opaques
 - [ADR-0007](decisions/0007-paiement-mobile-money.md) — Paiement derrière une interface, agrégateur à choisir (proposé)
 - [ADR-0008](decisions/0008-hebergement-vps-hetzner.md) — Hébergement sur VPS Hetzner avec Docker Compose, fichiers sur R2
+- [ADR-0009](decisions/0009-recherche-vues-lecture-seule.md) — Recherche par vues SQL en lecture seule du catalogue publié
 
 ## Points d'attention
 

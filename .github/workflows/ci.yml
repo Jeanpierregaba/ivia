@@ -40,8 +40,19 @@ jobs:
       - name: gofmt
         run: test -z "$(gofmt -l .)"
       - run: go vet ./...
+      - name: sqlc (code généré à jour)
+        run: go run github.com/sqlc-dev/sqlc/cmd/sqlc@v1.31.1 diff
       - run: go test -race ./...
       - run: go build ./...
+      - name: govulncheck
+        run: go run golang.org/x/vuln/cmd/govulncheck@v1.9.0 ./...
+
+  contract:
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/checkout@v7
+      - name: Contrat OpenAPI valide
+        run: npx --yes @redocly/cli@2 lint backend/api/openapi.yaml
 
   mobile:
     runs-on: ubuntu-latest

@@ -11,7 +11,7 @@ Il est rempli par la skill /cadrage (ou à la main en suivant les commentaires).
 
 ## Statut du cadrage
 
-**FAIT (2026-10-30)** — reste le squelette mobile (3 apps) et back-office, voir `TASKS.md`.
+**FAIT (2026-10-30)** — backend MVP implémenté ; reste le squelette mobile (3 apps) et le back-office, voir `TASKS.md`.
 
 
 > Tant que le statut est « NON FAIT » : si l'utilisateur demande de coder une fonctionnalité,
@@ -37,9 +37,10 @@ Détail et versions : `docs/ARCHITECTURE.md`.
 ## Structure du dépôt
 
 - `backend/` — API Go (module `ivia/backend`)
-  - `cmd/api/` — point d'entrée (API + workers River)
-  - `internal/<module>/` — un dossier par domaine (auth, users, shops, catalog, orders, payments, delivery…)
-  - `internal/platform/` — config, base, middlewares HTTP, stockage
+  - `cmd/api/` — point d'entrée (API + workers River) · `cmd/manage/` — administration (grant-admin, seed-dev)
+  - `internal/<module>/` — un dossier par domaine : `queries.sql` (sqlc → `store/`), `service.go`, `handler.go`, `jobs.go`
+  - `internal/app/` — assemblage des modules + tests de bout en bout par HTTP
+  - `internal/platform/` — config, base (transactions par contexte), HTTP, River, stockage, erreurs, validation
   - `db/migrations/` — migrations goose · `api/openapi.yaml` — contrat de l'API
 - `mobile/` — pub workspace : `apps/buyer`, `apps/seller`, `apps/driver`, `packages/api_client`, `packages/ui`
 - `admin/` — back-office Next.js
@@ -54,11 +55,14 @@ Base de données (depuis la racine) :
 - Console SQL : `docker compose exec postgres psql -U ivia -d ivia`
 
 Backend (depuis `backend/`) — `DATABASE_URL` doit être exportée (valeur locale dans `.env.example`) :
-- Installer : `go mod download`
-- Démarrer en local : `go run ./cmd/api` (port `PORT`, 8080 par défaut)
-- Lint : `gofmt -l .` (doit être vide) et `go vet ./...`
+- Installer : `go mod download` · outil : sqlc 1.31 (`go install github.com/sqlc-dev/sqlc/cmd/sqlc@v1.31.1`)
+- Démarrer en local : `go run ./cmd/api` (port `PORT`, 8080 par défaut ; codes OTP dans les journaux)
+- Données de démonstration : `go run ./cmd/manage seed-dev` · premier admin : `go run ./cmd/manage grant-admin <email>`
+- Code SQL généré : `sqlc generate` après toute modification d'un `queries.sql` ou d'une migration (commité)
+- Lint : `gofmt -l .` (doit être vide), `go vet ./...`, `sqlc diff` (doit être vide)
 - Typecheck : `go build ./...`
-- Tests : `go test ./...` (`TestOpen` est ignoré sans `DATABASE_URL`)
+- Tests : `go test ./...` (contre PostGIS ; sans `DATABASE_URL`, les tests qui en ont besoin sont ignorés)
+- Sécurité : `go run golang.org/x/vuln/cmd/govulncheck@v1.9.0 ./...`
 - Build : `go build -o bin/api ./cmd/api`
 
 Mobile (depuis `mobile/`) :
@@ -94,7 +98,7 @@ Mobile (depuis `mobile/`) :
 - **Identifiants** : `uuid` générés par la base.
 - **API** : JSON en `snake_case` ; erreurs au format `{"error": {"code": "...", "message": "..."}}`,
   `code` stable en anglais, `message` en français lisible par l'utilisateur. Toute route est décrite
-  dans `backend/api/openapi.yaml` **dans le même commit**.
+  dans `backend/api/openapi.yaml` **dans le même commit** (`TestOpenAPICoversAllRoutes` le vérifie).
 - **Go** : erreurs enveloppées (`fmt.Errorf("contexte : %w", err)`), `context.Context` en premier
   argument, pas de variable globale mutable, `slog` pour les logs (jamais de code OTP, jeton,
   numéro complet ni donnée de paiement).
