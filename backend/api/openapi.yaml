@@ -3852,6 +3852,41 @@ paths:
             application/json:
               schema:
                 "$ref": "#/components/schemas/Error"
+  "/v1/admin/orders/{id}/confirm-return":
+    post:
+      summary: "Confirmer le retour d'un colis non livré (marchand injoignable)"
+      tags:
+        - Admin
+      operationId: postAdminOrdersByIdConfirmReturn
+      description: "Libère le livreur et place la commande dans la file de remboursement. Motif obligatoire, journalisé."
+      parameters:
+        - name: id
+          in: path
+          required: true
+          schema:
+            type: string
+            format: uuid
+      x-roles:
+        - admin
+      requestBody:
+        required: true
+        content:
+          application/json:
+            schema:
+              "$ref": "#/components/schemas/Reason"
+      responses:
+        "200":
+          description: "Succès"
+          content:
+            application/json:
+              schema:
+                "$ref": "#/components/schemas/AdminOrder"
+        default:
+          description: "Erreur (voir `code`)"
+          content:
+            application/json:
+              schema:
+                "$ref": "#/components/schemas/Error"
   "/v1/admin/orders/{id}/unassign-driver":
     post:
       summary: "Retirer le livreur (avant récupération)"

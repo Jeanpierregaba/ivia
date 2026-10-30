@@ -334,8 +334,8 @@ func (s *Service) requireSellerOrder(ctx context.Context, sellerID, id uuid.UUID
 		}
 		return Order{}, err
 	}
-	// Une commande non payée n'existe pas pour le marchand.
-	if o.Status == StatusPendingPayment || o.Status == StatusExpired {
+	// Une commande jamais payée (en attente, expirée ou abandonnée) n'existe pas pour le marchand.
+	if o.PaidAt == nil {
 		return Order{}, errNotFound
 	}
 	return o, nil

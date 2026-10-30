@@ -261,8 +261,15 @@ func (s *Service) processEvent(ctx context.Context, eventID int64) error {
 	switch ProviderStatus(ev.Status) {
 	case ProviderSucceeded:
 		if ev.AmountXof != pay.AmountXof || ev.Currency != pay.Currency {
-			// Montant différent du montant attendu : on ne valide rien, l'admin est alerté.
+			// Montant différent du montant attendu : la commande n'est pas validée, le paiement passe en
+			// échec (il ne reste pas en attente indéfiniment) et l'admin vérifie auprès du prestataire.
 			s.logger.Error("montant de paiement incohérent", "payment_id", pay.ID, "expected", pay.AmountXof, "received", ev.AmountXof)
+			if _, err := q.SetPaymentStatus(ctx, store.SetPaymentStatusParams{
+				ID: pay.ID, NewStatus: string(StatusFailed), FailureReason: "Montant reçu différent du montant attendu : vérification en cours.",
+				FromStatuses: []string{string(StatusPending)},
+			}); err != nil {
+				return fmt.Errorf("paiement incohérent : %w", err)
+			}
 			return s.notify.NotifyAdmins(ctx, "payment_amount_mismatch", "Paiement incohérent",
 				"Montant reçu différent du montant attendu pour un paiement : vérification manuelle nécessaire.",
 				map[string]string{"payment_id": pay.ID.String(), "order_id": pay.OrderID.String()})

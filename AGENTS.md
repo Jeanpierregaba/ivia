@@ -54,7 +54,7 @@ Base de données (depuis la racine) :
 - Démarrer : `docker compose up -d --wait` · Arrêter : `docker compose stop`
 - Console SQL : `docker compose exec postgres psql -U ivia -d ivia`
 
-Backend (depuis `backend/`) — `DATABASE_URL` doit être exportée (valeur locale dans `.env.example`) :
+Backend (depuis `backend/`) — `APP_ENV=local` et `DATABASE_URL` doivent être exportées (voir `.env.example`) :
 - Installer : `go mod download` · outil : sqlc 1.31 (`go install github.com/sqlc-dev/sqlc/cmd/sqlc@v1.31.1`)
 - Démarrer en local : `go run ./cmd/api` (port `PORT`, 8080 par défaut ; codes OTP dans les journaux)
 - Données de démonstration : `go run ./cmd/manage seed-dev` · premier admin : `go run ./cmd/manage grant-admin <email>`

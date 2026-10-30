@@ -113,6 +113,15 @@ func (s *Service) CheckAccountDeletable(ctx context.Context, userID uuid.UUID) e
 	return nil
 }
 
+// OnAccountDeleted efface l'adresse de livraison copiée dans les commandes de l'acheteur ; montants
+// et historique sont conservés (users.DeletionHook). Les commandes en cours ont été refusées avant.
+func (s *Service) OnAccountDeleted(ctx context.Context, userID uuid.UUID) error {
+	if err := store.New(s.db.Conn(ctx)).EraseBuyerPersonalData(ctx, userID); err != nil {
+		return fmt.Errorf("effacement des adresses de livraison : %w", err)
+	}
+	return nil
+}
+
 // Metrics regroupe les indicateurs des commandes sur une période.
 type Metrics struct {
 	PaidOrders                int64      `json:"paid_orders"`

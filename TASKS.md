@@ -72,6 +72,10 @@ version « retrait seulement » (voir `docs/PRD.md`).
 - [ ] Boutiques et livreurs pilotes pour les tests terrain
 
 ## Terminé
+- [x] Corrections de la revue du 2026-10-30 : `APP_ENV` obligatoire, code de remise compté avant
+  comparaison, confirmation du retour par l'admin, machine à états testée exhaustivement, accès aux
+  ressources d'autrui testés sur toutes les routes, paiement incohérent en échec, commandes non
+  payées masquées au marchand, adresses de livraison effacées à la suppression du compte, plafonds IP relevés
 - [x] Backend du MVP (2026-10-30) : schéma complet (16 migrations), 16 modules (connexion OTP et
   sessions, comptes et adresses, quartiers, boutiques, catalogue, stock, recherche, panier,
   commandes et machine à états, paiements avec faux prestataire, webhooks, remboursements,

@@ -79,11 +79,13 @@ type Service struct {
 
 // NewService crée le service. Seul le canal e-mail est ouvert au lancement.
 func NewService(db *database.DB, userDir UserDirectory, sender OTPSender, logger *slog.Logger, opts Options) *Service {
+	// Plafonds par IP élevés : une même IP d'opérateur mobile est partagée par de nombreux abonnés.
+	// La vraie protection est la limite par destinataire (1 code par minute, 10 par jour, 5 essais).
 	if opts.RequestsPerIPPerHour == 0 {
-		opts.RequestsPerIPPerHour = 200
+		opts.RequestsPerIPPerHour = 2000
 	}
 	if opts.VerifiesPerIPPerHour == 0 {
-		opts.VerifiesPerIPPerHour = 400
+		opts.VerifiesPerIPPerHour = 4000
 	}
 	return &Service{
 		db: db, users: userDir, sender: sender, logger: logger, opts: opts,

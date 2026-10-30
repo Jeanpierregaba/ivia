@@ -286,26 +286,28 @@ func (s *Service) ConfirmReturn(ctx context.Context, sellerID, orderID uuid.UUID
 	return s.sellerAction(ctx, sellerID, orderID, StatusReturnedToShop, "Colis revenu en boutique.")
 }
 
-// checkHandoverCode compare le code de remise. Un mauvais code est compté dans une transaction
-// séparée (il reste compté même si l'action échoue) ; après 5 essais, le code est bloqué.
+// checkHandoverCode vérifie le code de remise. L'essai est compté AVANT la comparaison, par une
+// mise à jour conditionnelle (essais < 5) validée dans sa propre transaction : même des centaines
+// de requêtes simultanées ne comparent jamais plus de 5 codes, et un mauvais essai reste compté si
+// l'action échoue ensuite. Au 5e essai, le code est bloqué jusqu'au déblocage par un admin.
 func (s *Service) checkHandoverCode(ctx context.Context, o Order, code string) error {
-	if o.HandoverAttempts >= MaxHandoverAttempts {
-		return apperr.Conflict("handover_locked", "Trop d'essais : le code est bloqué. Contactez l'équipe ivia.")
+	locked := apperr.Conflict("handover_locked", "Trop d'essais : le code est bloqué. Contactez l'équipe ivia.")
+	n, err := store.New(s.db.Pool).IncrementHandoverAttempts(ctx, store.IncrementHandoverAttemptsParams{ID: o.ID, MaxAttempts: MaxHandoverAttempts})
+	if database.IsNoRows(err) {
+		return locked
+	}
+	if err != nil {
+		return fmt.Errorf("comptage des essais de code : %w", err)
 	}
 	if len(code) == 4 && subtle.ConstantTimeCompare([]byte(code), []byte(o.HandoverCode)) == 1 {
 		return nil
 	}
-	// Pool directement : ce compteur doit être validé même si la transaction appelante est annulée.
-	n, err := store.New(s.db.Pool).IncrementHandoverAttempts(ctx, store.IncrementHandoverAttemptsParams{ID: o.ID, MaxAttempts: MaxHandoverAttempts})
-	if database.IsNoRows(err) || (err == nil && n >= MaxHandoverAttempts) {
+	if n >= MaxHandoverAttempts {
 		if err := s.notify.NotifyAdmins(context.WithoutCancel(ctx), "handover_locked", "Code de remise bloqué",
 			"La commande "+o.Reference+" a atteint 5 essais de code.", map[string]string{"order_id": o.ID.String()}); err != nil {
 			s.logger.Error("alerte admin impossible", "err", err)
 		}
-		return apperr.Conflict("handover_locked", "Trop d'essais : le code est bloqué. Contactez l'équipe ivia.")
-	}
-	if err != nil {
-		return fmt.Errorf("comptage des essais de code : %w", err)
+		return locked
 	}
 	return apperr.Unprocessable("handover_code_invalid", fmt.Sprintf("Code incorrect. Il reste %d essai(s).", MaxHandoverAttempts-n))
 }
@@ -489,6 +491,31 @@ func (s *Service) CancelByAdmin(ctx context.Context, adminID, orderID uuid.UUID,
 		}
 		return s.admin.Record(ctx, admin.AuditEntry{
 			AdminID: &adminID, Action: "order.cancel", TargetType: "order", TargetID: orderID.String(),
+			Before: map[string]any{"status": before.Status}, After: map[string]any{"status": out.Status, "refund_due_xof": out.RefundDueXOF},
+			Reason: reason,
+		})
+	})
+	return adminView(out), err
+}
+
+// ConfirmReturnByAdmin confirme le retour en boutique d'un colis non livré quand le marchand ne le
+// fait pas : la mission du livreur se termine et la commande entre dans la file de remboursement.
+// Journalisé.
+func (s *Service) ConfirmReturnByAdmin(ctx context.Context, adminID, orderID uuid.UUID, reason string) (AdminOrder, error) {
+	if reason == "" {
+		return AdminOrder{}, apperr.Validation(map[string]string{"reason": "Indiquez comment le retour a été vérifié."})
+	}
+	var out Order
+	err := s.db.InTx(ctx, func(ctx context.Context) error {
+		before, err := s.get(ctx, orderID)
+		if err != nil {
+			return err
+		}
+		if out, err = s.apply(ctx, orderID, StatusReturnedToShop, As(ActorAdmin, adminID), reason); err != nil {
+			return err
+		}
+		return s.admin.Record(ctx, admin.AuditEntry{
+			AdminID: &adminID, Action: "order.confirm_return", TargetType: "order", TargetID: orderID.String(),
 			Before: map[string]any{"status": before.Status}, After: map[string]any{"status": out.Status, "refund_due_xof": out.RefundDueXOF},
 			Reason: reason,
 		})

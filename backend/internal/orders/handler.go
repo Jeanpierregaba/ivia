@@ -46,6 +46,7 @@ func (h *Handler) Register(rt *httpapi.Router) {
 	rt.Roles("GET /v1/admin/orders/{id}", h.adminGet, identity.RoleAdmin)
 	rt.Roles("POST /v1/admin/orders/{id}/cancel", h.adminCancel, identity.RoleAdmin)
 	rt.Roles("POST /v1/admin/orders/{id}/unlock-handover", h.adminUnlock, identity.RoleAdmin)
+	rt.Roles("POST /v1/admin/orders/{id}/confirm-return", h.adminConfirmReturn, identity.RoleAdmin)
 	rt.Roles("GET /v1/admin/refund-queue", h.refundQueue, identity.RoleAdmin)
 }
 
@@ -252,6 +253,24 @@ func (h *Handler) adminUnlock(w http.ResponseWriter, r *http.Request) error {
 		return err
 	}
 	o, err := h.svc.UnlockHandover(r.Context(), uid(r).UserID, id, validate.Clean(in.Reason))
+	if err != nil {
+		return err
+	}
+	return httpapi.OK(w, o)
+}
+
+func (h *Handler) adminConfirmReturn(w http.ResponseWriter, r *http.Request) error {
+	id, err := httpapi.PathUUID(r, "id")
+	if err != nil {
+		return err
+	}
+	var in struct {
+		Reason string `json:"reason"`
+	}
+	if err := httpapi.Decode(r, &in); err != nil {
+		return err
+	}
+	o, err := h.svc.ConfirmReturnByAdmin(r.Context(), uid(r).UserID, id, validate.Clean(in.Reason))
 	if err != nil {
 		return err
 	}

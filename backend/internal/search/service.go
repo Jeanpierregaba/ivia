@@ -23,6 +23,9 @@ import (
 // MaxRadiusMeters borne la recherche « autour de moi » (Grand Lomé).
 const MaxRadiusMeters = 50_000
 
+// SearchesPerIPPerMinute : plafond par adresse IP partagée (voir NewService).
+const SearchesPerIPPerMinute = 3000
+
 // URLResolver retourne l'URL publique d'un fichier (photos, logos).
 type URLResolver interface {
 	PublicURL(key string) string
@@ -62,7 +65,9 @@ type Service struct {
 
 // NewService crée le service.
 func NewService(db *database.DB, urls URLResolver) *Service {
-	return &Service{db: db, urls: urls, limiter: ratelimit.New(120, time.Minute)}
+	// Plafond volontairement haut : les opérateurs mobiles togolais font partager une même adresse
+	// IP à de nombreux abonnés (CGNAT). Il ne sert qu'à couper un robot.
+	return &Service{db: db, urls: urls, limiter: ratelimit.New(SearchesPerIPPerMinute, time.Minute)}
 }
 
 type filters struct {

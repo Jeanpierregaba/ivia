@@ -14,6 +14,14 @@ Format :
 - Prochaine étape :
 -->
 
+### 2026-10-30 — Corrections de la revue du backend
+- Fait : 4 points importants et 4 mineurs de la revue corrigés, chacun couvert par un test ;
+  migration 00017 (effacement des adresses de livraison) ; route admin `confirm-return`.
+- Pièges rencontrés : le test d'attaque parallèle sur le code de remise ne prouvait pas la faille
+  (compteur déjà plafonné) → test de régression déterministe (lecture périmée), vérifié en échec
+  sur l'ancien code.
+- Prochaine étape : inchangée (front, prestataire de paiement, déploiement).
+
 ### 2026-10-30 — Backend complet du MVP
 - Fait : environnement Windows installé (Go 1.27, sqlc 1.31) ; schéma complet et 16 modules
   backend ; assemblage `internal/app` ; `cmd/manage` ; contrat OpenAPI (124 routes) vérifié par un

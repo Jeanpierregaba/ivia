@@ -25,6 +25,7 @@ import (
 	"ivia/backend/internal/platform/apperr"
 	"ivia/backend/internal/platform/config"
 	"ivia/backend/internal/platform/database"
+	"ivia/backend/internal/platform/docs"
 	"ivia/backend/internal/platform/httpapi"
 	"ivia/backend/internal/platform/jobs"
 	"ivia/backend/internal/platform/storage"
@@ -122,6 +123,7 @@ func New(cfg config.Config, logger *slog.Logger, pool *pgxpool.Pool, opts Option
 	a.Users.AddDeletionGuard(a.Orders)
 	a.Users.AddDeletionGuard(a.Delivery)
 	a.Users.AddDeletionHook(a.Auth)
+	a.Users.AddDeletionHook(a.Orders)
 	a.Users.AddDeletionHook(a.Delivery)
 	a.Users.AddDeletionHook(a.Shops)
 	a.Users.AddDeletionHook(a.Cart)
@@ -162,6 +164,10 @@ func (a *App) routes() (http.Handler, []string) {
 	settlements.NewHandler(a.Settlements).Register(rt)
 	reports.NewHandler(a.Orders, a.Delivery, a.Payments).Register(rt)
 
+	if a.Config.Env != config.EnvProduction { // documentation interactive : local, test, staging
+		rt.Raw(docs.PageRoute, http.HandlerFunc(docs.Page))
+		rt.Raw(docs.SpecRoute, http.HandlerFunc(docs.Spec))
+	}
 	if a.Config.DevToolsEnabled() {
 		if a.LocalStore != nil {
 			rt.Raw("/dev/storage/", a.LocalStore.Handler())

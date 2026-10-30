@@ -6,6 +6,8 @@ import (
 	"regexp"
 	"strings"
 	"testing"
+
+	"ivia/backend/internal/platform/docs"
 )
 
 // Le contrat OpenAPI doit décrire chaque route enregistrée, et seulement celles-là.
@@ -33,6 +35,9 @@ func TestOpenAPICoversAllRoutes(t *testing.T) {
 
 	registered := map[string]bool{"GET /health": true, "GET /ready": true}
 	for _, p := range a.Routes {
+		if p == docs.PageRoute || p == docs.SpecRoute {
+			continue // la documentation sert le contrat, elle n'en fait pas partie
+		}
 		if strings.Contains(p, " ") { // les routes sans méthode (/dev/storage/) servent des fichiers
 			registered[p] = true
 		}

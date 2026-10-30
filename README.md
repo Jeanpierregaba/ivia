@@ -15,6 +15,7 @@ docker compose up -d --wait
 
 # 2. API (depuis backend/) — migrations appliquées au démarrage
 cd backend
+export APP_ENV=local             # obligatoire : local | test | staging | production
 export DATABASE_URL="postgres://ivia@localhost:5432/ivia?sslmode=disable"
 go run ./cmd/manage seed-dev     # comptes et boutique de démonstration
 go run ./cmd/api                 # http://localhost:8080/health
@@ -24,8 +25,8 @@ go test ./...
 ```
 
 En local, tout fonctionne sans compte externe : les codes de connexion s'affichent dans les journaux
-de l'API (et `POST /v1/dev/otp`), les paiements passent par un faux prestataire
-(`POST /v1/dev/payments/{id}/simulate`), les fichiers sont stockés sur le disque. Le contrat de
+de l'API (et `POST /v1/dev/otp`, routes `/v1/dev` ouvertes en local et test seulement), les paiements passent par un faux prestataire
+(`POST /v1/dev/payments/{id}/simulate`), les fichiers sont stockés sur le disque. Documentation interactive : http://localhost:8080/docs. Le contrat de
 l'API est dans [`backend/api/openapi.yaml`](backend/api/openapi.yaml) et les variables dans
 [`.env.example`](.env.example).
 
