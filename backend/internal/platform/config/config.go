@@ -76,7 +76,9 @@ func Load(getenv func(string) string) (Config, error) {
 	}
 
 	c := Config{
-		Env:                  get("APP_ENV", EnvLocal),
+		// Pas de valeur par défaut : un déploiement qui oublie APP_ENV ne doit jamais démarrer en
+		// mode local (routes de simulation ouvertes, implémentations factices acceptées).
+		Env:                  get("APP_ENV", ""),
 		Port:                 get("PORT", "8080"),
 		DatabaseURL:          get("DATABASE_URL", ""),
 		LogLevel:             get("LOG_LEVEL", "info"),
@@ -102,6 +104,8 @@ func Load(getenv func(string) string) (Config, error) {
 	var errs []error
 	switch c.Env {
 	case EnvLocal, EnvTest, EnvStaging, EnvProduction:
+	case "":
+		errs = append(errs, errors.New("APP_ENV non définie : local, test, staging ou production (voir .env.example)"))
 	default:
 		errs = append(errs, fmt.Errorf("APP_ENV invalide : %q", c.Env))
 	}

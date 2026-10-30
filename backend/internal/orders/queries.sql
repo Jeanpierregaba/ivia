@@ -87,7 +87,8 @@ LIMIT sqlc.arg(lim) OFFSET sqlc.arg(off);
 -- name: ListShopOrders :many
 SELECT o.id FROM orders o
 WHERE o.shop_id = ANY(sqlc.arg(shop_ids)::uuid[])
-  AND o.status <> 'pending_payment' AND o.status <> 'expired'
+  -- Le marchand ne voit que les commandes payées.
+  AND o.paid_at IS NOT NULL
   AND (sqlc.narg(status)::text IS NULL OR o.status = sqlc.narg(status)::text)
 ORDER BY o.created_at DESC
 LIMIT sqlc.arg(lim) OFFSET sqlc.arg(off);
@@ -106,6 +107,13 @@ SELECT o.id FROM orders o
 WHERE o.status IN ('cancelled', 'returned_to_shop') AND o.refund_due_xof > 0
 ORDER BY o.updated_at
 LIMIT sqlc.arg(lim) OFFSET sqlc.arg(off);
+
+-- name: EraseBuyerPersonalData :exec
+-- Suppression de compte : adresse de livraison et consignes effacées des commandes de l'acheteur.
+UPDATE orders
+SET delivery_address_text = NULL, delivery_neighborhood = NULL, delivery_instructions = NULL,
+    delivery_location = NULL, personal_data_erased_at = now(), updated_at = now()
+WHERE buyer_id = $1 AND personal_data_erased_at IS NULL;
 
 -- name: CountActiveBuyerOrders :one
 -- Commandes en cours ou en attente de remboursement (bloquent la suppression du compte).

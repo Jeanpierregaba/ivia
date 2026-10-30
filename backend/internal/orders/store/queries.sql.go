@@ -202,6 +202,19 @@ func (q *Queries) CreateOrder(ctx context.Context, arg CreateOrderParams) (uuid.
 	return id, err
 }
 
+const eraseBuyerPersonalData = `-- name: EraseBuyerPersonalData :exec
+UPDATE orders
+SET delivery_address_text = NULL, delivery_neighborhood = NULL, delivery_instructions = NULL,
+    delivery_location = NULL, personal_data_erased_at = now(), updated_at = now()
+WHERE buyer_id = $1 AND personal_data_erased_at IS NULL
+`
+
+// Suppression de compte : adresse de livraison et consignes effacées des commandes de l'acheteur.
+func (q *Queries) EraseBuyerPersonalData(ctx context.Context, buyerID uuid.UUID) error {
+	_, err := q.db.Exec(ctx, eraseBuyerPersonalData, buyerID)
+	return err
+}
+
 const getOrder = `-- name: GetOrder :one
 SELECT o.id, o.number, o.buyer_id, o.shop_id, o.status, o.fulfillment, o.vehicle_type, o.parcel_size,
        o.subtotal_xof, o.delivery_fee_xof, o.total_xof, o.commission_rate_bp, o.commission_xof,
@@ -492,7 +505,8 @@ func (q *Queries) ListItems(ctx context.Context, orderID uuid.UUID) ([]OrderItem
 const listShopOrders = `-- name: ListShopOrders :many
 SELECT o.id FROM orders o
 WHERE o.shop_id = ANY($1::uuid[])
-  AND o.status <> 'pending_payment' AND o.status <> 'expired'
+  -- Le marchand ne voit que les commandes payées.
+  AND o.paid_at IS NOT NULL
   AND ($2::text IS NULL OR o.status = $2::text)
 ORDER BY o.created_at DESC
 LIMIT $4 OFFSET $3

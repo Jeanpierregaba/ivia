@@ -123,6 +123,7 @@ func New(cfg config.Config, logger *slog.Logger, pool *pgxpool.Pool, opts Option
 	a.Users.AddDeletionGuard(a.Orders)
 	a.Users.AddDeletionGuard(a.Delivery)
 	a.Users.AddDeletionHook(a.Auth)
+	a.Users.AddDeletionHook(a.Orders)
 	a.Users.AddDeletionHook(a.Delivery)
 	a.Users.AddDeletionHook(a.Shops)
 	a.Users.AddDeletionHook(a.Cart)
