@@ -1,0 +1,11 @@
+name: ivia_api_client
+description: "Client de l'API ivia, partagé par les 3 apps."
+publish_to: none
+version: 0.1.0
+
+environment:
+  sdk: ^3.13.5
+resolution: workspace
+
+dev_dependencies:
+  test: ^1.26.0

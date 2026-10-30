@@ -38,6 +38,10 @@ adaptative Android.
 - **Règle** : on n'invente pas de composant si Material 3 ou shadcn/ui en fournit un équivalent ; on
   le thème. Les composants propres à ivia (tuile de mosaïque, carte produit, frise de suivi, code de
   remise, compte à rebours) vivent dans `packages/ui` et sont listés ici quand ils sont créés.
+- **Dans le code** : `mobile/packages/ui/lib/src/` — `tokens.dart` (`IviaColors`,
+  `IviaServiceColors`, `IviaSpacing`, `IviaRadius`, `IviaShadows`), `typography.dart`
+  (`IviaTextStyles`), `theme.dart` (`IviaTheme.light()`). Le test `contrast_test.dart` vérifie les
+  ratios du tableau « Contrastes » : à mettre à jour avec ce fichier si une couleur change.
 - Pas de mode sombre au MVP. Les tokens sont nommés par rôle (`surface`, `text-muted`…) et non par
   couleur, pour pouvoir l'ajouter sans toucher aux écrans.
 
@@ -77,6 +81,10 @@ adaptative Android.
 Le rouge étant la couleur de marque, une erreur n'est **jamais** signalée par la couleur seule :
 toujours une icône et un texte.
 
+Teintes pâles **(proposé)** : `primary-soft` `#FDE8EA` et `secondary-soft` `#E5EEF8`, fonds des
+éléments sélectionnés (puce de filtre, indicateur de la barre de navigation) avec texte foncé.
+Textes rouges : Cornell Red (boutons texte, onglet actif, libellé d'un champ actif).
+
 ### Codage des services
 
 | Famille | Couleur | Au MVP |
@@ -110,24 +118,26 @@ chargée par `next/font/google` dans le back-office.
 
 | Token | Taille / interligne | Graisse | Interlettrage | Material 3 |
 |---|---|---|---|---|
-| `display` | 34 / 38 | 700 | −2 % | `displaySmall` |
-| `title1` | 28 / 32 | 700 | −2 % | `headlineMedium` |
-| `title2` | 22 / 28 | 700 | −1 % | `titleLarge` |
+| `display` | 34 / 38 | 700 | −2 % | `displayLarge/Medium/Small` |
+| `title1` | 28 / 32 | 700 | −2 % | `headlineLarge/Medium` |
+| `title2` | 22 / 28 | 700 | −1 % | `titleLarge`, `headlineSmall` (titre de dialogue) |
 | `title3` | 17 / 22 | 700 | 0 | `titleMedium` |
-| `body` | 15 / 22 | 400 | 0 | `bodyLarge` |
-| `body-strong` | 15 / 22 | 600 | 0 | — |
-| `caption` | 13 / 18 | 400 | 0 | `bodySmall` |
+| `body` | 15 / 22 | 400 | 0 | `bodyLarge`, `bodyMedium` |
+| `body-strong` | 15 / 22 | 600 | 0 | `titleSmall` |
+| `caption` | 13 / 18 | 400 | 0 | `bodySmall` ; en 600 : `labelMedium` (puces) |
 | `overline` | 12 / 16 | 600, majuscules | +8 % | `labelSmall` |
 | `button` | 16 / 20 | 700 | 0 | `labelLarge` |
 
-Chiffres (prix, durées, distances, codes) en 600, avec chiffres tabulaires pour les comptes à rebours.
+Chiffres (prix, durées, distances, codes) en 600. Parkinsans n'a pas de chiffres tabulaires : un
+compte à rebours place chaque chiffre dans une case de largeur fixe (composant à créer dans `packages/ui`).
 
 ### Espacements, rayons, ombres
 
 - Grille de **4 px** ; espacements : 4, 8, 12, 16, 20, 24, 32, 40. Marges latérales : 16 px.
 - Rayons : `6` tuiles intérieures de mosaïque · `14` boutons et petites cartes · `18` champs,
   grandes cartes, barre de navigation, coin extérieur de la mosaïque · `999` pastilles et puces.
-- Ombres : aucune sur les cartes (blanc posé sur `#F3F4F6`). Seule ombre : feuilles modales,
+- Ombres : aucune sur les cartes (blanc posé sur `#F3F4F6`). Seule ombre : feuilles non modales
+  (les feuilles modales du thème n'en ont pas, le voile les détache),
   `0 -8px 24px rgba(14,46,84,.12)`.
 - Mosaïque : tuiles séparées de 8 px, rayon 6 px sauf le coin tourné vers l'extérieur de la grille (18 px).
 

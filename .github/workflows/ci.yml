@@ -56,5 +56,8 @@ jobs:
           flutter-version: 3.47.7
           cache: true
       - run: flutter pub get
+      - run: dart format --output=none --set-exit-if-changed .
       - run: flutter analyze
-      - run: flutter test
+      # Chaque app et chaque paquet du workspace a ses propres tests.
+      - name: flutter test
+        run: for member in apps/* packages/*; do (cd "$member" && flutter test) || exit 1; done

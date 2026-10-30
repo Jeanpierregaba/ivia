@@ -11,7 +11,7 @@ Il est rempli par la skill /cadrage (ou à la main en suivant les commentaires).
 
 ## Statut du cadrage
 
-**FAIT (2026-10-30)** — reste le squelette mobile (3 apps) et back-office, voir `TASKS.md`.
+**FAIT (2026-10-30)** — reste le squelette back-office, voir `TASKS.md`.
 
 
 > Tant que le statut est « NON FAIT » : si l'utilisateur demande de coder une fonctionnalité,
@@ -61,12 +61,15 @@ Backend (depuis `backend/`) — `DATABASE_URL` doit être exportée (valeur loca
 - Tests : `go test ./...` (`TestOpen` est ignoré sans `DATABASE_URL`)
 - Build : `go build -o bin/api ./cmd/api`
 
-Mobile (depuis `mobile/`) :
-- Installer : `flutter pub get`
-- Démarrer en local : `flutter run`
-- Lint / typecheck : `flutter analyze`
-- Tests : `flutter test`
-- Build : `flutter build apk` / `flutter build ios --no-codesign`
+Mobile (pub workspace, depuis `mobile/` sauf mention) :
+- Installer : `flutter pub get` (un seul `pubspec.lock` pour tout le workspace)
+- Démarrer en local : depuis `apps/<buyer|seller|driver>`, `flutter run`
+  (`--dart-define=API_BASE_URL=http://…:8080` hors émulateur Android)
+- Lint : `dart format --output=none --set-exit-if-changed .`
+- Lint / typecheck : `flutter analyze` (tout le workspace)
+- Tests : `flutter test` dans chaque membre, ou d'un coup :
+  `ok=0; for m in apps/* packages/*; do (cd "$m" && flutter test) || ok=1; done; [ $ok -eq 0 ]`
+- Build : depuis `apps/<app>`, `flutter build apk` / `flutter build ios --no-codesign`
 
 ## Règles d'architecture non négociables
 
