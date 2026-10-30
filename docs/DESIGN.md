@@ -18,12 +18,15 @@ confirmations), Glovo (suivi de commande par étapes).
 
 Fichiers : [`brand/logo-horizontal.png`](brand/logo-horizontal.png) (1200 × 600) et
 [`brand/logo-carre.png`](brand/logo-carre.png) (1024 × 1024, base de l'icône des apps).
-À fournir par le designer : versions SVG (rouge, blanc, Berkeley Blue) et premier plan de l'icône
-adaptative Android.
+À fournir par le designer : versions SVG (rouge, blanc, Berkeley Blue, Cobalt Blue) et premier plan
+de l'icône adaptative Android. En attendant, les logotypes de `mobile/packages/ui/assets/brand/` et
+les images de splash des apps sont tirés de `logo-carre.png` : à remplacer par ses exports.
 
 - Logotype `ivia`, toujours en minuscules, en Parkinsans Bold (700), lettres non modifiées.
 - Versions autorisées : blanc sur Imperial Red (principale) · Imperial Red sur fond blanc ou clair ·
-  blanc sur Berkeley Blue · Berkeley Blue sur fond clair (secondaire).
+  blanc sur Berkeley Blue · Berkeley Blue sur fond clair (secondaire) · Berkeley Blue ou Cobalt Blue
+  dans une tuile blanche à coins arrondis (rayon ≈ 21 % du côté), sur fond de la même couleur
+  (splash des apps marchand et livreur).
 - Zone de protection : la hauteur du point du « i », sur les quatre côtés. Taille minimale : 24 px de haut.
 - Interdits : déformer, ajouter contour ou ombre, changer de police, passer en majuscules, logo rouge
   sur fond rouge ou bleu cobalt.
@@ -39,8 +42,9 @@ adaptative Android.
   le thème. Les composants propres à ivia (tuile de mosaïque, carte produit, frise de suivi, code de
   remise, compte à rebours) vivent dans `packages/ui` et sont listés ici quand ils sont créés.
 - **Dans le code** : `mobile/packages/ui/lib/src/` — `tokens.dart` (`IviaColors`,
-  `IviaServiceColors`, `IviaSpacing`, `IviaRadius`, `IviaShadows`), `typography.dart`
-  (`IviaTextStyles`), `theme.dart` (`IviaTheme.light()`). Le test `contrast_test.dart` vérifie les
+  `IviaSpacing`, `IviaRadius`, `IviaShadows`), `typography.dart` (`IviaTextStyles`), `theme.dart`
+  (`IviaTheme.light()`), `brand.dart` (`IviaLogo`, `IviaAppBrand` : couleurs de chaque app),
+  `onboarding.dart` (`IviaOnboarding`). Le test `contrast_test.dart` vérifie les
   ratios du tableau « Contrastes » : à mettre à jour avec ce fichier si une couleur change.
 - Pas de mode sombre au MVP. Les tokens sont nommés par rôle (`surface`, `text-muted`…) et non par
   couleur, pour pouvoir l'ajouter sans toucher aux écrans.
@@ -52,9 +56,9 @@ adaptative Android.
 | Token | Nom | Hex | Rôle |
 |---|---|---|---|
 | `primary` | Imperial Red | `#ED1C2F` | Logo, action principale (bouton plein), éléments actifs |
-| `primary-strong` | Cornell Red | `#AA0E1B` | État appuyé, texte rouge sur fond clair, livraison |
-| `secondary` | Cobalt Blue | `#004DA8` | Liens, informations, mobilité |
-| `tertiary` | Berkeley Blue | `#0E2E54` | Fonds sombres, en-têtes foncés, santé |
+| `primary-strong` | Cornell Red | `#AA0E1B` | État appuyé, texte rouge sur fond clair |
+| `secondary` | Cobalt Blue | `#004DA8` | Liens, informations, app livreur |
+| `tertiary` | Berkeley Blue | `#0E2E54` | Fonds sombres, en-têtes foncés, app marchand |
 
 ### Neutres
 
@@ -85,16 +89,19 @@ Teintes pâles **(proposé)** : `primary-soft` `#FDE8EA` et `secondary-soft` `#E
 éléments sélectionnés (puce de filtre, indicateur de la barre de navigation) avec texte foncé.
 Textes rouges : Cornell Red (boutons texte, onglet actif, libellé d'un champ actif).
 
-### Codage des services
+### Couleur de chaque app
 
-| Famille | Couleur | Au MVP |
+Fixée par les maquettes de splash du 2026-10-30 (`IviaAppBrand` dans `packages/ui`). Elle remplace
+l'ancien codage par famille de services (Cornell pour la livraison, Cobalt et Berkeley réservés à
+la mobilité et à la santé) : **à confirmer avec le designer**.
+
+| App | Couleur | Splash |
 |---|---|---|
-| Achats · Ventes | Imperial `#ED1C2F` | App acheteur et app marchand |
-| Livraison · Coursiers | Cornell `#AA0E1B` | App livreur, étapes de livraison dans le suivi |
-| Mobilité · VTC | Cobalt `#004DA8` | Hors scope — réservé |
-| Santé · Pharmacies | Berkeley `#0E2E54` | Hors scope — réservé |
+| Acheteur | Imperial `#ED1C2F` | Logotype blanc sur fond Imperial |
+| Marchand | Berkeley `#0E2E54` | Tuile blanche, logotype Berkeley, sur fond Berkeley |
+| Livreur | Cobalt `#004DA8` | Tuile blanche, logotype Cobalt, sur fond Cobalt |
 
-La couleur de famille sert aux tuiles de l'accueil, aux pictogrammes et aux en-têtes de section.
+La couleur de l'app sert au splash, aux pictogrammes, aux indicateurs et aux en-têtes de section.
 L'action principale reste Imperial Red dans les trois apps.
 
 ### Contrastes (WCAG 2.2, calculés)
@@ -107,6 +114,7 @@ L'action principale reste Imperial Red dans les trois apps.
 | Blanc sur Cornell, Cobalt, Berkeley | 7,5 à 13,7 | Libre |
 | `text-muted` sur `#F3F4F6` | 5,01 | Légendes |
 | `border` sur blanc | 1,25 | Décoratif seulement, jamais seul contour d'un champ |
+| Couleur de l'app sur blanc ou sur son fond pâle (`primary-soft`, `secondary-soft`) | ≥ 3 | Pictogrammes et indicateurs (3:1 exigé pour les éléments graphiques) |
 
 Interdit : texte rouge sur fond bleu, texte bleu sur fond rouge.
 
@@ -147,6 +155,12 @@ Maquettes : à venir (lien Figma à ajouter ici). Les statuts affichés suivent
 [Libellés des statuts](#libellés-des-statuts).
 
 ### Commun aux trois apps
+- **Splash** : écran natif (avant le démarrage de Flutter) aux couleurs de l'app, maintenu pendant
+  l'initialisation. Sur Android 12 et plus, l'image est réduite pour tenir dans le cercle imposé
+  par le système. Détail : [spec 027](specs/027-splash-onboarding/spec.md).
+- **Présentation** (premier lancement) : 3 pages, pictogramme dans un disque pâle de la couleur de
+  l'app, titre, phrase ; « Passer », indicateur, « Suivant » puis « Commencer ». Pictogrammes
+  provisoires en attendant les illustrations.
 - **Connexion** : saisie de l'e-mail → saisie du code à 6 chiffres (champ unique, collage accepté,
   « Renvoyer le code » après 60 s). Préparé pour accepter un numéro de téléphone plus tard.
 - **Notifications** : liste chronologique, non lues en gras ; un appui ouvre la commande ou la mission.
@@ -165,7 +179,7 @@ Maquettes : à venir (lien Figma à ajouter ici). Les statuts affichés suivent
   espacés), bouton d'annulation tant que la boutique n'a pas accepté.
 - **Mes commandes**, **Adresses** (texte + quartier + point sur la carte).
 
-### App marchand (couleur : Imperial)
+### App marchand (couleur : Berkeley)
 - **Création de boutique** puis écran « En attente de validation ».
 - **Commandes** : onglets Nouvelles / En cours / Terminées ; chaque nouvelle commande affiche le
   compte à rebours de 15 min.
@@ -173,7 +187,7 @@ Maquettes : à venir (lien Figma à ajouter ici). Les statuts affichés suivent
   « Prête » ; saisie du code de remise (retrait) ; remise au livreur.
 - **Produits** : liste, formulaire (photos, prix, catégorie, taille de colis, stock suivi ou non), activation.
 
-### App livreur (couleur : Cornell)
+### App livreur (couleur : Cobalt)
 - **Inscription livreur** : identité, véhicule, documents, puis « En attente de validation ».
 - **Accueil** : interrupteur Disponible / Hors ligne bien visible, rappel de la notification permanente.
 - **Proposition de mission** : plein écran, boutique, distance, gain indicatif, compte à rebours de

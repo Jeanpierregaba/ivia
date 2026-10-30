@@ -1,0 +1,11 @@
+# Splash natif de l'app livreur (docs/specs/027-splash-onboarding).
+# Après modification : dart run flutter_native_splash:create (depuis ce dossier).
+flutter_native_splash:
+  color: "#004DA8"
+  # Image à 4x : tuile blanche de 172 pt, logotype Cobalt.
+  image: assets/splash/splash.png
+  android_12:
+    color: "#004DA8"
+    # 1152 px, contenu inscrit dans le cercle de 768 px imposé par Android 12+.
+    image: assets/splash/splash_android12.png
+  web: false

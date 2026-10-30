@@ -1,49 +1,34 @@
 import 'package:flutter/material.dart';
+import 'package:flutter/services.dart';
+import 'package:flutter_riverpod/flutter_riverpod.dart';
 import 'package:ivia_ui/ivia_ui.dart';
 
-void main() {
-  runApp(const SellerApp());
+import 'app/onboarding_store.dart';
+import 'app/router.dart';
+
+// Le splash natif (flutter_native_splash.yaml) reste affiché jusqu'à la
+// première image : l'initialisation se fait donc avant runApp().
+Future<void> main() async {
+  WidgetsFlutterBinding.ensureInitialized();
+  await SystemChrome.setPreferredOrientations([DeviceOrientation.portraitUp]);
+  final onboarding = await OnboardingStore.open();
+  runApp(
+    ProviderScope(
+      overrides: [onboardingStoreProvider.overrideWithValue(onboarding)],
+      child: const SellerApp(),
+    ),
+  );
 }
 
-class SellerApp extends StatelessWidget {
+class SellerApp extends ConsumerWidget {
   const SellerApp({super.key});
 
   @override
-  Widget build(BuildContext context) {
-    return MaterialApp(
+  Widget build(BuildContext context, WidgetRef ref) {
+    return MaterialApp.router(
       title: 'ivia Marchand',
       theme: IviaTheme.light(),
-      home: const _HomePlaceholder(),
-    );
-  }
-}
-
-/// Écran provisoire, remplacé par la connexion (fonctionnalité 001).
-class _HomePlaceholder extends StatelessWidget {
-  const _HomePlaceholder();
-
-  @override
-  Widget build(BuildContext context) {
-    final textTheme = Theme.of(context).textTheme;
-    return Scaffold(
-      body: SafeArea(
-        child: Padding(
-          padding: const EdgeInsets.all(IviaSpacing.screen),
-          child: Column(
-            crossAxisAlignment: CrossAxisAlignment.start,
-            children: [
-              Text(
-                'MARCHAND',
-                style: textTheme.labelSmall?.copyWith(
-                  color: IviaColors.primaryStrong,
-                ),
-              ),
-              const SizedBox(height: IviaSpacing.xs),
-              Text('ivia', style: textTheme.displaySmall),
-            ],
-          ),
-        ),
-      ),
+      routerConfig: ref.watch(routerProvider),
     );
   }
 }

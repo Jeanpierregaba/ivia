@@ -38,14 +38,6 @@ abstract final class IviaColors {
   static const info = cobaltBlue;
 }
 
-/// Couleur de chaque famille de services (tuiles, pictogrammes, en-têtes).
-abstract final class IviaServiceColors {
-  static const shopping = IviaColors.imperialRed;
-  static const delivery = IviaColors.cornellRed;
-  static const mobility = IviaColors.cobaltBlue;
-  static const health = IviaColors.berkeleyBlue;
-}
-
 /// Espacements sur une grille de 4 px.
 abstract final class IviaSpacing {
   static const xs = 4.0;

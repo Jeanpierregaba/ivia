@@ -1,0 +1,85 @@
+import 'package:flutter/widgets.dart';
+
+import 'tokens.dart';
+
+/// Couleur du logotype (docs/DESIGN.md, section Logo).
+enum IviaLogoColor {
+  white('logo_white.png'),
+  imperial('logo_imperial.png'),
+  berkeley('logo_berkeley.png'),
+  cobalt('logo_cobalt.png');
+
+  const IviaLogoColor(this._file);
+
+  final String _file;
+
+  String get asset => 'assets/brand/$_file';
+}
+
+/// Logotype `ivia`, jamais redessiné : image tirée des fichiers de la charte.
+class IviaLogo extends StatelessWidget {
+  const IviaLogo({super.key, required this.color, this.height = 32});
+
+  final IviaLogoColor color;
+
+  /// Hauteur du logotype, points des « i » compris.
+  final double height;
+
+  /// Largeur / hauteur des images de `assets/brand/`.
+  static const aspectRatio = 678 / 336;
+
+  @override
+  Widget build(BuildContext context) {
+    return Semantics(
+      label: 'ivia',
+      image: true,
+      child: ExcludeSemantics(
+        child: Image.asset(
+          color.asset,
+          package: 'ivia_ui',
+          height: height,
+          width: height * aspectRatio,
+          filterQuality: FilterQuality.medium,
+        ),
+      ),
+    );
+  }
+}
+
+/// Identité de chaque app : couleur (celle du splash, reprise dans
+/// `flutter_native_splash.yaml`) et logotype sur fond clair.
+///
+/// L'action principale reste Imperial Red dans les trois apps.
+final class IviaAppBrand {
+  const IviaAppBrand._({
+    required this.accent,
+    required this.accentSoft,
+    required this.logoOnLight,
+  });
+
+  /// Fond du splash, pictogrammes, indicateurs, en-têtes de section.
+  final Color accent;
+
+  /// Fond pâle derrière un pictogramme ou un élément sélectionné.
+  final Color accentSoft;
+
+  final IviaLogoColor logoOnLight;
+
+  static const buyer = IviaAppBrand._(
+    accent: IviaColors.imperialRed,
+    accentSoft: IviaColors.primarySoft,
+    logoOnLight: IviaLogoColor.imperial,
+  );
+
+  static const seller = IviaAppBrand._(
+    accent: IviaColors.berkeleyBlue,
+    accentSoft: IviaColors.secondarySoft,
+    logoOnLight: IviaLogoColor.berkeley,
+  );
+
+  static const driver = IviaAppBrand._(
+    accent: IviaColors.cobaltBlue,
+    accentSoft: IviaColors.secondarySoft,
+    logoOnLight: IviaLogoColor.cobalt,
+  );
+}

@@ -60,6 +60,20 @@ void main() {
     );
   });
 
+  test('pictogrammes et indicateurs des apps visibles (3:1)', () {
+    for (final brand in [
+      IviaAppBrand.buyer,
+      IviaAppBrand.seller,
+      IviaAppBrand.driver,
+    ]) {
+      expect(contrast(brand.accent, brand.accentSoft), greaterThanOrEqualTo(3));
+      expect(
+        contrast(brand.accent, IviaColors.surface),
+        greaterThanOrEqualTo(3),
+      );
+    }
+  });
+
   test(
     'écart connu : blanc sur Imperial Red réservé aux boutons et titres',
     () {

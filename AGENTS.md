@@ -74,6 +74,8 @@ Mobile (pub workspace, depuis `mobile/` sauf mention) :
 - Tests : `flutter test` dans chaque membre, ou d'un coup :
   `ok=0; for m in apps/* packages/*; do (cd "$m" && flutter test) || ok=1; done; [ $ok -eq 0 ]`
 - Build : depuis `apps/<app>`, `flutter build apk` / `flutter build ios --no-codesign`
+- Splash natif : après modification de `apps/<app>/flutter_native_splash.yaml` ou de ses images,
+  depuis `apps/<app>`, `dart run flutter_native_splash:create` (fichiers Android et iOS générés, commités)
 
 ## Règles d'architecture non négociables
 

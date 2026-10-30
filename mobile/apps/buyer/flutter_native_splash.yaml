@@ -1,0 +1,11 @@
+# Splash natif de l'app acheteur (docs/specs/027-splash-onboarding).
+# Après modification : dart run flutter_native_splash:create (depuis ce dossier).
+flutter_native_splash:
+  color: "#ED1C2F"
+  # Image à 4x : logotype de 174 pt de large.
+  image: assets/splash/splash.png
+  android_12:
+    color: "#ED1C2F"
+    # 1152 px, contenu inscrit dans le cercle de 768 px imposé par Android 12+.
+    image: assets/splash/splash_android12.png
+  web: false
