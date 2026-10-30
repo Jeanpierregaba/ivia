@@ -54,3 +54,33 @@ sql:
   - <<: *module
     queries: internal/admin/queries.sql
     gen: { go: { <<: *gen, out: internal/admin/store } }
+  - <<: *module
+    queries: internal/notifications/queries.sql
+    gen: { go: { <<: *gen, out: internal/notifications/store } }
+  - <<: *module
+    queries: internal/shops/queries.sql
+    gen: { go: { <<: *gen, out: internal/shops/store } }
+  - <<: *module
+    queries: internal/stock/queries.sql
+    gen: { go: { <<: *gen, out: internal/stock/store } }
+  - <<: *module
+    queries: internal/catalog/queries.sql
+    gen: { go: { <<: *gen, out: internal/catalog/store } }
+  - <<: *module
+    queries: internal/search/queries.sql
+    gen: { go: { <<: *gen, out: internal/search/store } }
+  - <<: *module
+    queries: internal/cart/queries.sql
+    gen: { go: { <<: *gen, out: internal/cart/store } }
+  - <<: *module
+    queries: internal/orders/queries.sql
+    gen: { go: { <<: *gen, out: internal/orders/store } }
+  - <<: *module
+    queries: internal/payments/queries.sql
+    gen: { go: { <<: *gen, out: internal/payments/store } }
+  - <<: *module
+    queries: internal/delivery/queries.sql
+    gen: { go: { <<: *gen, out: internal/delivery/store } }
+  - <<: *module
+    queries: internal/settlements/queries.sql
+    gen: { go: { <<: *gen, out: internal/settlements/store } }

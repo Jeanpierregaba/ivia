@@ -65,6 +65,27 @@ func (d *DB) InTx(ctx context.Context, fn func(ctx context.Context) error) error
 	return nil
 }
 
+// Savepoint exécute fn dans un point de sauvegarde de la transaction en cours : si fn échoue,
+// seules ses écritures sont annulées et la transaction englobante continue. Sans transaction en
+// cours, se comporte comme InTx.
+func (d *DB) Savepoint(ctx context.Context, fn func(ctx context.Context) error) error {
+	outer, ok := TxFromContext(ctx)
+	if !ok {
+		return d.InTx(ctx, fn)
+	}
+	sp, err := outer.Begin(ctx)
+	if err != nil {
+		return fmt.Errorf("point de sauvegarde : %w", err)
+	}
+	if err := fn(context.WithValue(ctx, txKey{}, sp)); err != nil {
+		if rbErr := sp.Rollback(ctx); rbErr != nil {
+			return errors.Join(err, rbErr)
+		}
+		return err
+	}
+	return sp.Commit(ctx)
+}
+
 // Codes d'erreur PostgreSQL utilisés par les services.
 const (
 	codeUniqueViolation = "23505"

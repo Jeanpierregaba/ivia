@@ -34,4 +34,6 @@ type ObjectStore interface {
 	PublicURL(key string) string
 	// Exists vérifie qu'un fichier a bien été envoyé.
 	Exists(ctx context.Context, vis Visibility, key string) (bool, error)
+	// Delete supprime un fichier (sans erreur s'il n'existe pas).
+	Delete(ctx context.Context, vis Visibility, key string) error
 }

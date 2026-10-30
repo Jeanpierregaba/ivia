@@ -111,6 +111,28 @@ func (r *R2) Exists(ctx context.Context, vis Visibility, key string) (bool, erro
 	}
 }
 
+// Delete implémente ObjectStore.
+func (r *R2) Delete(ctx context.Context, vis Visibility, key string) error {
+	u := presignV4(presignInput{
+		method: http.MethodDelete, host: r.host(), path: "/" + r.bucket(vis) + "/" + key,
+		region: "auto", accessKey: r.accessKeyID, secretKey: r.secretKey,
+		now: r.now().UTC(), ttl: time.Minute,
+	})
+	req, err := http.NewRequestWithContext(ctx, http.MethodDelete, u, nil)
+	if err != nil {
+		return err
+	}
+	resp, err := r.client.Do(req)
+	if err != nil {
+		return fmt.Errorf("suppression du fichier sur R2 : %w", err)
+	}
+	_ = resp.Body.Close()
+	if resp.StatusCode != http.StatusNoContent && resp.StatusCode != http.StatusOK && resp.StatusCode != http.StatusNotFound {
+		return fmt.Errorf("suppression du fichier sur R2 : statut %d", resp.StatusCode)
+	}
+	return nil
+}
+
 type presignInput struct {
 	method, host, path   string
 	region               string

@@ -111,6 +111,24 @@ func (q *Queue) Stop(ctx context.Context) error {
 	return q.client.Stop(ctx)
 }
 
+// Deferred est un Enqueuer branché après coup sur la Queue. Il résout la dépendance circulaire
+// du démarrage : les services ont besoin d'un Enqueuer, et le client River a besoin des workers
+// de ces services. Set est appelé une seule fois, avant de servir des requêtes.
+type Deferred struct {
+	q *Queue
+}
+
+// Set branche la file de tâches.
+func (d *Deferred) Set(q *Queue) { d.q = q }
+
+// Enqueue implémente Enqueuer.
+func (d *Deferred) Enqueue(ctx context.Context, args river.JobArgs, opts *river.InsertOpts) error {
+	if d.q == nil {
+		return fmt.Errorf("file de tâches non initialisée (tâche %s)", args.Kind())
+	}
+	return d.q.Enqueue(ctx, args, opts)
+}
+
 // At retourne des options de création planifiant la tâche à l'instant t.
 func At(t time.Time) *river.InsertOpts { return &river.InsertOpts{ScheduledAt: t} }
 

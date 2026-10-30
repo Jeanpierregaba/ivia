@@ -25,8 +25,12 @@ import (
 	"ivia/backend/internal/platform/database"
 )
 
+// Setup prépare le paquet une fois la base prête (ex. assembler l'application) et retourne sa
+// fonction de nettoyage.
+type Setup func() (cleanup func(), err error)
+
 // Main crée la base du paquet, lance les tests puis supprime la base. Retourne le code de sortie.
-func Main(m *testing.M, dst **database.DB) int {
+func Main(m *testing.M, dst **database.DB, setups ...Setup) int {
 	adminURL := os.Getenv("DATABASE_URL")
 	if adminURL == "" {
 		return m.Run()
@@ -62,6 +66,14 @@ func Main(m *testing.M, dst **database.DB) int {
 		return 1
 	}
 	*dst = database.New(pool)
+	for _, setup := range setups {
+		cleanup, err := setup()
+		if err != nil {
+			fmt.Fprintf(os.Stderr, "testdb : préparation : %v\n", err)
+			return 1
+		}
+		defer cleanup()
+	}
 	return m.Run()
 }
 

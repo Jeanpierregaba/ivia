@@ -4,7 +4,7 @@
 CREATE TABLE orders (
   id                    uuid PRIMARY KEY DEFAULT gen_random_uuid(),
   -- Numéro lisible pour le support (affiché « IV-000123 »).
-  number                bigint GENERATED ALWAYS AS IDENTITY UNIQUE,
+  number                bigint NOT NULL GENERATED ALWAYS AS IDENTITY UNIQUE,
   buyer_id              uuid NOT NULL REFERENCES users (id),
   shop_id               uuid NOT NULL REFERENCES shops (id),
   status                text NOT NULL CHECK (status IN (

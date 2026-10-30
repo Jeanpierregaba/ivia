@@ -80,6 +80,18 @@ func (l *Local) Exists(_ context.Context, vis Visibility, key string) (bool, err
 	return err == nil, err
 }
 
+// Delete implémente ObjectStore.
+func (l *Local) Delete(_ context.Context, vis Visibility, key string) error {
+	p, err := l.path(vis, key)
+	if err != nil {
+		return err
+	}
+	if err := os.Remove(p); err != nil && !errors.Is(err, os.ErrNotExist) {
+		return err
+	}
+	return nil
+}
+
 func (l *Local) path(vis Visibility, key string) (string, error) {
 	if vis != Public && vis != Private {
 		return "", errors.New("compartiment inconnu")
