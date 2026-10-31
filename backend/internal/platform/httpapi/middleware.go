@@ -4,6 +4,7 @@ import (
 	"context"
 	"crypto/rand"
 	"encoding/hex"
+	"fmt"
 	"net"
 	"net/http"
 	"runtime/debug"
@@ -112,6 +113,7 @@ func (rt *Router) recoverPanics(next http.Handler) http.Handler {
 					"panic", v,
 					"stack", string(debug.Stack()),
 				)
+				rt.report(r, fmt.Errorf("panique : %v", v))
 				writeInternalError(w, r)
 			}
 		}()

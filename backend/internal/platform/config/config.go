@@ -55,6 +55,10 @@ type Config struct {
 
 	// RunWorkers : exécuter les tâches de fond River dans ce processus.
 	RunWorkers bool
+
+	// SentryDSN : suivi des erreurs (vide : désactivé). Version : identifiant de la version déployée.
+	SentryDSN string
+	Version   string
 }
 
 // IsProduction indique un environnement où les implémentations factices sont interdites.
@@ -98,6 +102,8 @@ func Load(getenv func(string) string) (Config, error) {
 		R2PublicBucket:       get("R2_PUBLIC_BUCKET", ""),
 		R2PrivateBucket:      get("R2_PRIVATE_BUCKET", ""),
 		R2PublicBaseURL:      strings.TrimRight(get("R2_PUBLIC_BASE_URL", ""), "/"),
+		SentryDSN:            get("SENTRY_DSN", ""),
+		Version:              get("APP_VERSION", "dev"),
 	}
 	c.PublicBaseURL = strings.TrimRight(get("PUBLIC_BASE_URL", "http://localhost:"+c.Port), "/")
 

@@ -71,6 +71,18 @@ func NewList[T any](fetched []T, page Page) List[T] {
 	return l
 }
 
+// IsInternal indique une erreur inattendue (réponse 500), à signaler.
+func IsInternal(r *http.Request, err error) bool {
+	if _, ok := apperr.As(err); ok {
+		return false
+	}
+	var maxBytes *http.MaxBytesError
+	if errors.As(err, &maxBytes) {
+		return false
+	}
+	return !(errors.Is(err, context.Canceled) && r.Context().Err() != nil)
+}
+
 // WriteError traduit une erreur en réponse JSON. Les erreurs inattendues sont journalisées et
 // renvoyées comme une erreur 500 générique, sans détail interne.
 func WriteError(w http.ResponseWriter, r *http.Request, logger *slog.Logger, err error) {

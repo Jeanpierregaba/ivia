@@ -179,3 +179,44 @@ func TestNewList(t *testing.T) {
 		t.Fatalf("page vide : %+v", l)
 	}
 }
+
+type fakeReporter struct {
+	errs []error
+	tags []map[string]string
+}
+
+func (f *fakeReporter) Report(_ context.Context, err error, tags map[string]string) {
+	f.errs = append(f.errs, err)
+	f.tags = append(f.tags, tags)
+}
+
+func TestUnexpectedErrorsAreReported(t *testing.T) {
+	rep := &fakeReporter{}
+	rt := NewRouter(Options{Logger: slog.New(slog.NewTextHandler(io.Discard, nil)), DB: &fakeDB{}, Auth: fakeAuth{}, Reporter: rep})
+	rt.Public("GET /boom/{id}", func(http.ResponseWriter, *http.Request) error { return errors.New("panne SQL") })
+	rt.Public("GET /metier", func(http.ResponseWriter, *http.Request) error {
+		return apperr.NotFound("order_not_found", "Commande introuvable.")
+	})
+	rt.Public("GET /panic", func(http.ResponseWriter, *http.Request) error { panic("oups") })
+	h := rt.Handler()
+
+	do(t, h, http.MethodGet, "/metier", "", "")
+	if len(rep.errs) != 0 {
+		t.Fatal("une erreur métier (4xx) ne doit pas être signalée")
+	}
+	do(t, h, http.MethodGet, "/boom/ama@example.tg", "", "")
+	do(t, h, http.MethodGet, "/panic", "", "")
+	if len(rep.errs) != 2 {
+		t.Fatalf("%d erreurs signalées, attendu 2 (erreur interne et panique)", len(rep.errs))
+	}
+	if rep.tags[0]["route"] != "GET /boom/{id}" || rep.tags[0]["request_id"] == "" {
+		t.Fatalf("étiquettes : %v", rep.tags[0])
+	}
+	for _, tags := range rep.tags {
+		for _, v := range tags {
+			if strings.Contains(v, "@") {
+				t.Fatalf("l'URL réelle (donnée personnelle) ne doit pas partir : %v", tags)
+			}
+		}
+	}
+}
