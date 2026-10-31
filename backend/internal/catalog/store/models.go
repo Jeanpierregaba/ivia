@@ -33,6 +33,8 @@ type Product struct {
 	SearchVector interface{}
 	CreatedAt    time.Time
 	UpdatedAt    time.Time
+	PublishedAt  *time.Time
+	WithdrawnAt  *time.Time
 }
 
 type ProductImage struct {

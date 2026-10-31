@@ -27,6 +27,8 @@ func TestAccessControl(t *testing.T) {
 		{"commande d'une autre boutique", s2.token, "GET", "/v1/seller/orders/" + oid, http.StatusNotFound},
 		{"acceptation par un autre marchand", s2.token, "POST", "/v1/seller/orders/" + oid + "/accept", http.StatusNotFound},
 		{"produit d'un autre marchand", s2.token, "PATCH", "/v1/seller/products/" + s1.trackedID, http.StatusNotFound},
+		{"produits d'une autre boutique", s2.token, "GET", "/v1/seller/shops/" + s1.shopID + "/products", http.StatusNotFound},
+		{"compteurs d'une autre boutique", s2.token, "GET", "/v1/seller/shops/" + s1.shopID + "/product-counts", http.StatusNotFound},
 		{"acheteur sur une route marchand", b1.token, "GET", "/v1/seller/orders", http.StatusForbidden},
 		{"marchand sur une route admin", s1.token, "GET", "/v1/admin/orders", http.StatusForbidden},
 		{"acheteur sur une route livreur", b1.token, "GET", "/v1/driver/offers/current", http.StatusForbidden},

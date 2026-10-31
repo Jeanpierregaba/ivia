@@ -11,6 +11,27 @@ import (
 	"github.com/google/uuid"
 )
 
+const countSellerProducts = `-- name: CountSellerProducts :one
+SELECT count(*) FILTER (WHERE is_active) AS active,
+       count(*) FILTER (WHERE NOT is_active AND published_at IS NULL) AS draft,
+       count(*) FILTER (WHERE NOT is_active AND published_at IS NOT NULL) AS withdrawn
+FROM products
+WHERE shop_id = $1
+`
+
+type CountSellerProductsRow struct {
+	Active    int64
+	Draft     int64
+	Withdrawn int64
+}
+
+func (q *Queries) CountSellerProducts(ctx context.Context, shopID uuid.UUID) (CountSellerProductsRow, error) {
+	row := q.db.QueryRow(ctx, countSellerProducts, shopID)
+	var i CountSellerProductsRow
+	err := row.Scan(&i.Active, &i.Draft, &i.Withdrawn)
+	return i, err
+}
+
 const createCategory = `-- name: CreateCategory :one
 INSERT INTO categories (name, parent_id, position) VALUES ($1, $2, $3) RETURNING id, name, parent_id, position, is_active, created_at, updated_at
 `
@@ -37,8 +58,11 @@ func (q *Queries) CreateCategory(ctx context.Context, arg CreateCategoryParams) 
 }
 
 const createProduct = `-- name: CreateProduct :one
-INSERT INTO products (shop_id, category_id, name, description, price_xof, parcel_size, stock_mode)
-VALUES ($1, $2, $3, $4, $5, $6, $7)
+INSERT INTO products (shop_id, category_id, name, description, price_xof, parcel_size, stock_mode,
+                      is_active, published_at)
+VALUES ($1, $2, $3, $4,
+        $5, $6, $7, $8,
+        CASE WHEN $8::boolean THEN now() END)
 RETURNING id
 `
 
@@ -50,8 +74,10 @@ type CreateProductParams struct {
 	PriceXof    int64
 	ParcelSize  string
 	StockMode   string
+	IsActive    bool
 }
 
+// Créé inactif : brouillon (jamais publié).
 func (q *Queries) CreateProduct(ctx context.Context, arg CreateProductParams) (uuid.UUID, error) {
 	row := q.db.QueryRow(ctx, createProduct,
 		arg.ShopID,
@@ -61,6 +87,7 @@ func (q *Queries) CreateProduct(ctx context.Context, arg CreateProductParams) (u
 		arg.PriceXof,
 		arg.ParcelSize,
 		arg.StockMode,
+		arg.IsActive,
 	)
 	var id uuid.UUID
 	err := row.Scan(&id)
@@ -96,7 +123,7 @@ func (q *Queries) GetCategory(ctx context.Context, id uuid.UUID) (Category, erro
 }
 
 const getProduct = `-- name: GetProduct :one
-SELECT id, shop_id, category_id, name, description, price_xof, parcel_size, stock_mode, is_active, search_vector, created_at, updated_at FROM products WHERE id = $1
+SELECT id, shop_id, category_id, name, description, price_xof, parcel_size, stock_mode, is_active, search_vector, created_at, updated_at, published_at, withdrawn_at FROM products WHERE id = $1
 `
 
 func (q *Queries) GetProduct(ctx context.Context, id uuid.UUID) (Product, error) {
@@ -115,12 +142,14 @@ func (q *Queries) GetProduct(ctx context.Context, id uuid.UUID) (Product, error)
 		&i.SearchVector,
 		&i.CreatedAt,
 		&i.UpdatedAt,
+		&i.PublishedAt,
+		&i.WithdrawnAt,
 	)
 	return i, err
 }
 
 const getProductsByIDs = `-- name: GetProductsByIDs :many
-SELECT id, shop_id, category_id, name, description, price_xof, parcel_size, stock_mode, is_active, search_vector, created_at, updated_at FROM products WHERE id = ANY($1::uuid[])
+SELECT id, shop_id, category_id, name, description, price_xof, parcel_size, stock_mode, is_active, search_vector, created_at, updated_at, published_at, withdrawn_at FROM products WHERE id = ANY($1::uuid[])
 `
 
 func (q *Queries) GetProductsByIDs(ctx context.Context, ids []uuid.UUID) ([]Product, error) {
@@ -145,6 +174,8 @@ func (q *Queries) GetProductsByIDs(ctx context.Context, ids []uuid.UUID) ([]Prod
 			&i.SearchVector,
 			&i.CreatedAt,
 			&i.UpdatedAt,
+			&i.PublishedAt,
+			&i.WithdrawnAt,
 		); err != nil {
 			return nil, err
 		}
@@ -236,7 +267,7 @@ func (q *Queries) ListImages(ctx context.Context, productIds []uuid.UUID) ([]Pro
 }
 
 const listProductsByShop = `-- name: ListProductsByShop :many
-SELECT id, shop_id, category_id, name, description, price_xof, parcel_size, stock_mode, is_active, search_vector, created_at, updated_at FROM products
+SELECT id, shop_id, category_id, name, description, price_xof, parcel_size, stock_mode, is_active, search_vector, created_at, updated_at, published_at, withdrawn_at FROM products
 WHERE shop_id = $1 AND ($2::boolean OR is_active)
 ORDER BY created_at DESC
 LIMIT $4 OFFSET $3
@@ -276,6 +307,75 @@ func (q *Queries) ListProductsByShop(ctx context.Context, arg ListProductsByShop
 			&i.SearchVector,
 			&i.CreatedAt,
 			&i.UpdatedAt,
+			&i.PublishedAt,
+			&i.WithdrawnAt,
+		); err != nil {
+			return nil, err
+		}
+		items = append(items, i)
+	}
+	if err := rows.Err(); err != nil {
+		return nil, err
+	}
+	return items, nil
+}
+
+const listSellerProducts = `-- name: ListSellerProducts :many
+SELECT id, shop_id, category_id, name, description, price_xof, parcel_size, stock_mode, is_active, search_vector, created_at, updated_at, published_at, withdrawn_at FROM products
+WHERE shop_id = $1
+  AND CASE $2::text
+        WHEN 'active' THEN is_active
+        WHEN 'draft' THEN NOT is_active AND published_at IS NULL
+        WHEN 'withdrawn' THEN NOT is_active AND published_at IS NOT NULL
+        ELSE true
+      END
+  AND ($3::text = ''
+       OR immutable_unaccent(lower(name)) LIKE '%' || immutable_unaccent(lower($3::text)) || '%' ESCAPE '\')
+ORDER BY CASE WHEN $2::text = 'withdrawn' THEN withdrawn_at END DESC NULLS LAST,
+         created_at DESC, id
+LIMIT $5 OFFSET $4
+`
+
+type ListSellerProductsParams struct {
+	ShopID uuid.UUID
+	Status string
+	Q      string
+	Off    int32
+	Lim    int32
+}
+
+// Produits d'une boutique pour son marchand. status : vide (tous), active, draft ou withdrawn.
+// q : texte déjà échappé pour LIKE (\, %, _), comparé sans accents ni majuscules.
+func (q *Queries) ListSellerProducts(ctx context.Context, arg ListSellerProductsParams) ([]Product, error) {
+	rows, err := q.db.Query(ctx, listSellerProducts,
+		arg.ShopID,
+		arg.Status,
+		arg.Q,
+		arg.Off,
+		arg.Lim,
+	)
+	if err != nil {
+		return nil, err
+	}
+	defer rows.Close()
+	items := []Product{}
+	for rows.Next() {
+		var i Product
+		if err := rows.Scan(
+			&i.ID,
+			&i.ShopID,
+			&i.CategoryID,
+			&i.Name,
+			&i.Description,
+			&i.PriceXof,
+			&i.ParcelSize,
+			&i.StockMode,
+			&i.IsActive,
+			&i.SearchVector,
+			&i.CreatedAt,
+			&i.UpdatedAt,
+			&i.PublishedAt,
+			&i.WithdrawnAt,
 		); err != nil {
 			return nil, err
 		}
@@ -325,30 +425,40 @@ func (q *Queries) UpdateCategory(ctx context.Context, arg UpdateCategoryParams) 
 
 const updateProduct = `-- name: UpdateProduct :exec
 UPDATE products
-SET category_id = $2, name = $3, description = $4, price_xof = $5, parcel_size = $6, is_active = $7,
+SET category_id = $1, name = $2, description = $3,
+    price_xof = $4, parcel_size = $5, is_active = $6,
+    published_at = CASE WHEN $6::boolean AND NOT is_active THEN now() ELSE published_at END,
+    withdrawn_at = CASE
+      WHEN $6::boolean THEN NULL
+      WHEN is_active THEN now()
+      ELSE withdrawn_at
+    END,
     updated_at = now()
-WHERE id = $1
+WHERE id = $7
 `
 
 type UpdateProductParams struct {
-	ID          uuid.UUID
 	CategoryID  uuid.UUID
 	Name        string
 	Description string
 	PriceXof    int64
 	ParcelSize  string
 	IsActive    bool
+	ID          uuid.UUID
 }
 
+// Les dates suivent le passage d'un état à l'autre ; à droite de SET, is_active est l'ancienne
+// valeur : mise en vente -> nouvelle date de publication ; retrait -> date de retrait ; un
+// brouillon gardé inactif reste un brouillon (products_publication_check).
 func (q *Queries) UpdateProduct(ctx context.Context, arg UpdateProductParams) error {
 	_, err := q.db.Exec(ctx, updateProduct,
-		arg.ID,
 		arg.CategoryID,
 		arg.Name,
 		arg.Description,
 		arg.PriceXof,
 		arg.ParcelSize,
 		arg.IsActive,
+		arg.ID,
 	)
 	return err
 }

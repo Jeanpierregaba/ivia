@@ -5,6 +5,7 @@ import (
 
 	"ivia/backend/internal/platform/httpapi"
 	"ivia/backend/internal/platform/identity"
+	"ivia/backend/internal/platform/validate"
 )
 
 // Handler expose les routes du catalogue.
@@ -22,6 +23,7 @@ func (h *Handler) Register(rt *httpapi.Router) {
 	rt.Public("GET /v1/shops/{id}/products", h.listShopProducts)
 
 	rt.Roles("GET /v1/seller/shops/{id}/products", h.sellerList, identity.RoleSeller)
+	rt.Roles("GET /v1/seller/shops/{id}/product-counts", h.sellerCounts, identity.RoleSeller)
 	rt.Roles("POST /v1/seller/shops/{id}/products", h.create, identity.RoleSeller)
 	rt.Roles("GET /v1/seller/products/{id}", h.sellerGet, identity.RoleSeller)
 	rt.Roles("PATCH /v1/seller/products/{id}", h.update, identity.RoleSeller)
@@ -87,14 +89,30 @@ func (h *Handler) sellerList(w http.ResponseWriter, r *http.Request) error {
 	}
 	q := httpapi.NewQuery(r)
 	page := q.Page()
+	f := SellerFilter{
+		Status: Status(q.Enum("status", "", string(StatusActive), string(StatusDraft), string(StatusWithdrawn))),
+		Q:      validate.Clean(q.String("q", 100)),
+	}
 	if err := q.Err(); err != nil {
 		return err
 	}
-	items, err := h.svc.ListForSeller(r.Context(), principal(r).UserID, id, page.FetchLimit(), int32(page.Offset))
+	items, err := h.svc.ListForSeller(r.Context(), principal(r).UserID, id, f, page.FetchLimit(), int32(page.Offset))
 	if err != nil {
 		return err
 	}
 	return httpapi.OK(w, httpapi.NewList(items, page))
+}
+
+func (h *Handler) sellerCounts(w http.ResponseWriter, r *http.Request) error {
+	id, err := httpapi.PathUUID(r, "id")
+	if err != nil {
+		return err
+	}
+	c, err := h.svc.CountForSeller(r.Context(), principal(r).UserID, id)
+	if err != nil {
+		return err
+	}
+	return httpapi.OK(w, c)
 }
 
 func (h *Handler) create(w http.ResponseWriter, r *http.Request) error {

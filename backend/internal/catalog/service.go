@@ -6,6 +6,7 @@ import (
 	"context"
 	"fmt"
 	"slices"
+	"strings"
 	"time"
 
 	"github.com/google/uuid"
@@ -45,6 +46,32 @@ const (
 // maxImages par produit (la première est la photo principale).
 const maxImages = 6
 
+// Status est l'état de publication d'un produit, déduit de is_active et des dates.
+type Status string
+
+const (
+	// StatusActive : en vente, visible des acheteurs si la boutique est publiée.
+	StatusActive Status = "active"
+	// StatusDraft : enregistré, jamais publié.
+	StatusDraft Status = "draft"
+	// StatusWithdrawn : publié puis retiré par le marchand.
+	StatusWithdrawn Status = "withdrawn"
+)
+
+// SellerFilter filtre la liste du marchand. Status vide : tous les états ; Q : texte cherché
+// dans le nom, sans accents ni majuscules.
+type SellerFilter struct {
+	Status Status
+	Q      string
+}
+
+// Counts est le nombre de produits d'une boutique par état.
+type Counts struct {
+	Active    int64 `json:"active"`
+	Draft     int64 `json:"draft"`
+	Withdrawn int64 `json:"withdrawn"`
+}
+
 // Product est un produit avec ses photos et sa disponibilité.
 type Product struct {
 	ID          uuid.UUID  `json:"id"`
@@ -56,12 +83,17 @@ type Product struct {
 	ParcelSize  ParcelSize `json:"parcel_size"`
 	StockMode   StockMode  `json:"stock_mode"`
 	// StockQuantity n'est renseigné que pour un stock suivi.
-	StockQuantity *int32    `json:"stock_quantity"`
-	Available     bool      `json:"available"`
-	IsActive      bool      `json:"is_active"`
-	Images        []Image   `json:"images"`
-	CreatedAt     time.Time `json:"created_at"`
-	UpdatedAt     time.Time `json:"updated_at"`
+	StockQuantity *int32 `json:"stock_quantity"`
+	Available     bool   `json:"available"`
+	IsActive      bool   `json:"is_active"`
+	Status        Status `json:"status"`
+	// PublishedAt : dernière mise en vente (nil : brouillon).
+	PublishedAt *time.Time `json:"published_at"`
+	// WithdrawnAt : dernier retrait (nil : en vente ou brouillon).
+	WithdrawnAt *time.Time `json:"withdrawn_at"`
+	Images      []Image    `json:"images"`
+	CreatedAt   time.Time  `json:"created_at"`
+	UpdatedAt   time.Time  `json:"updated_at"`
 }
 
 // Image est une photo d'un produit.
@@ -80,8 +112,10 @@ type ProductInput struct {
 	ParcelSize    ParcelSize `json:"parcel_size"`
 	StockMode     StockMode  `json:"stock_mode"`
 	StockQuantity *int32     `json:"stock_quantity"`
-	IsActive      *bool      `json:"is_active"`
-	ImageKeys     []string   `json:"image_keys"`
+	// IsActive : en vente ou non. À la création, false crée un brouillon ; absent, le produit est
+	// en vente. À la modification, absent garde l'état.
+	IsActive  *bool    `json:"is_active"`
+	ImageKeys []string `json:"image_keys"`
 }
 
 // Service gère le catalogue.
@@ -145,6 +179,7 @@ func (s *Service) Create(ctx context.Context, ownerID, shopID uuid.UUID, in Prod
 	if err := s.validateProduct(ctx, ownerID, &in, true, nil); err != nil {
 		return Product{}, err
 	}
+	active := in.IsActive == nil || *in.IsActive
 	var id uuid.UUID
 	err := s.db.InTx(ctx, func(ctx context.Context) error {
 		q := store.New(s.db.Conn(ctx))
@@ -152,6 +187,7 @@ func (s *Service) Create(ctx context.Context, ownerID, shopID uuid.UUID, in Prod
 		id, err = q.CreateProduct(ctx, store.CreateProductParams{
 			ShopID: shopID, CategoryID: in.CategoryID, Name: in.Name, Description: in.Description,
 			PriceXof: in.PriceXOF, ParcelSize: string(in.ParcelSize), StockMode: string(in.StockMode),
+			IsActive: active,
 		})
 		if err != nil {
 			return fmt.Errorf("création du produit : %w", err)
@@ -277,12 +313,35 @@ func (s *Service) ListPublicForShop(ctx context.Context, shopID uuid.UUID, limit
 	return s.ListForShop(ctx, shopID, false, limit, offset)
 }
 
-// ListForSeller retourne tous les produits d'une boutique du marchand.
-func (s *Service) ListForSeller(ctx context.Context, ownerID, shopID uuid.UUID, limit, offset int32) ([]Product, error) {
+// ListForSeller retourne les produits d'une boutique du marchand, filtrés par état et par nom.
+func (s *Service) ListForSeller(ctx context.Context, ownerID, shopID uuid.UUID, f SellerFilter, limit, offset int32) ([]Product, error) {
 	if _, err := s.shops.RequireOwned(ctx, ownerID, shopID); err != nil {
 		return nil, err
 	}
-	return s.ListForShop(ctx, shopID, true, limit, offset)
+	rows, err := store.New(s.db.Conn(ctx)).ListSellerProducts(ctx, store.ListSellerProductsParams{
+		ShopID: shopID, Status: string(f.Status), Q: likeEscape(f.Q), Lim: limit, Off: offset,
+	})
+	if err != nil {
+		return nil, fmt.Errorf("liste des produits du marchand : %w", err)
+	}
+	return s.enrich(ctx, rows)
+}
+
+// CountForSeller retourne le nombre de produits par état d'une boutique du marchand.
+func (s *Service) CountForSeller(ctx context.Context, ownerID, shopID uuid.UUID) (Counts, error) {
+	if _, err := s.shops.RequireOwned(ctx, ownerID, shopID); err != nil {
+		return Counts{}, err
+	}
+	c, err := store.New(s.db.Conn(ctx)).CountSellerProducts(ctx, shopID)
+	if err != nil {
+		return Counts{}, fmt.Errorf("compteurs des produits : %w", err)
+	}
+	return Counts{Active: c.Active, Draft: c.Draft, Withdrawn: c.Withdrawn}, nil
+}
+
+// likeEscape rend littéraux les jokers de LIKE (la requête utilise ESCAPE '\').
+func likeEscape(q string) string {
+	return strings.NewReplacer(`\`, `\\`, `%`, `\%`, `_`, `\_`).Replace(q)
 }
 
 // ProductsByIDs retourne les produits demandés (panier, commande), quel que soit leur état :
@@ -344,7 +403,8 @@ func (s *Service) enrich(ctx context.Context, rows []store.Product) ([]Product, 
 		p := Product{
 			ID: r.ID, ShopID: r.ShopID, CategoryID: r.CategoryID, Name: r.Name, Description: r.Description,
 			PriceXOF: r.PriceXof, ParcelSize: ParcelSize(r.ParcelSize), StockMode: StockMode(r.StockMode),
-			IsActive: r.IsActive, Images: byProduct[r.ID], CreatedAt: r.CreatedAt, UpdatedAt: r.UpdatedAt,
+			IsActive: r.IsActive, Status: statusOf(r), PublishedAt: r.PublishedAt, WithdrawnAt: r.WithdrawnAt,
+			Images: byProduct[r.ID], CreatedAt: r.CreatedAt, UpdatedAt: r.UpdatedAt,
 		}
 		if p.Images == nil {
 			p.Images = []Image{}
@@ -358,6 +418,17 @@ func (s *Service) enrich(ctx context.Context, rows []store.Product) ([]Product, 
 		out[i] = p
 	}
 	return out, nil
+}
+
+func statusOf(r store.Product) Status {
+	switch {
+	case r.IsActive:
+		return StatusActive
+	case r.PublishedAt == nil:
+		return StatusDraft
+	default:
+		return StatusWithdrawn
+	}
 }
 
 func (s *Service) replaceImages(ctx context.Context, productID uuid.UUID, keys []string) error {

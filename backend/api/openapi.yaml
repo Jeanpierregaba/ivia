@@ -1102,9 +1102,38 @@ paths:
             application/json:
               schema:
                 "$ref": "#/components/schemas/Error"
+  "/v1/seller/shops/{id}/product-counts":
+    get:
+      summary: "Nombre de produits de ma boutique par état"
+      tags:
+        - Marchand
+      operationId: getSellerShopsByIdProductCounts
+      parameters:
+        - name: id
+          in: path
+          required: true
+          schema:
+            type: string
+            format: uuid
+      x-roles:
+        - seller
+      responses:
+        "200":
+          description: "Succès"
+          content:
+            application/json:
+              schema:
+                "$ref": "#/components/schemas/ProductCounts"
+        default:
+          description: "Erreur (voir `code`)"
+          content:
+            application/json:
+              schema:
+                "$ref": "#/components/schemas/Error"
   "/v1/seller/shops/{id}/products":
     get:
-      summary: "Tous les produits de ma boutique"
+      summary: "Produits de ma boutique, filtrés par état et par nom"
+      description: "Retirés : du plus récemment retiré au plus ancien ; sinon du plus récent au plus ancien."
       tags:
         - Marchand
       operationId: getSellerShopsByIdProducts
@@ -1115,6 +1144,19 @@ paths:
           schema:
             type: string
             format: uuid
+        - name: status
+          in: query
+          required: false
+          description: "Absent : tous les états."
+          schema:
+            "$ref": "#/components/schemas/ProductStatus"
+        - name: q
+          in: query
+          required: false
+          description: "Texte cherché dans le nom, sans tenir compte des accents ni des majuscules."
+          schema:
+            type: string
+            maxLength: 100
         - name: limit
           in: query
           required: false
@@ -5107,6 +5149,21 @@ components:
           type: boolean
         is_active:
           type: boolean
+          description: "En vente (visible des acheteurs si la boutique est publiée)."
+        status:
+          "$ref": "#/components/schemas/ProductStatus"
+        published_at:
+          type:
+            - string
+            - "null"
+          format: date-time
+          description: "Dernière mise en vente ; null pour un brouillon."
+        withdrawn_at:
+          type:
+            - string
+            - "null"
+          format: date-time
+          description: "Dernier retrait ; null si en vente ou brouillon."
         images:
           type: array
           items:
@@ -5129,9 +5186,32 @@ components:
         - stock_quantity
         - available
         - is_active
+        - status
+        - published_at
+        - withdrawn_at
         - images
         - created_at
         - updated_at
+    ProductStatus:
+      type: string
+      enum:
+        - active
+        - draft
+        - withdrawn
+      description: "active : en vente ; draft : brouillon, jamais publié ; withdrawn : publié puis retiré."
+    ProductCounts:
+      type: object
+      properties:
+        active:
+          type: integer
+        draft:
+          type: integer
+        withdrawn:
+          type: integer
+      required:
+        - active
+        - draft
+        - withdrawn
     ProductInput:
       type: object
       properties:
@@ -5163,6 +5243,7 @@ components:
           description: "Obligatoire à la création d'un produit suivi."
         is_active:
           type: boolean
+          description: "Création : false crée un brouillon, absent met en vente. Modification : absent garde l'état."
         image_keys:
           type: array
           items:
