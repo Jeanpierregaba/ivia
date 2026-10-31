@@ -59,14 +59,20 @@ class IviaFieldLabel extends StatelessWidget {
 
   @override
   Widget build(BuildContext context) {
-    return MergeSemantics(
+    // Le libellé est porté par un conteneur autour du champ ; fusionner le
+    // champ lui-même (MergeSemantics) casse ses annonces d'erreur.
+    return Semantics(
+      container: true,
+      label: label,
       child: Column(
         crossAxisAlignment: CrossAxisAlignment.stretch,
         children: [
-          Text(
-            label,
-            style: Theme.of(context).textTheme.labelMedium
-                ?.copyWith(color: IviaColors.textSecondary),
+          ExcludeSemantics(
+            child: Text(
+              label,
+              style: Theme.of(context).textTheme.labelMedium
+                  ?.copyWith(color: IviaColors.textSecondary),
+            ),
           ),
           const SizedBox(height: IviaSpacing.sm),
           child,

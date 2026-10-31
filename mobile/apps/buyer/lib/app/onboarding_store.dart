@@ -40,3 +40,18 @@ class OnboardingStore {
 final onboardingStoreProvider = Provider<OnboardingStore>(
   (ref) => throw UnimplementedError('onboardingStoreProvider non fourni'),
 );
+
+/// Présentation vue sur cet appareil ; `complete()` la mémorise.
+final onboardingSeenProvider = NotifierProvider<OnboardingSeen, bool>(
+  OnboardingSeen.new,
+);
+
+class OnboardingSeen extends Notifier<bool> {
+  @override
+  bool build() => ref.watch(onboardingStoreProvider).seenAtLaunch;
+
+  Future<void> complete() async {
+    await ref.read(onboardingStoreProvider).markSeen();
+    state = true;
+  }
+}

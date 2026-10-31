@@ -13,10 +13,10 @@
 - [x] 6. `ui` : présentation révisée (027) : en-tête, carte d'illustration, titre avec partie rouge ;
       marchand et livreur adaptés ; tests
 - [x] 7. Acheteur : illustrations des 3 pages (027) ; le splash de chargement est branché avec la tâche 8
-- [ ] 8. Acheteur : tests puis `AuthController` et routeur (`redirect`)
-- [ ] 9. Acheteur : écran e-mail
-- [ ] 10. Acheteur : écran du code (renvoi, erreurs)
-- [ ] 11. Acheteur : écran « Faisons connaissance », accueil provisoire, écran hors ligne
+- [x] 8. Acheteur : tests puis `AuthController` et routeur (`redirect`)
+- [x] 9. Acheteur : écran e-mail
+- [x] 10. Acheteur : écran du code (renvoi, erreurs)
+- [x] 11. Acheteur : écran « Faisons connaissance », accueil provisoire, écran hors ligne
 - [ ] 12. Acheteur : HTTP local autorisé en debug (iOS, Android) ; parcours complet sur le simulateur
       iPhone 17 Pro contre l'API locale
 - [ ] 13. Docs : DESIGN.md, ARCHITECTURE.md, AGENTS.md, TASKS.md

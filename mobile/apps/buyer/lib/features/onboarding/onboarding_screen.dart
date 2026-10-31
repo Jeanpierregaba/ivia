@@ -1,10 +1,8 @@
 import 'package:flutter/material.dart';
 import 'package:flutter_riverpod/flutter_riverpod.dart';
-import 'package:go_router/go_router.dart';
 import 'package:ivia_ui/ivia_ui.dart';
 
 import '../../app/onboarding_store.dart';
-import '../../app/router.dart';
 import 'illustrations.dart';
 
 /// Maquettes du 2026-10-31 (docs/specs/027-splash-onboarding/spec.md).
@@ -40,13 +38,11 @@ class OnboardingScreen extends ConsumerWidget {
 
   @override
   Widget build(BuildContext context, WidgetRef ref) {
+    // Une fois la présentation mémorisée, le routeur ouvre la connexion.
     return IviaOnboarding(
       brand: IviaAppBrand.buyer,
       slides: onboardingSlides,
-      onDone: () async {
-        await ref.read(onboardingStoreProvider).markSeen();
-        if (context.mounted) context.go(Routes.login);
-      },
+      onDone: ref.read(onboardingSeenProvider.notifier).complete,
     );
   }
 }

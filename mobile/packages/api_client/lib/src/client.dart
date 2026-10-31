@@ -42,7 +42,9 @@ class IviaApiClient {
   String? token;
 
   /// Appelé quand le serveur refuse le jeton (session expirée ou révoquée).
-  final VoidCallback? onUnauthorized;
+  /// Modifiable : l'état de session de l'app s'y abonne après la création
+  /// du client.
+  VoidCallback? onUnauthorized;
 
   @visibleForTesting
   Dio get debugDio => _dio;
