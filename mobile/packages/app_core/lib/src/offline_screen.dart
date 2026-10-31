@@ -2,7 +2,7 @@ import 'package:flutter/material.dart';
 import 'package:flutter_riverpod/flutter_riverpod.dart';
 import 'package:ivia_ui/ivia_ui.dart';
 
-import '../../app/auth_controller.dart';
+import 'auth_controller.dart';
 import 'async_button.dart';
 
 /// Session gardée mais serveur injoignable au démarrage, sans profil connu.

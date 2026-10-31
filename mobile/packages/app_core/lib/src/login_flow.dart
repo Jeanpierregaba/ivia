@@ -1,8 +1,8 @@
 import 'package:flutter_riverpod/flutter_riverpod.dart';
 import 'package:ivia_api_client/ivia_api_client.dart';
 
-import '../../app/auth_controller.dart';
-import '../../app/providers.dart';
+import 'auth_controller.dart';
+import 'providers.dart';
 
 /// Code demandé pour une adresse : partagé entre l'écran e-mail et l'écran
 /// du code.

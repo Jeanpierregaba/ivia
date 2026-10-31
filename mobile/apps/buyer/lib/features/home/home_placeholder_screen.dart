@@ -2,8 +2,7 @@ import 'package:flutter/material.dart';
 import 'package:flutter_riverpod/flutter_riverpod.dart';
 import 'package:ivia_ui/ivia_ui.dart';
 
-import '../../app/auth_controller.dart';
-import '../auth/async_button.dart';
+import 'package:ivia_app_core/ivia_app_core.dart';
 
 /// Accueil provisoire, remplacé par la recherche (fonctionnalité 007).
 class HomePlaceholderScreen extends ConsumerWidget {

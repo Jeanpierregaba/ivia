@@ -5,9 +5,7 @@ import 'package:flutter_secure_storage/flutter_secure_storage.dart';
 import 'package:flutter_test/flutter_test.dart';
 import 'package:ivia_api_client/ivia_api_client.dart';
 import 'package:ivia_api_client/testing.dart';
-import 'package:ivia_buyer/app/auth_controller.dart';
-import 'package:ivia_buyer/app/providers.dart';
-import 'package:ivia_buyer/app/router.dart';
+import 'package:ivia_app_core/ivia_app_core.dart';
 
 void main() {
   TestWidgetsFlutterBinding.ensureInitialized();
@@ -196,34 +194,6 @@ void main() {
       await pumpEventQueue();
       expect(state(c), isA<AuthSignedOut>());
       expect(await SessionStore().read(), isNull);
-    });
-  });
-
-  group('redirections', () {
-    final user = User.fromJson(userBody(complete: true));
-    String? go(AuthState s, String location, {bool seen = true}) =>
-        redirectFor(s, onboardingSeen: seen, location: location);
-
-    test('chaque état mène à son écran', () {
-      expect(go(const AuthStarting(), Routes.home), Routes.splash);
-      expect(
-        go(const AuthSignedOut(), Routes.splash, seen: false),
-        Routes.onboarding,
-      );
-      expect(go(const AuthSignedOut(), Routes.splash), Routes.login);
-      expect(go(const AuthSignedOut(), Routes.home), Routes.login);
-      expect(go(AuthNeedsProfile(user), Routes.login), Routes.profile);
-      expect(go(AuthSignedIn(user), Routes.code), Routes.home);
-      expect(go(const AuthOffline(), Routes.home), Routes.offline);
-    });
-
-    test('écrans permis : pas de redirection', () {
-      expect(go(const AuthStarting(), Routes.splash), isNull);
-      expect(go(const AuthSignedOut(), Routes.onboarding, seen: false), isNull);
-      expect(go(const AuthSignedOut(), Routes.login), isNull);
-      expect(go(const AuthSignedOut(), Routes.code), isNull);
-      expect(go(AuthNeedsProfile(user), Routes.profile), isNull);
-      expect(go(AuthSignedIn(user), Routes.home), isNull);
     });
   });
 }

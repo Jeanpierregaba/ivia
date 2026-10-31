@@ -4,9 +4,9 @@ import 'package:flutter_riverpod/flutter_riverpod.dart';
 import 'package:ivia_api_client/ivia_api_client.dart';
 import 'package:ivia_ui/ivia_ui.dart';
 
-import 'app/first_launch.dart';
-import 'app/onboarding_store.dart';
-import 'app/providers.dart';
+import 'package:ivia_app_core/ivia_app_core.dart';
+
+import 'app/identity.dart';
 import 'app/router.dart';
 
 // Le splash natif (flutter_native_splash.yaml) reste affiché jusqu'à la
@@ -23,6 +23,7 @@ Future<void> main() async {
     ProviderScope(
       overrides: [
         onboardingStoreProvider.overrideWithValue(onboarding),
+        appIdentityProvider.overrideWithValue(buyerIdentity),
         apiClientProvider.overrideWithValue(
           IviaApiClient(config: ApiConfig.fromEnvironment()),
         ),

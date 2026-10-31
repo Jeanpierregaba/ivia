@@ -1,8 +1,8 @@
 import 'package:flutter_secure_storage/flutter_secure_storage.dart';
 import 'package:flutter_test/flutter_test.dart';
+import 'package:ivia_app_core/ivia_app_core.dart';
 import 'package:ivia_api_client/ivia_api_client.dart';
 import 'package:ivia_api_client/testing.dart';
-import 'package:ivia_buyer/app/first_launch.dart';
 import 'package:shared_preferences/shared_preferences.dart';
 
 void main() {

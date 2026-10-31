@@ -2,7 +2,8 @@ import 'package:flutter/material.dart';
 import 'package:flutter_riverpod/flutter_riverpod.dart';
 import 'package:ivia_ui/ivia_ui.dart';
 
-import '../../app/onboarding_store.dart';
+import 'package:ivia_app_core/ivia_app_core.dart';
+
 import 'illustrations.dart';
 
 /// Maquettes du 2026-10-31 (docs/specs/027-splash-onboarding/spec.md).

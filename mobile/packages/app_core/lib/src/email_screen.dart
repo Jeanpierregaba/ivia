@@ -4,7 +4,8 @@ import 'package:go_router/go_router.dart';
 import 'package:ivia_api_client/ivia_api_client.dart';
 import 'package:ivia_ui/ivia_ui.dart';
 
-import '../../app/router.dart';
+import 'app_identity.dart';
+import 'auth_routes.dart';
 import 'button_progress.dart';
 import 'legal_text.dart';
 import 'login_flow.dart';
@@ -48,7 +49,7 @@ class _EmailScreenState extends ConsumerState<EmailScreen> {
     });
     try {
       await ref.read(loginFlowProvider.notifier).requestCode(email);
-      if (mounted) context.go(Routes.code);
+      if (mounted) context.go(AuthRoutes.code);
     } on ApiException catch (e) {
       if (mounted) setState(() => _error = e.message);
     } finally {
@@ -59,6 +60,7 @@ class _EmailScreenState extends ConsumerState<EmailScreen> {
   @override
   Widget build(BuildContext context) {
     final textTheme = Theme.of(context).textTheme;
+    final identity = ref.watch(appIdentityProvider);
     return Scaffold(
       body: SafeArea(
         child: CustomScrollView(
@@ -71,22 +73,26 @@ class _EmailScreenState extends ConsumerState<EmailScreen> {
                   crossAxisAlignment: CrossAxisAlignment.stretch,
                   children: [
                     const SizedBox(height: IviaSpacing.huge),
-                    const Align(
-                      alignment: Alignment.centerLeft,
-                      child: IviaLogoTile(size: 76),
+                    Row(
+                      children: [
+                        IviaLogoTile(size: 76, color: identity.brand.accent),
+                        if (identity.loginBadge case final badge?) ...[
+                          const SizedBox(width: IviaSpacing.md),
+                          _Badge(label: badge, color: identity.brand.accent),
+                        ],
+                      ],
                     ),
                     const SizedBox(height: IviaSpacing.xxl),
                     Semantics(
                       header: true,
                       child: Text(
-                        'Bienvenue sur ivia',
+                        identity.loginTitle,
                         style: textTheme.headlineMedium,
                       ),
                     ),
                     const SizedBox(height: IviaSpacing.sm),
                     Text(
-                      'Connectez-vous ou créez votre compte avec votre e-mail. '
-                      'Pas de mot de passe : nous vous envoyons un code.',
+                      identity.loginBody,
                       style: textTheme.bodyLarge?.copyWith(
                         color: IviaColors.textSecondary,
                       ),
@@ -165,6 +171,30 @@ class _SoonDivider extends StatelessWidget {
         ),
         const Expanded(child: Divider()),
       ],
+    );
+  }
+}
+
+/// Pastille pleine à côté du logo (« Marchand »).
+class _Badge extends StatelessWidget {
+  const _Badge({required this.label, required this.color});
+
+  final String label;
+  final Color color;
+
+  @override
+  Widget build(BuildContext context) {
+    return Container(
+      padding: const EdgeInsets.symmetric(
+        horizontal: IviaSpacing.lg,
+        vertical: IviaSpacing.sm,
+      ),
+      decoration: ShapeDecoration(color: color, shape: const StadiumBorder()),
+      child: Text(
+        label,
+        style: Theme.of(context).textTheme.labelLarge
+            ?.copyWith(color: Colors.white),
+      ),
     );
   }
 }

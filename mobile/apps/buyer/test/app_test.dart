@@ -7,8 +7,8 @@ import 'package:flutter_secure_storage/flutter_secure_storage.dart';
 import 'package:flutter_test/flutter_test.dart';
 import 'package:ivia_api_client/ivia_api_client.dart';
 import 'package:ivia_api_client/testing.dart';
-import 'package:ivia_buyer/app/onboarding_store.dart';
-import 'package:ivia_buyer/app/providers.dart';
+import 'package:ivia_app_core/ivia_app_core.dart';
+import 'package:ivia_buyer/app/identity.dart';
 import 'package:ivia_buyer/features/onboarding/onboarding_screen.dart';
 import 'package:ivia_buyer/main.dart';
 import 'package:ivia_ui/ivia_ui.dart';
@@ -51,6 +51,7 @@ void main() {
       ProviderScope(
         overrides: [
           onboardingStoreProvider.overrideWithValue(store),
+          appIdentityProvider.overrideWithValue(buyerIdentity),
           apiClientProvider.overrideWithValue(
             IviaApiClient(
               config: ApiConfig(baseUrl: Uri.parse('http://api.test')),

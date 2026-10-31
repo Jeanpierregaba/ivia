@@ -1,0 +1,23 @@
+name: ivia_app_core
+description: "Session, connexion par code e-mail et utilitaires communs aux 3 apps ivia."
+publish_to: none
+version: 0.1.0
+
+environment:
+  sdk: ^3.13.5
+resolution: workspace
+
+dependencies:
+  flutter:
+    sdk: flutter
+  flutter_riverpod: ^3.4.3
+  go_router: ^18.1.2
+  ivia_api_client: any
+  ivia_ui: any
+  shared_preferences: ^2.5.6
+
+dev_dependencies:
+  flutter_secure_storage: ^11.2.0
+  flutter_test:
+    sdk: flutter
+  shared_preferences_platform_interface: ^2.4.2

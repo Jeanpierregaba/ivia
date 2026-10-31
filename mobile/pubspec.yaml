@@ -11,6 +11,7 @@ workspace:
   - apps/seller
   - apps/driver
   - packages/api_client
+  - packages/app_core
   - packages/ui
 
 dev_dependencies:

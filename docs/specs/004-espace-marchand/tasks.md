@@ -4,7 +4,7 @@
 
 - [x] 1. Backend : catégories de boutique (migration 00019, `GET /v1/shop-categories`,
       `category_id` obligatoire à la création, openapi.yaml, données de démonstration) ; tests Go
-- [ ] 2. `packages/app_core` : déplacer la connexion de l'acheteur (contrôleur, parcours, écrans,
+- [x] 2. `packages/app_core` : déplacer la connexion de l'acheteur (contrôleur, parcours, écrans,
       utilitaires) et la paramétrer ; tests de l'acheteur verts sans changement visible
 - [ ] 3. `ui` : couleurs d'action par app, `IviaTheme.light(brand)`, splash tuile + sous-titre,
       `IviaStepList`, `IviaSelectField` ; tests et contrastes

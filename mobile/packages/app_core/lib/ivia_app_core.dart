@@ -1,0 +1,21 @@
+/// Session et connexion par code e-mail, communes aux 3 apps ivia.
+///
+/// Chaque app fournit son identité (`appIdentityProvider`), son client
+/// (`apiClientProvider`) et sa table de redirection.
+library;
+
+export 'src/app_identity.dart';
+export 'src/async_button.dart';
+export 'src/auth_controller.dart';
+export 'src/auth_routes.dart';
+export 'src/button_progress.dart';
+export 'src/code_screen.dart';
+export 'src/email_screen.dart';
+export 'src/first_launch.dart';
+export 'src/legal_text.dart';
+export 'src/login_flow.dart';
+export 'src/offline_screen.dart';
+export 'src/onboarding_store.dart';
+export 'src/phone_format.dart';
+export 'src/profile_screen.dart';
+export 'src/providers.dart';

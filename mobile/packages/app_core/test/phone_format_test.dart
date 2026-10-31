@@ -1,6 +1,6 @@
 import 'package:flutter/services.dart';
 import 'package:flutter_test/flutter_test.dart';
-import 'package:ivia_buyer/features/auth/phone_format.dart';
+import 'package:ivia_app_core/ivia_app_core.dart';
 
 void main() {
   test('numéro par paires, indicatif retiré', () {

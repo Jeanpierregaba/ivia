@@ -6,7 +6,8 @@ import 'package:go_router/go_router.dart';
 import 'package:ivia_api_client/ivia_api_client.dart';
 import 'package:ivia_ui/ivia_ui.dart';
 
-import '../../app/router.dart';
+import 'app_identity.dart';
+import 'auth_routes.dart';
 import 'button_progress.dart';
 import 'login_flow.dart';
 
@@ -104,7 +105,7 @@ class _CodeScreenState extends ConsumerState<CodeScreen> {
   }
 
   void _changeEmail() =>
-      context.canPop() ? context.pop() : context.go(Routes.login);
+      context.canPop() ? context.pop() : context.go(AuthRoutes.login);
 
   @override
   Widget build(BuildContext context) {
@@ -115,7 +116,6 @@ class _CodeScreenState extends ConsumerState<CodeScreen> {
     }
     _syncCountdown(flow);
     final textTheme = Theme.of(context).textTheme;
-    final minutes = flow.expiresIn.inMinutes;
     return Scaffold(
       body: SafeArea(
         child: CustomScrollView(
@@ -198,9 +198,9 @@ class _CodeScreenState extends ConsumerState<CodeScreen> {
                     ),
                     const SizedBox(height: IviaSpacing.lg),
                     IviaInfoCard(
-                      text:
-                          'Rien reçu ? Regardez dans les courriers '
-                          'indésirables. Le code est valable $minutes minutes.',
+                      text: ref
+                          .watch(appIdentityProvider)
+                          .codeHint(flow.expiresIn),
                     ),
                     const Spacer(),
                     const SizedBox(height: IviaSpacing.xxl),

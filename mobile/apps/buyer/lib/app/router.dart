@@ -1,22 +1,17 @@
 import 'package:flutter/foundation.dart';
 import 'package:flutter_riverpod/flutter_riverpod.dart';
 import 'package:go_router/go_router.dart';
+import 'package:ivia_app_core/ivia_app_core.dart';
 
-import '../features/auth/code_screen.dart';
-import '../features/auth/email_screen.dart';
-import '../features/auth/offline_screen.dart';
-import '../features/auth/profile_screen.dart';
 import '../features/home/home_placeholder_screen.dart';
 import '../features/onboarding/onboarding_screen.dart';
 import '../features/splash/loading_screen.dart';
-import 'auth_controller.dart';
-import 'onboarding_store.dart';
 
 abstract final class Routes {
   static const splash = '/';
   static const onboarding = '/onboarding';
-  static const login = '/login';
-  static const code = '/login/code';
+  static const login = AuthRoutes.login;
+  static const code = AuthRoutes.code;
   static const profile = '/profile';
   static const home = '/home';
   static const offline = '/offline';
