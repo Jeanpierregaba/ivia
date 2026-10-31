@@ -10,15 +10,15 @@
       `IviaStepList` ; tests et contrastes (liste déroulante : `DropdownButtonFormField` de
       Material, pas de composant propre)
 - [x] 4. `api_client` : catégories, quartiers, boutiques, envoi de fichier par URL signée ; tests
-- [ ] 5. Marchand : splash de chargement, présentation et illustrations ; tests
-- [ ] 6. Marchand : connexion (« Espace marchand », encart du code) et `SellerSession` + routeur ;
+- [x] 5. Marchand : splash de chargement, présentation et illustrations ; tests
+- [x] 6. Marchand : connexion (« Espace marchand », encart du code) et `SellerSession` + routeur ;
       tests
-- [ ] 7. Marchand : « Créez votre boutique » sans carte (champs, catégories, quartiers, téléphone,
+- [x] 7. Marchand : « Créez votre boutique » sans carte (champs, catégories, quartiers, téléphone,
       consentement, envoi) ; tests
-- [ ] 8. Marchand : logo (choix, compression sans métadonnées, envoi signé) ; tests
-- [ ] 9. Marchand : position (carte Google Maps si activée, sinon aperçu ; « Ma position ») ;
+- [x] 8. Marchand : logo (choix, compression sans métadonnées, envoi signé) ; tests
+- [x] 9. Marchand : position (carte Google Maps si activée, sinon aperçu ; « Ma position ») ;
       permissions ; tests
-- [ ] 10. Marchand : « En cours de validation », refus / suspension, accueil et produits
+- [x] 10. Marchand : « En cours de validation », refus / suspension, accueil et produits
       provisoires ; tests
 - [ ] 11. Vérification sur le simulateur iPhone 17 Pro contre l'API locale (validation par l'admin)
 - [ ] 12. Docs : DESIGN.md, ARCHITECTURE.md, AGENTS.md, TASKS.md

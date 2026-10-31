@@ -1,5 +1,3 @@
-import 'dart:math' as math;
-
 import 'package:flutter/material.dart';
 import 'package:ivia_ui/ivia_ui.dart';
 
@@ -8,10 +6,6 @@ import 'package:ivia_ui/ivia_ui.dart';
 // Données fictives d'exemple ; photos et logos d'opérateurs : emplacements
 // hachurés en attendant les visuels.
 
-const _cardShadow = [
-  BoxShadow(color: Color(0x290E2E54), blurRadius: 24, offset: Offset(0, 10)),
-];
-
 /// Page 1 : deux fiches produit et la pastille « Autour de moi ».
 class NearbyIllustration extends StatelessWidget {
   const NearbyIllustration({super.key});
@@ -19,7 +13,7 @@ class NearbyIllustration extends StatelessWidget {
   @override
   Widget build(BuildContext context) {
     return OnboardingArtboard(
-      child: _Card(
+      child: IllustrationCard(
         color: IviaColors.imperialRed,
         child: Stack(
           children: [
@@ -27,7 +21,7 @@ class NearbyIllustration extends StatelessWidget {
               left: 11,
               top: 10,
               width: 194,
-              child: _Tilted(
+              child: Tilted(
                 degrees: -4,
                 child: _ProductCard(
                   name: 'Riz parfumé 5 kg',
@@ -40,7 +34,7 @@ class NearbyIllustration extends StatelessWidget {
               left: 132,
               top: 184,
               width: 180,
-              child: _Tilted(
+              child: Tilted(
                 degrees: 3,
                 child: _ProductCard(
                   name: 'Pagne wax 6 yards',
@@ -103,7 +97,7 @@ class PaymentIllustration extends StatelessWidget {
   @override
   Widget build(BuildContext context) {
     return OnboardingArtboard(
-      child: _Card(
+      child: IllustrationCard(
         color: IviaColors.berkeleyBlue,
         child: Stack(
           children: [
@@ -151,35 +145,11 @@ class PaymentIllustration extends StatelessWidget {
             Positioned(
               left: 136,
               top: 293,
-              child: _Tilted(
+              child: const Tilted(
                 degrees: -3,
-                child: Container(
-                  height: 50,
-                  padding: const EdgeInsets.fromLTRB(10, 0, 18, 0),
-                  decoration: const ShapeDecoration(
-                    color: IviaColors.surface,
-                    shape: StadiumBorder(),
-                    shadows: _cardShadow,
-                  ),
-                  child: Row(
-                    children: [
-                      Container(
-                        width: 26,
-                        height: 26,
-                        decoration: const BoxDecoration(
-                          color: IviaColors.cobaltBlue,
-                          shape: BoxShape.circle,
-                        ),
-                        child: const Icon(
-                          Icons.check,
-                          size: 16,
-                          color: Colors.white,
-                        ),
-                      ),
-                      const SizedBox(width: 10),
-                      Text('Paiement reçu', style: IviaTextStyles.bodyStrong),
-                    ],
-                  ),
+                child: CheckPill(
+                  label: 'Paiement reçu',
+                  checkColor: IviaColors.cobaltBlue,
                 ),
               ),
             ),
@@ -207,7 +177,7 @@ class HandoverIllustration extends StatelessWidget {
             child: Row(
               children: [
                 Expanded(
-                  child: _Tile(
+                  child: MosaicTile(
                     color: IviaColors.cobaltBlue,
                     radius: const BorderRadius.only(
                       topLeft: _outer,
@@ -222,7 +192,7 @@ class HandoverIllustration extends StatelessWidget {
                 ),
                 const SizedBox(width: IviaSpacing.mosaicGap),
                 const Expanded(
-                  child: _Tile(
+                  child: MosaicTile(
                     color: IviaColors.surface,
                     radius: BorderRadius.only(
                       topLeft: _inner,
@@ -314,35 +284,6 @@ class HandoverIllustration extends StatelessWidget {
   }
 }
 
-class _Card extends StatelessWidget {
-  const _Card({required this.color, required this.child});
-
-  final Color color;
-  final Widget child;
-
-  @override
-  Widget build(BuildContext context) {
-    return DecoratedBox(
-      decoration: BoxDecoration(
-        color: color,
-        borderRadius: BorderRadius.circular(IviaRadius.large),
-      ),
-      child: child,
-    );
-  }
-}
-
-class _Tilted extends StatelessWidget {
-  const _Tilted({required this.degrees, required this.child});
-
-  final double degrees;
-  final Widget child;
-
-  @override
-  Widget build(BuildContext context) =>
-      Transform.rotate(angle: degrees * math.pi / 180, child: child);
-}
-
 class _ProductCard extends StatelessWidget {
   const _ProductCard({
     required this.name,
@@ -361,7 +302,7 @@ class _ProductCard extends StatelessWidget {
       decoration: BoxDecoration(
         color: IviaColors.surface,
         borderRadius: BorderRadius.circular(IviaRadius.large),
-        boxShadow: _cardShadow,
+        boxShadow: illustrationShadow,
       ),
       child: Column(
         crossAxisAlignment: CrossAxisAlignment.start,
@@ -451,48 +392,6 @@ class _Operator extends StatelessWidget {
                     ),
                   )
                 : null,
-          ),
-        ],
-      ),
-    );
-  }
-}
-
-class _Tile extends StatelessWidget {
-  const _Tile({
-    required this.color,
-    required this.radius,
-    required this.caption,
-    required this.title,
-    required this.onColor,
-  });
-
-  final Color color;
-  final BorderRadius radius;
-  final String caption;
-  final String title;
-  final Color onColor;
-
-  @override
-  Widget build(BuildContext context) {
-    return Container(
-      padding: const EdgeInsets.all(16),
-      decoration: BoxDecoration(color: color, borderRadius: radius),
-      child: Column(
-        crossAxisAlignment: CrossAxisAlignment.start,
-        children: [
-          Text(
-            caption,
-            style: IviaTextStyles.caption.copyWith(
-              color: onColor.withValues(alpha: 0.8),
-            ),
-          ),
-          const Spacer(),
-          Text(
-            title,
-            style: IviaTextStyles.title2.copyWith(color: onColor),
-            maxLines: 3,
-            overflow: TextOverflow.ellipsis,
           ),
         ],
       ),

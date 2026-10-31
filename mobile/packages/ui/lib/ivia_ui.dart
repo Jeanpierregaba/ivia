@@ -6,6 +6,7 @@ library;
 export 'src/brand.dart';
 export 'src/code_input.dart';
 export 'src/components.dart';
+export 'src/illustration.dart';
 export 'src/loading_splash.dart';
 export 'src/onboarding.dart';
 export 'src/step_list.dart';

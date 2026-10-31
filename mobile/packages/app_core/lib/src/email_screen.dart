@@ -73,13 +73,16 @@ class _EmailScreenState extends ConsumerState<EmailScreen> {
                   crossAxisAlignment: CrossAxisAlignment.stretch,
                   children: [
                     const SizedBox(height: IviaSpacing.huge),
-                    Row(
+                    // Wrap : la pastille passe à la ligne avec une police
+                    // très agrandie.
+                    Wrap(
+                      spacing: IviaSpacing.md,
+                      runSpacing: IviaSpacing.sm,
+                      crossAxisAlignment: WrapCrossAlignment.center,
                       children: [
                         IviaLogoTile(size: 76, color: identity.brand.accent),
-                        if (identity.loginBadge case final badge?) ...[
-                          const SizedBox(width: IviaSpacing.md),
+                        if (identity.loginBadge case final badge?)
                           _Badge(label: badge, color: identity.brand.accent),
-                        ],
                       ],
                     ),
                     const SizedBox(height: IviaSpacing.xxl),

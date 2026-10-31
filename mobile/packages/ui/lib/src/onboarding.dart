@@ -91,10 +91,14 @@ class IviaOnboarding extends StatefulWidget {
     required this.brand,
     required this.slides,
     required this.onDone,
+    this.appName,
   }) : assert(slides.length > 0);
 
   final IviaAppBrand brand;
   final List<OnboardingSlide> slides;
+
+  /// Nom affiché à côté du logo sur la première page (« Marchand »).
+  final String? appName;
 
   /// Appelé par « Passer » et par « Commencer ».
   final VoidCallback onDone;
@@ -151,9 +155,17 @@ class _IviaOnboardingState extends State<IviaOnboarding> {
                   height: 48,
                   child: Row(
                     children: [
-                      if (_page == 0)
-                        IviaLogoTile(color: brand.accent)
-                      else
+                      if (_page == 0) ...[
+                        IviaLogoTile(color: brand.accent),
+                        if (widget.appName case final name?) ...[
+                          const SizedBox(width: IviaSpacing.md),
+                          Text(
+                            name,
+                            style: Theme.of(context).textTheme.titleMedium
+                                ?.copyWith(color: brand.accent),
+                          ),
+                        ],
+                      ] else
                         IviaBackButton(onPressed: () => _goTo(_page - 1)),
                       const Spacer(),
                       // Taille gardée sur la dernière page : l'en-tête ne bouge pas.

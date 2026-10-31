@@ -6,7 +6,7 @@ import 'package:ivia_ui/ivia_ui.dart';
 import 'auth_controller.dart';
 import 'providers.dart';
 import 'button_progress.dart';
-import 'legal_text.dart';
+import 'form_fields.dart';
 import 'phone_format.dart';
 
 /// « Faisons connaissance » : prénom, nom, téléphone et consentement,
@@ -202,30 +202,17 @@ class _ProfileScreenState extends ConsumerState<ProfileScreen> {
                         names[1],
                       ],
                       const SizedBox(height: IviaSpacing.lg),
-                      IviaFieldLabel(
+                      TogoPhoneField(
                         label: 'Téléphone',
-                        child: TextField(
-                          controller: _phone,
-                          enabled: !_busy,
-                          keyboardType: TextInputType.phone,
-                          autofillHints: const [
-                            AutofillHints.telephoneNumberNational,
-                          ],
-                          inputFormatters: [TogoPhoneFormatter()],
-                          decoration: InputDecoration(
-                            prefixIcon: const _PhonePrefix(),
-                            hintText: '90 12 34 56',
-                            helperText:
-                                'Visible par le livreur uniquement pendant '
-                                'une livraison.',
-                            helperMaxLines: 2,
-                            errorText: _errors['phone'],
-                            errorMaxLines: 3,
-                          ),
-                        ),
+                        controller: _phone,
+                        enabled: !_busy,
+                        helperText:
+                            'Visible par le livreur uniquement pendant une '
+                            'livraison.',
+                        errorText: _errors['phone'],
                       ),
                       const SizedBox(height: IviaSpacing.xl),
-                      _ConsentRow(
+                      ConsentCheckbox(
                         value: _consent,
                         error: _errors['accept_privacy_policy'],
                         onChanged: _busy
@@ -264,98 +251,6 @@ class _ProfileScreenState extends ConsumerState<ProfileScreen> {
           ),
         ),
       ),
-    );
-  }
-}
-
-class _PhonePrefix extends StatelessWidget {
-  const _PhonePrefix();
-
-  @override
-  Widget build(BuildContext context) {
-    return Container(
-      margin: const EdgeInsets.only(right: IviaSpacing.md),
-      padding: const EdgeInsets.symmetric(horizontal: IviaSpacing.lg),
-      decoration: const BoxDecoration(
-        border: Border(right: BorderSide(color: IviaColors.border)),
-      ),
-      child: Column(
-        mainAxisAlignment: MainAxisAlignment.center,
-        mainAxisSize: MainAxisSize.min,
-        children: [
-          Text(
-            '+228',
-            style: Theme.of(context).textTheme.titleSmall,
-            semanticsLabel: 'Indicatif plus 2 2 8',
-          ),
-        ],
-      ),
-    );
-  }
-}
-
-class _ConsentRow extends StatelessWidget {
-  const _ConsentRow({
-    required this.value,
-    required this.error,
-    required this.onChanged,
-  });
-
-  final bool value;
-  final String? error;
-  final ValueChanged<bool>? onChanged;
-
-  @override
-  Widget build(BuildContext context) {
-    final textTheme = Theme.of(context).textTheme;
-    return Column(
-      crossAxisAlignment: CrossAxisAlignment.start,
-      children: [
-        Row(
-          crossAxisAlignment: CrossAxisAlignment.start,
-          children: [
-            Checkbox(
-              value: value,
-              isError: error != null,
-              onChanged: onChanged == null ? null : (v) => onChanged!(v!),
-              // Le texte à côté est lu ensuite, avec son lien.
-              semanticLabel: 'Accord pour le traitement de mes données',
-            ),
-            const SizedBox(width: IviaSpacing.xs),
-            Expanded(
-              child: GestureDetector(
-                onTap: onChanged == null ? null : () => onChanged!(!value),
-                child: Padding(
-                  padding: const EdgeInsets.only(top: 12),
-                  child: LegalText(
-                    style: textTheme.bodyMedium?.copyWith(
-                      color: IviaColors.textSecondary,
-                    ),
-                    parts: const [
-                      LegalPart(
-                        "J'accepte que ivia traite mes données selon la ",
-                      ),
-                      LegalPart.link('Politique de confidentialité'),
-                      LegalPart('.'),
-                    ],
-                  ),
-                ),
-              ),
-            ),
-          ],
-        ),
-        if (error != null)
-          Padding(
-            padding: const EdgeInsets.only(left: 48),
-            child: Semantics(
-              liveRegion: true,
-              child: Text(
-                error!,
-                style: textTheme.bodySmall?.copyWith(color: IviaColors.error),
-              ),
-            ),
-          ),
-      ],
     );
   }
 }

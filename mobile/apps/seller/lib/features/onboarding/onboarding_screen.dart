@@ -1,38 +1,35 @@
 import 'package:flutter/material.dart';
 import 'package:flutter_riverpod/flutter_riverpod.dart';
-import 'package:go_router/go_router.dart';
+import 'package:ivia_app_core/ivia_app_core.dart';
 import 'package:ivia_ui/ivia_ui.dart';
 
-import '../../app/onboarding_store.dart';
-import '../../app/router.dart';
+import 'illustrations.dart';
 
-/// Contenu proposé (à valider) dans docs/specs/027-splash-onboarding/spec.md.
+/// Maquettes du 2026-10-31 (docs/specs/004-espace-marchand/spec.md).
 const onboardingSlides = [
   OnboardingSlide(
-    illustration: OnboardingIconIllustration(
-      brand: IviaAppBrand.seller,
-      icon: Icons.add_business_outlined,
-    ),
-    title: 'Votre boutique en ligne',
-    body: 'Créez-la en quelques minutes ; ivia la vérifie avant de la publier.',
-  ),
-  OnboardingSlide(
-    illustration: OnboardingIconIllustration(
-      brand: IviaAppBrand.seller,
-      icon: Icons.receipt_long_outlined,
-    ),
-    title: 'Des commandes déjà payées',
-    body: 'Acceptez-les en un geste, l\'acheteur a payé par Mobile Money.',
-  ),
-  OnboardingSlide(
-    illustration: OnboardingIconIllustration(
-      brand: IviaAppBrand.seller,
-      icon: Icons.verified_user_outlined,
-    ),
-    title: 'Une remise sans litige',
+    illustration: ShopIllustration(),
+    title: 'Votre boutique en ligne, sans site web.',
+    highlight: 'sans site web.',
     body:
-        'Le code de l\'acheteur confirme chaque remise ; vos relevés sont '
-        'tenus pour vous.',
+        'Ajoutez vos produits en photo, avec le prix et le stock. Les '
+        'acheteurs du quartier vous trouvent.',
+  ),
+  OnboardingSlide(
+    illustration: PaidOrderIllustration(),
+    title: 'Des commandes déjà payées.',
+    highlight: 'déjà payées.',
+    body:
+        'Le client paie par Mobile Money avant que vous ne prépariez. Vous '
+        'avez 15 minutes pour accepter.',
+  ),
+  OnboardingSlide(
+    illustration: SellerHandoverIllustration(),
+    title: 'La remise, en toute sécurité.',
+    highlight: 'en toute sécurité.',
+    body:
+        'Livraison par un livreur ivia ou retrait en boutique : le code à '
+        '4 chiffres du client confirme la remise.',
   ),
 ];
 
@@ -41,13 +38,12 @@ class OnboardingScreen extends ConsumerWidget {
 
   @override
   Widget build(BuildContext context, WidgetRef ref) {
+    // Une fois la présentation mémorisée, le routeur ouvre la connexion.
     return IviaOnboarding(
       brand: IviaAppBrand.seller,
+      appName: 'Marchand',
       slides: onboardingSlides,
-      onDone: () async {
-        await ref.read(onboardingStoreProvider).markSeen();
-        if (context.mounted) context.go(Routes.login);
-      },
+      onDone: ref.read(onboardingSeenProvider.notifier).complete,
     );
   }
 }
