@@ -8,7 +8,7 @@ class LoadingScreen extends StatelessWidget {
   @override
   Widget build(BuildContext context) {
     return IviaLoadingSplash(
-      color: IviaAppBrand.buyer.accent,
+      brand: IviaAppBrand.buyer,
       tagline: 'Tout, près de chez vous.',
     );
   }

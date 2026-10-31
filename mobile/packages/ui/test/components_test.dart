@@ -60,7 +60,7 @@ void main() {
     await pump(
       tester,
       const IviaLoadingSplash(
-        color: IviaColors.imperialRed,
+        brand: IviaAppBrand.buyer,
         tagline: 'Tout, près de chez vous.',
       ),
     );
@@ -83,7 +83,7 @@ void main() {
   testWidgets('splash : barre d\'état claire', (tester) async {
     await pump(
       tester,
-      const IviaLoadingSplash(color: IviaColors.imperialRed, tagline: 'x'),
+      const IviaLoadingSplash(brand: IviaAppBrand.buyer, tagline: 'x'),
     );
     final region = tester.widget<AnnotatedRegion<SystemUiOverlayStyle>>(
       find.byType(AnnotatedRegion<SystemUiOverlayStyle>).last,

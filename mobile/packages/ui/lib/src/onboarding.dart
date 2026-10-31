@@ -259,7 +259,7 @@ class _SlideView extends StatelessWidget {
                 child: Semantics(
                   header: true,
                   child: Text.rich(
-                    _titleSpan(slide),
+                    _titleSpan(slide, brand.highlight),
                     style: textTheme.headlineMedium,
                   ),
                 ),
@@ -279,9 +279,9 @@ class _SlideView extends StatelessWidget {
     );
   }
 
-  /// Rouge des titres : Imperial, permis pour un titre de 24 px et plus
-  /// (docs/DESIGN.md, Contrastes).
-  static TextSpan _titleSpan(OnboardingSlide slide) {
+  /// Couleur des titres de l'app (Imperial ou Cobalt), permise pour un
+  /// titre de 24 px et plus (docs/DESIGN.md, Contrastes).
+  static TextSpan _titleSpan(OnboardingSlide slide, Color highlightColor) {
     final highlight = slide.highlight;
     final start = highlight == null ? -1 : slide.title.indexOf(highlight);
     if (highlight == null || start < 0) return TextSpan(text: slide.title);
@@ -290,7 +290,7 @@ class _SlideView extends StatelessWidget {
         TextSpan(text: slide.title.substring(0, start)),
         TextSpan(
           text: highlight,
-          style: const TextStyle(color: IviaColors.primary),
+          style: TextStyle(color: highlightColor),
         ),
         TextSpan(text: slide.title.substring(start + highlight.length)),
       ],

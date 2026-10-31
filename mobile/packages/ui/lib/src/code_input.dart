@@ -1,6 +1,7 @@
 import 'package:flutter/material.dart';
 import 'package:flutter/services.dart';
 
+import 'brand.dart';
 import 'tokens.dart';
 import 'typography.dart';
 
@@ -154,7 +155,7 @@ class _Box extends StatelessWidget {
     final borderColor = hasError
         ? IviaColors.error
         : active
-        ? IviaColors.primary
+        ? IviaAppBrand.of(context).action
         : digit == null
         ? IviaColors.borderInput
         : IviaColors.surface;

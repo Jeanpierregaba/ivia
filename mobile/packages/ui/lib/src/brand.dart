@@ -1,6 +1,6 @@
 import 'dart:async';
 
-import 'package:flutter/widgets.dart';
+import 'package:flutter/material.dart';
 
 import 'tokens.dart';
 
@@ -74,15 +74,21 @@ class IviaLogo extends StatelessWidget {
 }
 
 /// Identité de chaque app : couleur (celle du splash, reprise dans
-/// `flutter_native_splash.yaml`) et logotype sur fond clair.
-///
-/// L'action principale reste Imperial Red dans les trois apps.
+/// `flutter_native_splash.yaml`), couleurs d'action et logotype sur fond
+/// clair (docs/DESIGN.md, « Couleur de chaque app »).
 final class IviaAppBrand {
   const IviaAppBrand._({
     required this.accent,
     required this.accentSoft,
     required this.logoOnLight,
+    required this.action,
+    required this.link,
+    required this.highlight,
   });
+
+  /// Marque de l'app en cours, portée par le thème (`IviaTheme.light`).
+  static IviaAppBrand of(BuildContext context) =>
+      Theme.of(context).extension<IviaBrandTheme>()?.brand ?? buyer;
 
   /// Fond du splash, pictogrammes, indicateurs, en-têtes de section.
   final Color accent;
@@ -92,21 +98,53 @@ final class IviaAppBrand {
 
   final IviaLogoColor logoOnLight;
 
+  /// Action principale : boutons pleins, champ actif, case cochée.
+  final Color action;
+
+  /// Texte cliquable (boutons texte, liens) : contraste de texte courant.
+  final Color link;
+
+  /// Partie colorée des titres (24 px et plus).
+  final Color highlight;
+
   static const buyer = IviaAppBrand._(
     accent: IviaColors.imperialRed,
     accentSoft: IviaColors.primarySoft,
     logoOnLight: IviaLogoColor.imperial,
+    action: IviaColors.imperialRed,
+    link: IviaColors.cornellRed,
+    highlight: IviaColors.imperialRed,
   );
 
   static const seller = IviaAppBrand._(
     accent: IviaColors.berkeleyBlue,
     accentSoft: IviaColors.secondarySoft,
     logoOnLight: IviaLogoColor.berkeley,
+    action: IviaColors.berkeleyBlue,
+    link: IviaColors.berkeleyBlue,
+    highlight: IviaColors.cobaltBlue,
   );
 
   static const driver = IviaAppBrand._(
     accent: IviaColors.cobaltBlue,
     accentSoft: IviaColors.secondarySoft,
     logoOnLight: IviaLogoColor.cobalt,
+    action: IviaColors.imperialRed,
+    link: IviaColors.cornellRed,
+    highlight: IviaColors.imperialRed,
   );
+}
+
+/// Porte la marque de l'app dans le thème.
+class IviaBrandTheme extends ThemeExtension<IviaBrandTheme> {
+  const IviaBrandTheme(this.brand);
+
+  final IviaAppBrand brand;
+
+  @override
+  IviaBrandTheme copyWith({IviaAppBrand? brand}) =>
+      IviaBrandTheme(brand ?? this.brand);
+
+  @override
+  IviaBrandTheme lerp(IviaBrandTheme? other, double t) => this;
 }

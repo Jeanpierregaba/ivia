@@ -61,10 +61,11 @@ class _LegalTextState extends State<LegalText> {
             TextSpan(
               text: part.text,
               recognizer: _recognizers[i],
-              // Rouge du texte courant : Cornell (contraste 6,8:1).
+              // Lien de l'app (Cornell ou Berkeley) : contraste de texte
+              // courant.
               style: part.isLink
-                  ? const TextStyle(
-                      color: IviaColors.primaryStrong,
+                  ? TextStyle(
+                      color: IviaAppBrand.of(context).link,
                       fontWeight: FontWeight.w700,
                     )
                   : null,

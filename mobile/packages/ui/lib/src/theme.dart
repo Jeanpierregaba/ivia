@@ -1,5 +1,6 @@
 import 'package:flutter/material.dart';
 
+import 'brand.dart';
 import 'tokens.dart';
 import 'typography.dart';
 
@@ -9,15 +10,17 @@ import 'typography.dart';
 /// Règle de contraste (docs/DESIGN.md) : Imperial Red ne sert jamais de
 /// couleur de texte sur fond clair ; les textes rouges utilisent Cornell Red.
 abstract final class IviaTheme {
-  static ThemeData light() {
+  /// Thème d'une app : l'acheteur par défaut. Couleurs d'action de
+  /// [IviaAppBrand] (Berkeley pour le marchand).
+  static ThemeData light([IviaAppBrand brand = IviaAppBrand.buyer]) {
     // Tous les rôles sont déclarés : un rôle omis prend la valeur d'un autre
     // (ex. secondaryContainer = Cobalt), ce qui casse les contrastes.
-    const colorScheme = ColorScheme(
+    final colorScheme = ColorScheme(
       brightness: Brightness.light,
-      primary: IviaColors.primary,
+      primary: brand.action,
       onPrimary: Colors.white,
       primaryContainer: IviaColors.primarySoft,
-      onPrimaryContainer: IviaColors.primaryStrong,
+      onPrimaryContainer: brand.link,
       secondary: IviaColors.secondary,
       onSecondary: Colors.white,
       secondaryContainer: IviaColors.secondarySoft,
@@ -64,6 +67,7 @@ abstract final class IviaTheme {
 
     return ThemeData(
       useMaterial3: true,
+      extensions: [IviaBrandTheme(brand)],
       colorScheme: colorScheme,
       scaffoldBackgroundColor: IviaColors.background,
       fontFamily: IviaTextStyles.fontFamily,
@@ -89,7 +93,7 @@ abstract final class IviaTheme {
       ),
       outlinedButtonTheme: OutlinedButtonThemeData(
         style: OutlinedButton.styleFrom(
-          foregroundColor: IviaColors.primaryStrong,
+          foregroundColor: brand.link,
           backgroundColor: IviaColors.surface,
           minimumSize: buttonMinimumSize,
           padding: buttonPadding,
@@ -101,7 +105,7 @@ abstract final class IviaTheme {
       ),
       textButtonTheme: TextButtonThemeData(
         style: TextButton.styleFrom(
-          foregroundColor: IviaColors.primaryStrong,
+          foregroundColor: brand.link,
           minimumSize: const Size(48, 48),
           shape: buttonShape,
           textStyle: IviaTextStyles.button,
@@ -117,13 +121,13 @@ abstract final class IviaTheme {
             color: states.contains(WidgetState.error)
                 ? IviaColors.error
                 : states.contains(WidgetState.focused)
-                ? IviaColors.primaryStrong
+                ? brand.link
                 : IviaColors.textSecondary,
           ),
         ),
         border: inputBorder(IviaColors.borderInput),
         enabledBorder: inputBorder(IviaColors.borderInput),
-        focusedBorder: inputBorder(IviaColors.primary, width: 2),
+        focusedBorder: inputBorder(brand.action, width: 2),
         errorBorder: inputBorder(IviaColors.error),
         focusedErrorBorder: inputBorder(IviaColors.error, width: 2),
         disabledBorder: inputBorder(IviaColors.border),
@@ -135,7 +139,7 @@ abstract final class IviaTheme {
         side: const BorderSide(color: IviaColors.borderInput, width: 1.5),
         fillColor: WidgetStateProperty.resolveWith(
           (states) => states.contains(WidgetState.selected)
-              ? IviaColors.primary
+              ? brand.action
               : IviaColors.surface,
         ),
         checkColor: const WidgetStatePropertyAll(Colors.white),
@@ -155,9 +159,9 @@ abstract final class IviaTheme {
         labelStyle: textTheme.labelMedium,
       ),
       tabBarTheme: TabBarThemeData(
-        labelColor: IviaColors.primaryStrong,
+        labelColor: brand.link,
         unselectedLabelColor: IviaColors.textSecondary,
-        indicatorColor: IviaColors.primary,
+        indicatorColor: brand.action,
         labelStyle: IviaTextStyles.bodyStrong,
         unselectedLabelStyle: IviaTextStyles.body,
         dividerColor: IviaColors.border,

@@ -8,6 +8,7 @@ export 'src/code_input.dart';
 export 'src/components.dart';
 export 'src/loading_splash.dart';
 export 'src/onboarding.dart';
+export 'src/step_list.dart';
 export 'src/theme.dart';
 export 'src/tokens.dart';
 export 'src/typography.dart';
