@@ -20,7 +20,7 @@
       permissions ; tests
 - [x] 10. Marchand : « En cours de validation », refus / suspension, accueil et produits
       provisoires ; tests
-- [ ] 11. Vérification sur le simulateur iPhone 17 Pro contre l'API locale (validation par l'admin)
-- [ ] 12. Docs : DESIGN.md, ARCHITECTURE.md, AGENTS.md, TASKS.md
+- [x] 11. Vérification sur le simulateur iPhone 17 Pro contre l'API locale (validation par l'admin)
+- [x] 12. Docs : DESIGN.md, ARCHITECTURE.md, AGENTS.md, TASKS.md
 - [ ] Vérifier tous les critères d'acceptation de spec.md
 - [ ] Relecture par le sous-agent reviewer

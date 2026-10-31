@@ -42,7 +42,8 @@ Détail et versions : `docs/ARCHITECTURE.md`.
   - `internal/app/` — assemblage des modules + tests de bout en bout par HTTP
   - `internal/platform/` — config, base (transactions par contexte), HTTP, River, stockage, erreurs, validation
   - `db/migrations/` — migrations goose · `api/openapi.yaml` — contrat de l'API
-- `mobile/` — pub workspace : `apps/buyer`, `apps/seller`, `apps/driver`, `packages/api_client`, `packages/ui`
+- `mobile/` — pub workspace : `apps/buyer`, `apps/seller`, `apps/driver`, `packages/api_client`,
+  `packages/app_core` (session, connexion, champs communs), `packages/ui`
 - `admin/` — back-office Next.js
 - `infra/` — déploiement (Compose de production, Caddy, sauvegardes)
 - `docker-compose.yml` — services locaux (PostGIS)
@@ -75,6 +76,10 @@ Mobile (pub workspace, depuis `mobile/` sauf mention) :
 - Tests : `flutter test` dans chaque membre, ou d'un coup :
   `ok=0; for m in apps/* packages/*; do (cd "$m" && flutter test) || ok=1; done; [ $ok -eq 0 ]`
 - Build : depuis `apps/<app>`, `flutter build apk` / `flutter build ios --no-codesign`
+- Carte Google Maps (app marchand) : clés restreintes, jamais committées — Android :
+  `MAPS_API_KEY=…` dans `apps/seller/android/local.properties` ; iOS : `MAPS_API_KEY = …` dans
+  `apps/seller/ios/Flutter/Maps.xcconfig` ; puis `--dart-define=GOOGLE_MAPS=true`. Sans clé :
+  aperçu sans fond de carte
 - Splash natif : après modification de `apps/<app>/flutter_native_splash.yaml` ou de ses images,
   depuis `apps/<app>`, `dart run flutter_native_splash:create` (fichiers Android et iOS générés, commités)
 

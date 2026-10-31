@@ -46,7 +46,10 @@ les images de splash des apps sont tirés de `logo-carre.png` : à remplacer par
   (`IviaTheme.light()`), `brand.dart` (`IviaLogo`, `IviaAppBrand` : couleurs de chaque app),
   `onboarding.dart` (`IviaOnboarding`, `OnboardingArtboard`), `components.dart` (`IviaLogoTile`,
   `IviaBackButton`, `IviaFieldLabel`, `IviaInfoCard`, `IviaPill`, `IviaImagePlaceholder`),
-  `code_input.dart` (`IviaCodeInput`), `loading_splash.dart` (`IviaLoadingSplash`).
+  `code_input.dart` (`IviaCodeInput`), `loading_splash.dart` (`IviaLoadingSplash`, logotype ou
+  tuile), `step_list.dart` (`IviaStepList`), `illustration.dart` (`IllustrationCard`, `Tilted`,
+  `MosaicTile`, `CheckPill` : briques des illustrations). Champs communs de connexion et de
+  formulaire (`TogoPhoneField`, `ConsentCheckbox`) : `mobile/packages/app_core`.
   Le test `contrast_test.dart` vérifie les
   ratios du tableau « Contrastes » : à mettre à jour avec ce fichier si une couleur change.
 - Pas de mode sombre au MVP. Les tokens sont nommés par rôle (`surface`, `text-muted`…) et non par
@@ -105,7 +108,15 @@ la mobilité et à la santé) : **à confirmer avec le designer**.
 | Livreur | Cobalt `#004DA8` | Tuile blanche, logotype Cobalt, sur fond Cobalt |
 
 La couleur de l'app sert au splash, aux pictogrammes, aux indicateurs et aux en-têtes de section.
-L'action principale reste Imperial Red dans les trois apps.
+
+Couleurs d'action par app (maquettes marchand du 2026-10-31, choix à confirmer avec le designer),
+portées par le thème (`IviaTheme.light(brand)`, `IviaAppBrand.of(context)`) :
+
+| App | Action (boutons, champ actif, case) | Liens | Partie colorée des titres |
+|---|---|---|---|
+| Acheteur | Imperial | Cornell | Imperial |
+| Marchand | Berkeley | Berkeley | Cobalt |
+| Livreur | Imperial (en attendant ses maquettes) | Cornell | Imperial |
 
 ### Contrastes (WCAG 2.2, calculés)
 
@@ -195,7 +206,14 @@ Maquettes : à venir (lien Figma à ajouter ici). Les statuts affichés suivent
 - **Mes commandes**, **Adresses** (texte + quartier + point sur la carte).
 
 ### App marchand (couleur : Berkeley)
-- **Création de boutique** puis écran « En attente de validation ».
+- **Lancement** ([spec 004](specs/004-espace-marchand/spec.md)) : splash de chargement (tuile,
+  « Marchand », « Vendez dans votre quartier. ») ; présentation (boutique en ligne, commandes déjà
+  payées, remise par code) avec « Marchand » à côté du logo ; « Espace marchand » (même compte que
+  l'acheteur).
+- **Création de boutique** (« Étape 1 sur 2 ») : logo facultatif, nom, catégorie, téléphone de la
+  boutique, adresse, quartier, position (carte Google Maps ou aperçu, « Ma position »),
+  consentement si le compte ne l'a pas donné ; puis « En cours de validation » (liste d'étapes,
+  actualisation en tirant), refus ou suspension avec le motif.
 - **Commandes** : onglets Nouvelles / En cours / Terminées ; chaque nouvelle commande affiche le
   compte à rebours de 15 min.
 - **Détail de commande** : produits, mode de remise, Accepter / Refuser, puis « En préparation »,

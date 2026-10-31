@@ -8,7 +8,7 @@ docs/specs/NNN-nom/tasks.md. Les petites tâches isolées (bug, retouche) peuven
 
 ## En cours
 
-- [ ] 001 — Connexion par code e-mail, app acheteur ([spec](docs/specs/001-connexion-otp/spec.md)) : reste la relecture ; apps marchand et livreur à faire sur leurs maquettes
+- [ ] 004 — Espace marchand : lancement, connexion, création de la boutique ([spec](docs/specs/004-espace-marchand/spec.md)) : reste la relecture ; clés Google Maps à fournir
 - [ ] 027 — Splash et présentation des 3 apps ([spec](docs/specs/027-splash-onboarding/spec.md)) : reste la vérification sur Android, la validation des textes et des couleurs par le designer
 
 Fin du squelette (étapes 8-9 du cadrage) :
@@ -24,10 +24,10 @@ que sa partie interface (apps Flutter, back-office), sauf mention « backend ».
 version « retrait seulement » (voir `docs/PRD.md`).
 
 ### Phase 1 — Comptes et catalogue
-- [ ] 001 — Écrans de connexion par OTP e-mail dans les apps marchand et livreur (acheteur : en cours)
+- [ ] 001 — Écrans de connexion par OTP e-mail dans l'app livreur (acheteur et marchand : faits)
 - [ ] 002 — Profil, carnet d'adresses (choix du point sur la carte), suppression du compte
 - [ ] 003 — Back-office : connexion admin (cookie httpOnly côté serveur Next.js), journal des actions
-- [ ] 004 — Boutiques : création par le marchand ; validation / suspension dans le back-office
+- [ ] 004 — Boutiques : validation / suspension dans le back-office (création côté marchand : en cours)
 - [ ] 005 — Catalogue : produits et photos (redimensionnées, sans métadonnées GPS, avant envoi)
 - [ ] 006 — Stock suivi et non suivi (écrans marchand)
 - [ ] 007 — Recherche : texte, catégorie, prix, quartier, « autour de moi »

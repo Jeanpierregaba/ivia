@@ -59,7 +59,7 @@ erDiagram
 | auth | `otp_codes`, `sessions` | Code et jeton stockés **hachés** ; tentatives limitées ; sessions révocables |
 | users | `users`, `user_roles`, `addresses`, `device_tokens` | `email` et `phone` uniques ; rôles cumulables ; `privacy_consent_at` daté par le serveur à la première acceptation de la politique de confidentialité. Profil complet = prénom, téléphone et consentement (requis pour commander ou postuler comme livreur) |
 | geo | `neighborhoods` | Quartiers de Lomé (nom, polygone optionnel) |
-| shops | `shops` | Statut `pending_review` → `published` / `suspended` ; position obligatoire |
+| shops | `shops`, `shop_categories` | Statut `pending_review` → `published` / `suspended` ; position obligatoire ; catégorie de boutique obligatoire à la création (liste propre au module : le catalogue dépend déjà des boutiques) |
 | catalog | `categories`, `products`, `product_images` | `parcel_size` (`small`/`medium`/`large`), `stock_mode` (`tracked`/`untracked`), colonne `tsvector` pour la recherche |
 | stock | `stock_levels`, `stock_movements` | Quantité disponible dans `stock_levels` (et non dans `products`, pour qu'aucun autre module n'écrive dans les tables du catalogue), `CHECK (quantity >= 0)` : survente impossible ; journal des mouvements en ajout seul, écrit dans la même transaction |
 | cart | `carts`, `cart_items` | Un panier par acheteur, lié à une seule boutique |
@@ -194,6 +194,7 @@ backend/
 mobile/                    Dart pub workspace
   apps/buyer, apps/seller, apps/driver
   packages/api_client      appels HTTP, modèles, gestion du jeton
+  packages/app_core        session, connexion par code, champs communs (spec 004)
   packages/ui              thème et composants partagés
 admin/                     back-office Next.js
 infra/                     docker-compose de production, Caddyfile, sauvegardes
