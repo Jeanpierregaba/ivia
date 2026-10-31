@@ -18,10 +18,7 @@ class User {
     firstName: json['first_name'] as String,
     lastName: json['last_name'] as String,
     roles: List<String>.from(json['roles'] as List),
-    privacyConsentAt: switch (json['privacy_consent_at']) {
-      final String at => DateTime.parse(at),
-      _ => null,
-    },
+    privacyConsentAt: _date(json['privacy_consent_at']),
     profileComplete: json['profile_complete'] as bool,
   );
 
@@ -308,3 +305,241 @@ class DriverDossier {
   final String vehiclePlate;
   final List<DriverDocumentKind> documents;
 }
+
+/// Page d'une liste paginée (`items`, `next_offset`).
+class Page<T> {
+  const Page({required this.items, required this.nextOffset});
+
+  final List<T> items;
+
+  /// Décalage de la page suivante ; `null` : dernière page.
+  final int? nextOffset;
+}
+
+/// Catégorie de produits (deux niveaux au plus).
+class ProductCategory {
+  const ProductCategory({
+    required this.id,
+    required this.name,
+    required this.parentId,
+  });
+
+  factory ProductCategory.fromJson(Map<String, dynamic> json) =>
+      ProductCategory(
+        id: json['id'] as String,
+        name: json['name'] as String,
+        parentId: json['parent_id'] as String?,
+      );
+
+  final String id;
+  final String name;
+  final String? parentId;
+}
+
+/// État de publication d'un produit.
+enum ProductStatus {
+  /// En vente : visible des acheteurs si la boutique est publiée.
+  active('active'),
+
+  /// Enregistré, jamais publié.
+  draft('draft'),
+
+  /// Publié puis retiré par le marchand.
+  withdrawn('withdrawn');
+
+  const ProductStatus(this.code);
+
+  final String code;
+
+  static ProductStatus parse(String code) =>
+      values.firstWhere((s) => s.code == code, orElse: () => draft);
+}
+
+/// Taille de colis : elle détermine les véhicules de livraison possibles.
+enum ParcelSize {
+  small('small'),
+  medium('medium'),
+  large('large');
+
+  const ParcelSize(this.code);
+
+  final String code;
+
+  static ParcelSize parse(String code) =>
+      values.firstWhere((s) => s.code == code, orElse: () => medium);
+}
+
+/// Stock suivi (quantité connue) ou non suivi (disponibilité confirmée à
+/// chaque commande).
+enum StockMode {
+  tracked('tracked'),
+  untracked('untracked');
+
+  const StockMode(this.code);
+
+  final String code;
+
+  static StockMode parse(String code) =>
+      values.firstWhere((m) => m.code == code, orElse: () => untracked);
+}
+
+/// Photo d'un produit ; la première est la principale.
+class ProductImage {
+  const ProductImage({required this.url, required this.objectKey});
+
+  factory ProductImage.fromJson(Map<String, dynamic> json) => ProductImage(
+    url: json['url'] as String,
+    objectKey: json['object_key'] as String,
+  );
+
+  final String url;
+
+  /// À renvoyer dans `image_keys` pour garder la photo.
+  final String objectKey;
+}
+
+/// Produit vu par son marchand (schéma `Product`).
+class Product {
+  const Product({
+    required this.id,
+    required this.shopId,
+    required this.categoryId,
+    required this.name,
+    required this.description,
+    required this.priceXof,
+    required this.parcelSize,
+    required this.stockMode,
+    required this.stockQuantity,
+    required this.available,
+    required this.status,
+    required this.publishedAt,
+    required this.withdrawnAt,
+    required this.images,
+  });
+
+  factory Product.fromJson(Map<String, dynamic> json) => Product(
+    id: json['id'] as String,
+    shopId: json['shop_id'] as String,
+    categoryId: json['category_id'] as String,
+    name: json['name'] as String,
+    description: json['description'] as String? ?? '',
+    priceXof: json['price_xof'] as int,
+    parcelSize: ParcelSize.parse(json['parcel_size'] as String),
+    stockMode: StockMode.parse(json['stock_mode'] as String),
+    stockQuantity: json['stock_quantity'] as int?,
+    available: json['available'] as bool,
+    status: ProductStatus.parse(json['status'] as String),
+    publishedAt: _date(json['published_at']),
+    withdrawnAt: _date(json['withdrawn_at']),
+    images: [
+      for (final image in json['images'] as List? ?? const [])
+        ProductImage.fromJson(image as Map<String, dynamic>),
+    ],
+  );
+
+  final String id;
+  final String shopId;
+  final String categoryId;
+  final String name;
+  final String description;
+
+  /// Prix en FCFA (entier).
+  final int priceXof;
+  final ParcelSize parcelSize;
+  final StockMode stockMode;
+
+  /// Quantité d'un stock suivi ; `null` : stock non suivi.
+  final int? stockQuantity;
+
+  /// En vente et en stock.
+  final bool available;
+  final ProductStatus status;
+
+  /// Dernière mise en vente ; `null` : brouillon.
+  final DateTime? publishedAt;
+
+  /// Dernier retrait ; `null` : en vente ou brouillon.
+  final DateTime? withdrawnAt;
+  final List<ProductImage> images;
+
+  /// Stock suivi épuisé.
+  bool get soldOut =>
+      stockMode == StockMode.tracked && (stockQuantity ?? 0) <= 0;
+}
+
+/// Produit à créer ou à modifier (schéma `ProductInput`).
+class ProductInput {
+  const ProductInput({
+    required this.categoryId,
+    required this.name,
+    required this.description,
+    required this.priceXof,
+    required this.parcelSize,
+    required this.imageKeys,
+    this.stockMode,
+    this.stockQuantity,
+    this.isActive,
+  });
+
+  final String categoryId;
+  final String name;
+  final String description;
+  final int priceXof;
+  final ParcelSize parcelSize;
+
+  /// Clés des photos, la principale d'abord (toutes envoyées).
+  final List<String> imageKeys;
+
+  /// À la création seulement : le mode ne change plus ensuite.
+  final StockMode? stockMode;
+
+  /// À la création d'un produit suivi.
+  final int? stockQuantity;
+
+  /// Création : `false` crée un brouillon. Modification : `null` garde l'état.
+  final bool? isActive;
+
+  Map<String, dynamic> toJson() => {
+    'category_id': categoryId,
+    'name': name,
+    'description': description,
+    'price_xof': priceXof,
+    'parcel_size': parcelSize.code,
+    'image_keys': imageKeys,
+    'stock_mode': ?stockMode?.code,
+    'stock_quantity': ?stockQuantity,
+    'is_active': ?isActive,
+  };
+}
+
+/// Nombre de produits d'une boutique par état.
+class ProductCounts {
+  const ProductCounts({
+    required this.active,
+    required this.draft,
+    required this.withdrawn,
+  });
+
+  factory ProductCounts.fromJson(Map<String, dynamic> json) => ProductCounts(
+    active: json['active'] as int,
+    draft: json['draft'] as int,
+    withdrawn: json['withdrawn'] as int,
+  );
+
+  final int active;
+  final int draft;
+  final int withdrawn;
+
+  int get total => active + draft + withdrawn;
+
+  int of(ProductStatus status) => switch (status) {
+    ProductStatus.active => active,
+    ProductStatus.draft => draft,
+    ProductStatus.withdrawn => withdrawn,
+  };
+}
+
+DateTime? _date(Object? value) => switch (value) {
+  final String at => DateTime.parse(at),
+  _ => null,
+};

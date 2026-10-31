@@ -130,6 +130,77 @@ class IviaApiClient {
     ];
   }
 
+  /// Catégories de produits actives, dans l'ordre d'affichage.
+  Future<List<ProductCategory>> productCategories() async {
+    final json = await _send('GET', '/v1/categories');
+    return [
+      for (final item in json['items'] as List)
+        ProductCategory.fromJson(item as Map<String, dynamic>),
+    ];
+  }
+
+  /// Produits de la boutique du marchand, filtrés par état et par nom
+  /// (sans accents ni majuscules, côté serveur).
+  Future<Page<Product>> sellerProducts(
+    String shopId, {
+    ProductStatus? status,
+    String query = '',
+    int offset = 0,
+    int limit = 20,
+  }) async {
+    final json = await _send(
+      'GET',
+      '/v1/seller/shops/$shopId/products',
+      query: {
+        'status': ?status?.code,
+        if (query.trim().isNotEmpty) 'q': query.trim(),
+        'offset': '$offset',
+        'limit': '$limit',
+      },
+    );
+    return Page(
+      items: [
+        for (final item in json['items'] as List)
+          Product.fromJson(item as Map<String, dynamic>),
+      ],
+      nextOffset: json['next_offset'] as int?,
+    );
+  }
+
+  /// Nombre de produits de la boutique par état.
+  Future<ProductCounts> productCounts(String shopId) async =>
+      ProductCounts.fromJson(
+        await _send('GET', '/v1/seller/shops/$shopId/product-counts'),
+      );
+
+  Future<Product> sellerProduct(String id) async =>
+      Product.fromJson(await _send('GET', '/v1/seller/products/$id'));
+
+  /// Ajoute un produit ; `isActive: false` crée un brouillon.
+  Future<Product> createProduct(String shopId, ProductInput input) async =>
+      Product.fromJson(
+        await _send(
+          'POST',
+          '/v1/seller/shops/$shopId/products',
+          data: input.toJson(),
+        ),
+      );
+
+  /// Modifie un produit ; `isActive` publie ou retire.
+  Future<Product> updateProduct(String id, ProductInput input) async =>
+      Product.fromJson(
+        await _send('PATCH', '/v1/seller/products/$id', data: input.toJson()),
+      );
+
+  /// Fixe la quantité d'un produit à stock suivi.
+  Future<Product> setStock(String id, int quantity) async => Product.fromJson(
+    await _send(
+      'PUT',
+      '/v1/seller/products/$id/stock',
+      data: {'quantity': quantity, 'note': ''},
+    ),
+  );
+
   /// Dossier livreur de l'utilisateur ; `null` : aucun dossier déposé.
   Future<DriverDossier?> driverMe() async {
     try {
@@ -214,6 +285,7 @@ class IviaApiClient {
     String method,
     String path, {
     Object? data,
+    Map<String, String>? query,
   }) async {
     // Jeton envoyé : un 401 tardif d'une ancienne session ne doit pas
     // effacer la session ouverte depuis.
@@ -222,6 +294,7 @@ class IviaApiClient {
       final response = await _dio.request<Object?>(
         path,
         data: data,
+        queryParameters: query,
         options: Options(method: method),
       );
       final body = response.data;

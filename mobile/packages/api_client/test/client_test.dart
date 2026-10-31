@@ -347,4 +347,128 @@ void main() {
       await expectLater(client.driverMe(), throwsA(isA<ApiException>()));
     });
   });
+
+  group('catalogue', () {
+    late FakeCatalog catalog;
+
+    setUp(() => catalog = FakeCatalog(server));
+
+    test('produit lu depuis le contrat : état, dates, stock, photos', () {
+      final p = Product.fromJson(productBody(status: 'withdrawn', stock: 0));
+      expect(p.status, ProductStatus.withdrawn);
+      expect(p.publishedAt, DateTime.utc(2026, 10, 12, 9));
+      expect(p.withdrawnAt, DateTime.utc(2026, 10, 24, 9));
+      expect(p.priceXof, 4500);
+      expect(p.parcelSize, ParcelSize.medium);
+      expect(p.stockMode, StockMode.tracked);
+      expect(p.soldOut, isTrue);
+      expect(p.images.single.objectKey, startsWith('products/'));
+      final untracked = Product.fromJson(
+        productBody(status: 'draft', stockMode: 'untracked', images: 0),
+      );
+      expect(untracked.publishedAt, isNull);
+      expect(untracked.stockQuantity, isNull);
+      expect(untracked.soldOut, isFalse);
+    });
+
+    test(
+      'liste : état, recherche nettoyée et pagination dans l\'URL',
+      () async {
+        catalog
+          ..seed(name: 'Café moulu')
+          ..seed(name: 'Riz', status: 'draft');
+        final page = await client.sellerProducts(
+          shopId,
+          status: ProductStatus.active,
+          query: '  cafe ',
+          offset: 0,
+          limit: 1,
+        );
+        expect(server.last.query, {
+          'status': 'active',
+          'q': 'cafe',
+          'offset': '0',
+          'limit': '1',
+        });
+        expect(page.items.single.name, 'Café moulu');
+        expect(page.nextOffset, isNull);
+
+        await client.sellerProducts(shopId);
+        expect(server.last.query, {'offset': '0', 'limit': '20'});
+      },
+    );
+
+    test('compteurs par état', () async {
+      catalog
+        ..seed(name: 'A')
+        ..seed(name: 'B', status: 'draft')
+        ..seed(name: 'C', status: 'withdrawn');
+      final counts = await client.productCounts(shopId);
+      expect((counts.active, counts.draft, counts.withdrawn), (1, 1, 1));
+      expect(counts.total, 3);
+      expect(counts.of(ProductStatus.draft), 1);
+    });
+
+    test('création : brouillon puis publication, champs envoyés', () async {
+      const input = ProductInput(
+        categoryId: 'c1',
+        name: 'Riz parfumé 5 kg',
+        description: '',
+        priceXof: 4500,
+        parcelSize: ParcelSize.medium,
+        imageKeys: ['products/u1.jpg'],
+        stockMode: StockMode.tracked,
+        stockQuantity: 12,
+        isActive: false,
+      );
+      final draft = await client.createProduct(shopId, input);
+      expect(server.last.body, {
+        'category_id': 'c1',
+        'name': 'Riz parfumé 5 kg',
+        'description': '',
+        'price_xof': 4500,
+        'parcel_size': 'medium',
+        'image_keys': ['products/u1.jpg'],
+        'stock_mode': 'tracked',
+        'stock_quantity': 12,
+        'is_active': false,
+      });
+      expect(draft.status, ProductStatus.draft);
+
+      final published = await client.updateProduct(
+        draft.id,
+        const ProductInput(
+          categoryId: 'c1',
+          name: 'Riz parfumé 5 kg',
+          description: '',
+          priceXof: 4500,
+          parcelSize: ParcelSize.medium,
+          imageKeys: ['products/u1.jpg'],
+          isActive: true,
+        ),
+      );
+      expect(server.last.method, 'PATCH');
+      expect((server.last.body! as Map).containsKey('stock_mode'), isFalse);
+      expect(published.status, ProductStatus.active);
+      expect(published.publishedAt, isNotNull);
+    });
+
+    test('stock et produit lu', () async {
+      final id = catalog.seed(name: 'Riz')['id'] as String;
+      final p = await client.setStock(id, 0);
+      expect(server.last.body, {'quantity': 0, 'note': ''});
+      expect(p.soldOut, isTrue);
+      expect((await client.sellerProduct(id)).stockQuantity, 0);
+    });
+
+    test('catégories de produits avec leur parent', () async {
+      final categories = await client.productCategories();
+      expect(categories.map((c) => c.name), [
+        'Alimentation',
+        'Céréales',
+        'Boissons',
+      ]);
+      expect(categories[1].parentId, categories[0].id);
+    });
+  });
 }

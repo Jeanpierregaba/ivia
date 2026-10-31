@@ -15,7 +15,7 @@
   `openapi.yaml` ; tests de la tâche 1 au vert, `sqlc diff`, `go vet`, `gofmt`
 
 **Mobile : fondations**
-- [ ] 3. `api_client` : modèles et méthodes des produits, faux serveur fidèle (filtres,
+- [x] 3. `api_client` : modèles et méthodes des produits, faux serveur fidèle (filtres,
   compteurs, état), tests
 - [ ] 4. `app_core` : `formatXof`, `parseXof`, `shortDate`, tests
 - [ ] 5. `ui` : `IviaBottomNav`, `IviaSegmentedTabs`, `IviaSearchField`, `IviaQuantityStepper`,

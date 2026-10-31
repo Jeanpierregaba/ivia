@@ -16,6 +16,7 @@ class RecordedRequest {
     this.headers,
     this.body, {
     this.host = '',
+    this.query = const {},
   });
 
   final String method;
@@ -23,6 +24,9 @@ class RecordedRequest {
 
   /// Hôte appelé (l'API, ou le stockage pour une URL signée).
   final String host;
+
+  /// Paramètres de l'URL.
+  final Map<String, String> query;
 
   /// En-têtes, noms en minuscules.
   final Map<String, String> headers;
@@ -64,9 +68,15 @@ typedef FakeHandler = FutureOr<FakeResponse> Function(RecordedRequest request);
 class FakeApiServer implements HttpClientAdapter {
   final requests = <RecordedRequest>[];
   final _handlers = <String, FakeHandler>{};
+  final _patterns = <(String, RegExp, FakeHandler)>[];
 
   void on(String method, String path, FakeHandler handler) =>
       _handlers['$method $path'] = handler;
+
+  /// Route à identifiant : [pattern] doit couvrir tout le chemin. Les routes
+  /// exactes de [on] passent avant.
+  void onPattern(String method, String pattern, FakeHandler handler) =>
+      _patterns.add((method, RegExp('^$pattern\$'), handler));
 
   RecordedRequest get last => requests.last;
 
@@ -96,10 +106,16 @@ class FakeApiServer implements HttpClientAdapter {
       options.headers.map((k, v) => MapEntry(k.toLowerCase(), '$v')),
       body,
       host: options.uri.host,
+      query: options.uri.queryParameters,
     );
     requests.add(request);
 
-    final handler = _handlers['${request.method} ${request.path}'];
+    final handler =
+        _handlers['${request.method} ${request.path}'] ??
+        _patterns
+            .where((p) => p.$1 == request.method && p.$2.hasMatch(request.path))
+            .map((p) => p.$3)
+            .firstOrNull;
     final response = handler == null
         ? FakeResponse.error(404, 'not_found', 'Introuvable.')
         : await handler(request);
@@ -231,3 +247,311 @@ Map<String, dynamic> driverBody({
   ],
   'created_at': '2026-10-31T10:00:00Z',
 };
+
+/// Identifiant de la boutique de [shopBody].
+const shopId = '0b8e7f52-6a1c-4c3e-8f0d-2a9b7c6d5e4f';
+
+/// Catégories de produits types (`GET /v1/categories`).
+const productCategoriesBody = {
+  'items': [
+    {
+      'id': 'c1000000-0000-4000-8000-000000000001',
+      'name': 'Alimentation',
+      'parent_id': null,
+      'position': 0,
+      'is_active': true,
+      'updated_at': '2026-10-31T08:00:00Z',
+    },
+    {
+      'id': 'c1000000-0000-4000-8000-000000000002',
+      'name': 'Céréales',
+      'parent_id': 'c1000000-0000-4000-8000-000000000001',
+      'position': 1,
+      'is_active': true,
+      'updated_at': '2026-10-31T08:00:00Z',
+    },
+    {
+      'id': 'c1000000-0000-4000-8000-000000000003',
+      'name': 'Boissons',
+      'parent_id': null,
+      'position': 2,
+      'is_active': true,
+      'updated_at': '2026-10-31T08:00:00Z',
+    },
+  ],
+};
+
+/// Produit type (schéma `Product`).
+Map<String, dynamic> productBody({
+  String id = 'p0000000-0000-4000-8000-000000000001',
+  String name = 'Riz parfumé 5 kg',
+  String status = 'active',
+  int price = 4500,
+  String stockMode = 'tracked',
+  int? stock = 12,
+  int images = 1,
+  String createdAt = '2026-10-31T10:00:00Z',
+}) => {
+  'id': id,
+  'shop_id': shopId,
+  'category_id': 'c1000000-0000-4000-8000-000000000001',
+  'name': name,
+  'description': 'Riz long grain parfumé.',
+  'price_xof': price,
+  'parcel_size': 'medium',
+  'stock_mode': stockMode,
+  'stock_quantity': stockMode == 'tracked' ? stock : null,
+  'available':
+      status == 'active' && (stockMode == 'untracked' || (stock ?? 0) > 0),
+  'is_active': status == 'active',
+  'status': status,
+  'published_at': status == 'draft' ? null : '2026-10-12T09:00:00Z',
+  'withdrawn_at': status == 'withdrawn' ? '2026-10-24T09:00:00Z' : null,
+  'images': [
+    for (var i = 0; i < images; i++)
+      {
+        'url': 'https://cdn.test/products/$id-$i.jpg',
+        'object_key': 'products/$id-$i.jpg',
+        'position': i,
+      },
+  ],
+  'created_at': createdAt,
+  'updated_at': createdAt,
+};
+
+/// Catalogue en mémoire branché sur un [FakeApiServer], fidèle au backend :
+/// états et dates de publication, filtres `status` et `q` (sans accents ni
+/// majuscules), compteurs, pagination, stock, envoi des photos.
+class FakeCatalog {
+  FakeCatalog(this.server, {this.shop = shopId}) {
+    server
+      ..on('GET', '/v1/categories', (_) => _ok(productCategoriesBody))
+      ..on('GET', '/v1/seller/shops/$shop/products', _list)
+      ..on('GET', '/v1/seller/shops/$shop/product-counts', (_) => _ok(counts))
+      ..on('POST', '/v1/seller/shops/$shop/products', _create)
+      ..onPattern('GET', '/v1/seller/products/([^/]+)', _get)
+      ..onPattern('PATCH', '/v1/seller/products/([^/]+)', _update)
+      ..onPattern('PUT', '/v1/seller/products/([^/]+)/stock', _stock)
+      ..on('POST', '/v1/uploads', _prepareUpload)
+      ..onPattern('PUT', '/products/[^/]+', (_) => FakeResponse.json(200, ''));
+  }
+
+  final FakeApiServer server;
+  final String shop;
+
+  /// Produits, dans l'ordre de création.
+  final products = <Map<String, dynamic>>[];
+  var _clock = DateTime.utc(2026, 10, 31, 10);
+  var _uploads = 0;
+
+  /// Prochaine erreur à renvoyer, une seule fois, pour une requête dont le
+  /// chemin contient la clé (ex. `/products`, `/stock`).
+  final failures = <String, FakeResponse>{};
+
+  DateTime _tick() => _clock = _clock.add(const Duration(minutes: 1));
+
+  /// Ajoute un produit existant (état initial d'un test).
+  Map<String, dynamic> seed({
+    required String name,
+    String status = 'active',
+    int price = 4500,
+    String stockMode = 'tracked',
+    int? stock = 12,
+    int images = 1,
+  }) {
+    final body = productBody(
+      id: 'p${products.length.toString().padLeft(7, '0')}-0000-4000-8000-000000000000',
+      name: name,
+      status: status,
+      price: price,
+      stockMode: stockMode,
+      stock: stock,
+      images: images,
+      createdAt: _tick().toIso8601String(),
+    );
+    if (status == 'withdrawn') {
+      body['withdrawn_at'] = _tick().toIso8601String();
+    }
+    products.add(body);
+    return body;
+  }
+
+  Map<String, dynamic> byName(String name) =>
+      products.firstWhere((p) => p['name'] == name);
+
+  Map<String, int> get counts => {
+    for (final s in const ['active', 'draft', 'withdrawn'])
+      s: products.where((p) => p['status'] == s).length,
+  };
+
+  FakeResponse? _failure(RecordedRequest r) {
+    for (final key in failures.keys) {
+      if (r.path.contains(key)) return failures.remove(key);
+    }
+    return null;
+  }
+
+  static FakeResponse _ok(Object? body) => FakeResponse.json(200, body);
+
+  static String _fold(String s) {
+    const from = 'àâäáãçéèêëíìîïñóòôöõúùûüÿ';
+    const to = 'aaaaaceeeeiiiinooooouuuuy';
+    final lower = s.toLowerCase();
+    final out = StringBuffer();
+    for (final ch in lower.split('')) {
+      final i = from.indexOf(ch);
+      out.write(i < 0 ? ch : to[i]);
+    }
+    return out.toString();
+  }
+
+  FakeResponse _list(RecordedRequest r) {
+    if (_failure(r) case final f?) return f;
+    final status = r.query['status'];
+    final q = _fold(r.query['q']?.trim() ?? '');
+    final offset = int.parse(r.query['offset'] ?? '0');
+    final limit = int.parse(r.query['limit'] ?? '20');
+    final items =
+        products
+            .where((p) => status == null || p['status'] == status)
+            .where((p) => q.isEmpty || _fold(p['name'] as String).contains(q))
+            .toList()
+          ..sort((a, b) {
+            if (status == 'withdrawn') {
+              return (b['withdrawn_at'] as String).compareTo(
+                a['withdrawn_at'] as String,
+              );
+            }
+            return (b['created_at'] as String).compareTo(
+              a['created_at'] as String,
+            );
+          });
+    final page = items.skip(offset).take(limit).toList();
+    final more = items.length > offset + limit;
+    return _ok({'items': page, 'next_offset': more ? offset + limit : null});
+  }
+
+  FakeResponse _get(RecordedRequest r) {
+    final id = r.path.split('/').last;
+    final p = products.where((p) => p['id'] == id).firstOrNull;
+    return p == null
+        ? FakeResponse.error(404, 'product_not_found', 'Produit introuvable.')
+        : _ok(p);
+  }
+
+  FakeResponse _create(RecordedRequest r) {
+    if (_failure(r) case final f?) return f;
+    final input = r.body! as Map<String, dynamic>;
+    final active = input['is_active'] as bool? ?? true;
+    final now = _tick().toIso8601String();
+    final tracked = input['stock_mode'] == 'tracked';
+    final id =
+        'n${products.length.toString().padLeft(7, '0')}-0000-4000-8000-000000000000';
+    final body = <String, dynamic>{
+      'id': id,
+      'shop_id': shop,
+      'stock_mode': input['stock_mode'],
+      'stock_quantity': tracked ? input['stock_quantity'] : null,
+      'published_at': active ? now : null,
+      'withdrawn_at': null,
+      'created_at': now,
+      'updated_at': now,
+    };
+    _apply(body, input, active);
+    products.add(body);
+    return FakeResponse.json(201, body);
+  }
+
+  FakeResponse _update(RecordedRequest r) {
+    if (_failure(r) case final f?) return f;
+    final id = r.path.split('/').last;
+    final p = products.where((p) => p['id'] == id).firstOrNull;
+    if (p == null) {
+      return FakeResponse.error(
+        404,
+        'product_not_found',
+        'Produit introuvable.',
+      );
+    }
+    final input = r.body! as Map<String, dynamic>;
+    final was = p['is_active'] as bool;
+    final active = input['is_active'] as bool? ?? was;
+    final now = _tick().toIso8601String();
+    if (active && !was) p['published_at'] = now;
+    if (active) {
+      p['withdrawn_at'] = null;
+    } else if (was) {
+      p['withdrawn_at'] = now;
+    }
+    p['updated_at'] = now;
+    _apply(p, input, active);
+    return _ok(p);
+  }
+
+  void _apply(Map<String, dynamic> p, Map<String, dynamic> input, bool active) {
+    p
+      ..['category_id'] = input['category_id']
+      ..['name'] = input['name']
+      ..['description'] = input['description'] ?? ''
+      ..['price_xof'] = input['price_xof']
+      ..['parcel_size'] = input['parcel_size']
+      ..['is_active'] = active
+      ..['status'] = active
+          ? 'active'
+          : p['published_at'] == null
+          ? 'draft'
+          : 'withdrawn';
+    if (input['image_keys'] case final List keys) {
+      p['images'] = [
+        for (final (i, key) in keys.indexed)
+          {'url': 'https://cdn.test/$key', 'object_key': key, 'position': i},
+      ];
+    }
+    p['images'] ??= [];
+    _available(p);
+  }
+
+  static void _available(Map<String, dynamic> p) {
+    final tracked = p['stock_mode'] == 'tracked';
+    p['available'] =
+        p['is_active'] == true &&
+        (!tracked || ((p['stock_quantity'] as int?) ?? 0) > 0);
+  }
+
+  FakeResponse _stock(RecordedRequest r) {
+    if (_failure(r) case final f?) return f;
+    final id = r.path.split('/')[4];
+    final p = products.where((p) => p['id'] == id).firstOrNull;
+    if (p == null) {
+      return FakeResponse.error(
+        404,
+        'product_not_found',
+        'Produit introuvable.',
+      );
+    }
+    if (p['stock_mode'] != 'tracked') {
+      return FakeResponse.error(
+        409,
+        'stock_not_tracked',
+        "Ce produit n'a pas de stock suivi.",
+      );
+    }
+    p['stock_quantity'] = (r.body! as Map)['quantity'];
+    _available(p);
+    return _ok(p);
+  }
+
+  FakeResponse _prepareUpload(RecordedRequest r) {
+    if (_failure(r) case final f?) return f;
+    final key = 'products/u${++_uploads}.jpg';
+    return FakeResponse.json(201, {
+      'object_key': key,
+      'upload': {
+        'method': 'PUT',
+        'url': 'https://storage.test/$key',
+        'headers': {'Content-Type': 'image/jpeg'},
+        'expires_at': '2026-10-31T10:05:00Z',
+      },
+    });
+  }
+}
