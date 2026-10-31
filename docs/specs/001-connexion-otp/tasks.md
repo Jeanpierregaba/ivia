@@ -21,5 +21,5 @@
       iPhone 17 Pro contre l'API locale (écrans vérifiés sur le simulateur ; parcours vérifié contre
       l'API réelle avec les requêtes de l'app)
 - [x] 13. Docs : DESIGN.md, ARCHITECTURE.md, AGENTS.md, TASKS.md
-- [ ] Vérifier tous les critères d'acceptation de spec.md (et ceux ajoutés à 027)
-- [ ] Relecture par le sous-agent reviewer
+- [x] Vérifier tous les critères d'acceptation de spec.md (et ceux ajoutés à 027)
+- [x] Relecture par le sous-agent reviewer (2026-10-31) : constats importants et mineurs corrigés (d898beb)
