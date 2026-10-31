@@ -22,5 +22,5 @@
       provisoires ; tests
 - [x] 11. Vérification sur le simulateur iPhone 17 Pro contre l'API locale (validation par l'admin)
 - [x] 12. Docs : DESIGN.md, ARCHITECTURE.md, AGENTS.md, TASKS.md
-- [ ] Vérifier tous les critères d'acceptation de spec.md
-- [ ] Relecture par le sous-agent reviewer
+- [x] Vérifier tous les critères d'acceptation de spec.md (carte Google Maps : vérification manuelle avec les clés)
+- [x] Relecture par le sous-agent reviewer (2026-10-31) : 5 points importants et mineurs corrigés

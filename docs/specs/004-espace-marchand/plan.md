@@ -45,8 +45,9 @@ attendant ses maquettes. Les contrastes sont vérifiés dans `contrast_test.dart
   carte est affiché (épingle, coordonnées, « Ma position »), car le SDK iOS plante sans clé.
 - Aucun appel de géocodage depuis l'app (règle d'or du document) ; l'adresse est saisie.
 
-**5. Logo** : `image_picker` (galerie ou appareil photo), puis `flutter_image_compress` (JPEG,
-1024 px au plus, sans métadonnées EXIF ni GPS), puis `POST /v1/uploads` (`shop_logo`), puis `PUT`
+**5. Logo** : `image_picker` (galerie ; plus grand côté borné à 1024 px), puis
+`flutter_image_compress` (réencodage JPEG sans métadonnées EXIF ni GPS) — `PhotoPicker`
+d'`app_core`, partagé avec le livreur, puis `POST /v1/uploads` (`shop_logo`), puis `PUT`
 sur l'URL signée (dio, sans jeton), puis `logo_key` dans `POST /v1/shops`.
 
 **6. Navigation du marchand** : `SellerSession` combine la session (`app_core`) et

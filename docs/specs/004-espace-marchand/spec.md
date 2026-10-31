@@ -79,7 +79,9 @@ suspendue : écran d'information avec le motif donné par l'admin.
 - **Réseau coupé** à l'envoi : message, rien n'est perdu dans le formulaire.
 - **Double appui** sur « Envoyer pour validation » : une seule boutique créée.
 - **Carte indisponible** (pas de clé Google Maps en développement) : aperçu sans fond de carte avec
-  l'épingle et « Ma position ».
+  l'épingle et « Ma position ». Sans carte, un marchand qui refuse la localisation ne peut pas
+  placer sa boutique : la carte est donc **exigée en release** (l'app refuse de démarrer sans
+  `GOOGLE_MAPS=true`).
 - **Police à 200 %, écran de 320 dp** : rien n'est masqué, les écrans défilent.
 
 ## Hors périmètre

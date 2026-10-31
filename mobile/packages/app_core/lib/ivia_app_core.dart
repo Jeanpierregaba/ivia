@@ -18,5 +18,6 @@ export 'src/login_flow.dart';
 export 'src/offline_screen.dart';
 export 'src/onboarding_store.dart';
 export 'src/phone_format.dart';
+export 'src/photo_picker.dart';
 export 'src/profile_screen.dart';
 export 'src/providers.dart';

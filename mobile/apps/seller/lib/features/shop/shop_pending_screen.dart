@@ -30,7 +30,18 @@ class _ShopPendingScreenState extends ConsumerState<ShopPendingScreen> {
     super.dispose();
   }
 
-  Future<void> _refresh() => ref.read(sellerShopProvider.notifier).refresh();
+  Future<void> _refresh() async {
+    final ok = await ref.read(sellerShopProvider.notifier).refresh();
+    if (!ok && mounted) {
+      ScaffoldMessenger.of(context)
+        ..hideCurrentSnackBar()
+        ..showSnackBar(
+          const SnackBar(
+            content: Text('Pas de connexion : statut non actualisé.'),
+          ),
+        );
+    }
+  }
 
   @override
   Widget build(BuildContext context) {

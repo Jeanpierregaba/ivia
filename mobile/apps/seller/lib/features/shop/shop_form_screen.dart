@@ -26,6 +26,10 @@ class _ShopFormScreenState extends ConsumerState<ShopFormScreen> {
   String? _neighborhoodId;
   GeoPoint? _location;
   Uint8List? _logo;
+
+  /// Clé du logo déjà envoyé : un nouvel essai ne le renvoie pas (tant que
+  /// le logo ne change pas).
+  String? _logoKey;
   var _consent = false;
   var _errors = <String, String>{};
   String? _generalError;
@@ -100,7 +104,7 @@ class _ShopFormScreenState extends ConsumerState<ShopFormScreen> {
         final user = await client.updateMe(acceptPrivacyPolicy: true);
         await ref.read(authControllerProvider.notifier).profileUpdated(user);
       }
-      final logoKey = await _uploadLogo(client);
+      final logoKey = _logoKey ??= await _uploadLogo(client);
       if (_logo != null && logoKey == null) return;
       final shop = await client.createShop(
         ShopDraft(
@@ -113,22 +117,50 @@ class _ShopFormScreenState extends ConsumerState<ShopFormScreen> {
           logoKey: logoKey,
         ),
       );
+      // Profil gardé sur le téléphone avec le rôle seller, obtenu avec la
+      // boutique : une relance hors ligne ne repropose pas le formulaire.
+      await _rememberSellerRole(client);
       // Boutique en attente : le routeur ouvre l'écran de validation.
       ref.read(sellerShopProvider.notifier).created(shop);
     } on ApiException catch (e) {
       if (!mounted) return;
+      final fields = {
+        for (final MapEntry(:key, :value) in e.fields.entries)
+          key.startsWith('location') ? 'location' : key: value,
+      };
       setState(() {
-        if (e.fields.isNotEmpty) {
-          _errors = {
-            for (final MapEntry(:key, :value) in e.fields.entries)
-              key.startsWith('location') ? 'location' : key: value,
-          };
-        } else {
-          _generalError = e.message;
-        }
+        _errors = fields;
+        // Erreur sans champ affiché à l'écran : message général.
+        if (!fields.keys.any(_shownFields.contains)) _generalError = e.message;
       });
     } finally {
       if (mounted) setState(() => _busy = false);
+    }
+  }
+
+  static const _shownFields = {
+    'name',
+    'category_id',
+    'phone',
+    'address_text',
+    'neighborhood_id',
+    'location',
+    'logo_key',
+    'accept_privacy_policy',
+  };
+
+  Future<void> _rememberSellerRole(IviaApiClient client) async {
+    try {
+      await ref.read(sessionStoreProvider).saveUser(await client.getMe());
+    } on ApiException {
+      // Sans réseau : le profil sera relu au prochain démarrage.
+    }
+  }
+
+  /// Retire l'erreur d'un champ dès qu'il change.
+  void _clearError(String field) {
+    if (_errors.containsKey(field)) {
+      setState(() => _errors = {..._errors}..remove(field));
     }
   }
 
@@ -234,6 +266,7 @@ class _ShopFormScreenState extends ConsumerState<ShopFormScreen> {
         errorText: _errors['logo_key'],
         onChanged: (logo) => setState(() {
           _logo = logo;
+          _logoKey = null;
           _errors = {..._errors}..remove('logo_key');
         }),
       ),
@@ -243,6 +276,7 @@ class _ShopFormScreenState extends ConsumerState<ShopFormScreen> {
         child: TextField(
           controller: _name,
           enabled: !_busy,
+          onChanged: (_) => _clearError('name'),
           textCapitalization: TextCapitalization.sentences,
           textInputAction: TextInputAction.next,
           decoration: InputDecoration(
@@ -259,7 +293,10 @@ class _ShopFormScreenState extends ConsumerState<ShopFormScreen> {
         choices: categories,
         errorText: _errors['category_id'],
         enabled: !_busy,
-        onChanged: (id) => setState(() => _categoryId = id),
+        onChanged: (id) {
+          setState(() => _categoryId = id);
+          _clearError('category_id');
+        },
       ),
       const SizedBox(height: IviaSpacing.lg),
       TogoPhoneField(
@@ -275,6 +312,7 @@ class _ShopFormScreenState extends ConsumerState<ShopFormScreen> {
         child: TextField(
           controller: _address,
           enabled: !_busy,
+          onChanged: (_) => _clearError('address_text'),
           textCapitalization: TextCapitalization.sentences,
           decoration: InputDecoration(
             hintText: 'Rue 248, près du marché',
@@ -290,7 +328,10 @@ class _ShopFormScreenState extends ConsumerState<ShopFormScreen> {
         choices: neighborhoods,
         errorText: _errors['neighborhood_id'],
         enabled: !_busy,
-        onChanged: (id) => setState(() => _neighborhoodId = id),
+        onChanged: (id) {
+          setState(() => _neighborhoodId = id);
+          _clearError('neighborhood_id');
+        },
       ),
       const SizedBox(height: IviaSpacing.lg),
       IviaFieldLabel(

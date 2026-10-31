@@ -37,38 +37,40 @@ class _ShopLocationFieldState extends ConsumerState<ShopLocationField> {
   String? _locateError;
   var _locating = false;
 
-  @override
-  void dispose() {
-    _map?.dispose();
-    super.dispose();
-  }
-
   Future<void> _locate() async {
     setState(() {
       _locating = true;
       _locateError = null;
     });
-    final result = await ref.read(locationServiceProvider).current();
+    LocationResult result;
+    try {
+      result = await ref.read(locationServiceProvider).current();
+    } on Exception {
+      result = const LocationResult.failed(LocationFailure.unavailable);
+    }
     if (!mounted) return;
+    // Sans carte, ne pas renvoyer vers une carte absente.
+    final orPlace = ref.read(mapsEnabledProvider)
+        ? ', ou placez la boutique sur la carte.'
+        : '.';
     setState(() {
       _locating = false;
       _locateError = switch (result.failure) {
         null => null,
         LocationFailure.serviceDisabled =>
-          'Activez la localisation du téléphone, ou placez la boutique sur '
-              'la carte.',
+          'Activez la localisation du téléphone$orPlace',
         LocationFailure.denied =>
-          'Localisation refusée : placez la boutique sur la carte.',
+          'Localisation refusée. Autorisez-la pour placer la boutique$orPlace',
         LocationFailure.deniedForever =>
           'Localisation désactivée pour ivia : autorisez-la dans les réglages '
-              'du téléphone, ou placez la boutique sur la carte.',
+              'du téléphone$orPlace',
         LocationFailure.unavailable =>
-          'Position introuvable pour le moment. Réessayez, ou placez la '
-              'boutique sur la carte.',
+          'Position introuvable pour le moment. Réessayez$orPlace',
       };
     });
     if (result.point case final point?) {
       widget.onChanged(point);
+      // Le widget GoogleMap libère lui-même son contrôleur.
       await _map?.animateCamera(
         CameraUpdate.newLatLngZoom(LatLng(point.lat, point.lng), 17),
       );

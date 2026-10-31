@@ -159,10 +159,16 @@ class _IviaOnboardingState extends State<IviaOnboarding> {
                         IviaLogoTile(color: brand.accent),
                         if (widget.appName case final name?) ...[
                           const SizedBox(width: IviaSpacing.md),
-                          Text(
-                            name,
-                            style: Theme.of(context).textTheme.titleMedium
-                                ?.copyWith(color: brand.accent),
+                          // Souple : tronqué plutôt que de pousser « Passer »
+                          // hors de l'écran avec une police très agrandie.
+                          Flexible(
+                            child: Text(
+                              name,
+                              maxLines: 1,
+                              overflow: TextOverflow.ellipsis,
+                              style: Theme.of(context).textTheme.titleMedium
+                                  ?.copyWith(color: brand.accent),
+                            ),
                           ),
                         ],
                       ] else

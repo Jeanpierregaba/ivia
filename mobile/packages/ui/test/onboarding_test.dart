@@ -206,4 +206,27 @@ void main() {
       },
     );
   }
+
+  testWidgets('en-tête avec le nom de l\'app, police à 200 % sur 320 dp', (
+    tester,
+  ) async {
+    tester.view.physicalSize = const Size(320, 568);
+    tester.view.devicePixelRatio = 1;
+    tester.platformDispatcher.textScaleFactorTestValue = 2;
+    addTearDown(tester.view.reset);
+    addTearDown(tester.platformDispatcher.clearTextScaleFactorTestValue);
+    await tester.pumpWidget(
+      MaterialApp(
+        theme: IviaTheme.light(IviaAppBrand.seller),
+        home: IviaOnboarding(
+          brand: IviaAppBrand.seller,
+          appName: 'Marchand',
+          slides: _slides,
+          onDone: () {},
+        ),
+      ),
+    );
+    expect(tester.takeException(), isNull);
+    expect(find.text('Passer').hitTestable(), findsOneWidget);
+  });
 }

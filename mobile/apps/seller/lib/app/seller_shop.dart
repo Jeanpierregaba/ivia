@@ -38,13 +38,14 @@ class SellerShop extends AsyncNotifier<Shop?> {
   void created(Shop shop) => state = AsyncData(shop);
 
   /// Relit le statut (validation par l'admin) sans repasser par le splash.
-  /// Échec (réseau) : l'écran en cours reste affiché.
-  Future<void> refresh() async {
+  /// Échec (réseau) : l'écran en cours reste affiché ; renvoie `false`.
+  Future<bool> refresh() async {
     try {
       final shop = await _fetch();
       if (ref.mounted) state = AsyncData(shop);
+      return true;
     } on ApiException {
-      // Rien : nouvel essai au prochain retour dans l'app ou geste.
+      return false;
     }
   }
 }
@@ -53,5 +54,8 @@ class SellerShop extends AsyncNotifier<Shop?> {
 final shopChoicesProvider =
     FutureProvider.autoDispose<(List<Choice>, List<Choice>)>((ref) async {
       final client = ref.watch(apiClientProvider);
-      return (await client.shopCategories(), await client.neighborhoods());
+      // Chargés en parallèle.
+      final categories = client.shopCategories();
+      final neighborhoods = client.neighborhoods();
+      return (await categories, await neighborhoods);
     });

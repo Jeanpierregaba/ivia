@@ -207,6 +207,13 @@ class PreparedUpload {
 
   factory PreparedUpload.fromJson(Map<String, dynamic> json) {
     final upload = json['upload'] as Map<String, dynamic>;
+    // Le client envoie en PUT : toute autre méthode est un changement de
+    // contrat à traiter explicitement.
+    if (upload['method'] != 'PUT') {
+      throw FormatException(
+        'Méthode d\'envoi inattendue : ${upload['method']}',
+      );
+    }
     return PreparedUpload(
       objectKey: json['object_key'] as String,
       url: upload['url'] as String,

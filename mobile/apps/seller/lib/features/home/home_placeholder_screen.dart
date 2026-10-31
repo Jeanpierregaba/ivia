@@ -21,9 +21,9 @@ class HomePlaceholderScreen extends ConsumerWidget {
         child: ListView(
           padding: const EdgeInsets.all(IviaSpacing.screen),
           children: [
-            const Align(
+            Align(
               alignment: Alignment.centerLeft,
-              child: IviaLogoTile(color: IviaColors.berkeleyBlue),
+              child: IviaLogoTile(color: IviaAppBrand.seller.accent),
             ),
             const SizedBox(height: IviaSpacing.xxl),
             Semantics(

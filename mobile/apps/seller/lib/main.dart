@@ -5,6 +5,7 @@ import 'package:ivia_api_client/ivia_api_client.dart';
 import 'package:ivia_app_core/ivia_app_core.dart';
 import 'package:ivia_ui/ivia_ui.dart';
 
+import 'app/device_services.dart';
 import 'app/identity.dart';
 import 'app/router.dart';
 
@@ -13,6 +14,7 @@ import 'app/router.dart';
 // la vérification de la session et de la boutique.
 Future<void> main() async {
   WidgetsFlutterBinding.ensureInitialized();
+  requireMapsInRelease();
   await SystemChrome.setPreferredOrientations([DeviceOrientation.portraitUp]);
   await clearSessionAfterReinstall(SessionStore());
   final onboarding = await OnboardingStore.open();

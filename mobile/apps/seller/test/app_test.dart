@@ -28,14 +28,21 @@ class _FakePicker implements PhotoPicker {
   Uint8List? next = _png;
 
   @override
-  Future<Uint8List?> pick() async => next;
+  Future<Uint8List?> pick({
+    PhotoSource source = PhotoSource.gallery,
+    int maxSide = 1024,
+  }) async => next;
 }
 
 class _FakeLocation implements LocationService {
   LocationResult next = const LocationResult.found(_lome);
+  Exception? error;
 
   @override
-  Future<LocationResult> current() async => next;
+  Future<LocationResult> current() async {
+    if (error case final e?) throw e;
+    return next;
+  }
 }
 
 /// Utilisateur renvoyé par le serveur, avec ou sans rôle seller.
@@ -281,6 +288,14 @@ void main() {
       expect(server.calls('PATCH', '/v1/me').single.body, {
         'accept_privacy_policy': true,
       });
+      // Consentement daté avant la création de la boutique.
+      final paths = server.requests
+          .map((r) => '${r.method} ${r.path}')
+          .toList();
+      expect(
+        paths.indexOf('PATCH /v1/me'),
+        lessThan(paths.indexOf('POST /v1/shops')),
+      );
       expect(server.calls('POST', '/v1/shops').single.body, {
         'name': 'Chez Afi',
         'category_id': '1a2b3c4d-5e6f-7a8b-9c0d-1e2f3a4b5c6d',
@@ -397,6 +412,89 @@ void main() {
       expect(server.calls('PATCH', '/v1/me'), isEmpty);
     });
 
+    testWidgets('échec puis nouvel essai : logo et consentement non renvoyés', (
+      tester,
+    ) async {
+      var attempts = 0;
+      server.on(
+        'POST',
+        '/v1/shops',
+        (_) => attempts++ == 0
+            ? FakeResponse.networkError()
+            : FakeResponse.json(201, shopBody()),
+      );
+      await launchApp(tester);
+      await login(tester);
+      await tester.tap(find.byIcon(Icons.add));
+      await tester.pump();
+      await fillShopForm(tester);
+      await tapText(tester, 'Envoyer pour validation');
+      expect(find.textContaining('Pas de connexion internet'), findsOneWidget);
+      await tapText(tester, 'Envoyer pour validation');
+      expect(
+        find.text('Votre boutique est en cours de validation'),
+        findsOneWidget,
+      );
+      expect(server.calls('POST', '/v1/uploads'), hasLength(1));
+      expect(server.calls('PATCH', '/v1/me'), hasLength(1));
+      expect(server.calls('POST', '/v1/shops'), hasLength(2));
+    });
+
+    testWidgets('erreur sur un champ non affiché : message général', (
+      tester,
+    ) async {
+      server.on(
+        'POST',
+        '/v1/shops',
+        (_) => FakeResponse.error(
+          400,
+          'validation_failed',
+          'Données invalides.',
+          fields: {'description': 'Trop long.'},
+        ),
+      );
+      await launchApp(tester);
+      await login(tester);
+      await fillShopForm(tester);
+      await tapText(tester, 'Envoyer pour validation');
+      expect(find.text('Données invalides.'), findsOneWidget);
+    });
+
+    testWidgets('catégories indisponibles : « Réessayer »', (tester) async {
+      server.on(
+        'GET',
+        '/v1/shop-categories',
+        (_) => FakeResponse.networkError(),
+      );
+      await launchApp(tester);
+      await login(tester);
+      expect(find.textContaining('Impossible de charger'), findsOneWidget);
+      server.on(
+        'GET',
+        '/v1/shop-categories',
+        (_) => FakeResponse.json(200, shopCategoriesBody),
+      );
+      await tapText(tester, 'Réessayer');
+      expect(find.text('Nom de la boutique'), findsOneWidget);
+    });
+
+    testWidgets('erreur inattendue de la localisation : bouton libéré', (
+      tester,
+    ) async {
+      location.error = Exception('demande déjà en cours');
+      await launchApp(tester);
+      await login(tester);
+      await tapText(tester, 'Ma position');
+      expect(find.textContaining('Position introuvable'), findsOneWidget);
+      final button = tester.widget<TextButton>(
+        find.ancestor(
+          of: find.text('Ma position'),
+          matching: find.byWidgetPredicate((w) => w is TextButton),
+        ),
+      );
+      expect(button.onPressed, isNotNull);
+    });
+
     testWidgets('localisation refusée : message, placement à la main', (
       tester,
     ) async {
@@ -405,7 +503,9 @@ void main() {
       await login(tester);
       await tapText(tester, 'Ma position');
       expect(
-        find.text('Localisation refusée : placez la boutique sur la carte.'),
+        find.text(
+          'Localisation refusée. Autorisez-la pour placer la boutique.',
+        ),
         findsOneWidget,
       );
       expect(find.text('Aucune position'), findsOneWidget);
@@ -528,6 +628,28 @@ void main() {
       expect(find.text('Mes produits'), findsOneWidget);
       await tester.tap(find.byTooltip('Retour'));
       await tester.pumpAndSettle();
+      expect(
+        find.text('Votre boutique est en cours de validation'),
+        findsOneWidget,
+      );
+    });
+
+    testWidgets('suspendue : motif et déconnexion possible', (tester) async {
+      await withShop('suspended');
+      await launchApp(tester);
+      expect(find.text('Votre boutique est suspendue'), findsOneWidget);
+      expect(find.text('Se déconnecter'), findsOneWidget);
+    });
+
+    testWidgets('actualisation sans réseau : message, écran gardé', (
+      tester,
+    ) async {
+      await withShop('pending_review');
+      await launchApp(tester);
+      server.on('GET', '/v1/seller/shops', (_) => FakeResponse.networkError());
+      await tester.fling(find.text('Compte créé'), const Offset(0, 400), 1000);
+      await tester.pumpAndSettle();
+      expect(find.textContaining('statut non actualisé'), findsOneWidget);
       expect(
         find.text('Votre boutique est en cours de validation'),
         findsOneWidget,

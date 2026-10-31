@@ -1,6 +1,7 @@
 package app_test
 
 import (
+	"context"
 	"net/http"
 	"testing"
 )
@@ -58,4 +59,33 @@ func hasField(r resp, field string) bool {
 	fields, _ := errBody["fields"].(map[string]any)
 	_, ok := fields[field]
 	return ok
+}
+
+func TestInactiveShopCategory(t *testing.T) {
+	a := requireApp(t)
+	// Catégorie désactivée (le back-office le fera plus tard) : écrite directement en base.
+	var id string
+	err := a.DB.Pool.QueryRow(context.Background(),
+		`INSERT INTO shop_categories (name, position, is_active) VALUES ($1, 99, false) RETURNING id`,
+		"Inactive "+uniqueEmail("cat")).Scan(&id)
+	if err != nil {
+		t.Fatalf("catégorie inactive : %v", err)
+	}
+
+	r := mustStatus(t, call(t, "", "GET", "/v1/shop-categories", nil), http.StatusOK)
+	for _, item := range r.Body["items"].([]any) {
+		if item.(map[string]any)["id"] == id {
+			t.Fatal("catégorie inactive listée")
+		}
+	}
+
+	tok := login(t, uniqueEmail("inactivecat"))
+	lat, lng := zone()
+	created := call(t, tok, "POST", "/v1/shops", map[string]any{
+		"name": "Chez Afi", "phone": uniquePhone(), "address_text": "Rue 248",
+		"location": map[string]float64{"lat": lat, "lng": lng}, "category_id": id,
+	})
+	if created.code() != "validation_failed" || !hasField(created, "category_id") {
+		t.Fatalf("catégorie inactive acceptée : code %q (statut %d)", created.code(), created.Status)
+	}
 }

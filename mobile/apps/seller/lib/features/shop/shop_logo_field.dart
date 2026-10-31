@@ -2,9 +2,8 @@ import 'dart:typed_data';
 
 import 'package:flutter/material.dart';
 import 'package:flutter_riverpod/flutter_riverpod.dart';
+import 'package:ivia_app_core/ivia_app_core.dart';
 import 'package:ivia_ui/ivia_ui.dart';
-
-import '../../app/device_services.dart';
 
 /// Taille maximale d'un fichier accepté par le serveur (POST /v1/uploads).
 const maxUploadBytes = 5 * 1024 * 1024;
@@ -109,9 +108,12 @@ class _ShopLogoFieldState extends ConsumerState<ShopLogoField> {
         ),
         if (error != null) ...[
           const SizedBox(height: IviaSpacing.sm),
-          Text(
-            error,
-            style: textTheme.bodySmall?.copyWith(color: IviaColors.error),
+          Semantics(
+            liveRegion: true,
+            child: Text(
+              error,
+              style: textTheme.bodySmall?.copyWith(color: IviaColors.error),
+            ),
           ),
         ],
       ],

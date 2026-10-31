@@ -19,7 +19,7 @@ abstract final class IviaTheme {
       brightness: Brightness.light,
       primary: brand.action,
       onPrimary: Colors.white,
-      primaryContainer: IviaColors.primarySoft,
+      primaryContainer: brand.accentSoft,
       onPrimaryContainer: brand.link,
       secondary: IviaColors.secondary,
       onSecondary: Colors.white,

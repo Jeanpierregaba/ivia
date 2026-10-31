@@ -5004,7 +5004,7 @@ components:
             - string
             - "null"
           format: uuid
-          description: "Catégorie de boutique (GET /v1/shop-categories). Obligatoire à la création ; absente d'une modification, inchangée."
+          description: "Catégorie de boutique (GET /v1/shop-categories). Obligatoire à la création. Dans une modification, absente ou `null` : inchangée (une catégorie ne se retire pas)."
         accepting_orders:
           type: boolean
       required:
