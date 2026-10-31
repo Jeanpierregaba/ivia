@@ -1,36 +1,35 @@
 import 'package:flutter/material.dart';
 import 'package:flutter_riverpod/flutter_riverpod.dart';
-import 'package:go_router/go_router.dart';
+import 'package:ivia_app_core/ivia_app_core.dart';
 import 'package:ivia_ui/ivia_ui.dart';
 
-import '../../app/onboarding_store.dart';
-import '../../app/router.dart';
+import 'illustrations.dart';
 
-/// Contenu proposé (à valider) dans docs/specs/027-splash-onboarding/spec.md.
+/// Maquettes du 2026-10-31 (docs/specs/018-espace-livreur/spec.md).
 const onboardingSlides = [
   OnboardingSlide(
-    illustration: OnboardingIconIllustration(
-      brand: IviaAppBrand.driver,
-      icon: Icons.two_wheeler_outlined,
-    ),
-    title: 'Des missions près de vous',
-    body: 'Recevez des propositions selon votre position et votre véhicule.',
+    illustration: MissionOfferIllustration(),
+    title: 'Des missions près de vous.',
+    highlight: 'près de vous.',
+    body:
+        'Restez disponible et recevez des propositions avec la boutique, la '
+        'distance et le gain indicatif.',
   ),
   OnboardingSlide(
-    illustration: OnboardingIconIllustration(
-      brand: IviaAppBrand.driver,
-      icon: Icons.route_outlined,
-    ),
-    title: 'Guidé de la boutique au client',
-    body: 'Itinéraire, récupération, puis code du client pour terminer.',
+    illustration: MissionStepsIllustration(),
+    title: 'Guidé à chaque étape.',
+    highlight: 'à chaque étape.',
+    body:
+        "L'itinéraire s'ouvre dans votre application de cartes : la "
+        'boutique, puis le client.',
   ),
   OnboardingSlide(
-    illustration: OnboardingIconIllustration(
-      brand: IviaAppBrand.driver,
-      icon: Icons.toggle_on_outlined,
-    ),
-    title: 'Disponible quand vous le décidez',
-    body: 'Votre position n\'est partagée que lorsque vous êtes en service.',
+    illustration: CustomerCodeIllustration(),
+    title: 'Le code du client valide la livraison.',
+    highlight: 'valide la livraison.',
+    body:
+        'Saisissez le code à 4 chiffres. La mission est terminée et vous '
+        'redevenez disponible.',
   ),
 ];
 
@@ -39,13 +38,12 @@ class OnboardingScreen extends ConsumerWidget {
 
   @override
   Widget build(BuildContext context, WidgetRef ref) {
+    // Une fois la présentation mémorisée, le routeur ouvre la connexion.
     return IviaOnboarding(
       brand: IviaAppBrand.driver,
+      appName: 'Livreur',
       slides: onboardingSlides,
-      onDone: () async {
-        await ref.read(onboardingStoreProvider).markSeen();
-        if (context.mounted) context.go(Routes.login);
-      },
+      onDone: ref.read(onboardingSeenProvider.notifier).complete,
     );
   }
 }

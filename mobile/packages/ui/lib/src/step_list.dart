@@ -28,9 +28,12 @@ class IviaStep {
 /// coche pour les étapes faites, anneau pour l'étape en cours, cercle vide
 /// et texte atténué pour les suivantes.
 class IviaStepList extends StatelessWidget {
-  const IviaStepList({super.key, required this.steps});
+  const IviaStepList({super.key, required this.steps, this.footer});
 
   final List<IviaStep> steps;
+
+  /// Élément sous les étapes, dans la même carte (ex. un bouton).
+  final Widget? footer;
 
   @override
   Widget build(BuildContext context) {
@@ -77,6 +80,10 @@ class IviaStepList extends StatelessWidget {
                 ),
               ),
             ),
+          ],
+          if (footer case final footer?) ...[
+            const SizedBox(height: IviaSpacing.xl),
+            footer,
           ],
         ],
       ),
