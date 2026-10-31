@@ -21,14 +21,17 @@ import (
 
 // User est le profil d'un utilisateur, tel que vu par lui-même ou par un admin.
 type User struct {
-	ID              uuid.UUID       `json:"id"`
-	Email           *string         `json:"email"`
-	Phone           *string         `json:"phone"`
-	FirstName       string          `json:"first_name"`
-	LastName        string          `json:"last_name"`
-	Roles           []identity.Role `json:"roles"`
-	ProfileComplete bool            `json:"profile_complete"`
-	CreatedAt       time.Time       `json:"created_at"`
+	ID        uuid.UUID       `json:"id"`
+	Email     *string         `json:"email"`
+	Phone     *string         `json:"phone"`
+	FirstName string          `json:"first_name"`
+	LastName  string          `json:"last_name"`
+	Roles     []identity.Role `json:"roles"`
+	// PrivacyConsentAt : date d'acceptation de la politique de confidentialité.
+	PrivacyConsentAt *time.Time `json:"privacy_consent_at"`
+	// ProfileComplete : prénom, téléphone et consentement renseignés.
+	ProfileComplete bool      `json:"profile_complete"`
+	CreatedAt       time.Time `json:"created_at"`
 }
 
 // Contact est ce qu'un autre acteur peut connaître d'un utilisateur, selon le contexte.
@@ -42,6 +45,8 @@ type ProfileInput struct {
 	FirstName *string `json:"first_name"`
 	LastName  *string `json:"last_name"`
 	Phone     *string `json:"phone"`
+	// AcceptPrivacyPolicy : true enregistre le consentement ; false est refusé.
+	AcceptPrivacyPolicy *bool `json:"accept_privacy_policy"`
 }
 
 // DeletionGuard refuse la suppression d'un compte qui a une activité en cours (commande, mission).
@@ -169,11 +174,15 @@ func (s *Service) UpdateProfile(ctx context.Context, id uuid.UUID, in ProfileInp
 			v.Add("phone", "Numéro mobile togolais attendu (8 chiffres commençant par 7 ou 9).")
 		}
 	}
+	accept := in.AcceptPrivacyPolicy != nil && *in.AcceptPrivacyPolicy
+	if in.AcceptPrivacyPolicy != nil && !accept {
+		v.Add("accept_privacy_policy", "Pour retirer votre consentement, supprimez votre compte.")
+	}
 	if err := v.Err(); err != nil {
 		return User{}, err
 	}
 	row, err := store.New(s.db.Conn(ctx)).UpdateProfile(ctx, store.UpdateProfileParams{
-		ID: id, FirstName: first, LastName: last, Phone: phone,
+		ID: id, FirstName: first, LastName: last, Phone: phone, AcceptPrivacyPolicy: accept,
 	})
 	if database.IsUniqueViolation(err, "users_phone_key") {
 		return User{}, apperr.Conflict("phone_taken", "Ce numéro est déjà utilisé par un autre compte.")
@@ -344,7 +353,9 @@ func (s *Service) withRoles(ctx context.Context, row store.User) (User, error) {
 func toUser(row store.User, roles []identity.Role) User {
 	return User{
 		ID: row.ID, Email: row.Email, Phone: row.Phone, FirstName: row.FirstName, LastName: row.LastName,
-		Roles: roles, ProfileComplete: row.FirstName != "" && row.Phone != nil, CreatedAt: row.CreatedAt,
+		Roles: roles, PrivacyConsentAt: row.PrivacyConsentAt,
+		ProfileComplete: row.FirstName != "" && row.Phone != nil && row.PrivacyConsentAt != nil,
+		CreatedAt:       row.CreatedAt,
 	}
 }
 

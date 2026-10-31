@@ -149,7 +149,9 @@ func login(t *testing.T, email string) string {
 
 func completeProfile(t *testing.T, token, first string) {
 	t.Helper()
-	mustStatus(t, call(t, token, "PATCH", "/v1/me", map[string]string{"first_name": first, "phone": uniquePhone()}), http.StatusOK)
+	mustStatus(t, call(t, token, "PATCH", "/v1/me", map[string]any{
+		"first_name": first, "phone": uniquePhone(), "accept_privacy_policy": true,
+	}), http.StatusOK)
 }
 
 var adminToken string

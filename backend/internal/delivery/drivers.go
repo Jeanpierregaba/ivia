@@ -218,7 +218,7 @@ func (s *Service) Apply(ctx context.Context, userID uuid.UUID, in ApplicationInp
 		return Driver{}, err
 	}
 	if !u.ProfileComplete {
-		return Driver{}, apperr.Conflict("profile_incomplete", "Renseignez votre prénom et votre numéro de téléphone avant de postuler.")
+		return Driver{}, apperr.Conflict("profile_incomplete", "Complétez votre profil (prénom, téléphone, consentement) avant de postuler.")
 	}
 	err = s.db.InTx(ctx, func(ctx context.Context) error {
 		q := store.New(s.db.Conn(ctx))

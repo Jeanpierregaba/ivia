@@ -205,6 +205,9 @@ paths:
                 phone:
                   type: string
                   description: "Mobile togolais ; chaîne vide pour effacer."
+                accept_privacy_policy:
+                  type: boolean
+                  description: "`true` enregistre le consentement à la politique de confidentialité (daté par le serveur à la première acceptation). `false` est refusé (`validation_failed`) : le consentement se retire en supprimant son compte."
       responses:
         "200":
           description: "Succès"
@@ -4664,8 +4667,15 @@ components:
               - seller
               - driver
               - admin
+        privacy_consent_at:
+          type:
+            - string
+            - "null"
+          format: date-time
+          description: "Date d'acceptation de la politique de confidentialité."
         profile_complete:
           type: boolean
+          description: "Prénom, téléphone et consentement renseignés : requis pour commander ou postuler comme livreur."
         created_at:
           type: string
           format: date-time
@@ -4676,6 +4686,7 @@ components:
         - first_name
         - last_name
         - roles
+        - privacy_consent_at
         - profile_complete
         - created_at
     OTPRequested:

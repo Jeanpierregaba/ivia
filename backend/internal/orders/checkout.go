@@ -177,7 +177,7 @@ func (s *Service) Checkout(ctx context.Context, buyerID uuid.UUID, in CheckoutIn
 		return BuyerOrder{}, err
 	}
 	if !buyer.ProfileComplete {
-		return BuyerOrder{}, apperr.Conflict("profile_incomplete", "Renseignez votre prénom et votre numéro de téléphone avant de commander.")
+		return BuyerOrder{}, apperr.Conflict("profile_incomplete", "Complétez votre profil (prénom, téléphone, consentement) avant de commander.")
 	}
 	q, err := s.Quote(ctx, buyerID, in)
 	if err != nil {

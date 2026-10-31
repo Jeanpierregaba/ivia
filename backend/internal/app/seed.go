@@ -109,7 +109,8 @@ func (a *App) SeedDev(ctx context.Context) (SeedSummary, error) {
 		if u.ProfileComplete {
 			return u, nil
 		}
-		return a.Users.UpdateProfile(ctx, u.ID, users.ProfileInput{FirstName: &first, Phone: &phone})
+		accept := true // comptes de démonstration (local uniquement)
+		return a.Users.UpdateProfile(ctx, u.ID, users.ProfileInput{FirstName: &first, Phone: &phone, AcceptPrivacyPolicy: &accept})
 	}
 
 	seller, err := profile(sum.SellerEmail, "Afi", "+22890000101")

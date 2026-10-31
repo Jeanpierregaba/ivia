@@ -83,7 +83,7 @@ func (q *Queries) CreateAddress(ctx context.Context, arg CreateAddressParams) (u
 }
 
 const createUser = `-- name: CreateUser :one
-INSERT INTO users (email) VALUES ($1) ON CONFLICT (email) DO NOTHING RETURNING id, email, phone, first_name, last_name, deleted_at, created_at, updated_at
+INSERT INTO users (email) VALUES ($1) ON CONFLICT (email) DO NOTHING RETURNING id, email, phone, first_name, last_name, deleted_at, created_at, updated_at, privacy_consent_at
 `
 
 // Sans effet (aucune ligne) si l'e-mail existe déjà : inscription simultanée.
@@ -99,6 +99,7 @@ func (q *Queries) CreateUser(ctx context.Context, email *string) (User, error) {
 		&i.DeletedAt,
 		&i.CreatedAt,
 		&i.UpdatedAt,
+		&i.PrivacyConsentAt,
 	)
 	return i, err
 }
@@ -204,7 +205,7 @@ func (q *Queries) GetAddress(ctx context.Context, arg GetAddressParams) (GetAddr
 }
 
 const getUser = `-- name: GetUser :one
-SELECT id, email, phone, first_name, last_name, deleted_at, created_at, updated_at FROM users WHERE id = $1
+SELECT id, email, phone, first_name, last_name, deleted_at, created_at, updated_at, privacy_consent_at FROM users WHERE id = $1
 `
 
 func (q *Queries) GetUser(ctx context.Context, id uuid.UUID) (User, error) {
@@ -219,12 +220,13 @@ func (q *Queries) GetUser(ctx context.Context, id uuid.UUID) (User, error) {
 		&i.DeletedAt,
 		&i.CreatedAt,
 		&i.UpdatedAt,
+		&i.PrivacyConsentAt,
 	)
 	return i, err
 }
 
 const getUserByEmail = `-- name: GetUserByEmail :one
-SELECT id, email, phone, first_name, last_name, deleted_at, created_at, updated_at FROM users WHERE email = $1 AND deleted_at IS NULL
+SELECT id, email, phone, first_name, last_name, deleted_at, created_at, updated_at, privacy_consent_at FROM users WHERE email = $1 AND deleted_at IS NULL
 `
 
 func (q *Queries) GetUserByEmail(ctx context.Context, email *string) (User, error) {
@@ -239,6 +241,7 @@ func (q *Queries) GetUserByEmail(ctx context.Context, email *string) (User, erro
 		&i.DeletedAt,
 		&i.CreatedAt,
 		&i.UpdatedAt,
+		&i.PrivacyConsentAt,
 	)
 	return i, err
 }
@@ -416,7 +419,7 @@ func (q *Queries) RevokeRole(ctx context.Context, arg RevokeRoleParams) (int64, 
 }
 
 const searchUsers = `-- name: SearchUsers :many
-SELECT u.id, u.email, u.phone, u.first_name, u.last_name, u.deleted_at, u.created_at, u.updated_at, coalesce(array_agg(r.role ORDER BY r.role) FILTER (WHERE r.role IS NOT NULL), '{}')::text[] AS roles
+SELECT u.id, u.email, u.phone, u.first_name, u.last_name, u.deleted_at, u.created_at, u.updated_at, u.privacy_consent_at, coalesce(array_agg(r.role ORDER BY r.role) FILTER (WHERE r.role IS NOT NULL), '{}')::text[] AS roles
 FROM users u
 LEFT JOIN user_roles r ON r.user_id = u.id
 WHERE u.deleted_at IS NULL
@@ -439,15 +442,16 @@ type SearchUsersParams struct {
 }
 
 type SearchUsersRow struct {
-	ID        uuid.UUID
-	Email     *string
-	Phone     *string
-	FirstName string
-	LastName  string
-	DeletedAt *time.Time
-	CreatedAt time.Time
-	UpdatedAt time.Time
-	Roles     []string
+	ID               uuid.UUID
+	Email            *string
+	Phone            *string
+	FirstName        string
+	LastName         string
+	DeletedAt        *time.Time
+	CreatedAt        time.Time
+	UpdatedAt        time.Time
+	PrivacyConsentAt *time.Time
+	Roles            []string
 }
 
 func (q *Queries) SearchUsers(ctx context.Context, arg SearchUsersParams) ([]SearchUsersRow, error) {
@@ -473,6 +477,7 @@ func (q *Queries) SearchUsers(ctx context.Context, arg SearchUsersParams) ([]Sea
 			&i.DeletedAt,
 			&i.CreatedAt,
 			&i.UpdatedAt,
+			&i.PrivacyConsentAt,
 			&i.Roles,
 		); err != nil {
 			return nil, err
@@ -529,16 +534,22 @@ UPDATE users
 SET first_name = $1,
     last_name  = $2,
     phone      = $3,
+    -- Daté à la première acceptation, jamais retiré ni redaté.
+    privacy_consent_at = coalesce(
+      privacy_consent_at,
+      CASE WHEN $4::boolean THEN now() END
+    ),
     updated_at = now()
-WHERE id = $4 AND deleted_at IS NULL
-RETURNING id, email, phone, first_name, last_name, deleted_at, created_at, updated_at
+WHERE id = $5 AND deleted_at IS NULL
+RETURNING id, email, phone, first_name, last_name, deleted_at, created_at, updated_at, privacy_consent_at
 `
 
 type UpdateProfileParams struct {
-	FirstName string
-	LastName  string
-	Phone     *string
-	ID        uuid.UUID
+	FirstName           string
+	LastName            string
+	Phone               *string
+	AcceptPrivacyPolicy bool
+	ID                  uuid.UUID
 }
 
 func (q *Queries) UpdateProfile(ctx context.Context, arg UpdateProfileParams) (User, error) {
@@ -546,6 +557,7 @@ func (q *Queries) UpdateProfile(ctx context.Context, arg UpdateProfileParams) (U
 		arg.FirstName,
 		arg.LastName,
 		arg.Phone,
+		arg.AcceptPrivacyPolicy,
 		arg.ID,
 	)
 	var i User
@@ -558,6 +570,7 @@ func (q *Queries) UpdateProfile(ctx context.Context, arg UpdateProfileParams) (U
 		&i.DeletedAt,
 		&i.CreatedAt,
 		&i.UpdatedAt,
+		&i.PrivacyConsentAt,
 	)
 	return i, err
 }

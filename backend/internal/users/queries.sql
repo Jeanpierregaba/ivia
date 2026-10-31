@@ -13,6 +13,11 @@ UPDATE users
 SET first_name = sqlc.arg(first_name),
     last_name  = sqlc.arg(last_name),
     phone      = sqlc.narg(phone),
+    -- Daté à la première acceptation, jamais retiré ni redaté.
+    privacy_consent_at = coalesce(
+      privacy_consent_at,
+      CASE WHEN sqlc.arg(accept_privacy_policy)::boolean THEN now() END
+    ),
     updated_at = now()
 WHERE id = sqlc.arg(id) AND deleted_at IS NULL
 RETURNING *;
