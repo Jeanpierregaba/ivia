@@ -171,4 +171,122 @@ void main() {
     expect(dio.options.receiveTimeout, const Duration(seconds: 15));
     expect(dio.interceptors.whereType<LogInterceptor>(), isEmpty);
   });
+
+  group('boutiques', () {
+    test('catégories et quartiers', () async {
+      server
+        ..on(
+          'GET',
+          '/v1/shop-categories',
+          (_) => FakeResponse.json(200, shopCategoriesBody),
+        )
+        ..on(
+          'GET',
+          '/v1/neighborhoods',
+          (_) => FakeResponse.json(200, neighborhoodsBody),
+        );
+      final categories = await client.shopCategories();
+      expect(categories.map((c) => c.name), ['Alimentation', 'Mode et beauté']);
+      final hoods = await client.neighborhoods();
+      expect(hoods.first.name, 'Tokoin');
+    });
+
+    test('création : champs envoyés, boutique en attente', () async {
+      server.on('POST', '/v1/shops', (_) => FakeResponse.json(201, shopBody()));
+      final shop = await client.createShop(
+        const ShopDraft(
+          name: 'Chez Afi',
+          categoryId: 'cat-1',
+          phone: '+22890123456',
+          addressText: 'Rue 248',
+          neighborhoodId: null,
+          location: GeoPoint(lat: 6.1375, lng: 1.2123),
+          logoKey: 'logos/abc.jpg',
+        ),
+      );
+      expect(server.last.body, {
+        'name': 'Chez Afi',
+        'category_id': 'cat-1',
+        'phone': '+22890123456',
+        'address_text': 'Rue 248',
+        'neighborhood_id': null,
+        'location': {'lat': 6.1375, 'lng': 1.2123},
+        'logo_key': 'logos/abc.jpg',
+      });
+      expect(shop.status, ShopStatus.pendingReview);
+      expect(shop.neighborhoodName, 'Tokoin');
+    });
+
+    test('mes boutiques : statut et motif', () async {
+      server.on(
+        'GET',
+        '/v1/seller/shops',
+        (_) => FakeResponse.json(200, {
+          'items': [shopBody(status: 'rejected')],
+        }),
+      );
+      final shops = await client.myShops();
+      expect(shops.single.status, ShopStatus.rejected);
+      expect(shops.single.statusReason, isNotEmpty);
+    });
+
+    test('envoi de fichier : URL signée, sans jeton de session', () async {
+      server
+        ..on(
+          'POST',
+          '/v1/uploads',
+          (_) => FakeResponse.json(201, {
+            'object_key': 'shop_logo/u1/abc.jpg',
+            'upload': {
+              'method': 'PUT',
+              'url': 'https://stockage.test/shop_logo/u1/abc.jpg?signature=x',
+              'headers': {'Content-Type': 'image/jpeg'},
+              'expires_at': '2026-10-31T10:05:00Z',
+            },
+          }),
+        )
+        ..on(
+          'PUT',
+          '/shop_logo/u1/abc.jpg',
+          (_) => FakeResponse.json(200, null),
+        );
+      client.token = 'jeton-secret';
+
+      final prepared = await client.prepareUpload(
+        purpose: 'shop_logo',
+        contentType: 'image/jpeg',
+        sizeBytes: 3,
+      );
+      expect(server.last.body, {
+        'purpose': 'shop_logo',
+        'content_type': 'image/jpeg',
+        'size_bytes': 3,
+      });
+      await client.upload(prepared, [1, 2, 3]);
+
+      final put = server.last;
+      expect(put.host, 'stockage.test');
+      expect(put.headers['authorization'], isNull);
+      expect(put.headers['content-type'], 'image/jpeg');
+      expect(put.body, [1, 2, 3]);
+      expect(prepared.objectKey, 'shop_logo/u1/abc.jpg');
+    });
+
+    test('envoi de fichier : coupure réseau traduite', () async {
+      server.on('PUT', '/f.jpg', (_) => FakeResponse.networkError());
+      await expectLater(
+        client.upload(
+          const PreparedUpload(
+            objectKey: 'f.jpg',
+            url: 'https://stockage.test/f.jpg',
+            headers: {},
+          ),
+          [1],
+        ),
+        throwsA(
+          isA<ApiException>().having((e) => e.isNetwork, 'isNetwork', isTrue),
+        ),
+      );
+    });
+  });
 }

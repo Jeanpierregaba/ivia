@@ -10,13 +10,24 @@ import 'package:dio/dio.dart';
 
 /// Requête reçue par le [FakeApiServer].
 class RecordedRequest {
-  const RecordedRequest(this.method, this.path, this.headers, this.body);
+  const RecordedRequest(
+    this.method,
+    this.path,
+    this.headers,
+    this.body, {
+    this.host = '',
+  });
 
   final String method;
   final String path;
 
+  /// Hôte appelé (l'API, ou le stockage pour une URL signée).
+  final String host;
+
   /// En-têtes, noms en minuscules.
   final Map<String, String> headers;
+
+  /// JSON décodé, ou octets bruts (envoi de fichier).
   final Object? body;
 }
 
@@ -71,13 +82,20 @@ class FakeApiServer implements HttpClientAdapter {
     Object? body;
     if (requestStream != null) {
       final bytes = await requestStream.expand((chunk) => chunk).toList();
-      if (bytes.isNotEmpty) body = jsonDecode(utf8.decode(bytes));
+      if (bytes.isNotEmpty) {
+        try {
+          body = jsonDecode(utf8.decode(bytes));
+        } on FormatException {
+          body = bytes;
+        }
+      }
     }
     final request = RecordedRequest(
       options.method,
       options.uri.path,
       options.headers.map((k, v) => MapEntry(k.toLowerCase(), '$v')),
       body,
+      host: options.uri.host,
     );
     requests.add(request);
 
@@ -133,4 +151,53 @@ Map<String, dynamic> sessionBody({bool complete = false}) => {
   'expires_at': '2026-12-30T08:00:00Z',
   'is_new_user': !complete,
   'user': userBody(complete: complete),
+};
+
+/// Boutique type (schéma `Shop`).
+Map<String, dynamic> shopBody({String status = 'pending_review'}) => {
+  'id': '0b8e7f52-6a1c-4c3e-8f0d-2a9b7c6d5e4f',
+  'owner_id': '7d5c1d38-3c1b-4b8f-9a77-1f2e3d4c5b6a',
+  'name': 'Chez Afi',
+  'description': '',
+  'phone': '+22890123456',
+  'address_text': 'Rue 248',
+  'neighborhood_id': '5f1e2d3c-4b5a-6978-8a9b-0c1d2e3f4a5b',
+  'neighborhood_name': 'Tokoin',
+  'category_id': '1a2b3c4d-5e6f-7a8b-9c0d-1e2f3a4b5c6d',
+  'category_name': 'Alimentation',
+  'location': {'lat': 6.1375, 'lng': 1.2123},
+  'logo_url': null,
+  'status': status,
+  'status_reason': status == 'rejected' ? 'Photo du logo illisible.' : '',
+  'accepting_orders': true,
+  'reviewed_at': null,
+  'created_at': '2026-10-31T10:00:00Z',
+  'updated_at': '2026-10-31T10:00:00Z',
+};
+
+/// Listes de choix types : catégories de boutique et quartiers.
+const shopCategoriesBody = {
+  'items': [
+    {'id': '1a2b3c4d-5e6f-7a8b-9c0d-1e2f3a4b5c6d', 'name': 'Alimentation'},
+    {'id': '2b3c4d5e-6f7a-8b9c-0d1e-2f3a4b5c6d7e', 'name': 'Mode et beauté'},
+  ],
+};
+
+const neighborhoodsBody = {
+  'items': [
+    {
+      'id': '5f1e2d3c-4b5a-6978-8a9b-0c1d2e3f4a5b',
+      'city': 'Lomé',
+      'name': 'Tokoin',
+      'is_active': true,
+      'center': null,
+    },
+    {
+      'id': '6a2f3e4d-5c6b-7a89-9b0c-1d2e3f4a5b6c',
+      'city': 'Lomé',
+      'name': 'Bè',
+      'is_active': true,
+      'center': null,
+    },
+  ],
 };

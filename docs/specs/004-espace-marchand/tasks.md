@@ -9,7 +9,7 @@
 - [x] 3. `ui` : couleurs d'action par app, `IviaTheme.light(brand)`, splash tuile + sous-titre,
       `IviaStepList` ; tests et contrastes (liste déroulante : `DropdownButtonFormField` de
       Material, pas de composant propre)
-- [ ] 4. `api_client` : catégories, quartiers, boutiques, envoi de fichier par URL signée ; tests
+- [x] 4. `api_client` : catégories, quartiers, boutiques, envoi de fichier par URL signée ; tests
 - [ ] 5. Marchand : splash de chargement, présentation et illustrations ; tests
 - [ ] 6. Marchand : connexion (« Espace marchand », encart du code) et `SellerSession` + routeur ;
       tests

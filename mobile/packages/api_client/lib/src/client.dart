@@ -14,7 +14,14 @@ class IviaApiClient {
     required ApiConfig config,
     this.onUnauthorized,
     HttpClientAdapter? adapter,
-  }) : _dio = Dio(
+  }) : _uploadDio = Dio(
+         BaseOptions(
+           connectTimeout: const Duration(seconds: 10),
+           sendTimeout: const Duration(seconds: 60),
+           receiveTimeout: const Duration(seconds: 30),
+         ),
+       ),
+       _dio = Dio(
          BaseOptions(
            baseUrl: config.baseUrl.toString(),
            connectTimeout: const Duration(seconds: 10),
@@ -24,7 +31,10 @@ class IviaApiClient {
            responseType: ResponseType.json,
          ),
        ) {
-    if (adapter != null) _dio.httpClientAdapter = adapter;
+    if (adapter != null) {
+      _dio.httpClientAdapter = adapter;
+      _uploadDio.httpClientAdapter = adapter;
+    }
     _dio.interceptors.add(
       InterceptorsWrapper(
         onRequest: (options, handler) {
@@ -37,6 +47,10 @@ class IviaApiClient {
   }
 
   final Dio _dio;
+
+  /// Envois vers les URL signées du stockage : sans intercepteur, le jeton
+  /// de session ne doit jamais partir vers un autre serveur que l'API.
+  final Dio _uploadDio;
 
   /// Jeton de la session ouverte ; `null` : appels anonymes.
   String? token;
@@ -96,10 +110,71 @@ class IviaApiClient {
     return User.fromJson(json);
   }
 
+  Future<List<Choice>> shopCategories() async =>
+      _items(await _send('GET', '/v1/shop-categories'));
+
+  /// Quartiers actifs (Lomé).
+  Future<List<Choice>> neighborhoods() async =>
+      _items(await _send('GET', '/v1/neighborhoods'));
+
+  /// Crée une boutique, en attente de validation par l'admin.
+  Future<Shop> createShop(ShopDraft draft) async =>
+      Shop.fromJson(await _send('POST', '/v1/shops', data: draft.toJson()));
+
+  /// Boutiques du marchand (rôle seller requis).
+  Future<List<Shop>> myShops() async {
+    final json = await _send('GET', '/v1/seller/shops');
+    return [
+      for (final item in json['items'] as List)
+        Shop.fromJson(item as Map<String, dynamic>),
+    ];
+  }
+
+  /// Prépare l'envoi d'un fichier (URL signée).
+  Future<PreparedUpload> prepareUpload({
+    required String purpose,
+    required String contentType,
+    required int sizeBytes,
+  }) async => PreparedUpload.fromJson(
+    await _send(
+      'POST',
+      '/v1/uploads',
+      data: {
+        'purpose': purpose,
+        'content_type': contentType,
+        'size_bytes': sizeBytes,
+      },
+    ),
+  );
+
+  /// Envoie le fichier sur l'URL signée, avec les en-têtes imposés.
+  Future<void> upload(PreparedUpload prepared, List<int> bytes) async {
+    try {
+      await _uploadDio.put<void>(
+        prepared.url,
+        data: Stream.value(bytes),
+        options: Options(
+          headers: {
+            ...prepared.headers,
+            Headers.contentLengthHeader: bytes.length,
+          },
+          responseType: ResponseType.plain,
+        ),
+      );
+    } on DioException catch (e) {
+      throw _toApiException(e);
+    }
+  }
+
   /// Révoque la session courante côté serveur.
   Future<void> logout() => _send('POST', '/v1/auth/logout');
 
   static String normalizeEmail(String email) => email.trim().toLowerCase();
+
+  static List<Choice> _items(Map<String, dynamic> json) => [
+    for (final item in json['items'] as List)
+      Choice.fromJson(item as Map<String, dynamic>),
+  ];
 
   Future<Map<String, dynamic>> _send(
     String method,
