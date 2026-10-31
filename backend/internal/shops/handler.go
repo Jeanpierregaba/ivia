@@ -18,6 +18,7 @@ func NewHandler(svc *Service) *Handler { return &Handler{svc: svc} }
 // Register enregistre les routes.
 func (h *Handler) Register(rt *httpapi.Router) {
 	rt.Public("GET /v1/shops/{id}", h.getPublic)
+	rt.Public("GET /v1/shop-categories", h.listCategories)
 	rt.Auth("POST /v1/shops", h.create)
 	rt.Roles("GET /v1/seller/shops", h.listMine, identity.RoleSeller)
 	rt.Roles("GET /v1/seller/shops/{id}", h.getMine, identity.RoleSeller)
@@ -52,6 +53,14 @@ func (h *Handler) create(w http.ResponseWriter, r *http.Request) error {
 		return err
 	}
 	return httpapi.Created(w, shop)
+}
+
+func (h *Handler) listCategories(w http.ResponseWriter, r *http.Request) error {
+	items, err := h.svc.ListCategories(r.Context())
+	if err != nil {
+		return err
+	}
+	return httpapi.OK(w, map[string]any{"items": items})
 }
 
 func (h *Handler) listMine(w http.ResponseWriter, r *http.Request) error {

@@ -2,7 +2,7 @@
 
 <!-- Ordonnées. Chaque tâche est petite, testable et committable seule. Cochée dès qu'elle est faite et commitée. -->
 
-- [ ] 1. Backend : catégories de boutique (migration 00019, `GET /v1/shop-categories`,
+- [x] 1. Backend : catégories de boutique (migration 00019, `GET /v1/shop-categories`,
       `category_id` obligatoire à la création, openapi.yaml, données de démonstration) ; tests Go
 - [ ] 2. `packages/app_core` : déplacer la connexion de l'acheteur (contrôleur, parcours, écrans,
       utilitaires) et la paramétrer ; tests de l'acheteur verts sans changement visible

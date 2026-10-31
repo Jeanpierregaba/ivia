@@ -47,6 +47,8 @@ type Shop struct {
 	AddressText      string     `json:"address_text"`
 	NeighborhoodID   *uuid.UUID `json:"neighborhood_id"`
 	NeighborhoodName string     `json:"neighborhood_name"`
+	CategoryID       *uuid.UUID `json:"category_id"`
+	CategoryName     string     `json:"category_name"`
 	Location         geo.Point  `json:"location"`
 	LogoURL          *string    `json:"logo_url"`
 	LogoKey          *string    `json:"-"`
@@ -83,14 +85,35 @@ func (s Shop) Public() PublicShop {
 
 // Input crée ou modifie une boutique.
 type Input struct {
-	Name            string     `json:"name"`
-	Description     string     `json:"description"`
-	Phone           string     `json:"phone"`
-	AddressText     string     `json:"address_text"`
-	NeighborhoodID  *uuid.UUID `json:"neighborhood_id"`
+	Name           string     `json:"name"`
+	Description    string     `json:"description"`
+	Phone          string     `json:"phone"`
+	AddressText    string     `json:"address_text"`
+	NeighborhoodID *uuid.UUID `json:"neighborhood_id"`
+	// CategoryID : obligatoire à la création ; absent d'une modification, inchangé.
+	CategoryID      *uuid.UUID `json:"category_id"`
 	Location        geo.Point  `json:"location"`
 	LogoKey         *string    `json:"logo_key"`
 	AcceptingOrders *bool      `json:"accepting_orders"`
+}
+
+// Category est une catégorie de boutique.
+type Category struct {
+	ID   uuid.UUID `json:"id"`
+	Name string    `json:"name"`
+}
+
+// ListCategories retourne les catégories de boutique actives.
+func (s *Service) ListCategories(ctx context.Context) ([]Category, error) {
+	rows, err := store.New(s.db.Conn(ctx)).ListActiveShopCategories(ctx)
+	if err != nil {
+		return nil, fmt.Errorf("lecture des catégories de boutique : %w", err)
+	}
+	out := make([]Category, len(rows))
+	for i, r := range rows {
+		out[i] = Category{ID: r.ID, Name: r.Name}
+	}
+	return out, nil
 }
 
 // Service gère les boutiques.
@@ -113,7 +136,13 @@ var (
 	errSuspended = apperr.Forbidden("shop_suspended", "Cette boutique est suspendue. Contactez l'équipe ivia.")
 )
 
-func (s *Service) validate(ctx context.Context, userID uuid.UUID, in *Input, currentLogo *string) error {
+func (s *Service) validate(ctx context.Context, userID uuid.UUID, in *Input, current *Shop) error {
+	var currentCategory *uuid.UUID
+	var currentLogoKey *string
+	if current != nil {
+		currentLogoKey = current.LogoKey
+		currentCategory = current.CategoryID
+	}
 	in.Name = validate.Clean(in.Name)
 	in.Description = validate.Clean(in.Description)
 	in.AddressText = validate.Clean(in.AddressText)
@@ -122,6 +151,13 @@ func (s *Service) validate(ctx context.Context, userID uuid.UUID, in *Input, cur
 	v.Text("description", in.Description, 0, 2000)
 	v.Text("address_text", in.AddressText, 1, 300)
 	v.Coordinates("location.", in.Location.Lat, in.Location.Lng)
+	if in.CategoryID == nil {
+		if current == nil {
+			v.Add("category_id", "Choisissez la catégorie de la boutique.")
+		} else {
+			in.CategoryID = currentCategory
+		}
+	}
 	if phone, ok := validate.NormalizeTogoPhone(in.Phone); ok {
 		in.Phone = phone
 	} else {
@@ -135,7 +171,16 @@ func (s *Service) validate(ctx context.Context, userID uuid.UUID, in *Input, cur
 			return err
 		}
 	}
-	if in.LogoKey != nil && *in.LogoKey != "" && (currentLogo == nil || *currentLogo != *in.LogoKey) {
+	if in.CategoryID != nil && (currentCategory == nil || *currentCategory != *in.CategoryID) {
+		active, err := store.New(s.db.Conn(ctx)).ShopCategoryIsActive(ctx, *in.CategoryID)
+		if err != nil {
+			return fmt.Errorf("lecture de la catégorie : %w", err)
+		}
+		if !active {
+			return apperr.Validation(map[string]string{"category_id": "Catégorie inconnue."})
+		}
+	}
+	if in.LogoKey != nil && *in.LogoKey != "" && (currentLogoKey == nil || *currentLogoKey != *in.LogoKey) {
 		if err := s.uploads.Check(ctx, uploads.ShopLogo, userID, *in.LogoKey, "logo_key"); err != nil {
 			return err
 		}
@@ -164,7 +209,7 @@ func (s *Service) Create(ctx context.Context, ownerID uuid.UUID, in Input) (Shop
 		id, err := q.CreateShop(ctx, store.CreateShopParams{
 			OwnerID: ownerID, Name: in.Name, Description: in.Description, Phone: in.Phone,
 			AddressText: in.AddressText, NeighborhoodID: in.NeighborhoodID,
-			Lat: in.Location.Lat, Lng: in.Location.Lng, LogoKey: in.LogoKey,
+			Lat: in.Location.Lat, Lng: in.Location.Lng, LogoKey: in.LogoKey, CategoryID: in.CategoryID,
 		})
 		if err != nil {
 			return fmt.Errorf("création de la boutique : %w", err)
@@ -188,7 +233,7 @@ func (s *Service) Update(ctx context.Context, ownerID, shopID uuid.UUID, in Inpu
 	if err != nil {
 		return Shop{}, err
 	}
-	if err := s.validate(ctx, ownerID, &in, cur.LogoKey); err != nil {
+	if err := s.validate(ctx, ownerID, &in, &cur); err != nil {
 		return Shop{}, err
 	}
 	accepting := cur.AcceptingOrders
@@ -198,7 +243,7 @@ func (s *Service) Update(ctx context.Context, ownerID, shopID uuid.UUID, in Inpu
 	err = store.New(s.db.Conn(ctx)).UpdateShop(ctx, store.UpdateShopParams{
 		ID: shopID, Name: in.Name, Description: in.Description, Phone: in.Phone, AddressText: in.AddressText,
 		NeighborhoodID: in.NeighborhoodID, Lat: in.Location.Lat, Lng: in.Location.Lng, LogoKey: in.LogoKey,
-		AcceptingOrders: accepting,
+		CategoryID: in.CategoryID, AcceptingOrders: accepting,
 	})
 	if err != nil {
 		return Shop{}, fmt.Errorf("mise à jour de la boutique : %w", err)
@@ -381,6 +426,7 @@ func (s *Service) fromRow(ctx context.Context, r store.GetShopRow) (Shop, error)
 		AddressText: r.AddressText, NeighborhoodID: r.NeighborhoodID, Location: geo.Point{Lat: r.Lat, Lng: r.Lng},
 		LogoKey: r.LogoKey, Status: Status(r.Status), StatusReason: r.StatusReason, AcceptingOrders: r.AcceptingOrders,
 		ReviewedAt: r.ReviewedAt, CreatedAt: r.CreatedAt, UpdatedAt: r.UpdatedAt,
+		CategoryID: r.CategoryID, CategoryName: r.CategoryName,
 	}
 	if r.LogoKey != nil {
 		u := s.uploads.PublicURL(*r.LogoKey)

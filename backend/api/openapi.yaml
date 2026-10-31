@@ -986,6 +986,33 @@ paths:
             application/json:
               schema:
                 "$ref": "#/components/schemas/Error"
+  "/v1/shop-categories":
+    get:
+      summary: "Catégories de boutique actives"
+      tags:
+        - Boutiques
+      operationId: getShopCategories
+      security: []
+      responses:
+        "200":
+          description: "Succès"
+          content:
+            application/json:
+              schema:
+                type: object
+                properties:
+                  items:
+                    type: array
+                    items:
+                      "$ref": "#/components/schemas/ShopCategory"
+                required:
+                  - items
+        default:
+          description: "Erreur (voir `code`)"
+          content:
+            application/json:
+              schema:
+                "$ref": "#/components/schemas/Error"
   "/v1/seller/shops":
     get:
       summary: "Mes boutiques"
@@ -4882,6 +4909,14 @@ components:
           format: uuid
         neighborhood_name:
           type: string
+        category_id:
+          type:
+            - string
+            - "null"
+          format: uuid
+        category_name:
+          type: string
+          description: "Vide si la boutique n'a pas de catégorie (boutique ancienne)."
         location:
           "$ref": "#/components/schemas/Point"
         logo_url:
@@ -4919,6 +4954,8 @@ components:
         - address_text
         - neighborhood_id
         - neighborhood_name
+        - category_id
+        - category_name
         - location
         - logo_url
         - status
@@ -4927,6 +4964,17 @@ components:
         - reviewed_at
         - created_at
         - updated_at
+    ShopCategory:
+      type: object
+      properties:
+        id:
+          type: string
+          format: uuid
+        name:
+          type: string
+      required:
+        - id
+        - name
     ShopInput:
       type: object
       properties:
@@ -4951,6 +4999,12 @@ components:
             - string
             - "null"
           description: "Clé obtenue par POST /v1/uploads (shop_logo)."
+        category_id:
+          type:
+            - string
+            - "null"
+          format: uuid
+          description: "Catégorie de boutique (GET /v1/shop-categories). Obligatoire à la création ; absente d'une modification, inchangée."
         accepting_orders:
           type: boolean
       required:

@@ -125,9 +125,14 @@ func (a *App) SeedDev(ctx context.Context) (SeedSummary, error) {
 		sum.ShopID = myShops[0].ID
 	} else {
 		bè := have["Bè"]
+		shopCats, err := a.Shops.ListCategories(ctx)
+		if err != nil || len(shopCats) == 0 {
+			return sum, fmt.Errorf("catégories de boutique : %w", err)
+		}
 		shop, err := a.Shops.Create(ctx, seller.ID, shops.Input{
 			Name: "Boutique Afi", Description: "Épicerie et produits du quotidien.", Phone: "+22890000101",
 			AddressText: "Rue du marché, Bè", NeighborhoodID: &bè.ID, Location: geo.Point{Lat: 6.1430, Lng: 1.2370},
+			CategoryID: &shopCats[0].ID,
 		})
 		if err != nil {
 			return sum, fmt.Errorf("boutique : %w", err)

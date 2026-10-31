@@ -1,10 +1,10 @@
 -- name: CreateShop :one
-INSERT INTO shops (owner_id, name, description, phone, address_text, neighborhood_id, location, logo_key)
+INSERT INTO shops (owner_id, name, description, phone, address_text, neighborhood_id, location, logo_key, category_id)
 VALUES (
   sqlc.arg(owner_id), sqlc.arg(name), sqlc.arg(description), sqlc.arg(phone), sqlc.arg(address_text),
   sqlc.narg(neighborhood_id),
   ST_SetSRID(ST_MakePoint(sqlc.arg(lng)::float8, sqlc.arg(lat)::float8), 4326)::geography,
-  sqlc.narg(logo_key)
+  sqlc.narg(logo_key), sqlc.narg(category_id)
 )
 RETURNING id;
 
@@ -12,16 +12,20 @@ RETURNING id;
 SELECT s.id, s.owner_id, s.name, s.description, s.phone, s.address_text, s.neighborhood_id, s.logo_key,
        s.status, s.status_reason, s.accepting_orders, s.reviewed_at, s.reviewed_by, s.created_at, s.updated_at,
        ST_Y(s.location::geometry)::float8 AS lat,
-       ST_X(s.location::geometry)::float8 AS lng
+       ST_X(s.location::geometry)::float8 AS lng,
+       s.category_id, coalesce(c.name, '')::text AS category_name
 FROM shops s
+LEFT JOIN shop_categories c ON c.id = s.category_id
 WHERE s.id = $1;
 
 -- name: ListShopsByOwner :many
 SELECT s.id, s.owner_id, s.name, s.description, s.phone, s.address_text, s.neighborhood_id, s.logo_key,
        s.status, s.status_reason, s.accepting_orders, s.reviewed_at, s.reviewed_by, s.created_at, s.updated_at,
        ST_Y(s.location::geometry)::float8 AS lat,
-       ST_X(s.location::geometry)::float8 AS lng
+       ST_X(s.location::geometry)::float8 AS lng,
+       s.category_id, coalesce(c.name, '')::text AS category_name
 FROM shops s
+LEFT JOIN shop_categories c ON c.id = s.category_id
 WHERE s.owner_id = $1
 ORDER BY s.created_at;
 
@@ -32,8 +36,10 @@ SELECT count(*) FROM shops WHERE owner_id = $1;
 SELECT s.id, s.owner_id, s.name, s.description, s.phone, s.address_text, s.neighborhood_id, s.logo_key,
        s.status, s.status_reason, s.accepting_orders, s.reviewed_at, s.reviewed_by, s.created_at, s.updated_at,
        ST_Y(s.location::geometry)::float8 AS lat,
-       ST_X(s.location::geometry)::float8 AS lng
+       ST_X(s.location::geometry)::float8 AS lng,
+       s.category_id, coalesce(c.name, '')::text AS category_name
 FROM shops s
+LEFT JOIN shop_categories c ON c.id = s.category_id
 WHERE (sqlc.narg(status)::text IS NULL OR s.status = sqlc.narg(status)::text)
   AND (sqlc.narg(q)::text IS NULL OR immutable_unaccent(lower(s.name)) LIKE '%' || immutable_unaccent(lower(sqlc.narg(q)::text)) || '%')
 ORDER BY s.created_at DESC
@@ -48,6 +54,7 @@ SET name             = sqlc.arg(name),
     neighborhood_id  = sqlc.narg(neighborhood_id),
     location         = ST_SetSRID(ST_MakePoint(sqlc.arg(lng)::float8, sqlc.arg(lat)::float8), 4326)::geography,
     logo_key         = sqlc.narg(logo_key),
+    category_id      = sqlc.narg(category_id),
     accepting_orders = sqlc.arg(accepting_orders),
     updated_at       = now()
 WHERE id = sqlc.arg(id);
@@ -66,3 +73,9 @@ WHERE owner_id = sqlc.arg(owner_id) AND status <> 'suspended';
 
 -- name: ListShopIDsByOwner :many
 SELECT id FROM shops WHERE owner_id = $1;
+
+-- name: ListActiveShopCategories :many
+SELECT id, name FROM shop_categories WHERE is_active ORDER BY position, name;
+
+-- name: ShopCategoryIsActive :one
+SELECT EXISTS (SELECT 1 FROM shop_categories WHERE id = $1 AND is_active);

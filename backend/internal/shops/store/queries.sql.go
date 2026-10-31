@@ -24,12 +24,12 @@ func (q *Queries) CountShopsByOwner(ctx context.Context, ownerID uuid.UUID) (int
 }
 
 const createShop = `-- name: CreateShop :one
-INSERT INTO shops (owner_id, name, description, phone, address_text, neighborhood_id, location, logo_key)
+INSERT INTO shops (owner_id, name, description, phone, address_text, neighborhood_id, location, logo_key, category_id)
 VALUES (
   $1, $2, $3, $4, $5,
   $6,
   ST_SetSRID(ST_MakePoint($7::float8, $8::float8), 4326)::geography,
-  $9
+  $9, $10
 )
 RETURNING id
 `
@@ -44,6 +44,7 @@ type CreateShopParams struct {
 	Lng            float64
 	Lat            float64
 	LogoKey        *string
+	CategoryID     *uuid.UUID
 }
 
 func (q *Queries) CreateShop(ctx context.Context, arg CreateShopParams) (uuid.UUID, error) {
@@ -57,6 +58,7 @@ func (q *Queries) CreateShop(ctx context.Context, arg CreateShopParams) (uuid.UU
 		arg.Lng,
 		arg.Lat,
 		arg.LogoKey,
+		arg.CategoryID,
 	)
 	var id uuid.UUID
 	err := row.Scan(&id)
@@ -67,8 +69,10 @@ const getShop = `-- name: GetShop :one
 SELECT s.id, s.owner_id, s.name, s.description, s.phone, s.address_text, s.neighborhood_id, s.logo_key,
        s.status, s.status_reason, s.accepting_orders, s.reviewed_at, s.reviewed_by, s.created_at, s.updated_at,
        ST_Y(s.location::geometry)::float8 AS lat,
-       ST_X(s.location::geometry)::float8 AS lng
+       ST_X(s.location::geometry)::float8 AS lng,
+       s.category_id, coalesce(c.name, '')::text AS category_name
 FROM shops s
+LEFT JOIN shop_categories c ON c.id = s.category_id
 WHERE s.id = $1
 `
 
@@ -90,6 +94,8 @@ type GetShopRow struct {
 	UpdatedAt       time.Time
 	Lat             float64
 	Lng             float64
+	CategoryID      *uuid.UUID
+	CategoryName    string
 }
 
 func (q *Queries) GetShop(ctx context.Context, id uuid.UUID) (GetShopRow, error) {
@@ -113,8 +119,39 @@ func (q *Queries) GetShop(ctx context.Context, id uuid.UUID) (GetShopRow, error)
 		&i.UpdatedAt,
 		&i.Lat,
 		&i.Lng,
+		&i.CategoryID,
+		&i.CategoryName,
 	)
 	return i, err
+}
+
+const listActiveShopCategories = `-- name: ListActiveShopCategories :many
+SELECT id, name FROM shop_categories WHERE is_active ORDER BY position, name
+`
+
+type ListActiveShopCategoriesRow struct {
+	ID   uuid.UUID
+	Name string
+}
+
+func (q *Queries) ListActiveShopCategories(ctx context.Context) ([]ListActiveShopCategoriesRow, error) {
+	rows, err := q.db.Query(ctx, listActiveShopCategories)
+	if err != nil {
+		return nil, err
+	}
+	defer rows.Close()
+	items := []ListActiveShopCategoriesRow{}
+	for rows.Next() {
+		var i ListActiveShopCategoriesRow
+		if err := rows.Scan(&i.ID, &i.Name); err != nil {
+			return nil, err
+		}
+		items = append(items, i)
+	}
+	if err := rows.Err(); err != nil {
+		return nil, err
+	}
+	return items, nil
 }
 
 const listShopIDsByOwner = `-- name: ListShopIDsByOwner :many
@@ -145,8 +182,10 @@ const listShopsByOwner = `-- name: ListShopsByOwner :many
 SELECT s.id, s.owner_id, s.name, s.description, s.phone, s.address_text, s.neighborhood_id, s.logo_key,
        s.status, s.status_reason, s.accepting_orders, s.reviewed_at, s.reviewed_by, s.created_at, s.updated_at,
        ST_Y(s.location::geometry)::float8 AS lat,
-       ST_X(s.location::geometry)::float8 AS lng
+       ST_X(s.location::geometry)::float8 AS lng,
+       s.category_id, coalesce(c.name, '')::text AS category_name
 FROM shops s
+LEFT JOIN shop_categories c ON c.id = s.category_id
 WHERE s.owner_id = $1
 ORDER BY s.created_at
 `
@@ -169,6 +208,8 @@ type ListShopsByOwnerRow struct {
 	UpdatedAt       time.Time
 	Lat             float64
 	Lng             float64
+	CategoryID      *uuid.UUID
+	CategoryName    string
 }
 
 func (q *Queries) ListShopsByOwner(ctx context.Context, ownerID uuid.UUID) ([]ListShopsByOwnerRow, error) {
@@ -198,6 +239,8 @@ func (q *Queries) ListShopsByOwner(ctx context.Context, ownerID uuid.UUID) ([]Li
 			&i.UpdatedAt,
 			&i.Lat,
 			&i.Lng,
+			&i.CategoryID,
+			&i.CategoryName,
 		); err != nil {
 			return nil, err
 		}
@@ -213,8 +256,10 @@ const listShopsByStatus = `-- name: ListShopsByStatus :many
 SELECT s.id, s.owner_id, s.name, s.description, s.phone, s.address_text, s.neighborhood_id, s.logo_key,
        s.status, s.status_reason, s.accepting_orders, s.reviewed_at, s.reviewed_by, s.created_at, s.updated_at,
        ST_Y(s.location::geometry)::float8 AS lat,
-       ST_X(s.location::geometry)::float8 AS lng
+       ST_X(s.location::geometry)::float8 AS lng,
+       s.category_id, coalesce(c.name, '')::text AS category_name
 FROM shops s
+LEFT JOIN shop_categories c ON c.id = s.category_id
 WHERE ($1::text IS NULL OR s.status = $1::text)
   AND ($2::text IS NULL OR immutable_unaccent(lower(s.name)) LIKE '%' || immutable_unaccent(lower($2::text)) || '%')
 ORDER BY s.created_at DESC
@@ -246,6 +291,8 @@ type ListShopsByStatusRow struct {
 	UpdatedAt       time.Time
 	Lat             float64
 	Lng             float64
+	CategoryID      *uuid.UUID
+	CategoryName    string
 }
 
 func (q *Queries) ListShopsByStatus(ctx context.Context, arg ListShopsByStatusParams) ([]ListShopsByStatusRow, error) {
@@ -280,6 +327,8 @@ func (q *Queries) ListShopsByStatus(ctx context.Context, arg ListShopsByStatusPa
 			&i.UpdatedAt,
 			&i.Lat,
 			&i.Lng,
+			&i.CategoryID,
+			&i.CategoryName,
 		); err != nil {
 			return nil, err
 		}
@@ -321,6 +370,17 @@ func (q *Queries) SetShopStatus(ctx context.Context, arg SetShopStatusParams) (i
 	return result.RowsAffected(), nil
 }
 
+const shopCategoryIsActive = `-- name: ShopCategoryIsActive :one
+SELECT EXISTS (SELECT 1 FROM shop_categories WHERE id = $1 AND is_active)
+`
+
+func (q *Queries) ShopCategoryIsActive(ctx context.Context, id uuid.UUID) (bool, error) {
+	row := q.db.QueryRow(ctx, shopCategoryIsActive, id)
+	var exists bool
+	err := row.Scan(&exists)
+	return exists, err
+}
+
 const suspendShopsOfOwner = `-- name: SuspendShopsOfOwner :exec
 UPDATE shops
 SET status = 'suspended', status_reason = $1, accepting_orders = false, updated_at = now()
@@ -346,9 +406,10 @@ SET name             = $1,
     neighborhood_id  = $5,
     location         = ST_SetSRID(ST_MakePoint($6::float8, $7::float8), 4326)::geography,
     logo_key         = $8,
-    accepting_orders = $9,
+    category_id      = $9,
+    accepting_orders = $10,
     updated_at       = now()
-WHERE id = $10
+WHERE id = $11
 `
 
 type UpdateShopParams struct {
@@ -360,6 +421,7 @@ type UpdateShopParams struct {
 	Lng             float64
 	Lat             float64
 	LogoKey         *string
+	CategoryID      *uuid.UUID
 	AcceptingOrders bool
 	ID              uuid.UUID
 }
@@ -374,6 +436,7 @@ func (q *Queries) UpdateShop(ctx context.Context, arg UpdateShopParams) error {
 		arg.Lng,
 		arg.Lat,
 		arg.LogoKey,
+		arg.CategoryID,
 		arg.AcceptingOrders,
 		arg.ID,
 	)

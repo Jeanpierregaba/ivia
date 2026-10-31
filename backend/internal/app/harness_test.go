@@ -194,6 +194,17 @@ func category(t *testing.T) string {
 	return categoryID
 }
 
+// shopCategory retourne une catégorie de boutique active.
+func shopCategory(t *testing.T) string {
+	t.Helper()
+	r := mustStatus(t, call(t, "", "GET", "/v1/shop-categories", nil), http.StatusOK)
+	items, _ := r.Body["items"].([]any)
+	if len(items) == 0 {
+		t.Fatal("aucune catégorie de boutique")
+	}
+	return items[0].(map[string]any)["id"].(string)
+}
+
 func newSeller(t *testing.T, stock int) sellerFixture {
 	t.Helper()
 	tok := login(t, uniqueEmail("seller"))
@@ -201,7 +212,7 @@ func newSeller(t *testing.T, stock int) sellerFixture {
 	lat, lng := zone()
 	shop := mustStatus(t, call(t, tok, "POST", "/v1/shops", map[string]any{
 		"name": "Boutique test", "phone": uniquePhone(), "address_text": "Rue du test",
-		"location": map[string]float64{"lat": lat, "lng": lng},
+		"location": map[string]float64{"lat": lat, "lng": lng}, "category_id": shopCategory(t),
 	}), http.StatusCreated)
 	shopID := shop.str("id")
 	mustStatus(t, call(t, admin(t), "POST", "/v1/admin/shops/"+shopID+"/approve", map[string]any{}), http.StatusOK)
