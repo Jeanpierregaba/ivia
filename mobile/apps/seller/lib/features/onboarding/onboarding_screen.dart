@@ -9,17 +9,26 @@ import '../../app/router.dart';
 /// Contenu proposé (à valider) dans docs/specs/027-splash-onboarding/spec.md.
 const onboardingSlides = [
   OnboardingSlide(
-    icon: Icons.add_business_outlined,
+    illustration: OnboardingIconIllustration(
+      brand: IviaAppBrand.seller,
+      icon: Icons.add_business_outlined,
+    ),
     title: 'Votre boutique en ligne',
     body: 'Créez-la en quelques minutes ; ivia la vérifie avant de la publier.',
   ),
   OnboardingSlide(
-    icon: Icons.receipt_long_outlined,
+    illustration: OnboardingIconIllustration(
+      brand: IviaAppBrand.seller,
+      icon: Icons.receipt_long_outlined,
+    ),
     title: 'Des commandes déjà payées',
     body: 'Acceptez-les en un geste, l\'acheteur a payé par Mobile Money.',
   ),
   OnboardingSlide(
-    icon: Icons.verified_user_outlined,
+    illustration: OnboardingIconIllustration(
+      brand: IviaAppBrand.seller,
+      icon: Icons.verified_user_outlined,
+    ),
     title: 'Une remise sans litige',
     body:
         'Le code de l\'acheteur confirme chaque remise ; vos relevés sont '

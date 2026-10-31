@@ -5,29 +5,33 @@ import 'package:ivia_ui/ivia_ui.dart';
 
 import '../../app/onboarding_store.dart';
 import '../../app/router.dart';
+import 'illustrations.dart';
 
-/// Contenu proposé (à valider) dans docs/specs/027-splash-onboarding/spec.md.
+/// Maquettes du 2026-10-31 (docs/specs/027-splash-onboarding/spec.md).
 const onboardingSlides = [
   OnboardingSlide(
-    icon: Icons.storefront_outlined,
-    title: 'Les boutiques de Lomé dans votre poche',
+    illustration: NearbyIllustration(),
+    title: "Trouvez ce qu'il vous faut, tout près.",
+    highlight: 'tout près.',
     body:
-        'Trouvez un produit près de chez vous, avec son prix et sa '
+        'Les produits des boutiques de votre quartier, avec le prix et la '
         'disponibilité.',
   ),
   OnboardingSlide(
-    icon: Icons.account_balance_wallet_outlined,
-    title: 'Payez par Flooz ou T-Money',
+    illustration: PaymentIllustration(),
+    title: 'Payez en confiance avec Mobile Money.',
+    highlight: 'Mobile Money.',
     body:
-        'Votre paiement est confirmé avant que la boutique prépare votre '
-        'commande.',
+        "Flooz ou T-Money, directement dans l'app. La commande est confirmée "
+        'dès que le paiement est reçu.',
   ),
   OnboardingSlide(
-    icon: Icons.local_shipping_outlined,
-    title: 'Retrait ou livraison, à vous de choisir',
+    illustration: HandoverIllustration(),
+    title: 'Retrait ou livraison, vous choisissez.',
+    highlight: 'livraison,',
     body:
-        'Suivez votre commande étape par étape et remettez votre code à la '
-        'réception.',
+        'Suivez chaque étape de votre commande. Votre code à 4 chiffres '
+        'garantit la remise.',
   ),
 ];
 

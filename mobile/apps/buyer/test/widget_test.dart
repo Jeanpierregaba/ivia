@@ -8,7 +8,7 @@ import 'package:ivia_buyer/main.dart';
 import 'package:ivia_ui/ivia_ui.dart';
 import 'package:shared_preferences/shared_preferences.dart';
 
-const _firstTitle = 'Les boutiques de Lomé dans votre poche';
+const _firstTitle = "Trouvez ce qu'il vous faut, tout près.";
 
 void main() {
   /// Lance l'app comme main(), avec le stockage tel qu'il est.

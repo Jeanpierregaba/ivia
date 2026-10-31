@@ -7,12 +7,12 @@
 - [x] 2. `api_client` : tests puis `ApiException`, modèles, `IviaApiClient` (dio, faux adaptateur
       en test)
 - [x] 3. `api_client` : tests puis `SessionStore` (stockage sécurisé)
-- [ ] 4. `ui` : thème (boutons en pilule, champs), `IviaLogoTile`, `IviaBackButton`,
+- [x] 4. `ui` : thème (boutons en pilule, champs), `IviaLogoTile`, `IviaBackButton`,
       `IviaFieldLabel`, `IviaInfoCard`, `IviaPill`, `IviaLoadingSplash` ; tests
-- [ ] 5. `ui` : `IviaCodeInput` (saisie, collage, effacement, accessibilité) ; tests
-- [ ] 6. `ui` : présentation révisée (027) : en-tête, carte d'illustration, titre avec partie rouge ;
+- [x] 5. `ui` : `IviaCodeInput` (saisie, collage, effacement, accessibilité) ; tests
+- [x] 6. `ui` : présentation révisée (027) : en-tête, carte d'illustration, titre avec partie rouge ;
       marchand et livreur adaptés ; tests
-- [ ] 7. Acheteur : illustrations des 3 pages et splash de chargement (027)
+- [x] 7. Acheteur : illustrations des 3 pages (027) ; le splash de chargement est branché avec la tâche 8
 - [ ] 8. Acheteur : tests puis `AuthController` et routeur (`redirect`)
 - [ ] 9. Acheteur : écran e-mail
 - [ ] 10. Acheteur : écran du code (renvoi, erreurs)

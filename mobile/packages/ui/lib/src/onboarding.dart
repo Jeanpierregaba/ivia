@@ -1,25 +1,90 @@
 import 'package:flutter/material.dart';
 
 import 'brand.dart';
+import 'components.dart';
 import 'tokens.dart';
 
 /// Une page de la présentation.
 class OnboardingSlide {
   const OnboardingSlide({
-    required this.icon,
+    required this.illustration,
     required this.title,
+    this.highlight,
     required this.body,
   });
 
-  /// Pictogramme provisoire, en attendant les illustrations du designer.
-  final IconData icon;
+  /// Illustration décorative, en général un [OnboardingArtboard].
+  final Widget illustration;
   final String title;
+
+  /// Partie du titre affichée en rouge ; doit figurer dans [title].
+  final String? highlight;
   final String body;
 }
 
+/// Plan de dessin des illustrations (324 × 421 dp, celui des maquettes),
+/// mis à l'échelle de la place disponible. Décoratif : ignoré par le lecteur
+/// d'écran, et insensible à la taille de police (le texte utile est sous
+/// l'illustration).
+class OnboardingArtboard extends StatelessWidget {
+  const OnboardingArtboard({super.key, required this.child});
+
+  static const size = Size(324, 421);
+
+  final Widget child;
+
+  @override
+  Widget build(BuildContext context) {
+    return ExcludeSemantics(
+      child: MediaQuery.withNoTextScaling(
+        child: FittedBox(
+          child: SizedBox.fromSize(size: size, child: child),
+        ),
+      ),
+    );
+  }
+}
+
+/// Illustration provisoire : pictogramme dans une carte de la couleur de
+/// l'app, en attendant les maquettes.
+class OnboardingIconIllustration extends StatelessWidget {
+  const OnboardingIconIllustration({
+    super.key,
+    required this.brand,
+    required this.icon,
+  });
+
+  final IviaAppBrand brand;
+  final IconData icon;
+
+  @override
+  Widget build(BuildContext context) {
+    return OnboardingArtboard(
+      child: DecoratedBox(
+        decoration: BoxDecoration(
+          color: brand.accent,
+          borderRadius: BorderRadius.circular(IviaRadius.large),
+        ),
+        child: Center(
+          child: Container(
+            width: 168,
+            height: 168,
+            decoration: BoxDecoration(
+              color: Colors.white.withValues(alpha: 0.16),
+              shape: BoxShape.circle,
+            ),
+            child: Icon(icon, size: 80, color: Colors.white),
+          ),
+        ),
+      ),
+    );
+  }
+}
+
 /// Présentation du premier lancement : pages à faire défiler, « Passer »,
-/// « Suivant » puis « Commencer ». Le retour Android revient à la page
-/// précédente ; sur la première page, il quitte l'écran.
+/// « Suivant » puis « Commencer ». Le bouton retour rond et le retour
+/// Android reviennent à la page précédente ; sur la première page, le retour
+/// Android quitte l'écran.
 class IviaOnboarding extends StatefulWidget {
   const IviaOnboarding({
     super.key,
@@ -72,7 +137,6 @@ class _IviaOnboardingState extends State<IviaOnboarding> {
         if (!didPop) _goTo(_page - 1);
       },
       child: Scaffold(
-        backgroundColor: IviaColors.surface,
         body: SafeArea(
           child: Column(
             children: [
@@ -83,22 +147,31 @@ class _IviaOnboardingState extends State<IviaOnboarding> {
                   IviaSpacing.sm,
                   0,
                 ),
-                child: Row(
-                  children: [
-                    IviaLogo(color: brand.logoOnLight, height: 28),
-                    const Spacer(),
-                    // Taille gardée sur la dernière page : l'en-tête ne bouge pas.
-                    Visibility(
-                      visible: !_isLast,
-                      maintainSize: true,
-                      maintainAnimation: true,
-                      maintainState: true,
-                      child: TextButton(
-                        onPressed: widget.onDone,
-                        child: const Text('Passer'),
+                child: SizedBox(
+                  height: 48,
+                  child: Row(
+                    children: [
+                      if (_page == 0)
+                        IviaLogoTile(color: brand.accent)
+                      else
+                        IviaBackButton(onPressed: () => _goTo(_page - 1)),
+                      const Spacer(),
+                      // Taille gardée sur la dernière page : l'en-tête ne bouge pas.
+                      Visibility(
+                        visible: !_isLast,
+                        maintainSize: true,
+                        maintainAnimation: true,
+                        maintainState: true,
+                        child: TextButton(
+                          onPressed: widget.onDone,
+                          style: TextButton.styleFrom(
+                            foregroundColor: IviaColors.textSecondary,
+                          ),
+                          child: const Text('Passer'),
+                        ),
                       ),
-                    ),
-                  ],
+                    ],
+                  ),
                 ),
               ),
               Expanded(
@@ -106,8 +179,12 @@ class _IviaOnboardingState extends State<IviaOnboarding> {
                   controller: _controller,
                   itemCount: widget.slides.length,
                   onPageChanged: (page) => setState(() => _page = page),
-                  itemBuilder: (context, i) =>
-                      _SlideView(slide: widget.slides[i], brand: brand),
+                  itemBuilder: (context, i) => _SlideView(
+                    slide: widget.slides[i],
+                    index: i,
+                    count: widget.slides.length,
+                    brand: brand,
+                  ),
                 ),
               ),
               Padding(
@@ -115,26 +192,14 @@ class _IviaOnboardingState extends State<IviaOnboarding> {
                   IviaSpacing.screen,
                   IviaSpacing.lg,
                   IviaSpacing.screen,
-                  IviaSpacing.xxl,
+                  IviaSpacing.xl,
                 ),
-                child: Column(
-                  children: [
-                    _PageIndicator(
-                      count: widget.slides.length,
-                      current: _page,
-                      color: brand.accent,
-                    ),
-                    const SizedBox(height: IviaSpacing.xxl),
-                    SizedBox(
-                      width: double.infinity,
-                      child: FilledButton(
-                        onPressed: _isLast
-                            ? widget.onDone
-                            : () => _goTo(_page + 1),
-                        child: Text(_isLast ? 'Commencer' : 'Suivant'),
-                      ),
-                    ),
-                  ],
+                child: SizedBox(
+                  width: double.infinity,
+                  child: FilledButton(
+                    onPressed: _isLast ? widget.onDone : () => _goTo(_page + 1),
+                    child: Text(_isLast ? 'Commencer' : 'Suivant'),
+                  ),
                 ),
               ),
             ],
@@ -146,58 +211,89 @@ class _IviaOnboardingState extends State<IviaOnboarding> {
 }
 
 class _SlideView extends StatelessWidget {
-  const _SlideView({required this.slide, required this.brand});
+  const _SlideView({
+    required this.slide,
+    required this.index,
+    required this.count,
+    required this.brand,
+  });
 
   final OnboardingSlide slide;
+  final int index;
+  final int count;
   final IviaAppBrand brand;
 
-  static const _illustrationSize = 168.0;
+  /// Hauteur réservée au texte sous l'illustration, à police normale.
+  static const _textBlockHeight = 190.0;
 
   @override
   Widget build(BuildContext context) {
     final textTheme = Theme.of(context).textTheme;
-    // Défilement : le texte doit rester lisible avec la police agrandie.
+    final textScale = MediaQuery.textScalerOf(context).scale(1);
     return LayoutBuilder(
-      builder: (context, constraints) => SingleChildScrollView(
-        padding: const EdgeInsets.symmetric(horizontal: IviaSpacing.screen),
-        child: ConstrainedBox(
-          constraints: BoxConstraints(minHeight: constraints.maxHeight),
+      builder: (context, constraints) {
+        // L'illustration prend la place laissée par le texte ; avec une
+        // police très agrandie, elle garde une taille minimale et la page
+        // défile.
+        final artHeight =
+            (constraints.maxHeight -
+                    IviaSpacing.lg -
+                    _textBlockHeight * textScale)
+                .clamp(200.0, 440.0);
+        return SingleChildScrollView(
+          padding: const EdgeInsets.symmetric(horizontal: IviaSpacing.screen),
           child: Column(
-            mainAxisAlignment: MainAxisAlignment.center,
+            crossAxisAlignment: CrossAxisAlignment.start,
             children: [
-              Container(
-                width: _illustrationSize,
-                height: _illustrationSize,
-                decoration: BoxDecoration(
-                  color: brand.accentSoft,
-                  shape: BoxShape.circle,
-                ),
-                child: Icon(slide.icon, size: 72, color: brand.accent),
+              const SizedBox(height: IviaSpacing.lg),
+              SizedBox(
+                height: artHeight,
+                width: double.infinity,
+                child: slide.illustration,
               ),
-              const SizedBox(height: IviaSpacing.huge),
+              const SizedBox(height: IviaSpacing.xxl),
+              _PageIndicator(count: count, current: index, color: brand.accent),
+              const SizedBox(height: IviaSpacing.lg),
               MediaQuery.withClampedTextScaling(
                 maxScaleFactor: IviaOnboarding.titleMaxTextScale,
                 child: Semantics(
                   header: true,
-                  child: Text(
-                    slide.title,
+                  child: Text.rich(
+                    _titleSpan(slide),
                     style: textTheme.headlineMedium,
-                    textAlign: TextAlign.center,
                   ),
                 ),
               ),
-              const SizedBox(height: IviaSpacing.md),
+              const SizedBox(height: IviaSpacing.sm),
               Text(
                 slide.body,
                 style: textTheme.bodyLarge?.copyWith(
                   color: IviaColors.textSecondary,
                 ),
-                textAlign: TextAlign.center,
               ),
+              const SizedBox(height: IviaSpacing.sm),
             ],
           ),
+        );
+      },
+    );
+  }
+
+  /// Rouge des titres : Imperial, permis pour un titre de 24 px et plus
+  /// (docs/DESIGN.md, Contrastes).
+  static TextSpan _titleSpan(OnboardingSlide slide) {
+    final highlight = slide.highlight;
+    final start = highlight == null ? -1 : slide.title.indexOf(highlight);
+    if (highlight == null || start < 0) return TextSpan(text: slide.title);
+    return TextSpan(
+      children: [
+        TextSpan(text: slide.title.substring(0, start)),
+        TextSpan(
+          text: highlight,
+          style: const TextStyle(color: IviaColors.primary),
         ),
-      ),
+        TextSpan(text: slide.title.substring(start + highlight.length)),
+      ],
     );
   }
 }
@@ -221,12 +317,10 @@ class _PageIndicator extends StatelessWidget {
       label: 'Page ${current + 1} sur $count',
       child: ExcludeSemantics(
         child: Row(
-          mainAxisAlignment: MainAxisAlignment.center,
           children: [
             for (var i = 0; i < count; i++)
-              AnimatedContainer(
-                duration: const Duration(milliseconds: 200),
-                margin: const EdgeInsets.symmetric(horizontal: IviaSpacing.xs),
+              Container(
+                margin: const EdgeInsets.only(right: IviaSpacing.sm),
                 width: i == current ? IviaSpacing.xxl : IviaSpacing.sm,
                 height: IviaSpacing.sm,
                 decoration: BoxDecoration(

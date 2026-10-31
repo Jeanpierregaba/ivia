@@ -3,14 +3,27 @@ import 'package:flutter_test/flutter_test.dart';
 import 'package:ivia_ui/ivia_ui.dart';
 
 const _slides = [
-  OnboardingSlide(icon: Icons.storefront, title: 'Titre un', body: 'Texte un'),
   OnboardingSlide(
-    icon: Icons.payments,
+    illustration: OnboardingIconIllustration(
+      brand: IviaAppBrand.buyer,
+      icon: Icons.storefront,
+    ),
+    title: 'Titre un',
+    body: 'Texte un',
+  ),
+  OnboardingSlide(
+    illustration: OnboardingIconIllustration(
+      brand: IviaAppBrand.buyer,
+      icon: Icons.payments,
+    ),
     title: 'Titre deux',
     body: 'Texte deux',
   ),
   OnboardingSlide(
-    icon: Icons.local_shipping,
+    illustration: OnboardingIconIllustration(
+      brand: IviaAppBrand.buyer,
+      icon: Icons.local_shipping,
+    ),
     title: 'Titre trois',
     body: 'Texte trois',
   ),
@@ -89,6 +102,46 @@ void main() {
     expect(done, 0);
   });
 
+  testWidgets('bouton retour rond : page précédente ; logo sur la page 1', (
+    tester,
+  ) async {
+    await pumpOnboarding(tester);
+    expect(find.byType(IviaLogoTile), findsOneWidget);
+    expect(find.byType(IviaBackButton), findsNothing);
+
+    await tester.tap(find.text('Suivant'));
+    await tester.pumpAndSettle();
+    expect(find.byType(IviaLogoTile), findsNothing);
+
+    await tester.tap(find.byTooltip('Retour'));
+    await tester.pumpAndSettle();
+    expect(find.text('Titre un'), findsOneWidget);
+  });
+
+  testWidgets('partie du titre en rouge', (tester) async {
+    await tester.pumpWidget(
+      MaterialApp(
+        theme: IviaTheme.light(),
+        home: IviaOnboarding(
+          brand: IviaAppBrand.buyer,
+          slides: const [
+            OnboardingSlide(
+              illustration: SizedBox(),
+              title: 'Payez avec Mobile Money.',
+              highlight: 'Mobile Money.',
+              body: 'Texte',
+            ),
+          ],
+          onDone: () {},
+        ),
+      ),
+    );
+    final text = tester.widget<Text>(find.text('Payez avec Mobile Money.'));
+    final spans = (text.textSpan! as TextSpan).children!.cast<TextSpan>();
+    expect(spans.map((s) => s.text), ['Payez avec ', 'Mobile Money.', '']);
+    expect(spans[1].style?.color, IviaColors.primary);
+  });
+
   testWidgets('logo et titres annoncés au lecteur d\'écran', (tester) async {
     final semantics = tester.ensureSemantics();
     await pumpOnboarding(tester);
@@ -118,13 +171,23 @@ void main() {
               brand: IviaAppBrand.driver,
               slides: const [
                 OnboardingSlide(
-                  icon: Icons.near_me,
+                  illustration: OnboardingIconIllustration(
+                    brand: IviaAppBrand.buyer,
+                    icon: Icons.near_me,
+                  ),
                   title: 'Disponible quand vous le décidez',
                   body:
                       'Votre position n\'est partagée que lorsque vous êtes '
                       'en service.',
                 ),
-                OnboardingSlide(icon: Icons.route, title: 'Deux', body: 'B'),
+                OnboardingSlide(
+                  illustration: OnboardingIconIllustration(
+                    brand: IviaAppBrand.buyer,
+                    icon: Icons.route,
+                  ),
+                  title: 'Deux',
+                  body: 'B',
+                ),
               ],
               onDone: () {},
             ),

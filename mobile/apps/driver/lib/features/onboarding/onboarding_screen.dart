@@ -9,17 +9,26 @@ import '../../app/router.dart';
 /// Contenu proposé (à valider) dans docs/specs/027-splash-onboarding/spec.md.
 const onboardingSlides = [
   OnboardingSlide(
-    icon: Icons.two_wheeler_outlined,
+    illustration: OnboardingIconIllustration(
+      brand: IviaAppBrand.driver,
+      icon: Icons.two_wheeler_outlined,
+    ),
     title: 'Des missions près de vous',
     body: 'Recevez des propositions selon votre position et votre véhicule.',
   ),
   OnboardingSlide(
-    icon: Icons.route_outlined,
+    illustration: OnboardingIconIllustration(
+      brand: IviaAppBrand.driver,
+      icon: Icons.route_outlined,
+    ),
     title: 'Guidé de la boutique au client',
     body: 'Itinéraire, récupération, puis code du client pour terminer.',
   ),
   OnboardingSlide(
-    icon: Icons.toggle_on_outlined,
+    illustration: OnboardingIconIllustration(
+      brand: IviaAppBrand.driver,
+      icon: Icons.toggle_on_outlined,
+    ),
     title: 'Disponible quand vous le décidez',
     body: 'Votre position n\'est partagée que lorsque vous êtes en service.',
   ),

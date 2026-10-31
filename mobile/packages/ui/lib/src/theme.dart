@@ -46,7 +46,9 @@ abstract final class IviaTheme {
     const buttonShape = RoundedRectangleBorder(
       borderRadius: BorderRadius.all(Radius.circular(IviaRadius.button)),
     );
-    const buttonMinimumSize = Size(64, 48);
+    // Boutons pleins et à contour : pilules de 54 dp (maquettes du 2026-10-31).
+    const pillShape = StadiumBorder();
+    const buttonMinimumSize = Size(64, 54);
     const buttonPadding = EdgeInsets.symmetric(horizontal: IviaSpacing.xxl);
     const largeShape = RoundedRectangleBorder(
       borderRadius: BorderRadius.all(Radius.circular(IviaRadius.large)),
@@ -79,24 +81,28 @@ abstract final class IviaTheme {
         style: FilledButton.styleFrom(
           minimumSize: buttonMinimumSize,
           padding: buttonPadding,
-          shape: buttonShape,
+          shape: pillShape,
           textStyle: IviaTextStyles.button,
+          disabledBackgroundColor: IviaColors.border,
+          disabledForegroundColor: IviaColors.textMuted,
         ),
       ),
       outlinedButtonTheme: OutlinedButtonThemeData(
         style: OutlinedButton.styleFrom(
           foregroundColor: IviaColors.primaryStrong,
+          backgroundColor: IviaColors.surface,
           minimumSize: buttonMinimumSize,
           padding: buttonPadding,
-          shape: buttonShape,
+          shape: pillShape,
           textStyle: IviaTextStyles.button,
           side: const BorderSide(color: IviaColors.borderInput),
+          disabledForegroundColor: IviaColors.textMuted,
         ),
       ),
       textButtonTheme: TextButtonThemeData(
         style: TextButton.styleFrom(
           foregroundColor: IviaColors.primaryStrong,
-          minimumSize: buttonMinimumSize,
+          minimumSize: const Size(48, 48),
           shape: buttonShape,
           textStyle: IviaTextStyles.button,
         ),
@@ -121,6 +127,18 @@ abstract final class IviaTheme {
         errorBorder: inputBorder(IviaColors.error),
         focusedErrorBorder: inputBorder(IviaColors.error, width: 2),
         disabledBorder: inputBorder(IviaColors.border),
+      ),
+      checkboxTheme: CheckboxThemeData(
+        shape: const RoundedRectangleBorder(
+          borderRadius: BorderRadius.all(Radius.circular(IviaRadius.tile)),
+        ),
+        side: const BorderSide(color: IviaColors.borderInput, width: 1.5),
+        fillColor: WidgetStateProperty.resolveWith(
+          (states) => states.contains(WidgetState.selected)
+              ? IviaColors.primary
+              : IviaColors.surface,
+        ),
+        checkColor: const WidgetStatePropertyAll(Colors.white),
       ),
       cardTheme: const CardThemeData(
         color: IviaColors.surface,
