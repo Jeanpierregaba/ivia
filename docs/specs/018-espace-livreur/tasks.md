@@ -10,7 +10,7 @@
 - [x] 6. Livreur : « Devenez livreur ivia » (véhicule, immatriculation, documents, envoi) ; tests
 - [x] 7. Livreur : vérification, récapitulatif, refus et correction, suspension, accueil
       provisoire ; tests
-- [ ] 8. Natif (permissions, HTTP local) ; vérification sur le simulateur contre l'API locale
-- [ ] 9. Docs : DESIGN.md, TASKS.md
+- [x] 8. Natif (permissions, HTTP local) ; vérification sur le simulateur contre l'API locale
+- [x] 9. Docs : DESIGN.md, TASKS.md
 - [ ] Vérifier tous les critères d'acceptation de spec.md
 - [ ] Relecture par le sous-agent reviewer

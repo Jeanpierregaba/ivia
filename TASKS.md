@@ -8,6 +8,7 @@ docs/specs/NNN-nom/tasks.md. Les petites tâches isolées (bug, retouche) peuven
 
 ## En cours
 
+- [ ] 018 — Espace livreur : lancement, connexion, dossier de candidature ([spec](docs/specs/018-espace-livreur/spec.md)) : reste la relecture
 - [ ] 004 — Espace marchand : lancement, connexion, création de la boutique ([spec](docs/specs/004-espace-marchand/spec.md)) : relu et corrigé ; reste les clés Google Maps (vérification de la carte)
 - [ ] 027 — Splash et présentation des 3 apps ([spec](docs/specs/027-splash-onboarding/spec.md)) : reste la vérification sur Android, la validation des textes et des couleurs par le designer
 
@@ -24,7 +25,7 @@ que sa partie interface (apps Flutter, back-office), sauf mention « backend ».
 version « retrait seulement » (voir `docs/PRD.md`).
 
 ### Phase 1 — Comptes et catalogue
-- [ ] 001 — Écrans de connexion par OTP e-mail dans l'app livreur (acheteur et marchand : faits)
+- [x] 001 — Écrans de connexion par OTP e-mail dans les 3 apps
 - [ ] 002 — Profil, carnet d'adresses (choix du point sur la carte), suppression du compte
 - [ ] 003 — Back-office : connexion admin (cookie httpOnly côté serveur Next.js), journal des actions
 - [ ] 004 — Boutiques : validation / suspension dans le back-office (création côté marchand : en cours)
@@ -45,7 +46,7 @@ version « retrait seulement » (voir `docs/PRD.md`).
 - [ ] 017 — **Backend / infra** : déploiement (Dockerfile de l'API, `infra/` : Compose de production, Caddy, sauvegardes `pg_dump` vers R2 testées), VPS de production et de staging, intégration Sentry
 
 ### Phase 3 — Livraison
-- [ ] 018 — Livreurs : inscription et envoi des documents (app livreur), validation dans le back-office
+- [ ] 018 — Livreurs : validation des dossiers dans le back-office (inscription et documents côté app : en cours)
 - [ ] 019 — Disponibilité et position du livreur (service de premier plan Android, position toutes les 30 s, propositions interrogées toutes les 10 s)
 - [ ] 020 — Commande en livraison : adresse, véhicule compatible, frais (écrans)
 - [ ] 021 — Attribution : écran de proposition (45 s) ; alertes dans le back-office

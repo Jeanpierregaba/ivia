@@ -116,7 +116,7 @@ portées par le thème (`IviaTheme.light(brand)`, `IviaAppBrand.of(context)`) :
 |---|---|---|---|
 | Acheteur | Imperial | Cornell | Imperial |
 | Marchand | Berkeley | Berkeley | Cobalt |
-| Livreur | Imperial (en attendant ses maquettes) | Cornell | Imperial |
+| Livreur | Cobalt | Cobalt | Cobalt |
 
 ### Contrastes (WCAG 2.2, calculés)
 
@@ -221,7 +221,13 @@ Maquettes : à venir (lien Figma à ajouter ici). Les statuts affichés suivent
 - **Produits** : liste, formulaire (photos, prix, catégorie, taille de colis, stock suivi ou non), activation.
 
 ### App livreur (couleur : Cobalt)
-- **Inscription livreur** : identité, véhicule, documents, puis « En attente de validation ».
+- **Lancement** ([spec 018](specs/018-espace-livreur/spec.md)) : splash de chargement (tuile,
+  « Livreur », « Livrez près de chez vous. ») ; présentation (propositions, étapes guidées, code du
+  client) ; « Espace livreur ».
+- **Dossier** (« Devenez livreur ivia ») : prénom, nom, téléphone et consentement si le profil est
+  incomplet, véhicule (Moto / Voiture), immatriculation, pièce d'identité, permis, carte grise
+  (photo prise ou choisie) ; puis « En cours de vérification » (étapes, « Voir mon dossier »),
+  refus avec motif et correction, suspension.
 - **Accueil** : interrupteur Disponible / Hors ligne bien visible, rappel de la notification permanente.
 - **Proposition de mission** : plein écran, boutique, distance, gain indicatif, compte à rebours de
   45 s, Accepter / Refuser.
