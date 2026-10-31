@@ -45,6 +45,10 @@ class AuthController extends Notifier<AuthState> {
   IviaApiClient get _client => ref.read(apiClientProvider);
   SessionStore get _store => ref.read(sessionStoreProvider);
 
+  /// Change à chaque ouverture ou fermeture de session : une réponse arrivée
+  /// après coup (retour pendant l'envoi du profil…) est ignorée.
+  var _generation = 0;
+
   @override
   AuthState build() {
     final client = _client..onUnauthorized = _onUnauthorized;
@@ -61,14 +65,18 @@ class AuthController extends Notifier<AuthState> {
 
   /// Code vérifié : la session est gardée sur le téléphone.
   Future<void> signedIn(Session session) async {
-    _client.token = session.token;
+    _generation++;
     await _store.save(session.token, session.user);
+    _client.token = session.token;
     state = _fromUser(session.user);
   }
 
+  /// Sans effet si la session a été fermée pendant l'envoi.
   Future<void> profileUpdated(User user) async {
+    if (state is! AuthNeedsProfile && state is! AuthSignedIn) return;
+    final generation = _generation;
     await _store.saveUser(user);
-    state = _fromUser(user);
+    if (generation == _generation && ref.mounted) state = _fromUser(user);
   }
 
   /// Révoque la session côté serveur si possible, puis l'efface du téléphone
@@ -83,12 +91,13 @@ class AuthController extends Notifier<AuthState> {
   }
 
   Future<void> _start() async {
+    final generation = _generation;
     final timings = ref.read(authTimingsProvider);
     final results = await Future.wait([
       _restore(timings.meTimeout),
       Future<AuthState?>.delayed(timings.minSplash),
     ]);
-    if (ref.mounted) state = results.first!;
+    if (generation == _generation && ref.mounted) state = results.first!;
   }
 
   Future<AuthState> _restore(Duration meTimeout) async {
@@ -107,6 +116,9 @@ class AuthController extends Notifier<AuthState> {
       return _offline(stored.user);
     } on TimeoutException {
       return _offline(stored.user);
+    } on Exception {
+      // Réponse inattendue : comme un serveur injoignable, sans bloquer.
+      return _offline(stored.user);
     }
   }
 
@@ -122,6 +134,7 @@ class AuthController extends Notifier<AuthState> {
   }
 
   Future<void> _clear() async {
+    _generation++;
     await _clearStorage();
     if (ref.mounted) state = const AuthSignedOut();
   }

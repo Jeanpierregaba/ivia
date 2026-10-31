@@ -273,7 +273,8 @@ func (s *Service) AdminSearch(ctx context.Context, q string, role string, limit,
 		}
 		out[i] = toUser(store.User{
 			ID: r.ID, Email: r.Email, Phone: r.Phone, FirstName: r.FirstName, LastName: r.LastName,
-			DeletedAt: r.DeletedAt, CreatedAt: r.CreatedAt, UpdatedAt: r.UpdatedAt,
+			PrivacyConsentAt: r.PrivacyConsentAt,
+			DeletedAt:        r.DeletedAt, CreatedAt: r.CreatedAt, UpdatedAt: r.UpdatedAt,
 		}, roles)
 	}
 	return out, nil

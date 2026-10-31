@@ -4,6 +4,7 @@ import 'package:flutter_riverpod/flutter_riverpod.dart';
 import 'package:ivia_api_client/ivia_api_client.dart';
 import 'package:ivia_ui/ivia_ui.dart';
 
+import 'app/first_launch.dart';
 import 'app/onboarding_store.dart';
 import 'app/providers.dart';
 import 'app/router.dart';
@@ -14,6 +15,7 @@ import 'app/router.dart';
 Future<void> main() async {
   WidgetsFlutterBinding.ensureInitialized();
   await SystemChrome.setPreferredOrientations([DeviceOrientation.portraitUp]);
+  await clearSessionAfterReinstall(SessionStore());
   final onboarding = await OnboardingStore.open();
   // Logotype du splash de chargement prêt dès sa première image.
   await IviaLogo.precache(IviaLogoColor.white);

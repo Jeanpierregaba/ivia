@@ -3,6 +3,7 @@ import 'package:flutter_riverpod/flutter_riverpod.dart';
 import 'package:ivia_ui/ivia_ui.dart';
 
 import '../../app/auth_controller.dart';
+import '../auth/async_button.dart';
 
 /// Accueil provisoire, remplacé par la recherche (fonctionnalité 007).
 class HomePlaceholderScreen extends ConsumerWidget {
@@ -37,9 +38,9 @@ class HomePlaceholderScreen extends ConsumerWidget {
               ),
             ),
             const SizedBox(height: IviaSpacing.xxxl),
-            OutlinedButton(
+            AsyncButton.outlined(
+              label: 'Se déconnecter',
               onPressed: ref.read(authControllerProvider.notifier).signOut,
-              child: const Text('Se déconnecter'),
             ),
           ],
         ),

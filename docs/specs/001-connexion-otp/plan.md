@@ -126,10 +126,11 @@ au moment de coder.
 
 - **Jeton** : stockage sécurisé uniquement, envoyé en en-tête, jamais journalisé (aucun intercepteur
   de logs), effacé à la déconnexion et sur 401.
-- **HTTP en clair** (API locale `http://localhost:8080`) : autorisé seulement en debug.
-  - iOS : l'exception ATS `NSAllowsLocalNetworking` ne vise que le réseau local.
-  - Android : `usesCleartextTraffic` uniquement dans le manifeste `debug`.
-  - La release impose `https` (vérification déjà présente dans `ApiConfig`).
+- **HTTP en clair** (API locale `http://localhost:8081`) :
+  - iOS : l'exception ATS `NSAllowsLocalNetworking` ne vise que le réseau local (localhost,
+    `.local`) ; elle reste dans l'Info.plist commun, sans effet sur l'API publique ;
+  - Android : `usesCleartextTraffic` uniquement dans le manifeste `debug` ;
+  - en release, `ApiConfig` refuse une `API_BASE_URL` qui n'est pas en `https`.
 - **OTP** : le code saisi n'est gardé qu'en mémoire, le temps de la requête.
 - **Consentement** : daté par le serveur, jamais par l'app.
 - **Énumération des comptes** : l'écran 2 s'affiche que l'adresse ait un compte ou non (le serveur

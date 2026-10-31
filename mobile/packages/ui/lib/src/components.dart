@@ -33,7 +33,8 @@ class IviaLogoTile extends StatelessWidget {
 class IviaBackButton extends StatelessWidget {
   const IviaBackButton({super.key, required this.onPressed});
 
-  final VoidCallback onPressed;
+  /// `null` : bouton désactivé (envoi en cours).
+  final VoidCallback? onPressed;
 
   @override
   Widget build(BuildContext context) {

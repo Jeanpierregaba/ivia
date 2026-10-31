@@ -103,8 +103,12 @@ class _ProfileScreenState extends ConsumerState<ProfileScreen> {
     }
   }
 
-  /// Retour : la connexion est abandonnée, la session révoquée.
-  Future<void> _back() => ref.read(authControllerProvider.notifier).signOut();
+  /// Retour : la connexion est abandonnée, la session révoquée. Bloqué
+  /// pendant l'envoi du profil.
+  Future<void> _back() async {
+    if (_busy) return;
+    await ref.read(authControllerProvider.notifier).signOut();
+  }
 
   @override
   Widget build(BuildContext context) {
@@ -161,7 +165,7 @@ class _ProfileScreenState extends ConsumerState<ProfileScreen> {
                     children: [
                       Row(
                         children: [
-                          IviaBackButton(onPressed: _back),
+                          IviaBackButton(onPressed: _busy ? null : _back),
                           const Spacer(),
                           if (_isNewAccount)
                             const IviaPill(label: 'Dernière étape'),

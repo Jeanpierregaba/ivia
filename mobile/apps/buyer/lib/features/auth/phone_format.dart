@@ -9,9 +9,18 @@ class TogoPhoneFormatter extends TextInputFormatter {
     TextEditingValue newValue,
   ) {
     final text = formatTogoPhone(newValue.text);
+    // Curseur replacé après le même nombre de chiffres : on peut corriger un
+    // chiffre au milieu du numéro.
+    final cursor = newValue.selection.end.clamp(0, newValue.text.length);
+    final digitsBefore = togoPhoneDigits(newValue.text.substring(0, cursor))
+        .length;
+    var offset = 0;
+    for (var seen = 0; offset < text.length && seen < digitsBefore; offset++) {
+      if (text[offset] != ' ') seen++;
+    }
     return TextEditingValue(
       text: text,
-      selection: TextSelection.collapsed(offset: text.length),
+      selection: TextSelection.collapsed(offset: offset),
     );
   }
 }

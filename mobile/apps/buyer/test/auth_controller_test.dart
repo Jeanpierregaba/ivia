@@ -32,7 +32,7 @@ void main() {
         authTimingsProvider.overrideWithValue(
           const AuthTimings(
             minSplash: Duration.zero,
-            meTimeout: Duration(milliseconds: 200),
+            meTimeout: Duration(seconds: 2),
           ),
         ),
       ],
@@ -166,6 +166,17 @@ void main() {
       expect(state(c), isA<AuthSignedOut>());
       expect(await SessionStore().read(), isNull);
       expect(client.token, isNull);
+    });
+
+    test('profil reçu après une déconnexion : ignoré', () async {
+      server.on('POST', '/v1/auth/logout', (_) => FakeResponse.json(204, null));
+      final c = await start();
+      final auth = c.read(authControllerProvider.notifier);
+      await auth.signedIn(Session.fromJson(sessionBody()));
+      await auth.signOut();
+      await auth.profileUpdated(User.fromJson(userBody(complete: true)));
+      expect(state(c), isA<AuthSignedOut>());
+      expect(await SessionStore().read(), isNull);
     });
 
     test('401 sur un appel : déconnecté', () async {

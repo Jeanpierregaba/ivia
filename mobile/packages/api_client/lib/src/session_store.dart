@@ -40,17 +40,33 @@ class SessionStore {
     }
   }
 
+  // Écritures au mieux : si le stockage échoue (Keystore indisponible…), la
+  // session reste valable pour cette exécution de l'app, sans être gardée.
+
   Future<void> save(String token, User user) async {
-    await _storage.write(key: _tokenKey, value: token);
+    try {
+      await _storage.write(key: _tokenKey, value: token);
+    } on PlatformException {
+      return;
+    }
     await saveUser(user);
   }
 
-  Future<void> saveUser(User user) =>
-      _storage.write(key: _userKey, value: jsonEncode(user.toJson()));
+  Future<void> saveUser(User user) async {
+    try {
+      await _storage.write(key: _userKey, value: jsonEncode(user.toJson()));
+    } on PlatformException {
+      // Profil non gardé : il sera relu sur le serveur au prochain démarrage.
+    }
+  }
 
   Future<void> clear() async {
-    await _storage.delete(key: _tokenKey);
-    await _storage.delete(key: _userKey);
+    try {
+      await _storage.delete(key: _tokenKey);
+      await _storage.delete(key: _userKey);
+    } on PlatformException {
+      // Rien de plus à faire : le serveur a déjà révoqué ou refusé la session.
+    }
   }
 
   static User? _decodeUser(String? raw) {

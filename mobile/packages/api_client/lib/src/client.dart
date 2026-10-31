@@ -106,7 +106,9 @@ class IviaApiClient {
     String path, {
     Object? data,
   }) async {
-    final authenticated = token != null;
+    // Jeton envoyé : un 401 tardif d'une ancienne session ne doit pas
+    // effacer la session ouverte depuis.
+    final sentToken = token;
     try {
       final response = await _dio.request<Object?>(
         path,
@@ -117,7 +119,9 @@ class IviaApiClient {
       return body is Map<String, dynamic> ? body : const {};
     } on DioException catch (e) {
       final error = _toApiException(e);
-      if (authenticated && error.statusCode == 401) onUnauthorized?.call();
+      if (sentToken != null && sentToken == token && error.statusCode == 401) {
+        onUnauthorized?.call();
+      }
       throw error;
     }
   }

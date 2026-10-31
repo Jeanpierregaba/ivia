@@ -27,6 +27,10 @@ class _CodeScreenState extends ConsumerState<CodeScreen> {
   String? _error;
   var _busy = false;
 
+  /// Dernière demande connue : gardée pendant la transition vers l'écran
+  /// suivant, une fois le code validé.
+  LoginFlowState? _flow;
+
   @override
   void initState() {
     super.initState();
@@ -104,7 +108,7 @@ class _CodeScreenState extends ConsumerState<CodeScreen> {
 
   @override
   Widget build(BuildContext context) {
-    final flow = ref.watch(loginFlowProvider);
+    final flow = _flow = ref.watch(loginFlowProvider) ?? _flow;
     if (flow == null) {
       // Ouvert sans demande de code (code déjà validé, lien direct).
       return const Scaffold(body: SizedBox.shrink());

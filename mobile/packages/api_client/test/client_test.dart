@@ -1,3 +1,5 @@
+import 'dart:async';
+
 import 'package:dio/dio.dart';
 import 'package:flutter_test/flutter_test.dart';
 import 'package:ivia_api_client/ivia_api_client.dart';
@@ -112,6 +114,18 @@ void main() {
     client.token = 'jeton-expire';
     await expectLater(client.getMe(), throwsA(isA<ApiException>()));
     expect(unauthorized, 1);
+  });
+
+  test('401 tardif d\'une ancienne session : pas de signalement', () async {
+    final reply = Completer<FakeResponse>();
+    server.on('GET', '/v1/me', (_) => reply.future);
+    client.token = 'ancien-jeton';
+    final call = client.getMe();
+    await pumpEventQueue();
+    client.token = 'nouveau-jeton';
+    reply.complete(FakeResponse.error(401, 'unauthorized', 'Session expirée.'));
+    await expectLater(call, throwsA(isA<ApiException>()));
+    expect(unauthorized, 0);
   });
 
   test('401 sans jeton (code faux) : pas de signalement', () async {

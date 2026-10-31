@@ -3,6 +3,7 @@ import 'package:flutter_riverpod/flutter_riverpod.dart';
 import 'package:ivia_ui/ivia_ui.dart';
 
 import '../../app/auth_controller.dart';
+import 'async_button.dart';
 
 /// Session gardée mais serveur injoignable au démarrage, sans profil connu.
 class OfflineScreen extends ConsumerWidget {
@@ -37,12 +38,9 @@ class OfflineScreen extends ConsumerWidget {
               textAlign: TextAlign.center,
             ),
             const SizedBox(height: IviaSpacing.xxxl),
-            FilledButton(onPressed: auth.retry, child: const Text('Réessayer')),
+            AsyncButton.filled(label: 'Réessayer', onPressed: auth.retry),
             const SizedBox(height: IviaSpacing.sm),
-            TextButton(
-              onPressed: auth.signOut,
-              child: const Text('Se déconnecter'),
-            ),
+            AsyncButton.text(label: 'Se déconnecter', onPressed: auth.signOut),
           ],
         ),
       ),

@@ -1,3 +1,5 @@
+import 'dart:async';
+
 import 'package:flutter/material.dart';
 import 'package:flutter/services.dart';
 import 'package:flutter_riverpod/flutter_riverpod.dart';
@@ -226,7 +228,7 @@ void main() {
       await launchApp(tester);
       await enterEmail(tester, '  Awa@Test.tg ');
       expect(find.text('Vérifiez vos e-mails'), findsOneWidget);
-      expect(find.text(_email, findRichText: true), findsNothing);
+      expect(find.textContaining(_email, findRichText: true), findsOneWidget);
       expect(server.last.body, {'channel': 'email', 'recipient': _email});
 
       await enterCode(tester);
@@ -377,6 +379,160 @@ void main() {
     );
   });
 
+  group('connexion : cas limites', () {
+    setUp(onboardingSeen);
+
+    for (final (code, message) in [
+      ('otp_expired', 'Ce code a expiré. Demandez-en un nouveau.'),
+      ('otp_too_many_attempts', 'Trop d\'essais. Demandez un nouveau code.'),
+    ]) {
+      testWidgets('$code : message, cases vidées, focus sur le code', (
+        tester,
+      ) async {
+        server.on(
+          'POST',
+          '/v1/auth/verify',
+          (_) => FakeResponse.error(400, code, message),
+        );
+        await launchApp(tester);
+        await enterEmail(tester);
+        await enterCode(tester);
+        expect(find.text(message), findsOneWidget);
+        final field = tester.widget<TextField>(find.byType(TextField));
+        expect(field.controller!.text, '');
+        expect(field.focusNode!.hasFocus, isTrue);
+        await finishCountdown(tester);
+      });
+    }
+
+    testWidgets('code collé avec des espaces : accepté', (tester) async {
+      await launchApp(tester);
+      await enterEmail(tester);
+      await tester.enterText(find.byType(TextField), '481 902');
+      await tester.pump();
+      await tapText(tester, 'Vérifier le code');
+      expect(server.calls('POST', '/v1/auth/verify').single.body, {
+        'channel': 'email',
+        'recipient': _email,
+        'code': '481902',
+      });
+    });
+
+    testWidgets('double appui : une seule demande de code', (tester) async {
+      final reply = Completer<FakeResponse>();
+      server.on('POST', '/v1/auth/otp', (_) => reply.future);
+      await launchApp(tester);
+      await tester.enterText(find.byType(TextField), _email);
+      await tester.tap(find.text('Recevoir le code'));
+      await tester.pump();
+      await tester.tap(find.byType(FilledButton), warnIfMissed: false);
+      await tester.pump();
+      reply.complete(FakeResponse.json(202, otpBody));
+      await tester.pumpAndSettle();
+      expect(server.calls('POST', '/v1/auth/otp'), hasLength(1));
+      expect(find.text('Vérifiez vos e-mails'), findsOneWidget);
+      await finishCountdown(tester);
+    });
+
+    testWidgets('double appui : une seule vérification du code', (
+      tester,
+    ) async {
+      final reply = Completer<FakeResponse>();
+      server.on('POST', '/v1/auth/verify', (_) => reply.future);
+      await launchApp(tester);
+      await enterEmail(tester);
+      await tester.enterText(find.byType(TextField), '481902');
+      await tester.pump();
+      await tester.tap(find.text('Vérifier le code'));
+      await tester.pump();
+      await tester.tap(find.byType(FilledButton), warnIfMissed: false);
+      reply.complete(FakeResponse.json(200, sessionBody()));
+      await tester.pumpAndSettle();
+      expect(server.calls('POST', '/v1/auth/verify'), hasLength(1));
+      expect(find.text('Faisons connaissance'), findsOneWidget);
+    });
+
+    testWidgets(
+      'session refusée pendant l\'utilisation : retour à la connexion',
+      (tester) async {
+        await SessionStore().save(
+          'jeton-secret',
+          User.fromJson(userBody(complete: true)),
+        );
+        server.on(
+          'GET',
+          '/v1/me',
+          (_) => FakeResponse.json(200, userBody(complete: true)),
+        );
+        await launchApp(tester);
+        expect(find.text('Bonjour Awa'), findsOneWidget);
+
+        server.on(
+          'GET',
+          '/v1/me',
+          (_) => FakeResponse.error(401, 'unauthorized', 'Session expirée.'),
+        );
+        final container = ProviderScope.containerOf(
+          tester.element(find.byType(BuyerApp)),
+        );
+        await tester.runAsync(
+          () => container
+              .read(apiClientProvider)
+              .getMe()
+              .catchError((_) => User.fromJson(userBody())),
+        );
+        await tester.pumpAndSettle();
+        expect(find.text('Bienvenue sur ivia'), findsOneWidget);
+        expect(await SessionStore().read(), isNull);
+      },
+    );
+
+    testWidgets('serveur injoignable sans profil gardé : « Réessayer »', (
+      tester,
+    ) async {
+      FlutterSecureStorage.setMockInitialValues({
+        'session_token': 'jeton-secret',
+      });
+      server.on('GET', '/v1/me', (_) => FakeResponse.networkError());
+      await launchApp(tester);
+      expect(find.text('Pas de connexion'), findsOneWidget);
+
+      server.on(
+        'GET',
+        '/v1/me',
+        (_) => FakeResponse.json(200, userBody(complete: true)),
+      );
+      await tapText(tester, 'Réessayer');
+      expect(find.text('Bonjour Awa'), findsOneWidget);
+    });
+
+    for (final screen in ['e-mail', 'code']) {
+      testWidgets('écran $screen, police à 200 % sur 320 dp', (tester) async {
+        tester.view.physicalSize = const Size(320, 568);
+        tester.view.devicePixelRatio = 1;
+        tester.platformDispatcher.textScaleFactorTestValue = 2;
+        addTearDown(tester.view.reset);
+        addTearDown(tester.platformDispatcher.clearTextScaleFactorTestValue);
+        await launchApp(tester);
+        if (screen == 'code') {
+          await enterEmail(tester);
+          expect(find.text('Vérifiez vos e-mails'), findsOneWidget);
+        }
+        expect(tester.takeException(), isNull);
+        if (screen == 'code') await finishCountdown(tester);
+      });
+    }
+  });
+
+  testWidgets('illustrations ignorées par le lecteur d\'écran', (tester) async {
+    final semantics = tester.ensureSemantics();
+    await launchApp(tester);
+    expect(find.text('Riz parfumé 5 kg'), findsOneWidget);
+    expect(find.bySemanticsLabel(RegExp('Riz parfumé')), findsNothing);
+    expect(find.bySemanticsLabel(RegExp('tout près')), findsOneWidget);
+    semantics.dispose();
+  });
+
   group('profil', () {
     setUp(onboardingSeen);
 
@@ -447,6 +603,64 @@ void main() {
       expect(server.calls('POST', '/v1/auth/logout'), hasLength(1));
       expect(find.text('Bienvenue sur ivia'), findsOneWidget);
       expect(await SessionStore().read(), isNull);
+    });
+
+    testWidgets('téléphone refusé par le serveur : message sous le champ', (
+      tester,
+    ) async {
+      server.on(
+        'PATCH',
+        '/v1/me',
+        (_) => FakeResponse.error(
+          400,
+          'validation_failed',
+          'Données invalides.',
+          fields: {'phone': 'Ce numéro n\'est pas un mobile togolais.'},
+        ),
+      );
+      await reachProfile(tester);
+      await fillProfile(tester);
+      await tester.tap(find.byType(Checkbox));
+      await tapText(tester, 'Créer mon compte');
+      expect(
+        find.text('Ce numéro n\'est pas un mobile togolais.'),
+        findsOneWidget,
+      );
+    });
+
+    testWidgets('prénom de plus de 100 caractères : refusé', (tester) async {
+      await reachProfile(tester);
+      await fillProfile(tester);
+      await tester.enterText(find.byType(TextField).at(0), 'A' * 101);
+      await tester.tap(find.byType(Checkbox));
+      await tapText(tester, 'Créer mon compte');
+      expect(find.text('100 caractères au plus.'), findsOneWidget);
+      expect(server.calls('PATCH', '/v1/me'), isEmpty);
+    });
+
+    testWidgets('envoi en cours : un seul envoi, retour bloqué', (
+      tester,
+    ) async {
+      final reply = Completer<FakeResponse>();
+      server.on('PATCH', '/v1/me', (_) => reply.future);
+      await reachProfile(tester);
+      await fillProfile(tester);
+      await tester.tap(find.byType(Checkbox));
+      await tester.ensureVisible(
+        find.text('Créer mon compte', skipOffstage: false),
+      );
+      await tester.pumpAndSettle();
+      await tester.tap(find.text('Créer mon compte'));
+      await tester.pump();
+      await tester.tap(find.byType(FilledButton), warnIfMissed: false);
+      await tester.tap(find.byTooltip('Retour'), warnIfMissed: false);
+      await tester.binding.handlePopRoute();
+      await tester.pump();
+      reply.complete(FakeResponse.json(200, userBody(complete: true)));
+      await tester.pumpAndSettle();
+      expect(server.calls('PATCH', '/v1/me'), hasLength(1));
+      expect(server.calls('POST', '/v1/auth/logout'), isEmpty);
+      expect(find.text('Bonjour Awa'), findsOneWidget);
     });
 
     testWidgets('police à 200 % sur 320 dp : pas de débordement', (

@@ -9,8 +9,16 @@ class ApiConfig {
   /// En release, la valeur est obligatoire.
   factory ApiConfig.fromEnvironment() {
     const url = String.fromEnvironment('API_BASE_URL');
-    if (url.isNotEmpty) return ApiConfig(baseUrl: Uri.parse(url));
-    if (const bool.fromEnvironment('dart.vm.product')) {
+    const release = bool.fromEnvironment('dart.vm.product');
+    if (url.isNotEmpty) {
+      final uri = Uri.parse(url);
+      // HTTP en clair : API locale en développement uniquement.
+      if (release && uri.scheme != 'https') {
+        throw StateError('API_BASE_URL doit être en https en release : $url');
+      }
+      return ApiConfig(baseUrl: uri);
+    }
+    if (release) {
       throw StateError(
         'API_BASE_URL manquante : construire avec --dart-define=API_BASE_URL=https://…',
       );
