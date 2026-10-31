@@ -77,14 +77,48 @@ Les illustrations sont provisoires (pictogrammes) jusqu'à la livraison des illu
 
 ## Hors périmètre
 
-- L'écran de connexion lui-même (fonctionnalité 001) : ici, un écran provisoire seulement.
-- Le saut du splash vers l'accueil quand une session existe : il viendra avec la fonctionnalité 001.
+- L'écran de connexion lui-même : fonctionnalité [001](../001-connexion-otp/spec.md).
 - Les demandes de permissions (localisation du livreur, notifications) : elles viendront avec leurs
   fonctionnalités (012, 019), au moment où elles servent.
 - Les illustrations définitives, l'icône de lancement des apps et les identifiants
   `com.example.*` : démarches suivies dans `TASKS.md`.
 - Le mode paysage et le mode sombre.
 
+## Révision du 2026-10-31 : maquettes de l'app acheteur
+
+Maquettes fournies par le porteur du projet. Elles guident l'écran mais ne le figent pas.
+
+**Splash de chargement (acheteur)** : après le splash natif, un écran Flutter identique (fond Imperial,
+logotype blanc à la même place) ajoute le slogan « Tout, près de chez vous. » sous le logo et trois
+points animés en bas. Il reste affiché pendant le démarrage (lecture de l'état local et de la session,
+voir [001](../001-connexion-otp/spec.md)), **au moins 800 ms** pour que le slogan se lise, et au plus
+le temps de la vérification de session (délai réseau de 5 s).
+
+**Nouvelle mise en page de la présentation (les 3 apps)** : fond gris clair, grande illustration
+dans une carte aux coins arrondis, indicateur de page aligné à gauche au-dessus du titre, titre aligné
+à gauche avec une partie en rouge, texte, bouton principal en pilule. En-tête : logo dans une tuile
+rouge sur la page 1, bouton retour rond ensuite ; « Passer » à droite sauf sur la dernière page.
+
+| Page (acheteur) | Illustration | Titre (partie en rouge) | Texte |
+|---|---|---|---|
+| 1 | Carte Imperial : deux fiches produit inclinées (photo, nom, prix, distance) et la pastille « Autour de moi · Tokoin » | Trouvez ce qu'il vous faut, **tout près.** | Les produits des boutiques de votre quartier, avec le prix et la disponibilité. |
+| 2 | Carte Berkeley : « Total à payer 16 500 FCFA », choix Flooz / T-Money, pastille « Paiement reçu » | Payez en confiance avec **Mobile Money.** | Flooz ou T-Money, directement dans l'app. La commande est confirmée dès que le paiement est reçu. |
+| 3 | Mosaïque : « Livraison moto ou voiture » (Cobalt), « Retrait en boutique » (blanc), code de remise 4 8 2 7 (Imperial) | Retrait ou **livraison,** vous choisissez. | Suivez chaque étape de votre commande. Votre code à 4 chiffres garantit la remise. |
+
+Les illustrations sont dessinées en Flutter (pas d'images) : les photos de produits et les logos
+Flooz / T-Money restent des emplacements hachurés jusqu'à la fourniture des visuels. Les apps
+marchand et livreur prennent la nouvelle mise en page avec leur pictogramme dans une carte de leur
+couleur, en attendant leurs maquettes.
+
+Critères d'acceptation ajoutés :
+- [ ] Étant donné l'app acheteur, au lancement, alors le splash de chargement affiche le slogan et
+      les points animés pendant au moins 800 ms, puis l'écran suivant (présentation, connexion,
+      profil ou accueil selon la session).
+- [ ] Étant donné la page 2 ou 3, quand l'utilisateur appuie sur le bouton retour rond, alors la page
+      précédente s'affiche.
+- [ ] Les illustrations sont ignorées par le lecteur d'écran (décoratives) ; titres et textes restent
+      lus.
+
 ## Questions ouvertes
 
-- Contenu des 3 pages × 3 apps ci-dessus : à valider ou corriger.
+- Contenu des pages marchand et livreur : en attente de leurs maquettes.
