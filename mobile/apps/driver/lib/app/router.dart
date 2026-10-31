@@ -54,9 +54,12 @@ List<String> _dossierScreens(AsyncValue<DriverDossier?> dossier) {
   if (value == null) return const [Routes.dossierNew];
   if (value.suspended) return const [Routes.dossierBlocked];
   return switch (value.review) {
+    // En vérification, le dossier reste modifiable (pièces manquantes après
+    // un envoi interrompu) : le serveur accepte la correction.
     DriverReview.pending => const [
       Routes.dossierPending,
       Routes.dossierSummary,
+      Routes.dossierEdit,
     ],
     DriverReview.rejected => const [Routes.dossierBlocked, Routes.dossierEdit],
     DriverReview.approved => const [Routes.home],

@@ -44,7 +44,8 @@ class SellerShop extends AsyncNotifier<Shop?> {
       final shop = await _fetch();
       if (ref.mounted) state = AsyncData(shop);
       return true;
-    } on ApiException {
+    } on Exception {
+      // Réseau, ou réponse inattendue.
       return false;
     }
   }

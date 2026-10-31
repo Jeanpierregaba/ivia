@@ -36,6 +36,24 @@ class _FakePicker implements PhotoPicker {
   }
 }
 
+/// Appareil photo refusé (permission) ; la galerie fonctionne.
+class _ThrowingPicker implements PhotoPicker {
+  _ThrowingPicker(this.gallery);
+
+  final PhotoPicker gallery;
+
+  @override
+  Future<Uint8List?> pick({
+    PhotoSource source = PhotoSource.gallery,
+    int maxSide = 1024,
+  }) {
+    if (source == PhotoSource.camera) {
+      throw PlatformException(code: 'camera_access_denied');
+    }
+    return gallery.pick(source: source, maxSide: maxSide);
+  }
+}
+
 Map<String, dynamic> _user({bool complete = true}) =>
     userBody(complete: complete);
 
@@ -44,11 +62,18 @@ void main() {
   late _FakePicker picker;
   late List<Map<String, dynamic>> documentsSent;
 
+  /// Dossier côté serveur : comme le backend, une pièce envoyée s'ajoute aux
+  /// précédentes, sans les remplacer.
+  late List<String> serverDocuments;
+  late String serverVehicle;
+
   setUp(() {
     SharedPreferences.setMockInitialValues({});
     FlutterSecureStorage.setMockInitialValues({});
     picker = _FakePicker();
     documentsSent = [];
+    serverDocuments = [];
+    serverVehicle = 'motorbike';
     var upload = 0;
     server = FakeApiServer()
       ..on('POST', '/v1/auth/otp', (_) => FakeResponse.json(202, otpBody))
@@ -80,18 +105,21 @@ void main() {
           },
         });
       })
-      ..on(
-        'PUT',
-        '/v1/driver/application',
-        (_) => FakeResponse.json(200, driverBody(documents: [])),
-      )
+      ..on('PUT', '/v1/driver/application', (request) {
+        serverVehicle =
+            (request.body! as Map<String, dynamic>)['vehicle_type'] as String;
+        return FakeResponse.json(
+          200,
+          driverBody(vehicleType: serverVehicle, documents: serverDocuments),
+        );
+      })
       ..on('POST', '/v1/driver/application/documents', (request) {
-        documentsSent.add(request.body! as Map<String, dynamic>);
+        final body = request.body! as Map<String, dynamic>;
+        documentsSent.add(body);
+        serverDocuments = [...serverDocuments, body['kind'] as String];
         return FakeResponse.json(
           201,
-          driverBody(
-            documents: [for (final d in documentsSent) d['kind'] as String],
-          ),
+          driverBody(vehicleType: serverVehicle, documents: serverDocuments),
         );
       });
     for (var i = 1; i <= 6; i++) {
@@ -107,6 +135,7 @@ void main() {
     WidgetTester tester, {
     Duration minSplash = Duration.zero,
     bool settle = true,
+    PhotoPicker? photoPicker,
   }) async {
     final store = await OnboardingStore.open();
     await tester.pumpWidget(const SizedBox());
@@ -127,7 +156,7 @@ void main() {
               meTimeout: const Duration(seconds: 1),
             ),
           ),
-          photoPickerProvider.overrideWithValue(picker),
+          photoPickerProvider.overrideWithValue(photoPicker ?? picker),
         ],
         child: const DriverApp(),
       ),
@@ -308,7 +337,9 @@ void main() {
         lessThan(paths.indexOf('POST /v1/driver/application/documents')),
       );
       // Aucun jeton vers le stockage ; documents lisibles (2048 px).
-      for (final put in server.requests.where((r) => r.host == 'prive.test')) {
+      final stored = server.requests.where((r) => r.host == 'prive.test');
+      expect(stored, hasLength(3));
+      for (final put in stored) {
         expect(put.headers['authorization'], isNull);
       }
       expect(picker.requests.map((r) => r.$2).toSet(), {2048});
@@ -317,7 +348,7 @@ void main() {
         find.text('Votre dossier est en cours de vérification'),
         findsOneWidget,
       );
-      expect(find.text('Moto · 3 documents'), findsOneWidget);
+      expect(find.text('Voiture · 3 documents'), findsOneWidget);
     });
 
     testWidgets('profil complet : aucun champ de profil', (tester) async {
@@ -354,7 +385,8 @@ void main() {
           return FakeResponse.networkError();
         }
         documentsSent.add(body);
-        return FakeResponse.json(201, driverBody());
+        serverDocuments = [...serverDocuments, body['kind'] as String];
+        return FakeResponse.json(201, driverBody(documents: serverDocuments));
       });
       await launchApp(tester);
       await login(tester);
@@ -434,6 +466,86 @@ void main() {
       expect(server.calls('POST', '/v1/uploads'), isEmpty);
     });
 
+    testWidgets('photo trop lourde : refusée, ligne à « Ajouter »', (
+      tester,
+    ) async {
+      picker.next = Uint8List(5 * 1024 * 1024 + 1);
+      await launchApp(tester);
+      await login(tester);
+      await tapText(tester, "Pièce d'identité");
+      await tester.tap(find.text('Choisir une photo'));
+      await tester.pumpAndSettle();
+      expect(find.text('Photo trop lourde (5 Mo au plus).'), findsOneWidget);
+      expect(find.text('Ajouté'), findsNothing);
+    });
+
+    testWidgets('appareil photo refusé : message, la galerie reste possible', (
+      tester,
+    ) async {
+      final failing = _ThrowingPicker(picker);
+      await launchApp(tester, photoPicker: failing);
+      await login(tester);
+      await tapText(tester, "Pièce d'identité");
+      await tester.tap(find.text('Prendre une photo'));
+      await tester.pumpAndSettle();
+      expect(
+        find.textContaining('Photo impossible à utiliser'),
+        findsOneWidget,
+      );
+      await tapText(tester, "Pièce d'identité");
+      await tester.tap(find.text('Choisir une photo'));
+      await tester.pumpAndSettle();
+      expect(find.text('Ajouté'), findsOneWidget);
+    });
+
+    testWidgets('immatriculation refusée par le serveur : sous le champ', (
+      tester,
+    ) async {
+      server.on(
+        'PUT',
+        '/v1/driver/application',
+        (_) => FakeResponse.error(
+          400,
+          'validation_failed',
+          'Données invalides.',
+          fields: {'vehicle_plate': 'Immatriculation invalide.'},
+        ),
+      );
+      await launchApp(tester);
+      await login(tester);
+      await fillDossier(tester);
+      await tapText(tester, 'Envoyer mon dossier');
+      expect(find.text('Immatriculation invalide.'), findsOneWidget);
+    });
+
+    testWidgets('retour depuis le dossier : déconnexion', (tester) async {
+      await launchApp(tester);
+      await login(tester);
+      await tester.tap(find.byTooltip('Retour'));
+      await tester.pumpAndSettle();
+      expect(server.calls('POST', '/v1/auth/logout'), hasLength(1));
+      expect(find.text('Espace livreur'), findsOneWidget);
+    });
+
+    testWidgets('ligne de document : bouton activable au lecteur d\'écran', (
+      tester,
+    ) async {
+      final semantics = tester.ensureSemantics();
+      await launchApp(tester);
+      await login(tester);
+      expect(
+        tester.getSemantics(find.bySemanticsLabel("Pièce d'identité, Ajouter")),
+        isSemantics(
+          label: "Pièce d'identité, Ajouter",
+          isButton: true,
+          hasTapAction: true,
+          hasEnabledState: true,
+          isEnabled: true,
+        ),
+      );
+      semantics.dispose();
+    });
+
     testWidgets('police à 200 % sur 320 dp : formulaire sans débordement', (
       tester,
     ) async {
@@ -454,14 +566,24 @@ void main() {
     Future<void> withDossier({
       String review = 'pending_review',
       String? status,
+      List<String> documents = const [
+        'id_card',
+        'driving_license',
+        'vehicle_registration',
+      ],
     }) async {
       await signedInWith(_user());
+      serverDocuments = documents;
       server.on(
         'GET',
         '/v1/driver/me',
         (_) => FakeResponse.json(
           200,
-          driverBody(review: review, status: status ?? review),
+          driverBody(
+            review: review,
+            status: status ?? review,
+            documents: serverDocuments,
+          ),
         ),
       );
     }
@@ -523,6 +645,41 @@ void main() {
         find.text('Votre dossier est en cours de vérification'),
         findsOneWidget,
       );
+      // Le serveur garde l'ancienne carte grise : 4 pièces, 3 types.
+      expect(serverDocuments, hasLength(4));
+      expect(find.text('Moto · 3 documents'), findsOneWidget);
+    });
+
+    testWidgets('envoi interrompu : pièces manquantes complétées', (
+      tester,
+    ) async {
+      await withDossier(documents: ['id_card']);
+      await launchApp(tester);
+      expect(find.text('1 document sur 3 : dossier incomplet'), findsOneWidget);
+      await tapText(tester, 'Compléter mon dossier');
+      expect(find.text('Envoyé'), findsOneWidget);
+      for (final label in ['Permis de conduire', 'Carte grise']) {
+        await tapText(tester, label);
+        await tester.tap(find.text('Choisir une photo'));
+        await tester.pumpAndSettle();
+      }
+      await tapText(tester, 'Envoyer mon dossier');
+      expect(documentsSent.map((d) => d['kind']), [
+        'driving_license',
+        'vehicle_registration',
+      ]);
+      expect(find.text('Moto · 3 documents'), findsOneWidget);
+      expect(find.text('Compléter mon dossier'), findsNothing);
+    });
+
+    testWidgets('correction : le retour revient au motif', (tester) async {
+      await withDossier(review: 'rejected');
+      await launchApp(tester);
+      await tapText(tester, 'Corriger mon dossier');
+      await tester.tap(find.byTooltip('Retour'));
+      await tester.pumpAndSettle();
+      expect(find.text("Votre dossier n'a pas été validé"), findsOneWidget);
+      expect(server.calls('POST', '/v1/auth/logout'), isEmpty);
     });
 
     testWidgets('suspendu : motif, pas de correction', (tester) async {

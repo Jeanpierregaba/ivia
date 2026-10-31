@@ -34,7 +34,8 @@ class DriverDossierNotifier extends AsyncNotifier<DriverDossier?> {
       final dossier = await ref.read(apiClientProvider).driverMe();
       if (ref.mounted) state = AsyncData(dossier);
       return true;
-    } on ApiException {
+    } on Exception {
+      // Réseau, ou réponse inattendue.
       return false;
     }
   }

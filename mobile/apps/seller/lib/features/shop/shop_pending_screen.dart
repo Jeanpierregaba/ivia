@@ -19,6 +19,7 @@ class ShopPendingScreen extends ConsumerWidget {
       shop?.neighborhoodName,
     ].whereType<String>().where((s) => s.isNotEmpty).join(' · ');
     return ReviewPendingView(
+      progressLabel: 'Validation en cours',
       title: 'Votre boutique est en cours de validation',
       body:
           "L'équipe ivia vérifie vos informations. Vous recevrez une "

@@ -12,11 +12,15 @@ class ReviewPendingView extends StatefulWidget {
     required this.steps,
     required this.action,
     required this.onRefresh,
+    required this.progressLabel,
   });
 
   final String title;
   final String body;
   final List<IviaStep> steps;
+
+  /// Annoncé par le lecteur d'écran sur l'anneau (« Validation en cours »).
+  final String progressLabel;
 
   /// Bouton du bas (« Préparer mes produits », « Voir mon dossier »).
   final Widget action;
@@ -91,7 +95,7 @@ class _ReviewPendingViewState extends State<ReviewPendingView> {
                             strokeWidth: 4,
                             color: IviaAppBrand.of(context).action,
                             backgroundColor: IviaColors.border,
-                            semanticsLabel: 'Vérification en cours',
+                            semanticsLabel: widget.progressLabel,
                           ),
                         ),
                       ),
@@ -179,5 +183,22 @@ class ReviewBlockedView extends StatelessWidget {
         ),
       ),
     );
+  }
+}
+
+/// Relit un statut et signale un échec (« Actualiser » des écrans de refus).
+Future<void> refreshOrWarn(
+  BuildContext context,
+  Future<bool> Function() refresh,
+) async {
+  final messenger = ScaffoldMessenger.of(context);
+  if (!await refresh()) {
+    messenger
+      ..hideCurrentSnackBar()
+      ..showSnackBar(
+        const SnackBar(
+          content: Text('Pas de connexion : statut non actualisé.'),
+        ),
+      );
   }
 }

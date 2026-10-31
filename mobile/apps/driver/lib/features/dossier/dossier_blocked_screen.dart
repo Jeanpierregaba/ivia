@@ -29,7 +29,10 @@ class DossierBlockedScreen extends ConsumerWidget {
           ),
         AsyncButton.outlined(
           label: 'Actualiser',
-          onPressed: ref.read(driverDossierProvider.notifier).refresh,
+          onPressed: () => refreshOrWarn(
+            context,
+            ref.read(driverDossierProvider.notifier).refresh,
+          ),
         ),
         AsyncButton.text(
           label: 'Se déconnecter',

@@ -161,9 +161,12 @@ class _DossierFormScreenState extends ConsumerState<DossierFormScreen> {
         dossier = await client.addDriverDocument(kind, key);
         _transmitted.add(kind);
       }
-      // Dossier en attente : le routeur ouvre l'écran de vérification (aussi
-      // depuis une correction).
-      ref.read(driverDossierProvider.notifier).submitted(dossier);
+      // Correction ouverte par-dessus un autre écran : on y revient d'abord,
+      // puis le dossier mis à jour fait choisir l'écran par le routeur (dans
+      // l'autre ordre, le rafraîchissement du routeur rouvrirait l'édition).
+      final notifier = ref.read(driverDossierProvider.notifier);
+      if (widget.correction && mounted && context.canPop()) context.pop();
+      notifier.submitted(dossier);
     } on ApiException catch (e) {
       if (!mounted) return;
       setState(() {
@@ -175,6 +178,14 @@ class _DossierFormScreenState extends ConsumerState<DossierFormScreen> {
           _generalError = e.message;
         }
       });
+    } on Exception {
+      // Stockage du téléphone, réponse inattendue : message général.
+      if (mounted) {
+        setState(
+          () => _generalError =
+              'Une erreur est survenue. Réessayez dans un instant.',
+        );
+      }
     } finally {
       if (mounted) setState(() => _busy = false);
     }
@@ -254,6 +265,7 @@ class _DossierFormScreenState extends ConsumerState<DossierFormScreen> {
                     onSelectionChanged: _busy
                         ? null
                         : (v) => setState(() => _vehicle = v.single),
+                    // Choix sélectionné en Berkeley (maquette du 2026-10-31).
                     style: SegmentedButton.styleFrom(
                       selectedBackgroundColor: IviaColors.berkeleyBlue,
                       selectedForegroundColor: Colors.white,
@@ -342,7 +354,8 @@ class _DossierFormScreenState extends ConsumerState<DossierFormScreen> {
       label: 'Prénom',
       child: TextField(
         controller: _firstName,
-        enabled: !_busy,
+        // Profil déjà enregistré : figé, il ne serait pas renvoyé.
+        enabled: !_busy && !_profileSaved,
         textCapitalization: TextCapitalization.words,
         autofillHints: const [AutofillHints.givenName],
         decoration: InputDecoration(
@@ -356,7 +369,8 @@ class _DossierFormScreenState extends ConsumerState<DossierFormScreen> {
       label: 'Nom',
       child: TextField(
         controller: _lastName,
-        enabled: !_busy,
+        // Profil déjà enregistré : figé, il ne serait pas renvoyé.
+        enabled: !_busy && !_profileSaved,
         textCapitalization: TextCapitalization.words,
         autofillHints: const [AutofillHints.familyName],
         decoration: InputDecoration(
@@ -369,7 +383,7 @@ class _DossierFormScreenState extends ConsumerState<DossierFormScreen> {
     TogoPhoneField(
       label: 'Téléphone',
       controller: _phone,
-      enabled: !_busy,
+      enabled: !_busy && !_profileSaved,
       helperText:
           'Pour que ivia, les boutiques et les clients vous joignent '
           'pendant une mission.',

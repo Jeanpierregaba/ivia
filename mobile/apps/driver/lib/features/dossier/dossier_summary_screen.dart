@@ -53,7 +53,9 @@ class DossierSummaryScreen extends ConsumerWidget {
                       label: 'Documents envoyés',
                       value: dossier.documents.isEmpty
                           ? 'Aucun'
-                          : dossier.documents.map(documentLabel).join(', '),
+                          : receivedKinds(dossier)
+                                .map(documentLabel)
+                                .join(', '),
                     ),
                   ],
                 ),

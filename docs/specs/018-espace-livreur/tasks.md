@@ -12,5 +12,5 @@
       provisoire ; tests
 - [x] 8. Natif (permissions, HTTP local) ; vérification sur le simulateur contre l'API locale
 - [x] 9. Docs : DESIGN.md, TASKS.md
-- [ ] Vérifier tous les critères d'acceptation de spec.md
-- [ ] Relecture par le sous-agent reviewer
+- [x] Vérifier tous les critères d'acceptation de spec.md (métadonnées : lecture du code ; appareil photo : vérification sur un vrai téléphone)
+- [x] Relecture par le sous-agent reviewer (2026-10-31) : 1 bloquant, 2 importants et les mineurs corrigés

@@ -90,4 +90,34 @@ void main() {
     );
     expect(region.value, SystemUiOverlayStyle.light);
   });
+
+  testWidgets('pastille sombre : texte blanc sur Berkeley', (tester) async {
+    await pump(
+      tester,
+      const CheckPill(
+        label: 'Mission terminée',
+        checkColor: IviaColors.cobaltBlue,
+        dark: true,
+      ),
+    );
+    final text = tester.widget<Text>(find.text('Mission terminée'));
+    expect(text.style?.color, Colors.white);
+  });
+
+  testWidgets('liste d\'étapes : pied dans la carte', (tester) async {
+    await pump(
+      tester,
+      const IviaStepList(
+        steps: [IviaStep(title: 'Étape', state: IviaStepState.current)],
+        footer: Text('Ouvrir'),
+      ),
+    );
+    expect(
+      find.descendant(
+        of: find.byType(IviaStepList),
+        matching: find.text('Ouvrir'),
+      ),
+      findsOneWidget,
+    );
+  });
 }

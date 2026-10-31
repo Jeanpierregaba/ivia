@@ -206,6 +206,7 @@ const neighborhoodsBody = {
 Map<String, dynamic> driverBody({
   String review = 'pending_review',
   String status = 'pending_review',
+  String vehicleType = 'motorbike',
   List<String> documents = const [
     'id_card',
     'driving_license',
@@ -220,7 +221,7 @@ Map<String, dynamic> driverBody({
   'suspended_at': null,
   'suspension_reason': status == 'suspended' ? 'Plaintes répétées.' : '',
   'availability': 'offline',
-  'vehicle_type': 'motorbike',
+  'vehicle_type': vehicleType,
   'vehicle_plate': 'TG 4521 AB',
   'vehicle_description': '',
   'last_location_at': null,

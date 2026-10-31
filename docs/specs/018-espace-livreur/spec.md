@@ -72,8 +72,12 @@ les documents sont renvoyés). Livreur suspendu ⇒ motif. Dossier validé ⇒ a
 - **Échec d'envoi d'un document** (réseau) : message ; nouvel essai sans renvoyer les documents
   déjà transmis.
 - **Envoi interrompu après la candidature** (documents en partie transmis) : au lancement suivant,
-  l'écran de vérification indique le nombre de documents reçus ; « Corriger mon dossier » permet
-  d'ajouter les manquants. (Le serveur accepte un dossier incomplet ; l'admin le voit.)
+  l'écran de vérification indique « 1 document sur 3 : dossier incomplet » et « Compléter mon
+  dossier » permet d'ajouter les manquants. (Le serveur accepte un dossier incomplet ; l'admin le
+  voit.)
+- **Correction** : les pièces déjà reçues restent valables (« Envoyé ») ; seules les pièces refaites
+  sont renvoyées. Le serveur garde l'ancienne pièce à côté de la nouvelle : l'app compte les types
+  distincts, et le back-office (validation 018) devra montrer les deux versions.
 - **Photo trop lourde après compression** (> 5 Mo) : message, rien n'est retenu.
 - **Appareil photo ou photos refusés** : message, l'autre source reste possible.
 - **Double appui** sur « Envoyer mon dossier » : une seule candidature, chaque document une fois.

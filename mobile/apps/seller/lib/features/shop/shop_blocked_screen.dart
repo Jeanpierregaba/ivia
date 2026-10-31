@@ -20,7 +20,10 @@ class ShopBlockedScreen extends ConsumerWidget {
       actions: [
         AsyncButton.outlined(
           label: 'Actualiser',
-          onPressed: ref.read(sellerShopProvider.notifier).refresh,
+          onPressed: () => refreshOrWarn(
+            context,
+            ref.read(sellerShopProvider.notifier).refresh,
+          ),
         ),
         AsyncButton.text(
           label: 'Se déconnecter',

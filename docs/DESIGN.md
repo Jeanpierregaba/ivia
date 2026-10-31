@@ -118,6 +118,9 @@ portées par le thème (`IviaTheme.light(brand)`, `IviaAppBrand.of(context)`) :
 | Marchand | Berkeley | Berkeley | Cobalt |
 | Livreur | Cobalt | Cobalt | Cobalt |
 
+Exception tirée des maquettes livreur : le choix sélectionné d'un sélecteur segmenté (Moto /
+Voiture) est en Berkeley.
+
 ### Contrastes (WCAG 2.2, calculés)
 
 | Combinaison | Ratio | Usage permis |

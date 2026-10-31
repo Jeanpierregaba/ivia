@@ -116,6 +116,8 @@ class _DocumentRowState extends ConsumerState<DocumentRow> {
         Semantics(
           button: true,
           label: '${documentLabel(widget.kind)}, $status',
+          enabled: widget.enabled,
+          onTap: widget.enabled ? _pick : null,
           excludeSemantics: true,
           child: Material(
             color: IviaColors.surface,

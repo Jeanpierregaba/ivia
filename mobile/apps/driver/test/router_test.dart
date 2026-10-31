@@ -52,6 +52,8 @@ void main() {
     final pending = AsyncData<DriverDossier?>(dossier());
     expect(go(signedIn, Routes.home, state: pending), Routes.dossierPending);
     expect(go(signedIn, Routes.dossierSummary, state: pending), isNull);
+    // Dossier en vérification : il reste modifiable (pièces manquantes).
+    expect(go(signedIn, Routes.dossierEdit, state: pending), isNull);
     final rejected = AsyncData<DriverDossier?>(dossier(review: 'rejected'));
     expect(go(signedIn, Routes.home, state: rejected), Routes.dossierBlocked);
     expect(go(signedIn, Routes.dossierEdit, state: rejected), isNull);
