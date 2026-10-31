@@ -4,9 +4,9 @@
 
 - [x] 1. Backend : migration 00018, `PATCH /v1/me` (`accept_privacy_policy`), `privacy_consent_at`,
       règle de `profile_complete`, openapi.yaml ; tests Go
-- [ ] 2. `api_client` : tests puis `ApiException`, modèles, `IviaApiClient` (dio, faux adaptateur
+- [x] 2. `api_client` : tests puis `ApiException`, modèles, `IviaApiClient` (dio, faux adaptateur
       en test)
-- [ ] 3. `api_client` : tests puis `SessionStore` (stockage sécurisé)
+- [x] 3. `api_client` : tests puis `SessionStore` (stockage sécurisé)
 - [ ] 4. `ui` : thème (boutons en pilule, champs), `IviaLogoTile`, `IviaBackButton`,
       `IviaFieldLabel`, `IviaInfoCard`, `IviaPill`, `IviaLoadingSplash` ; tests
 - [ ] 5. `ui` : `IviaCodeInput` (saisie, collage, effacement, accessibilité) ; tests
