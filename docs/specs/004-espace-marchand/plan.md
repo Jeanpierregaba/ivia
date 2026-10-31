@@ -23,7 +23,7 @@ noté dans ARCHITECTURE (pas de nouvel ADR, car il ne change pas la décision).
 `IviaTheme.light(brand)` en dérive le `ColorScheme`. L'app livreur garde la valeur actuelle en
 attendant ses maquettes. Les contrastes sont vérifiés dans `contrast_test.dart` :
 - blanc sur Berkeley : 13,7 ;
-- Cobalt sur `#F3F4F6` : 7,3.
+- Cobalt sur `#F3F4F6` : environ 6,8.
 
 **3. Backend : catégories de boutique** (module `shops`, car `catalog` dépend déjà de `shops`) :
 - migration `00019` : table `shop_categories` (id, nom unique, position, active), liste de départ
