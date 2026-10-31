@@ -29,16 +29,16 @@ natif), « Livreur », « Livrez près de chez vous. », trois points, au moins 
 **3. « Espace livreur »** : pastille « Livreur », « Connectez-vous avec votre e-mail. Les missions
 s'ouvrent après la validation de votre dossier par ivia. » ; écran du code comme le marchand.
 
-**4. « Faisons connaissance »** (seulement si le profil est incomplet : le serveur exige prénom,
-téléphone et consentement pour postuler) : l'écran commun de l'acheteur.
-
-**5. « Devenez livreur ivia »** (aucun dossier) : pastille « Votre dossier », véhicule (Moto /
+**4. « Devenez livreur ivia »** (aucun dossier) : pastille « Votre dossier ». Si le profil est
+incomplet (le serveur exige prénom, téléphone et consentement pour postuler, choix du
+2026-10-31), le formulaire commence par prénom, nom, téléphone et la case de consentement
+(préremplis avec ce qui existe) ; un compte au profil complet ne les voit pas. Puis véhicule (Moto /
 Voiture), numéro d'immatriculation, documents (pièce d'identité, permis de conduire, carte grise :
 « Ajouter » puis « Ajouté », photo prise ou choisie), mention « Vos documents sont visibles
 uniquement par l'équipe ivia. », bouton « Envoyer mon dossier » actif quand tout est rempli. Le
 retour déconnecte.
 
-**6. « Votre dossier est en cours de vérification »** : étapes Compte créé ✓ · Dossier envoyé ✓
+**5. « Votre dossier est en cours de vérification »** : étapes Compte créé ✓ · Dossier envoyé ✓
 (« Moto · 3 documents ») · Vérification par ivia (en cours) · Missions activées ; bouton
 « Voir mon dossier » (récapitulatif : véhicule, immatriculation, types de documents envoyés,
 sans les documents eux-mêmes). Actualisation au retour dans l'app et en tirant vers le bas.
@@ -51,8 +51,9 @@ les documents sont renvoyés). Livreur suspendu ⇒ motif. Dossier validé ⇒ a
 
 - [ ] Étant donné l'app livreur, au lancement, alors le splash de chargement (tuile, « Livreur »,
       slogan) prend le relais du splash natif sans saut, au moins 800 ms ; l'app est en Cobalt.
-- [ ] Étant donné un compte au profil incomplet, après connexion, alors « Faisons connaissance »
-      s'ouvre, puis le dossier ; un profil complet ouvre directement le dossier.
+- [ ] Étant donné un compte au profil incomplet, après connexion, alors le formulaire du dossier
+      demande aussi prénom, nom, téléphone et consentement, envoyés au serveur avant la
+      candidature ; un profil complet ne les demande pas.
 - [ ] Étant donné le véhicule, l'immatriculation et les 3 documents, quand le livreur envoie, alors
       chaque document est envoyé dans le compartiment privé par URL signée, la candidature puis les
       documents sont transmis, et l'écran de vérification s'ouvre (« Moto · 3 documents »).
@@ -76,13 +77,14 @@ les documents sont renvoyés). Livreur suspendu ⇒ motif. Dossier validé ⇒ a
 - **Photo trop lourde après compression** (> 5 Mo) : message, rien n'est retenu.
 - **Appareil photo ou photos refusés** : message, l'autre source reste possible.
 - **Double appui** sur « Envoyer mon dossier » : une seule candidature, chaque document une fois.
-- **Profil incomplet côté serveur** (`profile_incomplete`) : retour à « Faisons connaissance ».
+- **Profil refusé par le serveur** (téléphone déjà utilisé, champ invalide) : message sous le champ,
+  rien d'autre n'est envoyé.
 - **Police à 200 %, écran de 320 dp** : rien n'est masqué, les écrans défilent.
 
 ## Hors périmètre
 
 - Disponibilité, position, propositions, missions (019 à 022) : accueil provisoire.
-- Documents PDF (les photos suffisent au MVP) et photo du livreur.
+- Documents PDF (photos seulement, choix du 2026-10-31) et photo du livreur.
 - Notifications push de validation (012).
 - Validation des dossiers dans le back-office.
 

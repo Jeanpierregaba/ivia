@@ -17,14 +17,15 @@ pas de dossier. Aucun nouvel essai automatique ; une actualisation qui échoue g
 |---|---|
 | démarrage, ou dossier en chargement | splash |
 | déconnecté | présentation ou connexion |
-| profil incomplet | « Faisons connaissance » (écran commun d'`app_core`) |
-| aucun dossier | « Devenez livreur ivia » |
+| aucun dossier (profil complet ou non) | « Devenez livreur ivia » (champs du profil si incomplet) |
 | `review_status = pending_review` | « En cours de vérification », « Voir mon dossier » |
 | `rejected` | motif, « Corriger mon dossier » (formulaire) |
 | `status = suspended` | motif |
 | validé (`offline` / `available` / `busy`) | accueil provisoire |
 
 **Envoi du dossier**, avec un double appui ignoré :
+0. Profil incomplet : `PATCH /v1/me` (prénom, nom, téléphone, `accept_privacy_policy`), puis
+   `profileUpdated`.
 1. Chaque document qui n'a pas encore de clé est préparé (`POST /v1/uploads`), puis envoyé sur
    l'URL signée sans jeton. La clé obtenue est gardée : un nouvel essai ne renvoie pas les fichiers
    déjà envoyés.
