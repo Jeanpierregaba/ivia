@@ -71,6 +71,12 @@ void main() {
     final logo = tester.getCenter(find.byType(IviaLogo));
     expect(logo, tester.getCenter(find.byType(Scaffold)));
     expect(tester.getSize(find.byType(IviaLogo)).width, closeTo(174, 0.5));
+    // Slogan 40 dp sous le logo.
+    final logoBottom = tester.getBottomLeft(find.byType(IviaLogo)).dy;
+    final taglineTop = tester
+        .getTopLeft(find.text('Tout, près de chez vous.'))
+        .dy;
+    expect(taglineTop - logoBottom, closeTo(40, 0.5));
     semantics.dispose();
   });
 

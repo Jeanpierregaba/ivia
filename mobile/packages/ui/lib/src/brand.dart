@@ -1,3 +1,5 @@
+import 'dart:async';
+
 import 'package:flutter/widgets.dart';
 
 import 'tokens.dart';
@@ -27,6 +29,31 @@ class IviaLogo extends StatelessWidget {
 
   /// Largeur / hauteur des images de `assets/brand/`.
   static const aspectRatio = 678 / 336;
+
+  /// Décode le logotype à l'avance, pour qu'il s'affiche dès la première
+  /// image (sinon, l'écran apparaît d'abord sans lui). À appeler avant
+  /// `runApp()` : le splash natif reste affiché pendant ce temps.
+  static Future<void> precache(IviaLogoColor color) {
+    final done = Completer<void>();
+    final stream = AssetImage(
+      color.asset,
+      package: 'ivia_ui',
+    ).resolve(ImageConfiguration.empty);
+    late final ImageStreamListener listener;
+    listener = ImageStreamListener(
+      (_, _) {
+        if (!done.isCompleted) done.complete();
+        stream.removeListener(listener);
+      },
+      onError: (_, _) {
+        // Sans l'image en cache, elle se chargera simplement plus tard.
+        if (!done.isCompleted) done.complete();
+        stream.removeListener(listener);
+      },
+    );
+    stream.addListener(listener);
+    return done.future;
+  }
 
   @override
   Widget build(BuildContext context) {

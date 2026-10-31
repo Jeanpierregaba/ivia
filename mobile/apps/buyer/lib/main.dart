@@ -15,6 +15,8 @@ Future<void> main() async {
   WidgetsFlutterBinding.ensureInitialized();
   await SystemChrome.setPreferredOrientations([DeviceOrientation.portraitUp]);
   final onboarding = await OnboardingStore.open();
+  // Logotype du splash de chargement prêt dès sa première image.
+  await IviaLogo.precache(IviaLogoColor.white);
   runApp(
     ProviderScope(
       overrides: [
@@ -37,6 +39,12 @@ class BuyerApp extends ConsumerWidget {
       title: 'ivia',
       theme: IviaTheme.light(),
       routerConfig: ref.watch(routerProvider),
+      // Barre d'état sombre sur les écrans clairs ; le splash de chargement
+      // (fond rouge) la repasse en clair.
+      builder: (context, child) => AnnotatedRegion<SystemUiOverlayStyle>(
+        value: SystemUiOverlayStyle.dark,
+        child: child!,
+      ),
     );
   }
 }

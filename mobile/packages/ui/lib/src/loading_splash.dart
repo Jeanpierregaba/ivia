@@ -61,22 +61,21 @@ class _IviaLoadingSplashState extends State<IviaLoadingSplash>
             Center(
               child: IviaLogo(color: IviaLogoColor.white, height: logoHeight),
             ),
-            // Slogan sous le logo, sans décaler celui-ci.
-            Positioned.fill(
-              child: Center(
-                child: Padding(
-                  padding: EdgeInsets.only(
-                    top: logoHeight + 2 * IviaSpacing.xxl,
-                  ),
-                  child: Text(
-                    widget.tagline,
-                    textAlign: TextAlign.center,
-                    // Titre en 700 : blanc sur Imperial n'est permis que pour
-                    // les titres et boutons (docs/DESIGN.md, Contrastes).
-                    style: Theme.of(context).textTheme.titleMedium
-                        ?.copyWith(color: Colors.white),
-                  ),
-                ),
+            // Slogan à 40 dp sous le logo (maquette), sans décaler celui-ci.
+            Positioned(
+              left: IviaSpacing.screen,
+              right: IviaSpacing.screen,
+              top:
+                  MediaQuery.sizeOf(context).height / 2 +
+                  logoHeight / 2 +
+                  IviaSpacing.huge,
+              child: Text(
+                widget.tagline,
+                textAlign: TextAlign.center,
+                // Titre en 700 : blanc sur Imperial n'est permis que pour
+                // les titres et boutons (docs/DESIGN.md, Contrastes).
+                style: Theme.of(context).textTheme.titleMedium
+                    ?.copyWith(color: Colors.white),
               ),
             ),
             Positioned(

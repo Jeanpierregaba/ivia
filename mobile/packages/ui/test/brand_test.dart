@@ -41,4 +41,18 @@ void main() {
     expect(find.bySemanticsLabel('ivia'), findsOneWidget);
     semantics.dispose();
   });
+
+  testWidgets('logotype préchargé : affiché dès la première image', (
+    tester,
+  ) async {
+    await tester.runAsync(() => IviaLogo.precache(IviaLogoColor.white));
+    await tester.pumpWidget(
+      const Directionality(
+        textDirection: TextDirection.ltr,
+        child: IviaLogo(color: IviaLogoColor.white),
+      ),
+    );
+    final raw = tester.widget<RawImage>(find.byType(RawImage));
+    expect(raw.image, isNotNull);
+  });
 }
