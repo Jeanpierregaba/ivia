@@ -14,6 +14,17 @@ Format :
 - Prochaine étape :
 -->
 
+### 2026-10-31 — Compléments backend : catégories, Sentry, déploiement
+- Fait : audit du backend contre ARCHITECTURE et les specs 001, 004, 027 (ajouts backend du
+  développeur frontend relus : consentement, catégories de boutique) ; catégories de boutique
+  complètes (admin, fiche publique, recherche, migration 00020) ; Sentry (erreurs 500, paniques,
+  tâches de fond, sans donnée personnelle) ; Dockerfile (49 Mo, utilisateur non privilégié),
+  `infra/` validé (Caddy, Compose, ShellCheck) ; job CI de publication de l'image.
+- Pièges rencontrés : `openapi.yaml` désormais modifié à la main par les deux développeurs → plus
+  de régénération, éditions ciblées ; `RULES.md` interdit le push direct sur `develop` → pull request
+  depuis `gedeon` ; Git Bash réécrit les chemins passés à `docker run` (`MSYS_NO_PATHCONV=1`).
+- Prochaine étape : préparation des VPS (017) ; prestataire de paiement (016).
+
 ### 2026-10-30 — Corrections de la revue du backend
 - Fait : 4 points importants et 4 mineurs de la revue corrigés, chacun couvert par un test ;
   migration 00017 (effacement des adresses de livraison) ; route admin `confirm-return`.

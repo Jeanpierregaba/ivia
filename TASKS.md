@@ -42,7 +42,7 @@ version « retrait seulement » (voir `docs/PRD.md`).
 - [ ] 014 — Back-office : supervision des commandes et paiements, file de remboursement
 - [ ] 015 — Back-office : paramètres (commission, barème, délais, catégories, quartiers)
 - [ ] 016 — **Backend** : intégrer le vrai prestataire de paiement derrière `payments.Provider` (dépend de l'ADR 0007 accepté) ; tester ses webhooks réels en staging
-- [ ] 017 — **Backend / infra** : déploiement (Dockerfile de l'API, `infra/` : Compose de production, Caddy, sauvegardes `pg_dump` vers R2 testées), VPS de production et de staging, intégration Sentry
+- [ ] 017 — **Infra** : louer et préparer les VPS de production et de staging, remplir `infra/.env`, DNS, compte Sentry, puis premier déploiement et premier test de restauration (mode d'emploi : `infra/README.md`). Image, Compose, Caddy, sauvegardes, Sentry et publication CI : faits
 
 ### Phase 3 — Livraison
 - [ ] 018 — Livreurs : inscription et envoi des documents (app livreur), validation dans le back-office
@@ -75,6 +75,10 @@ version « retrait seulement » (voir `docs/PRD.md`).
 - [ ] Boutiques et livreurs pilotes pour les tests terrain
 
 ## Terminé
+- [x] Backend (2026-10-31) : catégories de boutique complètes (gestion admin, fiche publique,
+  filtres de recherche) ; suivi des erreurs Sentry (sans donnée personnelle) ; image Docker de
+  l'API, `infra/` (Compose de production, Caddy, sauvegarde et restauration vers R2), publication
+  de l'image par la CI sur `main`
 - [x] Corrections de la revue du 2026-10-30 : `APP_ENV` obligatoire, code de remise compté avant
   comparaison, confirmation du retour par l'admin, machine à états testée exhaustivement, accès aux
   ressources d'autrui testés sur toutes les routes, paiement incohérent en échec, commandes non

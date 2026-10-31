@@ -253,7 +253,7 @@ Chaque intégration est derrière une interface Go (`PaymentProvider`, `OTPSende
 | staging | Petit VPS séparé (mis en place à l'intégration du paiement) | Base séparée | Mode test du prestataire |
 | production | VPS Hetzner (UE) | Base de production, mot de passe + accès réseau interne uniquement | Comptes réels |
 
-- **Déploiement** : la CI construit les images Docker (API, back-office) à chaque fusion sur `main`
+- **Déploiement** (`infra/`, mode d'emploi dans `infra/README.md`) : la CI construit les images Docker (API, back-office) à chaque fusion sur `main`
   et les publie sur GitHub Container Registry ; le déploiement sur le VPS se fait par
   `docker compose pull && docker compose up -d`. Les migrations goose s'exécutent au démarrage de l'API.
 - **Retour arrière** : redéployer l'image précédente (tag = SHA du commit). Les migrations doivent
