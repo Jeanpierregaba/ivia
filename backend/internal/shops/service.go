@@ -72,6 +72,8 @@ type PublicShop struct {
 	Location         geo.Point  `json:"location"`
 	LogoURL          *string    `json:"logo_url"`
 	AcceptingOrders  bool       `json:"accepting_orders"`
+	CategoryID       *uuid.UUID `json:"category_id"`
+	CategoryName     string     `json:"category_name"`
 }
 
 // Public retourne la vue acheteur.
@@ -79,7 +81,7 @@ func (s Shop) Public() PublicShop {
 	return PublicShop{
 		ID: s.ID, Name: s.Name, Description: s.Description, Phone: s.Phone, AddressText: s.AddressText,
 		NeighborhoodID: s.NeighborhoodID, NeighborhoodName: s.NeighborhoodName, Location: s.Location,
-		LogoURL: s.LogoURL, AcceptingOrders: s.AcceptingOrders,
+		LogoURL: s.LogoURL, AcceptingOrders: s.AcceptingOrders, CategoryID: s.CategoryID, CategoryName: s.CategoryName,
 	}
 }
 

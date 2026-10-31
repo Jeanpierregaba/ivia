@@ -24,6 +24,9 @@ func (h *Handler) Register(rt *httpapi.Router) {
 	rt.Roles("GET /v1/seller/shops/{id}", h.getMine, identity.RoleSeller)
 	rt.Roles("PATCH /v1/seller/shops/{id}", h.update, identity.RoleSeller)
 
+	rt.Roles("GET /v1/admin/shop-categories", h.adminListCategories, identity.RoleAdmin)
+	rt.Roles("POST /v1/admin/shop-categories", h.adminCreateCategory, identity.RoleAdmin)
+	rt.Roles("PATCH /v1/admin/shop-categories/{id}", h.adminUpdateCategory, identity.RoleAdmin)
 	rt.Roles("GET /v1/admin/shops", h.adminList, identity.RoleAdmin)
 	rt.Roles("GET /v1/admin/shops/{id}", h.adminGet, identity.RoleAdmin)
 	for _, d := range []string{"approve", "reject", "suspend", "reinstate"} {
@@ -61,6 +64,42 @@ func (h *Handler) listCategories(w http.ResponseWriter, r *http.Request) error {
 		return err
 	}
 	return httpapi.OK(w, map[string]any{"items": items})
+}
+
+func (h *Handler) adminListCategories(w http.ResponseWriter, r *http.Request) error {
+	items, err := h.svc.AdminListCategories(r.Context())
+	if err != nil {
+		return err
+	}
+	return httpapi.OK(w, map[string]any{"items": items})
+}
+
+func (h *Handler) adminCreateCategory(w http.ResponseWriter, r *http.Request) error {
+	var in CategoryInput
+	if err := httpapi.Decode(r, &in); err != nil {
+		return err
+	}
+	c, err := h.svc.CreateCategory(r.Context(), identity.MustFromContext(r.Context()).UserID, in)
+	if err != nil {
+		return err
+	}
+	return httpapi.Created(w, c)
+}
+
+func (h *Handler) adminUpdateCategory(w http.ResponseWriter, r *http.Request) error {
+	id, err := httpapi.PathUUID(r, "id")
+	if err != nil {
+		return err
+	}
+	var in CategoryInput
+	if err := httpapi.Decode(r, &in); err != nil {
+		return err
+	}
+	c, err := h.svc.UpdateCategory(r.Context(), identity.MustFromContext(r.Context()).UserID, id, in)
+	if err != nil {
+		return err
+	}
+	return httpapi.OK(w, c)
 }
 
 func (h *Handler) listMine(w http.ResponseWriter, r *http.Request) error {

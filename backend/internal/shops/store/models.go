@@ -3,3 +3,17 @@
 //   sqlc v1.31.1
 
 package store
+
+import (
+	"time"
+
+	"github.com/google/uuid"
+)
+
+type ShopCategory struct {
+	ID        uuid.UUID
+	Name      string
+	Position  int32
+	IsActive  bool
+	CreatedAt time.Time
+}

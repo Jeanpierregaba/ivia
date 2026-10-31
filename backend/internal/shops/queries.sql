@@ -74,6 +74,18 @@ WHERE owner_id = sqlc.arg(owner_id) AND status <> 'suspended';
 -- name: ListShopIDsByOwner :many
 SELECT id FROM shops WHERE owner_id = $1;
 
+-- name: ListAllShopCategories :many
+SELECT * FROM shop_categories ORDER BY position, name;
+
+-- name: GetShopCategory :one
+SELECT * FROM shop_categories WHERE id = $1;
+
+-- name: CreateShopCategory :one
+INSERT INTO shop_categories (name, position) VALUES ($1, $2) RETURNING *;
+
+-- name: UpdateShopCategory :one
+UPDATE shop_categories SET name = $2, position = $3, is_active = $4 WHERE id = $1 RETURNING *;
+
 -- name: ListActiveShopCategories :many
 SELECT id, name FROM shop_categories WHERE is_active ORDER BY position, name;
 

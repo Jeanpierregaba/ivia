@@ -21,6 +21,7 @@ FROM (
     AND (sqlc.narg(category_id)::uuid IS NULL
          OR sp.category_id = sqlc.narg(category_id)::uuid OR sp.category_parent_id = sqlc.narg(category_id)::uuid)
     AND (sqlc.narg(shop_id)::uuid IS NULL OR sp.shop_id = sqlc.narg(shop_id)::uuid)
+    AND (sqlc.narg(shop_category_id)::uuid IS NULL OR sp.shop_category_id = sqlc.narg(shop_category_id)::uuid)
     AND (sqlc.narg(min_price)::bigint IS NULL OR sp.price_xof >= sqlc.narg(min_price)::bigint)
     AND (sqlc.narg(max_price)::bigint IS NULL OR sp.price_xof <= sqlc.narg(max_price)::bigint)
     AND (sqlc.narg(neighborhood_id)::uuid IS NULL OR sp.neighborhood_id = sqlc.narg(neighborhood_id)::uuid)
@@ -39,6 +40,7 @@ LIMIT sqlc.arg(lim) OFFSET sqlc.arg(off);
 
 -- name: SearchShops :many
 SELECT t.id, t.name, t.description, t.neighborhood_id, t.logo_key, t.accepting_orders,
+       t.category_id, coalesce(t.category_name, '')::text AS category_name,
        coalesce(t.distance_m, -1)::float8 AS distance_m
 FROM (
   SELECT ss.*,
@@ -53,6 +55,7 @@ FROM (
          OR immutable_unaccent(lower(ss.name)) % immutable_unaccent(lower(sqlc.narg(q)::text))
          OR immutable_unaccent(lower(ss.name)) LIKE '%' || immutable_unaccent(lower(sqlc.narg(q)::text)) || '%')
     AND (sqlc.narg(neighborhood_id)::uuid IS NULL OR ss.neighborhood_id = sqlc.narg(neighborhood_id)::uuid)
+    AND (sqlc.narg(shop_category_id)::uuid IS NULL OR ss.category_id = sqlc.narg(shop_category_id)::uuid)
     AND (sqlc.narg(radius_m)::float8 IS NULL
          OR ST_DWithin(ss.location, ST_SetSRID(ST_MakePoint(sqlc.narg(lng)::float8, sqlc.narg(lat)::float8), 4326)::geography, sqlc.narg(radius_m)::float8))
 ) t

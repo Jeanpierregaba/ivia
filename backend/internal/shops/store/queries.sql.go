@@ -65,6 +65,28 @@ func (q *Queries) CreateShop(ctx context.Context, arg CreateShopParams) (uuid.UU
 	return id, err
 }
 
+const createShopCategory = `-- name: CreateShopCategory :one
+INSERT INTO shop_categories (name, position) VALUES ($1, $2) RETURNING id, name, position, is_active, created_at
+`
+
+type CreateShopCategoryParams struct {
+	Name     string
+	Position int32
+}
+
+func (q *Queries) CreateShopCategory(ctx context.Context, arg CreateShopCategoryParams) (ShopCategory, error) {
+	row := q.db.QueryRow(ctx, createShopCategory, arg.Name, arg.Position)
+	var i ShopCategory
+	err := row.Scan(
+		&i.ID,
+		&i.Name,
+		&i.Position,
+		&i.IsActive,
+		&i.CreatedAt,
+	)
+	return i, err
+}
+
 const getShop = `-- name: GetShop :one
 SELECT s.id, s.owner_id, s.name, s.description, s.phone, s.address_text, s.neighborhood_id, s.logo_key,
        s.status, s.status_reason, s.accepting_orders, s.reviewed_at, s.reviewed_by, s.created_at, s.updated_at,
@@ -125,6 +147,23 @@ func (q *Queries) GetShop(ctx context.Context, id uuid.UUID) (GetShopRow, error)
 	return i, err
 }
 
+const getShopCategory = `-- name: GetShopCategory :one
+SELECT id, name, position, is_active, created_at FROM shop_categories WHERE id = $1
+`
+
+func (q *Queries) GetShopCategory(ctx context.Context, id uuid.UUID) (ShopCategory, error) {
+	row := q.db.QueryRow(ctx, getShopCategory, id)
+	var i ShopCategory
+	err := row.Scan(
+		&i.ID,
+		&i.Name,
+		&i.Position,
+		&i.IsActive,
+		&i.CreatedAt,
+	)
+	return i, err
+}
+
 const listActiveShopCategories = `-- name: ListActiveShopCategories :many
 SELECT id, name FROM shop_categories WHERE is_active ORDER BY position, name
 `
@@ -144,6 +183,36 @@ func (q *Queries) ListActiveShopCategories(ctx context.Context) ([]ListActiveSho
 	for rows.Next() {
 		var i ListActiveShopCategoriesRow
 		if err := rows.Scan(&i.ID, &i.Name); err != nil {
+			return nil, err
+		}
+		items = append(items, i)
+	}
+	if err := rows.Err(); err != nil {
+		return nil, err
+	}
+	return items, nil
+}
+
+const listAllShopCategories = `-- name: ListAllShopCategories :many
+SELECT id, name, position, is_active, created_at FROM shop_categories ORDER BY position, name
+`
+
+func (q *Queries) ListAllShopCategories(ctx context.Context) ([]ShopCategory, error) {
+	rows, err := q.db.Query(ctx, listAllShopCategories)
+	if err != nil {
+		return nil, err
+	}
+	defer rows.Close()
+	items := []ShopCategory{}
+	for rows.Next() {
+		var i ShopCategory
+		if err := rows.Scan(
+			&i.ID,
+			&i.Name,
+			&i.Position,
+			&i.IsActive,
+			&i.CreatedAt,
+		); err != nil {
 			return nil, err
 		}
 		items = append(items, i)
@@ -441,4 +510,33 @@ func (q *Queries) UpdateShop(ctx context.Context, arg UpdateShopParams) error {
 		arg.ID,
 	)
 	return err
+}
+
+const updateShopCategory = `-- name: UpdateShopCategory :one
+UPDATE shop_categories SET name = $2, position = $3, is_active = $4 WHERE id = $1 RETURNING id, name, position, is_active, created_at
+`
+
+type UpdateShopCategoryParams struct {
+	ID       uuid.UUID
+	Name     string
+	Position int32
+	IsActive bool
+}
+
+func (q *Queries) UpdateShopCategory(ctx context.Context, arg UpdateShopCategoryParams) (ShopCategory, error) {
+	row := q.db.QueryRow(ctx, updateShopCategory,
+		arg.ID,
+		arg.Name,
+		arg.Position,
+		arg.IsActive,
+	)
+	var i ShopCategory
+	err := row.Scan(
+		&i.ID,
+		&i.Name,
+		&i.Position,
+		&i.IsActive,
+		&i.CreatedAt,
+	)
+	return i, err
 }
