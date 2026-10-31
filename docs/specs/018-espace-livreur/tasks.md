@@ -2,9 +2,9 @@
 
 <!-- Ordonnées. Chaque tâche est petite, testable et committable seule. Cochée dès qu'elle est faite et commitée. -->
 
-- [ ] 1. `ui` : couleurs du livreur (Cobalt), `CheckPill` sombre ; tests et contrastes
-- [ ] 2. `app_core` : `PhotoPicker` (source, taille) déplacé depuis le marchand ; marchand adapté
-- [ ] 3. `api_client` : dossier livreur, candidature, documents ; tests
+- [x] 1. `ui` : couleurs du livreur (Cobalt), `CheckPill` sombre ; tests et contrastes
+- [x] 2. `app_core` : `PhotoPicker` (source, taille) déplacé depuis le marchand ; marchand adapté (fait avec la relecture de 004, 362b4eb)
+- [x] 3. `api_client` : dossier livreur, candidature, documents ; tests
 - [ ] 4. Livreur : splash de chargement, présentation et illustrations ; connexion ; tests
 - [ ] 5. Livreur : `DriverDossier` et routeur (profil incomplet, dossier, statuts) ; tests
 - [ ] 6. Livreur : « Devenez livreur ivia » (véhicule, immatriculation, documents, envoi) ; tests

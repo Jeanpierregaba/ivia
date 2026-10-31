@@ -129,9 +129,9 @@ final class IviaAppBrand {
     accent: IviaColors.cobaltBlue,
     accentSoft: IviaColors.secondarySoft,
     logoOnLight: IviaLogoColor.cobalt,
-    action: IviaColors.imperialRed,
-    link: IviaColors.cornellRed,
-    highlight: IviaColors.imperialRed,
+    action: IviaColors.cobaltBlue,
+    link: IviaColors.cobaltBlue,
+    highlight: IviaColors.cobaltBlue,
   );
 }
 

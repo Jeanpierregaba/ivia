@@ -55,6 +55,16 @@ void main() {
     );
   });
 
+  test('livreur : action, liens et titres Cobalt', () {
+    final theme = IviaTheme.light(IviaAppBrand.driver);
+    expect(theme.colorScheme.primary, IviaColors.cobaltBlue);
+    expect(
+      theme.textButtonTheme.style?.foregroundColor?.resolve({}),
+      IviaColors.cobaltBlue,
+    );
+    expect(IviaAppBrand.driver.highlight, IviaColors.cobaltBlue);
+  });
+
   testWidgets('splash tuile : tuile centrée, titre et slogan dessous', (
     tester,
   ) async {

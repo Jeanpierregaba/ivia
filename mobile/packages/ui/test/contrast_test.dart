@@ -75,7 +75,11 @@ void main() {
   });
 
   test('couleurs d\'action des apps lisibles (AA, 4,5:1)', () {
-    for (final brand in [IviaAppBrand.buyer, IviaAppBrand.seller]) {
+    for (final brand in [
+      IviaAppBrand.buyer,
+      IviaAppBrand.seller,
+      IviaAppBrand.driver,
+    ]) {
       // Liens : texte courant sur le fond d'écran et sur blanc.
       expect(
         contrast(brand.link, IviaColors.background),

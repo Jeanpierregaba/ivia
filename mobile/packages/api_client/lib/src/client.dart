@@ -130,6 +130,40 @@ class IviaApiClient {
     ];
   }
 
+  /// Dossier livreur de l'utilisateur ; `null` : aucun dossier déposé.
+  Future<DriverDossier?> driverMe() async {
+    try {
+      return DriverDossier.fromJson(await _send('GET', '/v1/driver/me'));
+    } on ApiException catch (e) {
+      if (e.code == 'driver_not_found') return null;
+      rethrow;
+    }
+  }
+
+  /// Dépose ou corrige la candidature (véhicule, immatriculation).
+  Future<DriverDossier> applyAsDriver({
+    required VehicleType vehicleType,
+    required String vehiclePlate,
+  }) async => DriverDossier.fromJson(
+    await _send(
+      'PUT',
+      '/v1/driver/application',
+      data: {'vehicle_type': vehicleType.code, 'vehicle_plate': vehiclePlate},
+    ),
+  );
+
+  /// Ajoute au dossier un document déjà envoyé (`driver_document`).
+  Future<DriverDossier> addDriverDocument(
+    DriverDocumentKind kind,
+    String objectKey,
+  ) async => DriverDossier.fromJson(
+    await _send(
+      'POST',
+      '/v1/driver/application/documents',
+      data: {'kind': kind.code, 'object_key': objectKey},
+    ),
+  );
+
   /// Prépare l'envoi d'un fichier (URL signée).
   Future<PreparedUpload> prepareUpload({
     required String purpose,

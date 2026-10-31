@@ -228,3 +228,83 @@ class PreparedUpload {
   final String url;
   final Map<String, String> headers;
 }
+
+/// Catégorie de véhicule d'un livreur.
+enum VehicleType {
+  motorbike('motorbike'),
+  car('car');
+
+  const VehicleType(this.code);
+
+  final String code;
+
+  static VehicleType parse(String code) =>
+      values.firstWhere((v) => v.code == code, orElse: () => motorbike);
+}
+
+/// Type d'un document du dossier livreur.
+enum DriverDocumentKind {
+  idCard('id_card'),
+  drivingLicense('driving_license'),
+  vehicleRegistration('vehicle_registration'),
+  photo('photo'),
+  other('other');
+
+  const DriverDocumentKind(this.code);
+
+  final String code;
+
+  static DriverDocumentKind parse(String code) =>
+      values.firstWhere((k) => k.code == code, orElse: () => other);
+}
+
+/// Décision de l'admin sur un dossier livreur.
+enum DriverReview {
+  pending('pending_review'),
+  approved('approved'),
+  rejected('rejected');
+
+  const DriverReview(this.code);
+
+  final String code;
+
+  static DriverReview parse(String code) =>
+      values.firstWhere((r) => r.code == code, orElse: () => pending);
+}
+
+/// Dossier du livreur connecté (schéma `Driver`). Les documents ne sont
+/// connus que par leur type : leur lien est réservé aux admins.
+class DriverDossier {
+  const DriverDossier({
+    required this.review,
+    required this.reviewNote,
+    required this.suspended,
+    required this.suspensionReason,
+    required this.vehicleType,
+    required this.vehiclePlate,
+    required this.documents,
+  });
+
+  factory DriverDossier.fromJson(Map<String, dynamic> json) => DriverDossier(
+    review: DriverReview.parse(json['review_status'] as String),
+    reviewNote: json['review_note'] as String? ?? '',
+    suspended: json['status'] == 'suspended',
+    suspensionReason: json['suspension_reason'] as String? ?? '',
+    vehicleType: VehicleType.parse(json['vehicle_type'] as String),
+    vehiclePlate: json['vehicle_plate'] as String,
+    documents: [
+      for (final doc in json['documents'] as List? ?? const [])
+        DriverDocumentKind.parse((doc as Map)['kind'] as String),
+    ],
+  );
+
+  final DriverReview review;
+
+  /// Motif d'un refus, donné par l'admin.
+  final String reviewNote;
+  final bool suspended;
+  final String suspensionReason;
+  final VehicleType vehicleType;
+  final String vehiclePlate;
+  final List<DriverDocumentKind> documents;
+}

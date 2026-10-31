@@ -289,4 +289,62 @@ void main() {
       );
     });
   });
+
+  group('livreur', () {
+    test('aucun dossier : null', () async {
+      server.on(
+        'GET',
+        '/v1/driver/me',
+        (_) =>
+            FakeResponse.error(404, 'driver_not_found', 'Livreur introuvable.'),
+      );
+      expect(await client.driverMe(), isNull);
+    });
+
+    test('dossier : statut, véhicule, types de documents', () async {
+      server.on(
+        'GET',
+        '/v1/driver/me',
+        (_) => FakeResponse.json(200, driverBody(review: 'rejected')),
+      );
+      final dossier = await client.driverMe();
+      expect(dossier?.review, DriverReview.rejected);
+      expect(dossier?.reviewNote, isNotEmpty);
+      expect(dossier?.vehicleType, VehicleType.motorbike);
+      expect(dossier?.documents, hasLength(3));
+    });
+
+    test('candidature et document', () async {
+      server
+        ..on(
+          'PUT',
+          '/v1/driver/application',
+          (_) => FakeResponse.json(200, driverBody(documents: [])),
+        )
+        ..on(
+          'POST',
+          '/v1/driver/application/documents',
+          (_) => FakeResponse.json(201, driverBody(documents: ['id_card'])),
+        );
+      await client.applyAsDriver(
+        vehicleType: VehicleType.car,
+        vehiclePlate: 'TG 1 AB',
+      );
+      expect(server.last.body, {
+        'vehicle_type': 'car',
+        'vehicle_plate': 'TG 1 AB',
+      });
+      final dossier = await client.addDriverDocument(
+        DriverDocumentKind.idCard,
+        'k1',
+      );
+      expect(server.last.body, {'kind': 'id_card', 'object_key': 'k1'});
+      expect(dossier.documents, [DriverDocumentKind.idCard]);
+    });
+
+    test('autre erreur du dossier : levée', () async {
+      server.on('GET', '/v1/driver/me', (_) => FakeResponse.networkError());
+      await expectLater(client.driverMe(), throwsA(isA<ApiException>()));
+    });
+  });
 }

@@ -89,21 +89,28 @@ class MosaicTile extends StatelessWidget {
   }
 }
 
-/// Pastille blanche avec une coche (« Paiement reçu », « Produit ajouté »).
+/// Pastille avec une coche (« Paiement reçu », « Produit ajouté ») ;
+/// blanche, ou sombre ([dark] : « Mission terminée »).
 class CheckPill extends StatelessWidget {
-  const CheckPill({super.key, required this.label, required this.checkColor});
+  const CheckPill({
+    super.key,
+    required this.label,
+    required this.checkColor,
+    this.dark = false,
+  });
 
   final String label;
   final Color checkColor;
+  final bool dark;
 
   @override
   Widget build(BuildContext context) {
     return Container(
       height: 50,
       padding: const EdgeInsets.fromLTRB(10, 0, 18, 0),
-      decoration: const ShapeDecoration(
-        color: IviaColors.surface,
-        shape: StadiumBorder(),
+      decoration: ShapeDecoration(
+        color: dark ? IviaColors.berkeleyBlue : IviaColors.surface,
+        shape: const StadiumBorder(),
         shadows: illustrationShadow,
       ),
       child: Row(
@@ -119,7 +126,12 @@ class CheckPill extends StatelessWidget {
             child: const Icon(Icons.check, size: 16, color: Colors.white),
           ),
           const SizedBox(width: 10),
-          Text(label, style: IviaTextStyles.bodyStrong),
+          Text(
+            label,
+            style: IviaTextStyles.bodyStrong.copyWith(
+              color: dark ? Colors.white : IviaColors.text,
+            ),
+          ),
         ],
       ),
     );

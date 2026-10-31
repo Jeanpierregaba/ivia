@@ -201,3 +201,32 @@ const neighborhoodsBody = {
     },
   ],
 };
+
+/// Dossier livreur type (schéma `Driver`).
+Map<String, dynamic> driverBody({
+  String review = 'pending_review',
+  String status = 'pending_review',
+  List<String> documents = const [
+    'id_card',
+    'driving_license',
+    'vehicle_registration',
+  ],
+}) => {
+  'user_id': '7d5c1d38-3c1b-4b8f-9a77-1f2e3d4c5b6a',
+  'status': status,
+  'review_status': review,
+  'review_note': review == 'rejected' ? 'Carte grise illisible.' : '',
+  'reviewed_at': null,
+  'suspended_at': null,
+  'suspension_reason': status == 'suspended' ? 'Plaintes répétées.' : '',
+  'availability': 'offline',
+  'vehicle_type': 'motorbike',
+  'vehicle_plate': 'TG 4521 AB',
+  'vehicle_description': '',
+  'last_location_at': null,
+  'documents': [
+    for (final (i, kind) in documents.indexed)
+      {'id': 'doc-$i', 'kind': kind, 'created_at': '2026-10-31T10:00:00Z'},
+  ],
+  'created_at': '2026-10-31T10:00:00Z',
+};
