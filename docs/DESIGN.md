@@ -44,7 +44,10 @@ les images de splash des apps sont tirés de `logo-carre.png` : à remplacer par
 - **Dans le code** : `mobile/packages/ui/lib/src/` — `tokens.dart` (`IviaColors`,
   `IviaSpacing`, `IviaRadius`, `IviaShadows`), `typography.dart` (`IviaTextStyles`), `theme.dart`
   (`IviaTheme.light()`), `brand.dart` (`IviaLogo`, `IviaAppBrand` : couleurs de chaque app),
-  `onboarding.dart` (`IviaOnboarding`). Le test `contrast_test.dart` vérifie les
+  `onboarding.dart` (`IviaOnboarding`, `OnboardingArtboard`), `components.dart` (`IviaLogoTile`,
+  `IviaBackButton`, `IviaFieldLabel`, `IviaInfoCard`, `IviaPill`, `IviaImagePlaceholder`),
+  `code_input.dart` (`IviaCodeInput`), `loading_splash.dart` (`IviaLoadingSplash`).
+  Le test `contrast_test.dart` vérifie les
   ratios du tableau « Contrastes » : à mettre à jour avec ce fichier si une couleur change.
 - Pas de mode sombre au MVP. Les tokens sont nommés par rôle (`surface`, `text-muted`…) et non par
   couleur, pour pouvoir l'ajouter sans toucher aux écrans.
@@ -142,9 +145,14 @@ compte à rebours place chaque chiffre dans une case de largeur fixe (composant 
 ### Espacements, rayons, ombres
 
 - Grille de **4 px** ; espacements : 4, 8, 12, 16, 20, 24, 32, 40. Marges latérales : 16 px.
-- Rayons : `6` tuiles intérieures de mosaïque · `14` boutons et petites cartes · `18` champs,
-  grandes cartes, barre de navigation, coin extérieur de la mosaïque · `999` pastilles et puces.
-- Ombres : aucune sur les cartes (blanc posé sur `#F3F4F6`). Seule ombre : feuilles non modales
+- Rayons : `6` tuiles intérieures de mosaïque · `14` petites cartes et cases du code · `18` champs,
+  grandes cartes, barre de navigation, coin extérieur de la mosaïque · `999` pastilles, puces et
+  **boutons pleins et à contour** (pilules de 54 dp de haut, maquettes du 2026-10-31 ; bouton
+  désactivé : fond `border`, texte `text-muted`).
+- Champs : fond blanc, contour fin `border-input` au repos (3:1), Imperial de 2 dp quand le champ est
+  actif ; libellé au-dessus du champ (`IviaFieldLabel`), jamais de libellé flottant.
+- Ombres : aucune sur les cartes (blanc posé sur `#F3F4F6`), sauf dans les illustrations décoratives
+  de la présentation (fiches inclinées). Seule ombre d'interface : feuilles non modales
   (les feuilles modales du thème n'en ont pas, le voile les détache),
   `0 -8px 24px rgba(14,46,84,.12)`.
 - Mosaïque : tuiles séparées de 8 px, rayon 6 px sauf le coin tourné vers l'extérieur de la grille (18 px).
@@ -158,11 +166,18 @@ Maquettes : à venir (lien Figma à ajouter ici). Les statuts affichés suivent
 - **Splash** : écran natif (avant le démarrage de Flutter) aux couleurs de l'app, maintenu pendant
   l'initialisation. Sur Android 12 et plus, l'image est réduite pour tenir dans le cercle imposé
   par le système. Détail : [spec 027](specs/027-splash-onboarding/spec.md).
-- **Présentation** (premier lancement) : 3 pages, pictogramme dans un disque pâle de la couleur de
-  l'app, titre, phrase ; « Passer », indicateur, « Suivant » puis « Commencer ». Pictogrammes
-  provisoires en attendant les illustrations.
-- **Connexion** : saisie de l'e-mail → saisie du code à 6 chiffres (champ unique, collage accepté,
-  « Renvoyer le code » après 60 s). Préparé pour accepter un numéro de téléphone plus tard.
+- **Splash de chargement** (acheteur) : après le splash natif, même fond et logotype au même endroit,
+  slogan « Tout, près de chez vous. » 40 dp dessous, trois points animés ; au moins 800 ms.
+- **Présentation** (premier lancement) : fond gris, grande illustration (plan de 324 × 421 dp mis à
+  l'échelle), indicateur puis titre alignés à gauche avec une partie en rouge, texte, bouton en
+  pilule ; logo en tuile sur la page 1, bouton retour rond ensuite ; « Passer » sauf sur la dernière
+  page. Acheteur : illustrations des maquettes ; marchand et livreur : pictogramme dans une carte de
+  leur couleur, en attendant leurs maquettes.
+- **Connexion** ([spec 001](specs/001-connexion-otp/spec.md)) : « Bienvenue sur ivia » (e-mail,
+  « Continuer avec WhatsApp » désactivé « bientôt », mentions légales) → « Vérifiez vos e-mails »
+  (6 cases, collage accepté, « Renvoyer le code » après 60 s, « Vérifier le code ») → « Faisons
+  connaissance » si le profil est incomplet (prénom, nom, téléphone +228, consentement). Préparé pour
+  accepter un numéro de téléphone plus tard.
 - **Notifications** : liste chronologique, non lues en gras ; un appui ouvre la commande ou la mission.
 - **Profil** : informations, déconnexion, **suppression du compte** (confirmation explicite).
 

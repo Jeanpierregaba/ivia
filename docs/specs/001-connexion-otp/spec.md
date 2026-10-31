@@ -30,7 +30,7 @@ confidentialité » (liens).
 **2. « Vérifiez vos e-mails »** : rappel de l'adresse avec « Modifier » (retour à l'étape 1),
 6 cases pour le code (le collage d'un code entier remplit les 6 cases), compte à rebours « Renvoyer le
 code dans 0:42 » puis lien « Renvoyer le code », encart « Rien reçu ? Regardez dans les courriers
-indésirables. Le code est valable 10 minutes. », bouton « Valider » actif dès que les 6 chiffres sont
+indésirables. Le code est valable 10 minutes. », bouton « Vérifier le code » actif dès que les 6 chiffres sont
 saisis.
 
 **3. « Faisons connaissance »** (nouveau compte ou profil incomplet) : prénom, nom, téléphone

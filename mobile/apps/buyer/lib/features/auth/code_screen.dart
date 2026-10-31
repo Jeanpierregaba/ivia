@@ -42,7 +42,7 @@ class _CodeScreenState extends ConsumerState<CodeScreen> {
   }
 
   void _onCodeChanged() {
-    // Le bouton « Valider » suit le nombre de chiffres saisis.
+    // Le bouton « Vérifier le code » suit le nombre de chiffres saisis.
     if (mounted) setState(() {});
   }
 
@@ -206,7 +206,7 @@ class _CodeScreenState extends ConsumerState<CodeScreen> {
                           : _verify,
                       child: _busy
                           ? const ButtonProgress(label: 'Vérification')
-                          : const Text('Valider'),
+                          : const Text('Vérifier le code'),
                     ),
                   ],
                 ),

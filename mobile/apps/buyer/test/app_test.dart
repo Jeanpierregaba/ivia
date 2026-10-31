@@ -92,7 +92,7 @@ void main() {
   Future<void> enterCode(WidgetTester tester, [String code = '481902']) async {
     await tester.enterText(find.byType(TextField), code);
     await tester.pump();
-    await tapText(tester, 'Valider');
+    await tapText(tester, 'Vérifier le code');
   }
 
   /// L'écran du code a un compte à rebours : on le laisse finir.
@@ -337,7 +337,7 @@ void main() {
       await finishCountdown(tester);
     });
 
-    testWidgets('« Valider » inactif tant que le code est incomplet', (
+    testWidgets('« Vérifier le code » inactif tant que le code est incomplet', (
       tester,
     ) async {
       await launchApp(tester);

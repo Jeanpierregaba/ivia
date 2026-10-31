@@ -17,8 +17,9 @@
 - [x] 9. Acheteur : écran e-mail
 - [x] 10. Acheteur : écran du code (renvoi, erreurs)
 - [x] 11. Acheteur : écran « Faisons connaissance », accueil provisoire, écran hors ligne
-- [ ] 12. Acheteur : HTTP local autorisé en debug (iOS, Android) ; parcours complet sur le simulateur
-      iPhone 17 Pro contre l'API locale
-- [ ] 13. Docs : DESIGN.md, ARCHITECTURE.md, AGENTS.md, TASKS.md
+- [x] 12. Acheteur : HTTP local autorisé en debug (iOS, Android) ; parcours complet sur le simulateur
+      iPhone 17 Pro contre l'API locale (écrans vérifiés sur le simulateur ; parcours vérifié contre
+      l'API réelle avec les requêtes de l'app)
+- [x] 13. Docs : DESIGN.md, ARCHITECTURE.md, AGENTS.md, TASKS.md
 - [ ] Vérifier tous les critères d'acceptation de spec.md (et ceux ajoutés à 027)
 - [ ] Relecture par le sous-agent reviewer

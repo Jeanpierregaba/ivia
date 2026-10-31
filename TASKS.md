@@ -8,6 +8,7 @@ docs/specs/NNN-nom/tasks.md. Les petites tâches isolées (bug, retouche) peuven
 
 ## En cours
 
+- [ ] 001 — Connexion par code e-mail, app acheteur ([spec](docs/specs/001-connexion-otp/spec.md)) : reste la relecture ; apps marchand et livreur à faire sur leurs maquettes
 - [ ] 027 — Splash et présentation des 3 apps ([spec](docs/specs/027-splash-onboarding/spec.md)) : reste la vérification sur Android, la validation des textes et des couleurs par le designer
 
 Fin du squelette (étapes 8-9 du cadrage) :
@@ -23,7 +24,7 @@ que sa partie interface (apps Flutter, back-office), sauf mention « backend ».
 version « retrait seulement » (voir `docs/PRD.md`).
 
 ### Phase 1 — Comptes et catalogue
-- [ ] 001 — Écrans de connexion par OTP e-mail dans les 3 apps (stockage sécurisé du jeton)
+- [ ] 001 — Écrans de connexion par OTP e-mail dans les apps marchand et livreur (acheteur : en cours)
 - [ ] 002 — Profil, carnet d'adresses (choix du point sur la carte), suppression du compte
 - [ ] 003 — Back-office : connexion admin (cookie httpOnly côté serveur Next.js), journal des actions
 - [ ] 004 — Boutiques : création par le marchand ; validation / suspension dans le back-office

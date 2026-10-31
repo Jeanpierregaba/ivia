@@ -40,7 +40,7 @@ jeton (comme prévu par ARCHITECTURE) :
   l'`initialLocation` de 027 :
   - `starting` ⇒ `/splash` ;
   - `signedOut` ⇒ `/onboarding` (si pas vue) ou `/login…` ;
-  - `needsProfile` ⇒ `/login/profile` ;
+  - `needsProfile` ⇒ `/profile` ;
   - `signedIn` ⇒ `/home` ;
   - `offlineNoProfile` ⇒ `/offline`.
   On ne peut donc jamais atteindre un écran qui ne correspond pas à l'état.

@@ -68,7 +68,8 @@ Backend (depuis `backend/`) — `APP_ENV=local` et `DATABASE_URL` doivent être 
 Mobile (pub workspace, depuis `mobile/` sauf mention) :
 - Installer : `flutter pub get` (un seul `pubspec.lock` pour tout le workspace)
 - Démarrer en local : depuis `apps/<buyer|seller|driver>`, `flutter run`
-  (`--dart-define=API_BASE_URL=http://…:8080` hors émulateur Android)
+  (`--dart-define=API_BASE_URL=http://…:8080` hors émulateur Android ; simulateur iOS :
+  `http://localhost:<PORT>`). Code de connexion : journaux de l'API ou `POST /v1/dev/otp`
 - Lint : `dart format --output=none --set-exit-if-changed .`
 - Lint / typecheck : `flutter analyze` (tout le workspace)
 - Tests : `flutter test` dans chaque membre, ou d'un coup :

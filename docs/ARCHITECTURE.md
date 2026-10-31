@@ -57,7 +57,7 @@ erDiagram
 | Module | Tables | Points clés |
 |---|---|---|
 | auth | `otp_codes`, `sessions` | Code et jeton stockés **hachés** ; tentatives limitées ; sessions révocables |
-| users | `users`, `user_roles`, `addresses`, `device_tokens` | `email` et `phone` uniques ; rôles cumulables |
+| users | `users`, `user_roles`, `addresses`, `device_tokens` | `email` et `phone` uniques ; rôles cumulables ; `privacy_consent_at` daté par le serveur à la première acceptation de la politique de confidentialité. Profil complet = prénom, téléphone et consentement (requis pour commander ou postuler comme livreur) |
 | geo | `neighborhoods` | Quartiers de Lomé (nom, polygone optionnel) |
 | shops | `shops` | Statut `pending_review` → `published` / `suspended` ; position obligatoire |
 | catalog | `categories`, `products`, `product_images` | `parcel_size` (`small`/`medium`/`large`), `stock_mode` (`tracked`/`untracked`), colonne `tsvector` pour la recherche |
