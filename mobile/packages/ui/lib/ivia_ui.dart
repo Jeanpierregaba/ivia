@@ -4,6 +4,7 @@
 library;
 
 export 'src/brand.dart';
+export 'src/catalog_views.dart';
 export 'src/code_input.dart';
 export 'src/components.dart';
 export 'src/form_controls.dart';
