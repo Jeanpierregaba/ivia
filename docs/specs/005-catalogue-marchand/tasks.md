@@ -18,7 +18,7 @@
 - [x] 3. `api_client` : modèles et méthodes des produits, faux serveur fidèle (filtres,
   compteurs, état), tests
 - [x] 4. `app_core` : `formatXof`, `parseXof`, `shortDate`, tests
-- [ ] 5. `ui` : `IviaBottomNav`, `IviaSegmentedTabs`, `IviaSearchField`, `IviaQuantityStepper`,
+- [x] 5. `ui` : `IviaBottomNav`, `IviaSegmentedTabs`, `IviaSearchField`, `IviaQuantityStepper`,
   `IviaChoiceCard`, `IviaStatusPill`, tests (sémantique, police à 200 %)
 
 **Mobile : app marchand**

@@ -205,8 +205,23 @@ abstract final class IviaTheme {
         thickness: 1,
         space: 1,
       ),
+      // Interrupteurs : partie colorée des titres (Cobalt pour le marchand).
+      switchTheme: SwitchThemeData(
+        trackColor: WidgetStateProperty.resolveWith(
+          (states) => states.contains(WidgetState.selected)
+              ? brand.highlight
+              : IviaColors.border,
+        ),
+        thumbColor: const WidgetStatePropertyAll(Colors.white),
+        trackOutlineColor: WidgetStateProperty.resolveWith(
+          (states) => states.contains(WidgetState.selected)
+              ? Colors.transparent
+              : IviaColors.borderInput,
+        ),
+      ),
       snackBarTheme: SnackBarThemeData(
         behavior: SnackBarBehavior.floating,
+        actionTextColor: IviaColors.secondarySoft,
         backgroundColor: IviaColors.berkeleyBlue,
         contentTextStyle: IviaTextStyles.body.copyWith(color: Colors.white),
         shape: buttonShape,

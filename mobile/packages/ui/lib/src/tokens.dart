@@ -71,13 +71,23 @@ abstract final class IviaRadius {
   static const pill = 999.0;
 }
 
-/// Ombres : les cartes n'en ont pas, seules les feuilles modales en portent une.
+/// Ombres : les cartes n'en ont pas ; seules les feuilles et la barre du bas
+/// flottante en portent une.
 abstract final class IviaShadows {
   static const sheet = [
     BoxShadow(
       color: Color(0x1F0E2E54), // Berkeley Blue à 12 %
       offset: Offset(0, -8),
       blurRadius: 24,
+    ),
+  ];
+
+  /// Barre du bas flottante, au-dessus du contenu qui défile.
+  static const navigation = [
+    BoxShadow(
+      color: Color(0x1A0E2E54), // Berkeley Blue à 10 %
+      offset: Offset(0, 6),
+      blurRadius: 20,
     ),
   ];
 }
