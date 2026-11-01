@@ -619,13 +619,19 @@ void main() {
       expect(find.textContaining('Votre boutique est publiée'), findsOneWidget);
     });
 
-    testWidgets('« Préparer mes produits » : écran provisoire, retour', (
+    testWidgets('« Préparer mes produits » : catalogue sans barre, retour', (
       tester,
     ) async {
       await withShop('pending_review');
+      FakeCatalog(server);
       await launchApp(tester);
       await tapText(tester, 'Préparer mes produits');
-      expect(find.text('Mes produits'), findsOneWidget);
+      expect(find.text('Catalogue'), findsOneWidget);
+      expect(
+        find.textContaining('dès que votre boutique sera'),
+        findsOneWidget,
+      );
+      expect(find.byType(IviaBottomNav), findsNothing);
       await tester.tap(find.byTooltip('Retour'));
       await tester.pumpAndSettle();
       expect(

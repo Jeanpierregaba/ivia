@@ -51,22 +51,55 @@ void main() {
       go(signedIn, Routes.home, shopState: AsyncData(shop('pending_review'))),
       Routes.shopPending,
     );
+    // En attente de validation : le catalogue et ses sous-écrans, sans le
+    // reste des onglets.
+    final pending = AsyncData<Shop?>(shop('pending_review'));
+    for (final location in [
+      Routes.catalog,
+      Routes.productNew,
+      Routes.productDraft('p1'),
+      Routes.productEdit('p1'),
+    ]) {
+      expect(
+        go(signedIn, location, shopState: pending),
+        isNull,
+        reason: location,
+      );
+    }
+    expect(go(signedIn, Routes.orders, shopState: pending), Routes.shopPending);
     expect(
-      go(
-        signedIn,
-        Routes.products,
-        shopState: AsyncData(shop('pending_review')),
-      ),
-      isNull,
+      go(signedIn, Routes.account, shopState: pending),
+      Routes.shopPending,
     );
-    expect(
-      go(signedIn, Routes.shopNew, shopState: AsyncData(shop('published'))),
+    // Préfixe exact : « /catalogue » n'est pas un sous-écran de « /catalog ».
+    expect(go(signedIn, '/catalogue', shopState: pending), Routes.shopPending);
+
+    final published = AsyncData<Shop?>(shop('published'));
+    expect(go(signedIn, Routes.shopNew, shopState: published), Routes.home);
+    for (final location in [
       Routes.home,
-    );
+      Routes.orders,
+      Routes.catalog,
+      Routes.account,
+      Routes.productPublished,
+      Routes.productEdit('p1'),
+    ]) {
+      expect(
+        go(signedIn, location, shopState: published),
+        isNull,
+        reason: location,
+      );
+    }
+    expect(go(signedIn, Routes.shopPending, shopState: published), Routes.home);
     for (final status in ['rejected', 'suspended']) {
       expect(
         go(signedIn, Routes.home, shopState: AsyncData(shop(status))),
         Routes.shopBlocked,
+      );
+      expect(
+        go(signedIn, Routes.productNew, shopState: AsyncData(shop(status))),
+        Routes.shopBlocked,
+        reason: 'boutique $status : plus de catalogue',
       );
     }
   });

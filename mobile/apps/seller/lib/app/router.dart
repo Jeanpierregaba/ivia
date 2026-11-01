@@ -1,11 +1,17 @@
-import 'package:flutter/foundation.dart';
+import 'package:flutter/widgets.dart';
 import 'package:flutter_riverpod/flutter_riverpod.dart';
 import 'package:go_router/go_router.dart';
 import 'package:ivia_api_client/ivia_api_client.dart';
 import 'package:ivia_app_core/ivia_app_core.dart';
 
+import '../features/account/account_screen.dart';
+import '../features/catalog/catalog_screen.dart';
+import '../features/catalog/product_edit_screen.dart';
+import '../features/catalog/product_editor_screen.dart';
+import '../features/catalog/product_published_screen.dart';
 import '../features/home/home_placeholder_screen.dart';
-import '../features/home/products_placeholder_screen.dart';
+import '../features/orders/orders_placeholder_screen.dart';
+import '../features/shell/seller_shell.dart';
 import '../features/onboarding/onboarding_screen.dart';
 import '../features/shop/shop_blocked_screen.dart';
 import '../features/shop/shop_form_screen.dart';
@@ -23,11 +29,19 @@ abstract final class Routes {
   static const shopPending = '/shop/pending';
   static const shopBlocked = '/shop/blocked';
   static const home = '/home';
-  static const products = '/products';
+  static const orders = '/orders';
+  static const catalog = '/catalog';
+  static const account = '/account';
+  static const productNew = '/catalog/new';
+  static const productPublished = '/catalog/published';
+  static String productDraft(String id) => '/catalog/draft/$id';
+  static String productEdit(String id) => '/catalog/$id/edit';
 }
 
 /// Écrans permis selon la session et la boutique ; le premier est la
-/// destination par défaut. Un écran hors de la liste n'est jamais affiché.
+/// destination par défaut. Un écran hors de la liste n'est jamais affiché ;
+/// une entrée permet aussi ses sous-écrans (`/catalog` permet
+/// `/catalog/new`).
 String? redirectFor(
   AuthState auth,
   AsyncValue<Shop?> shop, {
@@ -41,7 +55,8 @@ String? redirectFor(
     AuthOffline() => const [Routes.offline],
     AuthSignedIn() || AuthNeedsProfile() => _shopScreens(shop),
   };
-  return allowed.contains(location) ? null : allowed.first;
+  final ok = allowed.any((a) => location == a || location.startsWith('$a/'));
+  return ok ? null : allowed.first;
 }
 
 List<String> _shopScreens(AsyncValue<Shop?> shop) {
@@ -51,8 +66,14 @@ List<String> _shopScreens(AsyncValue<Shop?> shop) {
   if (shop.isLoading) return const [Routes.splash];
   return switch (shop.value?.status) {
     null => const [Routes.shopNew],
-    ShopStatus.pendingReview => const [Routes.shopPending, Routes.products],
-    ShopStatus.published => const [Routes.home, Routes.products],
+    // En attente de validation : les produits se préparent déjà.
+    ShopStatus.pendingReview => const [Routes.shopPending, Routes.catalog],
+    ShopStatus.published => const [
+      Routes.home,
+      Routes.orders,
+      Routes.catalog,
+      Routes.account,
+    ],
     ShopStatus.rejected || ShopStatus.suspended => const [Routes.shopBlocked],
   };
 }
@@ -65,7 +86,10 @@ final routerProvider = Provider<GoRouter>((ref) {
   ref.listen(sellerShopProvider, (_, _) => refresh.value++);
   ref.listen(onboardingSeenProvider, (_, _) => refresh.value++);
 
+  // Formulaires produit au-dessus de la barre du bas.
+  final rootKey = GlobalKey<NavigatorState>();
   final router = GoRouter(
+    navigatorKey: rootKey,
     initialLocation: Routes.splash,
     refreshListenable: refresh,
     redirect: (context, state) => redirectFor(
@@ -109,13 +133,74 @@ final routerProvider = Provider<GoRouter>((ref) {
         path: Routes.shopBlocked,
         builder: (context, state) => const ShopBlockedScreen(),
       ),
-      GoRoute(
-        path: Routes.home,
-        builder: (context, state) => const HomePlaceholderScreen(),
-      ),
-      GoRoute(
-        path: Routes.products,
-        builder: (context, state) => const ProductsPlaceholderScreen(),
+      StatefulShellRoute.indexedStack(
+        builder: (context, state, shell) => SellerShell(shell: shell),
+        branches: [
+          StatefulShellBranch(
+            routes: [
+              GoRoute(
+                path: Routes.home,
+                builder: (context, state) => const HomePlaceholderScreen(),
+              ),
+            ],
+          ),
+          StatefulShellBranch(
+            routes: [
+              GoRoute(
+                path: Routes.orders,
+                builder: (context, state) => const OrdersPlaceholderScreen(),
+              ),
+            ],
+          ),
+          StatefulShellBranch(
+            routes: [
+              GoRoute(
+                path: Routes.catalog,
+                builder: (context, state) => const CatalogScreen(),
+                routes: [
+                  GoRoute(
+                    path: 'new',
+                    parentNavigatorKey: rootKey,
+                    builder: (context, state) => const ProductEditorScreen(),
+                  ),
+                  GoRoute(
+                    path: 'published',
+                    parentNavigatorKey: rootKey,
+                    builder: (context, state) => switch (state.extra) {
+                      final Product product => ProductPublishedScreen(
+                        product: product,
+                      ),
+                      // Écran rouvert sans produit (restauration) : catalogue.
+                      _ => const CatalogScreen(),
+                    },
+                  ),
+                  GoRoute(
+                    path: 'draft/:id',
+                    parentNavigatorKey: rootKey,
+                    builder: (context, state) => ProductEditorScreen(
+                      productId: state.pathParameters['id'],
+                    ),
+                  ),
+                  GoRoute(
+                    path: ':id/edit',
+                    parentNavigatorKey: rootKey,
+                    builder: (context, state) => ProductEditScreen(
+                      productId: state.pathParameters['id']!,
+                    ),
+                  ),
+                ],
+              ),
+            ],
+          ),
+          StatefulShellBranch(
+            routes: [
+              GoRoute(
+                path: Routes.account,
+                builder: (context, state) => const AccountScreen(),
+              ),
+            ],
+          ),
+        ],
       ),
     ],
   );

@@ -22,18 +22,18 @@
   `IviaChoiceCard`, `IviaStatusPill`, tests (sémantique, police à 200 %)
 
 **Mobile : app marchand**
-- [ ] 6. Shell à 4 onglets, Compte (déconnexion), Commandes « Bientôt disponible », routeur à
+- [x] 6. Shell à 4 onglets, Compte (déconnexion), Commandes « Bientôt disponible », routeur à
   préfixes ; « Préparer mes produits » ouvre le catalogue sans barre ; tests du routeur
-- [ ] 7. Catalogue :
+- [x] 7. Catalogue :
   - liste par onglet, compteurs, recherche différée, défilement qui charge la suite ;
   - états vides, erreur réseau avec « Réessayer » ;
   - tests.
-- [ ] 8. Formulaire, étapes 1 et 2 : photos (ajout, principale, suppression), nom, prix,
+- [x] 8. Formulaire, étapes 1 et 2 : photos (ajout, principale, suppression), nom, prix,
   catégorie, description, taille, stock ; validations ; abandon confirmé ; tests
-- [ ] 9. Enregistrement : brouillon, aperçu, publication, écran « Produit publié » (texte selon
+- [x] 9. Enregistrement : brouillon, aperçu, publication, écran « Produit publié » (texte selon
   la boutique), reprise d'un brouillon ; envoi des photos réutilisant les clés après un échec ;
   double appui ; tests
-- [ ] 10. Modifier un produit :
+- [x] 10. Modifier un produit :
   - carte d'état, feuilles description, taille et stock ;
   - retrait confirmé, puis message avec « Annuler » ;
   - « Remettre » depuis la liste ;

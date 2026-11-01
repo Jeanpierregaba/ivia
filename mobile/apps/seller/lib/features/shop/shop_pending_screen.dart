@@ -43,7 +43,7 @@ class ShopPendingScreen extends ConsumerWidget {
         ),
       ],
       action: FilledButton(
-        onPressed: () => context.push(Routes.products),
+        onPressed: () => context.go(Routes.catalog),
         child: const Text('Préparer mes produits'),
       ),
     );
