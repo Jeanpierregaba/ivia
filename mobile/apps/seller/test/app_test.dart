@@ -108,6 +108,7 @@ void main() {
     WidgetTester tester, {
     Duration minSplash = Duration.zero,
     bool settle = true,
+    bool devCode = false,
   }) async {
     final store = await OnboardingStore.open();
     await tester.pumpWidget(const SizedBox());
@@ -131,6 +132,7 @@ void main() {
           photoPickerProvider.overrideWithValue(picker),
           locationServiceProvider.overrideWithValue(location),
           mapsEnabledProvider.overrideWithValue(false),
+          devAutoCodeProvider.overrideWithValue(devCode),
         ],
         child: const SellerApp(),
       ),
@@ -560,6 +562,40 @@ void main() {
       reply.complete(FakeResponse.json(201, shopBody()));
       await tester.pumpAndSettle();
       expect(server.calls('POST', '/v1/shops'), hasLength(1));
+    });
+
+    testWidgets('développement : code de l\'API locale saisi tout seul', (
+      tester,
+    ) async {
+      onboardingSeen();
+      server.on(
+        'POST',
+        '/v1/dev/otp',
+        (_) => FakeResponse.json(200, {'code': '481902'}),
+      );
+      await launchApp(tester, devCode: true);
+      await tester.enterText(find.byType(TextField), _email);
+      await tapText(tester, 'Recevoir le code');
+      await tester.pumpAndSettle();
+      expect(server.calls('POST', '/v1/dev/otp').single.body, {
+        'recipient': _email,
+      });
+      expect(
+        (server.calls('POST', '/v1/auth/verify').single.body! as Map)['code'],
+        '481902',
+      );
+      expect(find.text('Créez votre boutique'), findsOneWidget);
+    });
+
+    testWidgets('sans le drapeau de développement : code demandé', (
+      tester,
+    ) async {
+      onboardingSeen();
+      await launchApp(tester);
+      await tester.enterText(find.byType(TextField), _email);
+      await tapText(tester, 'Recevoir le code');
+      expect(server.calls('POST', '/v1/dev/otp'), isEmpty);
+      expect(find.text('Vérifiez vos e-mails'), findsOneWidget);
     });
 
     testWidgets('retour sur le formulaire : déconnexion', (tester) async {

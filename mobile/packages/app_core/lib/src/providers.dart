@@ -1,3 +1,4 @@
+import 'package:flutter/foundation.dart';
 import 'package:flutter_riverpod/flutter_riverpod.dart';
 import 'package:ivia_api_client/ivia_api_client.dart';
 
@@ -23,3 +24,11 @@ class AuthTimings {
 }
 
 final authTimingsProvider = Provider<AuthTimings>((ref) => const AuthTimings());
+
+/// Développement seulement : le code de connexion est lu sur l'API locale
+/// (`POST /v1/dev/otp`) puis saisi et vérifié automatiquement. Activé par
+/// `--dart-define=IVIA_DEV_OTP=true`, jamais dans une version release ; la
+/// route n'existe d'ailleurs pas hors de l'API locale et de test.
+final devAutoCodeProvider = Provider<bool>(
+  (ref) => !kReleaseMode && const bool.fromEnvironment('IVIA_DEV_OTP'),
+);

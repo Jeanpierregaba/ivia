@@ -12,6 +12,7 @@ class LoginFlowState {
     required this.resendAfter,
     required this.expiresIn,
     required this.attempt,
+    this.devCode,
   });
 
   final String email;
@@ -24,6 +25,10 @@ class LoginFlowState {
 
   /// Numéro de la demande : relance le compte à rebours à chaque envoi.
   final int attempt;
+
+  /// Développement seulement ([devAutoCodeProvider]) : code lu sur l'API
+  /// locale, saisi automatiquement.
+  final String? devCode;
 }
 
 final loginFlowProvider = NotifierProvider<LoginFlow, LoginFlowState?>(
@@ -39,11 +44,15 @@ class LoginFlow extends Notifier<LoginFlowState?> {
   /// Demande un code (premier envoi ou renvoi). Lève [ApiException].
   Future<void> requestCode(String email) async {
     final otp = await _client.requestOtp(email);
+    final devCode = ref.read(devAutoCodeProvider)
+        ? await _client.devOtp(email)
+        : null;
     state = LoginFlowState(
       email: IviaApiClient.normalizeEmail(email),
       resendAfter: otp.resendAfter,
       expiresIn: otp.expiresIn,
       attempt: (state?.attempt ?? 0) + 1,
+      devCode: devCode,
     );
   }
 

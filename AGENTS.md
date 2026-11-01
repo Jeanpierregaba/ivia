@@ -70,7 +70,9 @@ Mobile (pub workspace, depuis `mobile/` sauf mention) :
 - Installer : `flutter pub get` (un seul `pubspec.lock` pour tout le workspace)
 - Démarrer en local : depuis `apps/<buyer|seller|driver>`, `flutter run`
   (`--dart-define=API_BASE_URL=http://…:8080` hors émulateur Android ; simulateur iOS :
-  `http://localhost:<PORT>`). Code de connexion : journaux de l'API ou `POST /v1/dev/otp`
+  `http://localhost:<PORT>`). Code de connexion : journaux de l'API ou `POST /v1/dev/otp` ;
+  avec `--dart-define=IVIA_DEV_OTP=true` (build debug, API locale), l'app le lit et le saisit
+  seule. Jamais en release : la route n'existe qu'en local et en test
 - Lint : `dart format --output=none --set-exit-if-changed .`
 - Lint / typecheck : `flutter analyze` (tout le workspace)
 - Tests : `flutter test` dans chaque membre, ou d'un coup :

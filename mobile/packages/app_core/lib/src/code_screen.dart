@@ -55,6 +55,14 @@ class _CodeScreenState extends ConsumerState<CodeScreen> {
   void _syncCountdown(LoginFlowState flow) {
     if (flow.attempt == _attempt) return;
     _attempt = flow.attempt;
+    // Développement : code de l'API locale saisi et vérifié tout seul.
+    if (flow.devCode case final code?) {
+      WidgetsBinding.instance.addPostFrameCallback((_) {
+        if (!mounted) return;
+        _code.text = code;
+        _verify();
+      });
+    }
     _remaining = flow.resendAfter;
     _timer?.cancel();
     _timer = Timer.periodic(const Duration(seconds: 1), (timer) {

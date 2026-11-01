@@ -271,6 +271,22 @@ class IviaApiClient {
     }
   }
 
+  /// Dernier code envoyé à [email], lu sur la route de développement
+  /// `POST /v1/dev/otp` (API locale ou de test seulement) ; `null` si la
+  /// route n'existe pas ou n'a pas de code.
+  Future<String?> devOtp(String email) async {
+    try {
+      final json = await _send(
+        'POST',
+        '/v1/dev/otp',
+        data: {'recipient': normalizeEmail(email)},
+      );
+      return json['code'] as String?;
+    } on ApiException {
+      return null;
+    }
+  }
+
   /// Révoque la session courante côté serveur.
   Future<void> logout() => _send('POST', '/v1/auth/logout');
 
