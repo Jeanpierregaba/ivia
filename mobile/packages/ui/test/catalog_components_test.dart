@@ -1,5 +1,4 @@
 import 'package:flutter/material.dart';
-import 'package:flutter/semantics.dart';
 import 'package:flutter_test/flutter_test.dart';
 import 'package:ivia_ui/ivia_ui.dart';
 
@@ -58,13 +57,33 @@ void main() {
     );
     await tester.tap(find.byIcon(Icons.person_outline));
     expect(tapped, 3);
-    final node = tester.getSemantics(find.bySemanticsLabel('Commandes'));
-    tester.binding.pipelineOwner.semanticsOwner!.performAction(
-      node.id,
-      SemanticsAction.tap,
-    );
+    // Activation par le lecteur d'écran.
+    tester.semantics.tap(find.semantics.byLabel('Commandes'));
     expect(tapped, 1);
     semantics.dispose();
+  });
+
+  testWidgets('barre du bas dans un Scaffold : hauteur de la barre seule', (
+    tester,
+  ) async {
+    await tester.pumpWidget(
+      MaterialApp(
+        theme: IviaTheme.light(IviaAppBrand.seller),
+        home: Scaffold(
+          body: const SizedBox.expand(key: Key('page')),
+          bottomNavigationBar: IviaBottomNav(
+            items: nav,
+            currentIndex: 2,
+            onSelected: (_) {},
+          ),
+        ),
+      ),
+    );
+    expect(tester.getSize(find.byType(IviaBottomNav)).height, lessThan(100));
+    expect(
+      tester.getSize(find.byKey(const Key('page'))).height,
+      greaterThan(400),
+    );
   });
 
   testWidgets('barre du bas : police à 200 % sur 320 dp sans débordement', (

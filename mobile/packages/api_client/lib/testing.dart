@@ -333,7 +333,11 @@ class FakeCatalog {
       ..onPattern('PATCH', '/v1/seller/products/([^/]+)', _update)
       ..onPattern('PUT', '/v1/seller/products/([^/]+)/stock', _stock)
       ..on('POST', '/v1/uploads', _prepareUpload)
-      ..onPattern('PUT', '/products/[^/]+', (_) => FakeResponse.json(200, ''));
+      ..onPattern(
+        'PUT',
+        '/products/[^/]+',
+        (r) => _failure(r) ?? FakeResponse.json(200, ''),
+      );
   }
 
   final FakeApiServer server;
@@ -344,8 +348,9 @@ class FakeCatalog {
   var _clock = DateTime.utc(2026, 10, 31, 10);
   var _uploads = 0;
 
-  /// Prochaine erreur à renvoyer, une seule fois, pour une requête dont le
-  /// chemin contient la clé (ex. `/products`, `/stock`).
+  /// Prochaine erreur à renvoyer, une seule fois, pour la première requête
+  /// dont « MÉTHODE chemin » contient la clé (ex. `POST /v1/seller/shops`,
+  /// `PUT /v1/seller/products`).
   final failures = <String, FakeResponse>{};
 
   DateTime _tick() => _clock = _clock.add(const Duration(minutes: 1));
@@ -386,7 +391,7 @@ class FakeCatalog {
 
   FakeResponse? _failure(RecordedRequest r) {
     for (final key in failures.keys) {
-      if (r.path.contains(key)) return failures.remove(key);
+      if ('${r.method} ${r.path}'.contains(key)) return failures.remove(key);
     }
     return null;
   }

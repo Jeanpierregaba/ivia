@@ -96,10 +96,15 @@ class IviaBottomNav extends StatelessWidget {
                                 ),
                               ),
                             )
-                          : Center(
-                              child: Icon(
-                                item.icon,
-                                color: IviaColors.textMuted,
+                          // Hauteur fixe : un Center seul s'étirerait sur
+                          // tout l'écran dans `Scaffold.bottomNavigationBar`.
+                          : SizedBox(
+                              height: _height - 16,
+                              child: Center(
+                                child: Icon(
+                                  item.icon,
+                                  color: IviaColors.textMuted,
+                                ),
                               ),
                             ),
                     ),
