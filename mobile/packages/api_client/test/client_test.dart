@@ -471,4 +471,146 @@ void main() {
       expect(categories[1].parentId, categories[0].id);
     });
   });
+
+  group('recherche', () {
+    late FakeSearch search;
+    const lome = GeoPoint(lat: 6.1375, lng: 1.2123);
+
+    setUp(() {
+      search = FakeSearch(server);
+      final afi = search.shop('Chez Afi');
+      final wax = search.shop(
+        'Wax & Co',
+        neighborhoodId: beId,
+        location: const GeoPoint(lat: 6.1280, lng: 1.2200),
+      );
+      search
+        ..product(afi, 'Riz parfumé 5 kg')
+        ..product(afi, 'Café moulu', price: 1200, stock: 0)
+        ..product(
+          wax,
+          'Riz brisé 25 kg',
+          price: 14000,
+          categoryId: 'c1000000-0000-4000-8000-000000000002',
+        );
+    });
+
+    test('position : lat, lng, rayon et distance renvoyée', () async {
+      final page = await client.searchProducts(
+        const SearchQuery(
+          text: ' riz ',
+          point: lome,
+          radiusM: 2000,
+          sort: SearchSort.distance,
+        ),
+        limit: 10,
+      );
+      expect(server.last.query, {
+        'q': 'riz',
+        'lat': '6.1375',
+        'lng': '1.2123',
+        'radius_m': '2000',
+        'sort': 'distance',
+        'offset': '0',
+        'limit': '10',
+      });
+      expect(page.items.map((p) => p.name), [
+        'Riz parfumé 5 kg',
+        'Riz brisé 25 kg',
+      ]);
+      expect(page.items.first.distanceM, 0);
+      expect(page.items.last.distanceM, greaterThan(1000));
+      expect(page.items.first.shopName, 'Chez Afi');
+    });
+
+    test(
+      'quartier et filtres produits ; boutiques sans filtres produits',
+      () async {
+        const query = SearchQuery(
+          neighborhoodId: tokoinId,
+          categoryId: 'c1000000-0000-4000-8000-000000000001',
+          minPrice: 1000,
+          maxPrice: 5000,
+          inStockOnly: true,
+          sort: SearchSort.priceAsc,
+        );
+        final products = await client.searchProducts(query);
+        expect(server.last.query, {
+          'neighborhood_id': tokoinId,
+          'category_id': 'c1000000-0000-4000-8000-000000000001',
+          'min_price': '1000',
+          'max_price': '5000',
+          'in_stock': 'true',
+          'sort': 'price_asc',
+          'offset': '0',
+          'limit': '20',
+        });
+        // Catégorie parente : ses sous-catégories comprises ; épuisé exclu.
+        expect(products.items.map((p) => p.name), ['Riz parfumé 5 kg']);
+        expect(products.items.single.distanceM, isNull);
+
+        final shops = await client.searchShops(
+          query.copyWith(sort: SearchSort.relevance),
+        );
+        expect(server.last.path, '/v1/search/shops');
+        expect(server.last.query, {
+          'neighborhood_id': tokoinId,
+          'sort': 'relevance',
+          'offset': '0',
+          'limit': '20',
+        });
+        expect(shops.items.single.name, 'Chez Afi');
+      },
+    );
+
+    test('égalité de valeur des paramètres (clé des listes)', () {
+      const a = SearchQuery(text: 'riz', point: lome, radiusM: 2000);
+      expect(a, const SearchQuery(text: 'riz', point: lome, radiusM: 2000));
+      expect(
+        a.hashCode,
+        const SearchQuery(text: 'riz', point: lome, radiusM: 2000).hashCode,
+      );
+      expect(a.copyWith(radiusM: () => null).radiusM, isNull);
+      expect(a.copyWith(text: 'mil'), isNot(a));
+    });
+
+    test('fiches publiques produit et boutique', () async {
+      final id = search.products.first['id'] as String;
+      final (product, shop) = await client.publicProduct(id);
+      expect(product.name, 'Riz parfumé 5 kg');
+      expect(shop.name, 'Chez Afi');
+      expect(shop.neighborhoodName, 'Tokoin');
+      expect(shop.location, lome);
+      final same = await client.publicShop(shop.id);
+      expect(same.acceptingOrders, isTrue);
+      await expectLater(
+        client.publicProduct('inconnu'),
+        throwsA(
+          isA<ApiException>().having(
+            (e) => e.code,
+            'code',
+            'product_not_found',
+          ),
+        ),
+      );
+    });
+
+    test('trop de recherches : message du serveur', () async {
+      search.failures['GET /v1/search/products'] = FakeResponse.error(
+        429,
+        'rate_limited',
+        'Trop de recherches. Patientez un instant.',
+      );
+      await expectLater(
+        client.searchProducts(const SearchQuery()),
+        throwsA(
+          isA<ApiException>().having(
+            (e) => e.message,
+            'message',
+            'Trop de recherches. Patientez un instant.',
+          ),
+        ),
+      );
+    });
+  });
 }

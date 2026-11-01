@@ -5,7 +5,7 @@
 **Fondations**
 - [x] 1. `app_core` : position partagée (`location.dart`, précision réglable), `formatDistance` ;
   app marchand branchée dessus, ses tests au vert
-- [ ] 2. `api_client` : modèles et méthodes de recherche et des fiches publiques, `FakeSearch`
+- [x] 2. `api_client` : modèles et méthodes de recherche et des fiches publiques, `FakeSearch`
   fidèle, tests
 - [ ] 3. `ui` : puce de filtre, carte produit, carrousel de photos (repris du catalogue marchand),
   tests (sémantique, police à 200 %)

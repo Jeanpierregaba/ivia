@@ -543,3 +543,228 @@ DateTime? _date(Object? value) => switch (value) {
   final String at => DateTime.parse(at),
   _ => null,
 };
+
+/// Tri des résultats de recherche.
+enum SearchSort {
+  relevance('relevance'),
+  distance('distance'),
+  priceAsc('price_asc'),
+  priceDesc('price_desc');
+
+  const SearchSort(this.code);
+
+  final String code;
+}
+
+/// Paramètres d'une recherche de produits ou de boutiques. Égalité de
+/// valeur : sert de clé aux listes de résultats.
+class SearchQuery {
+  const SearchQuery({
+    this.text = '',
+    this.point,
+    this.radiusM,
+    this.neighborhoodId,
+    this.categoryId,
+    this.shopId,
+    this.minPrice,
+    this.maxPrice,
+    this.inStockOnly = false,
+    this.sort = SearchSort.relevance,
+  });
+
+  final String text;
+
+  /// Position de l'acheteur : distances calculées, tri par distance permis.
+  final GeoPoint? point;
+
+  /// Rayon autour de [point], en mètres.
+  final int? radiusM;
+  final String? neighborhoodId;
+  final String? categoryId;
+  final String? shopId;
+  final int? minPrice;
+  final int? maxPrice;
+  final bool inStockOnly;
+  final SearchSort sort;
+
+  /// Paramètres d'URL ; [products] : filtres propres aux produits inclus.
+  Map<String, String> toParams({required bool products}) {
+    final q = text.trim();
+    final p = point;
+    return {
+      if (q.isNotEmpty) 'q': q,
+      if (p != null) 'lat': '${p.lat}',
+      if (p != null) 'lng': '${p.lng}',
+      if (p != null && radiusM != null) 'radius_m': '$radiusM',
+      'neighborhood_id': ?neighborhoodId,
+      if (products) ...{
+        'category_id': ?categoryId,
+        'shop_id': ?shopId,
+        if (minPrice != null) 'min_price': '$minPrice',
+        if (maxPrice != null) 'max_price': '$maxPrice',
+        if (inStockOnly) 'in_stock': 'true',
+      },
+      'sort': sort.code,
+    };
+  }
+
+  SearchQuery copyWith({
+    String? text,
+    GeoPoint? Function()? point,
+    int? Function()? radiusM,
+    String? Function()? neighborhoodId,
+    String? Function()? categoryId,
+    String? Function()? shopId,
+    int? Function()? minPrice,
+    int? Function()? maxPrice,
+    bool? inStockOnly,
+    SearchSort? sort,
+  }) => SearchQuery(
+    text: text ?? this.text,
+    point: point == null ? this.point : point(),
+    radiusM: radiusM == null ? this.radiusM : radiusM(),
+    neighborhoodId: neighborhoodId == null
+        ? this.neighborhoodId
+        : neighborhoodId(),
+    categoryId: categoryId == null ? this.categoryId : categoryId(),
+    shopId: shopId == null ? this.shopId : shopId(),
+    minPrice: minPrice == null ? this.minPrice : minPrice(),
+    maxPrice: maxPrice == null ? this.maxPrice : maxPrice(),
+    inStockOnly: inStockOnly ?? this.inStockOnly,
+    sort: sort ?? this.sort,
+  );
+
+  @override
+  bool operator ==(Object other) =>
+      other is SearchQuery &&
+      other.text == text &&
+      other.point == point &&
+      other.radiusM == radiusM &&
+      other.neighborhoodId == neighborhoodId &&
+      other.categoryId == categoryId &&
+      other.shopId == shopId &&
+      other.minPrice == minPrice &&
+      other.maxPrice == maxPrice &&
+      other.inStockOnly == inStockOnly &&
+      other.sort == sort;
+
+  @override
+  int get hashCode => Object.hash(
+    text,
+    point,
+    radiusM,
+    neighborhoodId,
+    categoryId,
+    shopId,
+    minPrice,
+    maxPrice,
+    inStockOnly,
+    sort,
+  );
+}
+
+/// Produit trouvé (schéma `ProductHit`).
+class ProductHit {
+  const ProductHit({
+    required this.id,
+    required this.shopId,
+    required this.name,
+    required this.priceXof,
+    required this.parcelSize,
+    required this.shopName,
+    required this.neighborhoodId,
+    required this.imageUrl,
+    required this.inStock,
+    required this.distanceM,
+  });
+
+  factory ProductHit.fromJson(Map<String, dynamic> json) => ProductHit(
+    id: json['id'] as String,
+    shopId: json['shop_id'] as String,
+    name: json['name'] as String,
+    priceXof: json['price_xof'] as int,
+    parcelSize: ParcelSize.parse(json['parcel_size'] as String),
+    shopName: json['shop_name'] as String,
+    neighborhoodId: json['neighborhood_id'] as String?,
+    imageUrl: json['image_url'] as String?,
+    inStock: json['in_stock'] as bool,
+    distanceM: json['distance_m'] as int?,
+  );
+
+  final String id;
+  final String shopId;
+  final String name;
+  final int priceXof;
+  final ParcelSize parcelSize;
+  final String shopName;
+  final String? neighborhoodId;
+  final String? imageUrl;
+  final bool inStock;
+
+  /// Distance à la position envoyée ; `null` sans position.
+  final int? distanceM;
+}
+
+/// Boutique trouvée (schéma `ShopHit`).
+class ShopHit {
+  const ShopHit({
+    required this.id,
+    required this.name,
+    required this.neighborhoodId,
+    required this.logoUrl,
+    required this.acceptingOrders,
+    required this.distanceM,
+  });
+
+  factory ShopHit.fromJson(Map<String, dynamic> json) => ShopHit(
+    id: json['id'] as String,
+    name: json['name'] as String,
+    neighborhoodId: json['neighborhood_id'] as String?,
+    logoUrl: json['logo_url'] as String?,
+    acceptingOrders: json['accepting_orders'] as bool,
+    distanceM: json['distance_m'] as int?,
+  );
+
+  final String id;
+  final String name;
+  final String? neighborhoodId;
+  final String? logoUrl;
+  final bool acceptingOrders;
+  final int? distanceM;
+}
+
+/// Boutique vue par l'acheteur (schéma `PublicShop`).
+class PublicShop {
+  const PublicShop({
+    required this.id,
+    required this.name,
+    required this.description,
+    required this.addressText,
+    required this.neighborhoodName,
+    required this.location,
+    required this.logoUrl,
+    required this.acceptingOrders,
+  });
+
+  factory PublicShop.fromJson(Map<String, dynamic> json) => PublicShop(
+    id: json['id'] as String,
+    name: json['name'] as String,
+    description: json['description'] as String? ?? '',
+    addressText: json['address_text'] as String? ?? '',
+    neighborhoodName: json['neighborhood_name'] as String? ?? '',
+    location: GeoPoint.fromJson(json['location'] as Map<String, dynamic>),
+    logoUrl: json['logo_url'] as String?,
+    acceptingOrders: json['accepting_orders'] as bool,
+  );
+
+  final String id;
+  final String name;
+  final String description;
+  final String addressText;
+  final String neighborhoodName;
+  final GeoPoint location;
+  final String? logoUrl;
+
+  /// La boutique accepte des commandes (sinon : « Commandes suspendues »).
+  final bool acceptingOrders;
+}

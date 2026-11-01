@@ -201,6 +201,67 @@ class IviaApiClient {
     ),
   );
 
+  /// Recherche de produits publiés (route publique).
+  Future<Page<ProductHit>> searchProducts(
+    SearchQuery query, {
+    int offset = 0,
+    int limit = 20,
+  }) async {
+    final json = await _send(
+      'GET',
+      '/v1/search/products',
+      query: {
+        ...query.toParams(products: true),
+        'offset': '$offset',
+        'limit': '$limit',
+      },
+    );
+    return Page(
+      items: [
+        for (final item in json['items'] as List)
+          ProductHit.fromJson(item as Map<String, dynamic>),
+      ],
+      nextOffset: json['next_offset'] as int?,
+    );
+  }
+
+  /// Recherche de boutiques publiées (route publique).
+  Future<Page<ShopHit>> searchShops(
+    SearchQuery query, {
+    int offset = 0,
+    int limit = 20,
+  }) async {
+    final json = await _send(
+      'GET',
+      '/v1/search/shops',
+      query: {
+        ...query.toParams(products: false),
+        'offset': '$offset',
+        'limit': '$limit',
+      },
+    );
+    return Page(
+      items: [
+        for (final item in json['items'] as List)
+          ShopHit.fromJson(item as Map<String, dynamic>),
+      ],
+      nextOffset: json['next_offset'] as int?,
+    );
+  }
+
+  /// Fiche publique d'un produit en vente, avec sa boutique.
+  Future<(Product, PublicShop)> publicProduct(String id) async {
+    final json = await _send('GET', '/v1/products/$id');
+    return (
+      Product.fromJson(json['product'] as Map<String, dynamic>),
+      PublicShop.fromJson(json['shop'] as Map<String, dynamic>),
+    );
+  }
+
+  /// Fiche publique d'une boutique publiée.
+  Future<PublicShop> publicShop(String id) async =>
+      PublicShop.fromJson(await _send('GET', '/v1/shops/$id'));
+
   /// Dossier livreur de l'utilisateur ; `null` : aucun dossier déposé.
   Future<DriverDossier?> driverMe() async {
     try {

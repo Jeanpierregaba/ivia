@@ -4,9 +4,12 @@ library;
 
 import 'dart:async';
 import 'dart:convert';
+import 'dart:math' as math;
 import 'dart:typed_data';
 
 import 'package:dio/dio.dart';
+
+import 'src/models.dart';
 
 /// Requête reçue par le [FakeApiServer].
 class RecordedRequest {
@@ -593,5 +596,326 @@ class FakeCatalog {
         'expires_at': '2026-10-31T10:05:00Z',
       },
     });
+  }
+}
+
+/// Quartiers de [neighborhoodsBody].
+const tokoinId = '5f1e2d3c-4b5a-6978-8a9b-0c1d2e3f4a5b';
+const beId = '6a2f3e4d-5c6b-7a89-9b0c-1d2e3f4a5b6c';
+
+/// Recherche publique en mémoire branchée sur un [FakeApiServer], fidèle au
+/// backend : texte (sans accents ni majuscules), catégorie (parente
+/// comprise), boutique, prix, quartier, rayon et distance, « en stock »,
+/// tris, pagination ; fiches publiques produit et boutique.
+class FakeSearch {
+  FakeSearch(this.server) {
+    server
+      ..on(
+        'GET',
+        '/v1/categories',
+        (_) => FakeResponse.json(200, productCategoriesBody),
+      )
+      ..on(
+        'GET',
+        '/v1/neighborhoods',
+        (_) => FakeResponse.json(200, neighborhoodsBody),
+      )
+      ..on('GET', '/v1/search/products', _searchProducts)
+      ..on('GET', '/v1/search/shops', _searchShops)
+      ..onPattern('GET', '/v1/products/([^/]+)', _product)
+      ..onPattern('GET', '/v1/shops/([^/]+)', _shop);
+  }
+
+  final FakeApiServer server;
+  final shops = <Map<String, dynamic>>[];
+  final products = <Map<String, dynamic>>[];
+
+  /// Prochaine erreur, une seule fois, pour la première requête dont
+  /// « MÉTHODE chemin » contient la clé.
+  final failures = <String, FakeResponse>{};
+
+  /// Attendu avant de répondre à une recherche (réseau lent simulé).
+  Future<void> Function(RecordedRequest request)? beforeSearch;
+
+  var _seq = 0;
+
+  FakeResponse? _failure(RecordedRequest r) {
+    for (final key in failures.keys) {
+      if ('${r.method} ${r.path}'.contains(key)) return failures.remove(key);
+    }
+    return null;
+  }
+
+  /// Ajoute une boutique publiée.
+  Map<String, dynamic> shop(
+    String name, {
+    String neighborhoodId = tokoinId,
+    GeoPoint location = const GeoPoint(lat: 6.1375, lng: 1.2123),
+    bool acceptingOrders = true,
+    String? logoUrl,
+  }) {
+    final s = {
+      'id':
+          's${(_seq++).toString().padLeft(7, '0')}-0000-4000-8000-000000000000',
+      'name': name,
+      'description': '',
+      'phone': '+22890123456',
+      'address_text': 'Rue 248',
+      'neighborhood_id': neighborhoodId,
+      'neighborhood_name': neighborhoodId == beId ? 'Bè' : 'Tokoin',
+      'location': location.toJson(),
+      'logo_url': logoUrl,
+      'accepting_orders': acceptingOrders,
+    };
+    shops.add(s);
+    return s;
+  }
+
+  /// Ajoute un produit en vente à [shop].
+  Map<String, dynamic> product(
+    Map<String, dynamic> shop,
+    String name, {
+    int price = 4500,
+    String categoryId = 'c1000000-0000-4000-8000-000000000001',
+    String parcelSize = 'medium',
+    String stockMode = 'tracked',
+    int? stock = 12,
+    int images = 1,
+    String description = '',
+  }) {
+    final n = _seq++;
+    final id = 'p${n.toString().padLeft(7, '0')}-0000-4000-8000-000000000000';
+    final p = {
+      ...productBody(
+        id: id,
+        name: name,
+        price: price,
+        stockMode: stockMode,
+        stock: stock,
+        images: images,
+        createdAt: DateTime.utc(
+          2026,
+          10,
+          1,
+        ).add(Duration(minutes: n)).toIso8601String(),
+      ),
+      'shop_id': shop['id'],
+      'category_id': categoryId,
+      'parcel_size': parcelSize,
+      'description': description,
+    };
+    products.add(p);
+    return p;
+  }
+
+  static String _fold(String s) {
+    const from = 'àâäáãçéèêëíìîïñóòôöõúùûüÿ';
+    const to = 'aaaaaceeeeiiiinooooouuuuy';
+    final out = StringBuffer();
+    for (final ch in s.toLowerCase().split('')) {
+      final i = from.indexOf(ch);
+      out.write(i < 0 ? ch : to[i]);
+    }
+    return out.toString();
+  }
+
+  /// Distance en mètres (haversine), comme `ST_Distance` à quelques mètres
+  /// près sur Lomé.
+  static double distance(GeoPoint a, GeoPoint b) {
+    const r = 6371000.0;
+    double rad(double d) => d * math.pi / 180;
+    final dLat = rad(b.lat - a.lat);
+    final dLng = rad(b.lng - a.lng);
+    final h =
+        math.pow(math.sin(dLat / 2), 2) +
+        math.cos(rad(a.lat)) *
+            math.cos(rad(b.lat)) *
+            math.pow(math.sin(dLng / 2), 2);
+    return 2 * r * math.asin(math.sqrt(h));
+  }
+
+  Map<String, dynamic> _shopOf(Map<String, dynamic> p) =>
+      shops.firstWhere((s) => s['id'] == p['shop_id']);
+
+  GeoPoint _loc(Map<String, dynamic> s) =>
+      GeoPoint.fromJson(s['location'] as Map<String, dynamic>);
+
+  static String? _parentOf(String categoryId) {
+    for (final c in productCategoriesBody['items']!) {
+      if (c['id'] == categoryId) return c['parent_id'] as String?;
+    }
+    return null;
+  }
+
+  static bool _inStock(Map<String, dynamic> p) =>
+      p['stock_mode'] == 'untracked' ||
+      ((p['stock_quantity'] as int?) ?? 0) > 0;
+
+  FakeResponse? _validate(RecordedRequest r) {
+    final q = r.query;
+    if (q.containsKey('lat') != q.containsKey('lng')) {
+      return _invalid('lat', 'Indiquez lat et lng ensemble.');
+    }
+    if ((q.containsKey('radius_m') || q['sort'] == 'distance') &&
+        !q.containsKey('lat')) {
+      return _invalid(
+        'lat',
+        'La position est nécessaire pour chercher autour de vous.',
+      );
+    }
+    final min = int.tryParse(q['min_price'] ?? '');
+    final max = int.tryParse(q['max_price'] ?? '');
+    if (min != null && max != null && min > max) {
+      return _invalid('min_price', 'Le prix minimal dépasse le prix maximal.');
+    }
+    return null;
+  }
+
+  static FakeResponse _invalid(String field, String message) =>
+      FakeResponse.error(
+        400,
+        'validation_failed',
+        'Certaines informations sont invalides.',
+        fields: {field: message},
+      );
+
+  GeoPoint? _point(RecordedRequest r) => r.query.containsKey('lat')
+      ? GeoPoint(
+          lat: double.parse(r.query['lat']!),
+          lng: double.parse(r.query['lng']!),
+        )
+      : null;
+
+  FakeResponse _page(RecordedRequest r, List<Map<String, dynamic>> items) {
+    final offset = int.parse(r.query['offset'] ?? '0');
+    final limit = int.parse(r.query['limit'] ?? '20');
+    final page = items.skip(offset).take(limit).toList();
+    final more = items.length > offset + limit;
+    return FakeResponse.json(200, {
+      'items': page,
+      'next_offset': more ? offset + limit : null,
+    });
+  }
+
+  Future<FakeResponse> _searchProducts(RecordedRequest r) async {
+    if (beforeSearch case final wait?) await wait(r);
+    if (_failure(r) case final f?) return f;
+    if (_validate(r) case final f?) return f;
+    final q = r.query;
+    final text = _fold(q['q'] ?? '');
+    final point = _point(r);
+    final radius = double.tryParse(q['radius_m'] ?? '');
+    final min = int.tryParse(q['min_price'] ?? '');
+    final max = int.tryParse(q['max_price'] ?? '');
+    final hits = <(Map<String, dynamic>, double?)>[];
+    for (final p in products) {
+      final s = _shopOf(p);
+      final d = point == null ? null : distance(point, _loc(s));
+      final category = p['category_id'] as String;
+      if (text.isNotEmpty && !_fold(p['name'] as String).contains(text)) {
+        continue;
+      }
+      if (q['category_id'] case final c?
+          when category != c && _parentOf(category) != c) {
+        continue;
+      }
+      if (q['shop_id'] case final id? when p['shop_id'] != id) continue;
+      if (min != null && (p['price_xof'] as int) < min) continue;
+      if (max != null && (p['price_xof'] as int) > max) continue;
+      if (q['neighborhood_id'] case final n? when s['neighborhood_id'] != n) {
+        continue;
+      }
+      if (radius != null && d! > radius) continue;
+      if (q['in_stock'] == 'true' && !_inStock(p)) continue;
+      hits.add((p, d));
+    }
+    hits.sort((a, b) {
+      switch (q['sort']) {
+        case 'distance':
+          return a.$2!.compareTo(b.$2!);
+        case 'price_asc':
+          return (a.$1['price_xof'] as int).compareTo(b.$1['price_xof'] as int);
+        case 'price_desc':
+          return (b.$1['price_xof'] as int).compareTo(a.$1['price_xof'] as int);
+      }
+      return (b.$1['created_at'] as String).compareTo(
+        a.$1['created_at'] as String,
+      );
+    });
+    return _page(r, [
+      for (final (p, d) in hits)
+        {
+          'id': p['id'],
+          'shop_id': p['shop_id'],
+          'name': p['name'],
+          'price_xof': p['price_xof'],
+          'parcel_size': p['parcel_size'],
+          'shop_name': _shopOf(p)['name'],
+          'neighborhood_id': _shopOf(p)['neighborhood_id'],
+          'image_url': (p['images'] as List).isEmpty
+              ? null
+              : (p['images'] as List).first['url'],
+          'in_stock': _inStock(p),
+          'distance_m': d?.round(),
+        },
+    ]);
+  }
+
+  Future<FakeResponse> _searchShops(RecordedRequest r) async {
+    if (beforeSearch case final wait?) await wait(r);
+    if (_failure(r) case final f?) return f;
+    if (_validate(r) case final f?) return f;
+    final q = r.query;
+    final text = _fold(q['q'] ?? '');
+    final point = _point(r);
+    final radius = double.tryParse(q['radius_m'] ?? '');
+    final hits = <(Map<String, dynamic>, double?)>[];
+    for (final s in shops) {
+      final d = point == null ? null : distance(point, _loc(s));
+      if (text.isNotEmpty && !_fold(s['name'] as String).contains(text)) {
+        continue;
+      }
+      if (q['neighborhood_id'] case final n? when s['neighborhood_id'] != n) {
+        continue;
+      }
+      if (radius != null && d! > radius) continue;
+      hits.add((s, d));
+    }
+    if (q['sort'] == 'distance') hits.sort((a, b) => a.$2!.compareTo(b.$2!));
+    return _page(r, [
+      for (final (s, d) in hits)
+        {
+          'id': s['id'],
+          'name': s['name'],
+          'description': s['description'],
+          'neighborhood_id': s['neighborhood_id'],
+          'logo_url': s['logo_url'],
+          'accepting_orders': s['accepting_orders'],
+          'distance_m': d?.round(),
+        },
+    ]);
+  }
+
+  FakeResponse _product(RecordedRequest r) {
+    if (_failure(r) case final f?) return f;
+    final id = r.path.split('/').last;
+    final p = products.where((p) => p['id'] == id).firstOrNull;
+    if (p == null) {
+      return FakeResponse.error(
+        404,
+        'product_not_found',
+        'Produit introuvable.',
+      );
+    }
+    return FakeResponse.json(200, {'product': p, 'shop': _shopOf(p)});
+  }
+
+  FakeResponse _shop(RecordedRequest r) {
+    if (_failure(r) case final f?) return f;
+    final id = r.path.split('/').last;
+    final s = shops.where((s) => s['id'] == id).firstOrNull;
+    return s == null
+        ? FakeResponse.error(404, 'shop_not_found', 'Boutique introuvable.')
+        : FakeResponse.json(200, s);
   }
 }
