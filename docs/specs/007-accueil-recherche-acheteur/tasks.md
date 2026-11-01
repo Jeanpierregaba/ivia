@@ -11,7 +11,7 @@
   tests (sémantique, police à 200 %)
 
 **App acheteur**
-- [ ] 4. Shell à 4 onglets (Accueil, Recherche, Commandes, Profil), Profil (déconnexion),
+- [x] 4. Shell à 4 onglets (Accueil, Recherche, Commandes, Profil), Profil (déconnexion),
   Commandes « Bientôt disponible », routeur à préfixes ; tests du routeur
 - [ ] 5. Zone de recherche : position (autorisée, refusée, indisponible), choix du quartier
   mémorisé, permissions iOS et Android ; tests

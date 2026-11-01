@@ -18,7 +18,7 @@ void main() {
       );
       expect(go(const AuthSignedOut(), Routes.splash), Routes.login);
       expect(go(const AuthSignedOut(), Routes.home), Routes.login);
-      expect(go(AuthNeedsProfile(user), Routes.login), Routes.profile);
+      expect(go(AuthNeedsProfile(user), Routes.login), Routes.welcome);
       expect(go(AuthSignedIn(user), Routes.code), Routes.home);
       expect(go(const AuthOffline(), Routes.home), Routes.offline);
     });
@@ -28,8 +28,30 @@ void main() {
       expect(go(const AuthSignedOut(), Routes.onboarding, seen: false), isNull);
       expect(go(const AuthSignedOut(), Routes.login), isNull);
       expect(go(const AuthSignedOut(), Routes.code), isNull);
-      expect(go(AuthNeedsProfile(user), Routes.profile), isNull);
+      expect(go(AuthNeedsProfile(user), Routes.welcome), isNull);
+      expect(
+        go(AuthNeedsProfile(user), Routes.profile),
+        Routes.welcome,
+        reason: 'profil incomplet : onglets fermés',
+      );
       expect(go(AuthSignedIn(user), Routes.home), isNull);
+    });
+
+    test('connecté : onglets et fiches, préfixe exact', () {
+      final signedIn = AuthSignedIn(user);
+      for (final location in [
+        Routes.home,
+        Routes.search,
+        Routes.orders,
+        Routes.profile,
+        Routes.shop('s1'),
+        Routes.product('p1'),
+      ]) {
+        expect(go(signedIn, location), isNull, reason: location);
+      }
+      expect(go(signedIn, Routes.welcome), Routes.home);
+      expect(go(signedIn, '/shopsx'), Routes.home);
+      expect(go(const AuthSignedOut(), Routes.product('p1')), Routes.login);
     });
   });
 }

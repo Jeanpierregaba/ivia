@@ -254,7 +254,7 @@ void main() {
         'phone': '+22890123456',
         'accept_privacy_policy': true,
       });
-      expect(find.text('Bonjour Awa'), findsOneWidget);
+      expect(find.textContaining('Bonjour Awa'), findsOneWidget);
       final stored = await SessionStore().read();
       expect(stored?.token, 'jeton-secret');
       expect(stored?.user?.profileComplete, isTrue);
@@ -269,7 +269,7 @@ void main() {
       await launchApp(tester);
       await enterEmail(tester);
       await enterCode(tester);
-      expect(find.text('Bonjour Awa'), findsOneWidget);
+      expect(find.textContaining('Bonjour Awa'), findsOneWidget);
     });
 
     testWidgets('relance avec une session : accueil sans connexion', (
@@ -285,7 +285,7 @@ void main() {
         (_) => FakeResponse.json(200, userBody(complete: true)),
       );
       await launchApp(tester);
-      expect(find.text('Bonjour Awa'), findsOneWidget);
+      expect(find.textContaining('Bonjour Awa'), findsOneWidget);
     });
 
     testWidgets('adresse invalide : aucune requête', (tester) async {
@@ -466,7 +466,7 @@ void main() {
           (_) => FakeResponse.json(200, userBody(complete: true)),
         );
         await launchApp(tester);
-        expect(find.text('Bonjour Awa'), findsOneWidget);
+        expect(find.textContaining('Bonjour Awa'), findsOneWidget);
 
         server.on(
           'GET',
@@ -504,7 +504,7 @@ void main() {
         (_) => FakeResponse.json(200, userBody(complete: true)),
       );
       await tapText(tester, 'Réessayer');
-      expect(find.text('Bonjour Awa'), findsOneWidget);
+      expect(find.textContaining('Bonjour Awa'), findsOneWidget);
     });
 
     for (final screen in ['e-mail', 'code']) {
@@ -661,7 +661,7 @@ void main() {
       await tester.pumpAndSettle();
       expect(server.calls('PATCH', '/v1/me'), hasLength(1));
       expect(server.calls('POST', '/v1/auth/logout'), isEmpty);
-      expect(find.text('Bonjour Awa'), findsOneWidget);
+      expect(find.textContaining('Bonjour Awa'), findsOneWidget);
     });
 
     testWidgets('police à 200 % sur 320 dp : pas de débordement', (
@@ -678,7 +678,7 @@ void main() {
     });
   });
 
-  testWidgets('accueil : « Se déconnecter » révoque et efface la session', (
+  testWidgets('profil : « Se déconnecter » révoque et efface la session', (
     tester,
   ) async {
     onboardingSeen();
@@ -692,6 +692,8 @@ void main() {
       (_) => FakeResponse.json(200, userBody(complete: true)),
     );
     await launchApp(tester);
+    await tester.tap(find.byIcon(Icons.person_outline));
+    await tester.pumpAndSettle();
     await tapText(tester, 'Se déconnecter');
     expect(
       server.calls('POST', '/v1/auth/logout').single.headers['authorization'],
@@ -699,5 +701,34 @@ void main() {
     );
     expect(find.text('Bienvenue sur ivia'), findsOneWidget);
     expect(await SessionStore().read(), isNull);
+  });
+
+  testWidgets('barre du bas : Accueil, Recherche, Commandes, Profil', (
+    tester,
+  ) async {
+    onboardingSeen();
+    await SessionStore().save(
+      'jeton-secret',
+      User.fromJson(userBody(complete: true)),
+    );
+    server.on(
+      'GET',
+      '/v1/me',
+      (_) => FakeResponse.json(200, userBody(complete: true)),
+    );
+    await launchApp(tester);
+    expect(find.byType(IviaBottomNav), findsOneWidget);
+    for (final label in ['Accueil', 'Recherche', 'Commandes', 'Profil']) {
+      expect(find.bySemanticsLabel(label), findsOneWidget, reason: label);
+    }
+    await tester.tap(find.byIcon(Icons.receipt_long_outlined));
+    await tester.pumpAndSettle();
+    expect(find.textContaining('Bientôt disponible'), findsOneWidget);
+    await tester.tap(find.byIcon(Icons.person_outline));
+    await tester.pumpAndSettle();
+    expect(find.text('Awa Mensah'), findsOneWidget);
+    expect(find.text('awa@test.tg'), findsOneWidget);
+    await tapText(tester, 'Ouvrir une boutique');
+    expect(find.textContaining('ivia Marchand'), findsWidgets);
   });
 }

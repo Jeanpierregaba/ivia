@@ -1,10 +1,16 @@
-import 'package:flutter/foundation.dart';
+import 'package:flutter/widgets.dart';
 import 'package:flutter_riverpod/flutter_riverpod.dart';
 import 'package:go_router/go_router.dart';
 import 'package:ivia_app_core/ivia_app_core.dart';
 
-import '../features/home/home_placeholder_screen.dart';
+import '../features/home/home_screen.dart';
 import '../features/onboarding/onboarding_screen.dart';
+import '../features/orders/orders_placeholder_screen.dart';
+import '../features/product/product_screen.dart';
+import '../features/profile/profile_tab_screen.dart';
+import '../features/search/search_screen.dart';
+import '../features/shell/buyer_shell.dart';
+import '../features/shop/shop_screen.dart';
 import '../features/splash/loading_screen.dart';
 
 abstract final class Routes {
@@ -12,13 +18,27 @@ abstract final class Routes {
   static const onboarding = '/onboarding';
   static const login = AuthRoutes.login;
   static const code = AuthRoutes.code;
-  static const profile = '/profile';
-  static const home = '/home';
+
+  /// « Faisons connaissance » : profil à compléter après la connexion.
+  static const welcome = '/welcome';
   static const offline = '/offline';
+
+  // Onglets.
+  static const home = '/home';
+  static const search = '/search';
+  static const orders = '/orders';
+  static const profile = '/profile';
+
+  // Fiches, par-dessus la barre du bas.
+  static const shops = '/shops';
+  static const products = '/products';
+  static String shop(String id) => '$shops/$id';
+  static String product(String id) => '$products/$id';
 }
 
 /// Écrans permis pour un état ; le premier est la destination par défaut.
-/// Un écran hors de la liste n'est jamais affiché.
+/// Un écran hors de la liste n'est jamais affiché ; une entrée permet aussi
+/// ses sous-écrans (`/shops` permet `/shops/<id>`).
 String? redirectFor(
   AuthState auth, {
   required bool onboardingSeen,
@@ -28,11 +48,19 @@ String? redirectFor(
     AuthStarting() => const [Routes.splash],
     AuthSignedOut() when !onboardingSeen => const [Routes.onboarding],
     AuthSignedOut() => const [Routes.login, Routes.code],
-    AuthNeedsProfile() => const [Routes.profile],
-    AuthSignedIn() => const [Routes.home],
+    AuthNeedsProfile() => const [Routes.welcome],
+    AuthSignedIn() => const [
+      Routes.home,
+      Routes.search,
+      Routes.orders,
+      Routes.profile,
+      Routes.shops,
+      Routes.products,
+    ],
     AuthOffline() => const [Routes.offline],
   };
-  return allowed.contains(location) ? null : allowed.first;
+  final ok = allowed.any((a) => location == a || location.startsWith('$a/'));
+  return ok ? null : allowed.first;
 }
 
 final routerProvider = Provider<GoRouter>((ref) {
@@ -41,7 +69,10 @@ final routerProvider = Provider<GoRouter>((ref) {
   ref.listen(authControllerProvider, (_, _) => refresh.value++);
   ref.listen(onboardingSeenProvider, (_, _) => refresh.value++);
 
+  // Fiches au-dessus de la barre du bas.
+  final rootKey = GlobalKey<NavigatorState>();
   final router = GoRouter(
+    navigatorKey: rootKey,
     initialLocation: Routes.splash,
     refreshListenable: refresh,
     redirect: (context, state) => redirectFor(
@@ -70,12 +101,36 @@ final routerProvider = Provider<GoRouter>((ref) {
         ],
       ),
       GoRoute(
-        path: Routes.profile,
+        path: Routes.welcome,
         builder: (context, state) => const ProfileScreen(),
       ),
+      StatefulShellRoute.indexedStack(
+        builder: (context, state, shell) => BuyerShell(shell: shell),
+        branches: [
+          for (final (path, screen) in [
+            (Routes.home, const HomeScreen()),
+            (Routes.search, const SearchScreen()),
+            (Routes.orders, const OrdersPlaceholderScreen()),
+            (Routes.profile, const ProfileTabScreen()),
+          ])
+            StatefulShellBranch(
+              routes: [
+                GoRoute(path: path, builder: (context, state) => screen),
+              ],
+            ),
+        ],
+      ),
       GoRoute(
-        path: Routes.home,
-        builder: (context, state) => const HomePlaceholderScreen(),
+        path: '${Routes.shops}/:id',
+        parentNavigatorKey: rootKey,
+        builder: (context, state) =>
+            ShopScreen(shopId: state.pathParameters['id']!),
+      ),
+      GoRoute(
+        path: '${Routes.products}/:id',
+        parentNavigatorKey: rootKey,
+        builder: (context, state) =>
+            ProductScreen(productId: state.pathParameters['id']!),
       ),
       GoRoute(
         path: Routes.offline,
