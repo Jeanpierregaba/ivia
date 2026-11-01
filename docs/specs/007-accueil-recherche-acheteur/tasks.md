@@ -15,7 +15,7 @@
   Commandes « Bientôt disponible », routeur à préfixes ; tests du routeur
 - [x] 5. Zone de recherche : position (autorisée, refusée, indisponible), choix du quartier
   mémorisé, permissions iOS et Android ; tests
-- [ ] 6. Accueil : en-tête de position, salutation, champ, puces de catégories, boutiques autour
+- [x] 6. Accueil : en-tête de position, salutation, champ, puces de catégories, boutiques autour
   de vous, nouveautés, actualisation, vides et erreurs ; tests
 - [ ] 7. Résultats : recherche différée, onglets Produits / Boutiques, filtres (rayon, catégorie,
   prix, en stock), tri, pagination, vide avec « Effacer les filtres », 429 ; tests

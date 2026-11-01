@@ -123,14 +123,16 @@ class BuyerAreaController extends Notifier<BuyerArea> {
   /// Position déjà demandée pendant cette ouverture de l'app.
   var _asked = false;
 
+  /// Sans quartier gardé, l'app part en recherche de la position : aucune
+  /// recherche n'est lancée sans zone en attendant.
   @override
   BuyerArea build() =>
-      ref.read(areaStoreProvider).initial ?? const AreaUnknown();
+      ref.read(areaStoreProvider).initial ?? const AreaLocating();
 
   /// À l'ouverture de l'accueil : sans quartier choisi, la position est
   /// demandée une fois par ouverture de l'app.
   Future<void> ensure() async {
-    if (_asked || state is! AreaUnknown) return;
+    if (_asked || state is AreaNeighborhood) return;
     await locate();
   }
 

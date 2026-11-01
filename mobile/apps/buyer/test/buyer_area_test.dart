@@ -38,7 +38,8 @@ void main() {
 
   test('rien de choisi : position demandée une fois par ouverture', () async {
     final c = await container();
-    expect(c.read(buyerAreaProvider), isA<AreaUnknown>());
+    // En attente de la position : aucune recherche sans zone.
+    expect(c.read(buyerAreaProvider), isA<AreaLocating>());
     await c.read(buyerAreaProvider.notifier).ensure();
     await c.read(buyerAreaProvider.notifier).ensure();
     expect(location.calls, 1);
