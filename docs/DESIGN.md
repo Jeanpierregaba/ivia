@@ -168,7 +168,7 @@ compte à rebours place chaque chiffre dans une case de largeur fixe (composant 
 - Ombres : aucune sur les cartes (blanc posé sur `#F3F4F6`), sauf dans les illustrations décoratives
   de la présentation (fiches inclinées). Seule ombre d'interface : feuilles non modales
   (les feuilles modales du thème n'en ont pas, le voile les détache),
-  `0 -8px 24px rgba(14,46,84,.12)`.
+  `0 -8px 24px rgba(14,46,84,.12)`, et barre du bas flottante, `0 6px 20px rgba(14,46,84,.10)`.
 - Mosaïque : tuiles séparées de 8 px, rayon 6 px sauf le coin tourné vers l'extérieur de la grille (18 px).
 
 ## Écrans principaux
@@ -221,7 +221,24 @@ Maquettes : à venir (lien Figma à ajouter ici). Les statuts affichés suivent
   compte à rebours de 15 min.
 - **Détail de commande** : produits, mode de remise, Accepter / Refuser, puis « En préparation »,
   « Prête » ; saisie du code de remise (retrait) ; remise au livreur.
-- **Produits** : liste, formulaire (photos, prix, catégorie, taille de colis, stock suivi ou non), activation.
+- **Barre du bas** (boutique publiée) : pilule blanche flottante, Accueil · Commandes · Catalogue ·
+  Compte ; l'onglet actif est une pilule Berkeley avec icône et libellé, les autres une icône seule
+  (libellé lu par le lecteur d'écran). Boutique en validation : catalogue seul, sans barre.
+- **Catalogue** ([spec 005](specs/005-catalogue-marchand/spec.md)) : « Catalogue », « boutique ·
+  N produits », « + Produit » ; recherche en pilule ; onglets **En vente / Brouillons / Retirés**
+  avec leur nombre (`IviaSegmentedTabs`) ; lignes dans une carte blanche (vignette, nom, prix
+  « 4 500 F », « Catégorie · Stock 12 », « Stock non suivi », « Épuisé · à réapprovisionner » en
+  rouge), menu « ⋯ » (Modifier, Ajuster le stock, Retirer de la vente), « Remettre » sur les
+  retirés. Avec une police agrandie, le prix passe sous le nom.
+- **Nouveau produit** : « 1 sur 2 » (photos 1 à 5, la première « Principale » ; nom ; prix en FCFA
+  groupé pendant la saisie ; catégorie ; description 500 caractères), « 2 sur 2 · Livraison et
+  stock » (taille du colis en cartes, « Suivre le stock », quantité − / + ; « Brouillon » ou
+  « Voir l'aperçu »), **Aperçu** (carte telle que l'acheteur la voit, coches Cobalt, « Publier »),
+  puis **Produit publié** (coche Cobalt dans un halo pâle).
+- **Modifier** : carte d'état avec interrupteur (« En vente · Visible depuis le… », « Retiré · Non
+  visible depuis le… »), vignettes, nom, prix, catégorie, lignes Description / Taille du colis /
+  Stock qui ouvrent une feuille ; « Retirer de la vente » en rouge, confirmé par une feuille, puis
+  message « Annuler ». Interrupteurs et coches en Cobalt (partie colorée de l'app marchand).
 
 ### App livreur (couleur : Cobalt)
 - **Lancement** ([spec 018](specs/018-espace-livreur/spec.md)) : splash de chargement (tuile,
@@ -278,6 +295,9 @@ Codes de la machine à états (`docs/ARCHITECTURE.md`) → texte affiché :
 | `refunded` | Remboursée | muted |
 
 Un statut s'affiche toujours avec une icône et son libellé, jamais par sa couleur seule.
+
+États d'un produit (catalogue marchand) : `active` « En vente » (info) · `draft` « Brouillon »
+(muted) · `withdrawn` « Retiré » (muted).
 
 ## Accessibilité
 

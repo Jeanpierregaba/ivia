@@ -39,7 +39,7 @@
   - « Remettre » depuis la liste ;
   - catégorie refusée par le serveur ;
   - tests.
-- [ ] 11. Docs : `DESIGN.md` (catalogue, barre du bas), `ARCHITECTURE.md` (états d'un produit),
+- [x] 11. Docs : `DESIGN.md` (catalogue, barre du bas), `ARCHITECTURE.md` (états d'un produit),
   `TASKS.md` (005 et 006)
 
 **Vérifications**

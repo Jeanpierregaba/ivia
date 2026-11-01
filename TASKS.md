@@ -8,7 +8,7 @@ docs/specs/NNN-nom/tasks.md. Les petites tâches isolées (bug, retouche) peuven
 
 ## En cours
 
-- [ ] 005 — Catalogue marchand : produits, photos, publication, brouillons, retrait ([spec](docs/specs/005-catalogue-marchand/spec.md))
+- [ ] 005 — Catalogue marchand : produits, photos, publication, brouillons, retrait ([spec](docs/specs/005-catalogue-marchand/spec.md)) : implémenté ; relecture, migration 00020 à faire relire par Gedeon
 - [ ] 018 — Espace livreur : lancement, connexion, dossier de candidature ([spec](docs/specs/018-espace-livreur/spec.md)) : relu et corrigé ; appareil photo à vérifier sur un vrai téléphone
 - [ ] 004 — Espace marchand : lancement, connexion, création de la boutique ([spec](docs/specs/004-espace-marchand/spec.md)) : relu et corrigé ; reste les clés Google Maps (vérification de la carte)
 - [ ] 027 — Splash et présentation des 3 apps ([spec](docs/specs/027-splash-onboarding/spec.md)) : reste la vérification sur Android, la validation des textes et des couleurs par le designer
@@ -30,8 +30,8 @@ version « retrait seulement » (voir `docs/PRD.md`).
 - [ ] 002 — Profil, carnet d'adresses (choix du point sur la carte), suppression du compte
 - [ ] 003 — Back-office : connexion admin (cookie httpOnly côté serveur Next.js), journal des actions
 - [ ] 004 — Boutiques : validation / suspension dans le back-office (création côté marchand : en cours)
-- [ ] 005 — Catalogue : produits et photos (redimensionnées, sans métadonnées GPS, avant envoi)
-- [ ] 006 — Stock suivi et non suivi (écrans marchand)
+- [ ] 005 — Catalogue : produits et photos (redimensionnées, sans métadonnées GPS, avant envoi) : écrans marchand en cours (voir « En cours »)
+- [ ] 006 — Stock : journal des mouvements et alertes de réapprovisionnement (saisie et ajustement de la quantité faits dans 005)
 - [ ] 007 — Recherche : texte, catégorie, prix, quartier, « autour de moi »
 
 ### Phase 2 — Commande et paiement (retrait en boutique)
