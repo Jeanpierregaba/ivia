@@ -11,7 +11,8 @@ import '../../app/router.dart';
 int gridColumns(BuildContext context, double width) =>
     width < 340 || MediaQuery.textScalerOf(context).scale(1) > 1.3 ? 1 : 2;
 
-/// Produits trouvés en grille (sans défilement propre : dans une liste).
+/// Produits trouvés en grille (sans défilement propre : dans une liste
+/// courte, comme les nouveautés de l'accueil).
 class ProductGrid extends StatelessWidget {
   const ProductGrid({super.key, required this.items});
 
@@ -22,35 +23,71 @@ class ProductGrid extends StatelessWidget {
     return LayoutBuilder(
       builder: (context, box) {
         final columns = gridColumns(context, box.maxWidth);
-        final rows = <List<ProductHit>>[
-          for (var i = 0; i < items.length; i += columns)
-            items.sublist(i, (i + columns).clamp(0, items.length)),
-        ];
+        final rows = (items.length / columns).ceil();
         return Column(
           children: [
-            for (final (r, row) in rows.indexed) ...[
+            for (var r = 0; r < rows; r++) ...[
               if (r > 0) const SizedBox(height: IviaSpacing.md),
-              IntrinsicHeight(
-                child: Row(
-                  crossAxisAlignment: CrossAxisAlignment.stretch,
-                  children: [
-                    for (var c = 0; c < columns; c++) ...[
-                      if (c > 0) const SizedBox(width: IviaSpacing.md),
-                      Expanded(
-                        child: c < row.length
-                            ? productCard(context, row[c])
-                            : const SizedBox(),
-                      ),
-                    ],
-                  ],
-                ),
-              ),
+              _gridRow(context, items, r, columns),
             ],
           ],
         );
       },
     );
   }
+}
+
+/// Grille paresseuse pour une longue liste de résultats : seules les
+/// rangées visibles sont construites (pages successives de la recherche).
+class ProductGridSliver extends StatelessWidget {
+  const ProductGridSliver({super.key, required this.items});
+
+  final List<ProductHit> items;
+
+  @override
+  Widget build(BuildContext context) {
+    return SliverLayoutBuilder(
+      builder: (context, constraints) {
+        final columns = gridColumns(
+          context,
+          constraints.crossAxisExtent - 2 * IviaSpacing.screen,
+        );
+        return SliverPadding(
+          padding: const EdgeInsets.symmetric(horizontal: IviaSpacing.screen),
+          sliver: SliverList.separated(
+            itemCount: (items.length / columns).ceil(),
+            separatorBuilder: (_, _) => const SizedBox(height: IviaSpacing.md),
+            itemBuilder: (context, r) => _gridRow(context, items, r, columns),
+          ),
+        );
+      },
+    );
+  }
+}
+
+/// Rangée [row] de la grille : cartes de même hauteur.
+Widget _gridRow(
+  BuildContext context,
+  List<ProductHit> items,
+  int row,
+  int columns,
+) {
+  final start = row * columns;
+  return IntrinsicHeight(
+    child: Row(
+      crossAxisAlignment: CrossAxisAlignment.stretch,
+      children: [
+        for (var c = 0; c < columns; c++) ...[
+          if (c > 0) const SizedBox(width: IviaSpacing.md),
+          Expanded(
+            child: start + c < items.length
+                ? productCard(context, items[start + c])
+                : const SizedBox(),
+          ),
+        ],
+      ],
+    ),
+  );
 }
 
 /// Carte d'un produit trouvé ; un appui ouvre sa fiche.

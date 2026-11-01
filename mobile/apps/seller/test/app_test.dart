@@ -35,6 +35,14 @@ class _FakePicker implements PhotoPicker {
 }
 
 class _FakeLocation implements LocationService {
+  var settingsOpened = 0;
+
+  @override
+  Future<bool> openSettings() async {
+    settingsOpened++;
+    return true;
+  }
+
   LocationResult next = const LocationResult.found(_lome);
   Exception? error;
 

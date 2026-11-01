@@ -1,3 +1,5 @@
+import 'dart:async';
+
 import 'package:flutter/material.dart';
 import 'package:flutter_test/flutter_test.dart';
 import 'package:ivia_api_client/ivia_api_client.dart';
@@ -92,11 +94,11 @@ void main() {
     tester,
   ) async {
     await openSearch(tester);
-    expect(products().last.query['radius_m'], '2000');
+    expect(products().last.query['radius_m'], '5000', reason: 'par défaut');
 
-    await tapText(tester, 'Autour de moi · 2 km');
-    await tapText(tester, '5 km');
-    expect(products().last.query['radius_m'], '5000');
+    await tapText(tester, 'Autour de moi · 5 km');
+    await tapText(tester, '2 km');
+    expect(products().last.query['radius_m'], '2000');
 
     await tapText(tester, 'Catégorie');
     await tapText(tester, 'Alimentation');
@@ -153,7 +155,7 @@ void main() {
     await openSearch(tester);
     await tapText(tester, 'Boutiques');
     final shops = app.searches('/v1/search/shops').last.query;
-    expect(shops['radius_m'], '2000');
+    expect(shops['radius_m'], '5000');
     expect(find.text('Chez Afi'), findsOneWidget);
     // Pas de filtres propres aux produits.
     expect(find.text('Prix'), findsNothing);
@@ -230,5 +232,136 @@ void main() {
     expect(tester.takeException(), isNull);
     await tapText(tester, 'Boutiques');
     expect(tester.takeException(), isNull);
+  });
+
+  testWidgets('tri par prix puis onglet Boutiques : pertinence, résultats', (
+    tester,
+  ) async {
+    await openSearch(tester);
+    await tapText(tester, 'Trier : pertinence');
+    await tapText(tester, 'Prix croissant');
+    await tapText(tester, 'Boutiques');
+    final shops = app.searches('/v1/search/shops').last;
+    expect(shops.query['sort'], 'relevance');
+    expect(find.text('Chez Afi'), findsOneWidget);
+    expect(find.text('Trier : pertinence'), findsOneWidget);
+    // Retour aux produits : le tri par prix est retrouvé.
+    await tapText(tester, 'Produits');
+    expect(products().last.query['sort'], 'price_asc');
+  });
+
+  testWidgets('réseau coupé : message et « Réessayer »', (tester) async {
+    await openSearch(tester);
+    app.search.failures['GET /v1/search/products'] =
+        FakeResponse.networkError();
+    await type(tester, 'riz');
+    await tester.pump(searchDelay);
+    await tester.pumpAndSettle();
+    expect(
+      find.text(
+        'Impossible de charger les résultats. Vérifiez votre connexion.',
+      ),
+      findsOneWidget,
+    );
+    await tapText(tester, 'Réessayer');
+    expect(find.text('Riz parfumé 5 kg'), findsOneWidget);
+  });
+
+  testWidgets('boutique qui suspend ses commandes : signalée', (tester) async {
+    app.search.shop('Pharma Bè', acceptingOrders: false);
+    await openSearch(tester);
+    await tapText(tester, 'Boutiques');
+    expect(find.text('Commandes suspendues'), findsOneWidget);
+  });
+
+  testWidgets('page en retard après un changement de recherche : ignorée', (
+    tester,
+  ) async {
+    for (var i = 0; i < 25; i++) {
+      app.search.product(afi, 'Article ${i.toString().padLeft(2, '0')}');
+    }
+    await openSearch(tester);
+    final slow = Completer<void>();
+    app.search.beforeSearch = (r) async {
+      if (r.query['offset'] == '20') await slow.future;
+    };
+    await tester.drag(find.byType(CustomScrollView), const Offset(0, -6000));
+    for (var i = 0; i < 5; i++) {
+      await tester.pump(const Duration(milliseconds: 20));
+    }
+    expect(products().where((r) => r.query['offset'] == '20'), hasLength(1));
+    // Nouvelle recherche pendant l'attente (champ en haut de la liste).
+    await tester.drag(find.byType(CustomScrollView), const Offset(0, 6000));
+    for (var i = 0; i < 5; i++) {
+      await tester.pump(const Duration(milliseconds: 20));
+    }
+    await type(tester, 'riz');
+    await tester.pump(searchDelay);
+    for (var i = 0; i < 5; i++) {
+      await tester.pump(const Duration(milliseconds: 20));
+    }
+    slow.complete();
+    await tester.pumpAndSettle();
+    expect(find.text('Riz parfumé 5 kg'), findsOneWidget);
+    expect(find.textContaining('Article'), findsNothing);
+  });
+
+  testWidgets('texte collé de plus de 100 caractères : tronqué', (
+    tester,
+  ) async {
+    await openSearch(tester);
+    await type(tester, 'a' * 120);
+    await tester.pump(searchDelay);
+    await tester.pumpAndSettle();
+    expect(products().last.query['q'], 'a' * 100);
+  });
+
+  testWidgets('depuis le champ de l\'accueil : le champ prend le focus', (
+    tester,
+  ) async {
+    await app.launch(tester);
+    await tester.tap(
+      find.bySemanticsLabel('Rechercher un produit ou une boutique'),
+    );
+    await tester.pumpAndSettle();
+    final field = tester.widget<EditableText>(
+      find.descendant(
+        of: find.byType(IviaSearchField),
+        matching: find.byType(EditableText),
+      ),
+    );
+    expect(field.focusNode.hasFocus, isTrue);
+  });
+
+  testWidgets('frappe en attente puis puce de l\'accueil : texte abandonné', (
+    tester,
+  ) async {
+    await openSearch(tester);
+    await type(tester, 'riz');
+    await tester.pump(const Duration(milliseconds: 100));
+    await tester.tap(
+      find.descendant(
+        of: find.byType(IviaBottomNav),
+        matching: find.byIcon(Icons.home_outlined),
+      ),
+    );
+    await tester.pumpAndSettle();
+    await tester.tap(find.text('Alimentation'));
+    await tester.pumpAndSettle();
+    await tester.pump(searchDelay);
+    await tester.pumpAndSettle();
+    expect(products().last.query.containsKey('q'), isFalse);
+    expect(
+      tester
+          .widget<TextField>(
+            find.descendant(
+              of: find.byType(IviaSearchField),
+              matching: find.byType(TextField),
+            ),
+          )
+          .controller!
+          .text,
+      isEmpty,
+    );
   });
 }

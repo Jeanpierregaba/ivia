@@ -588,13 +588,22 @@ class SearchQuery {
   final SearchSort sort;
 
   /// Paramètres d'URL ; [products] : filtres propres aux produits inclus.
+  ///
+  /// La position est arrondie à 3 décimales (environ 110 m) : elle part dans
+  /// l'URL, qui peut être journalisée (ADR 0010). Les boutiques ne se trient
+  /// que par pertinence ou distance : un tri par prix y devient pertinence.
   Map<String, String> toParams({required bool products}) {
     final q = text.trim();
     final p = point;
+    final s =
+        !products &&
+            (sort == SearchSort.priceAsc || sort == SearchSort.priceDesc)
+        ? SearchSort.relevance
+        : sort;
     return {
       if (q.isNotEmpty) 'q': q,
-      if (p != null) 'lat': '${p.lat}',
-      if (p != null) 'lng': '${p.lng}',
+      if (p != null) 'lat': p.lat.toStringAsFixed(3),
+      if (p != null) 'lng': p.lng.toStringAsFixed(3),
       if (p != null && radiusM != null) 'radius_m': '$radiusM',
       'neighborhood_id': ?neighborhoodId,
       if (products) ...{
@@ -604,7 +613,7 @@ class SearchQuery {
         if (maxPrice != null) 'max_price': '$maxPrice',
         if (inStockOnly) 'in_stock': 'true',
       },
-      'sort': sort.code,
+      'sort': s.code,
     };
   }
 

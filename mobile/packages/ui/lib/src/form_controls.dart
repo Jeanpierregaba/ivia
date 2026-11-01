@@ -12,12 +12,16 @@ class IviaSearchField extends StatefulWidget {
     required this.hint,
     this.onChanged,
     this.focusNode,
+    this.maxLength,
   });
 
   final TextEditingController controller;
   final String hint;
   final ValueChanged<String>? onChanged;
   final FocusNode? focusNode;
+
+  /// Longueur maximale du texte (celle qu'accepte le serveur).
+  final int? maxLength;
 
   @override
   State<IviaSearchField> createState() => _IviaSearchFieldState();
@@ -57,6 +61,10 @@ class _IviaSearchFieldState extends State<IviaSearchField> {
       controller: widget.controller,
       focusNode: widget.focusNode,
       onChanged: widget.onChanged,
+      inputFormatters: [
+        if (widget.maxLength case final max?)
+          LengthLimitingTextInputFormatter(max),
+      ],
       textInputAction: TextInputAction.search,
       decoration: InputDecoration(
         hintText: widget.hint,

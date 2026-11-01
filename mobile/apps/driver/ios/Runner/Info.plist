@@ -14,6 +14,10 @@
 	<string>$(PRODUCT_BUNDLE_IDENTIFIER)</string>
 	<key>CFBundleInfoDictionaryVersion</key>
 	<string>6.0</string>
+	<!-- Exigé par l'App Store : le plugin de position est embarqué (app_core) ;
+	     la position du livreur servira aux missions (fonctionnalité 019). -->
+	<key>NSLocationWhenInUseUsageDescription</key>
+	<string>ivia utilise votre position pour vous proposer des livraisons proches de vous.</string>
 	<key>CFBundleName</key>
 	<string>ivia_driver</string>
 	<key>CFBundlePackageType</key>

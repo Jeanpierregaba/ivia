@@ -127,4 +127,11 @@ void main() {
     );
     expect(material.color, IviaColors.primary);
   });
+
+  test('option choisie d\'une liste : couleur des liens, jamais Imperial', () {
+    final buyer = IviaTheme.light();
+    expect(buyer.listTileTheme.selectedColor, IviaColors.cornellRed);
+    final seller = IviaTheme.light(IviaAppBrand.seller);
+    expect(seller.listTileTheme.selectedColor, IviaColors.berkeleyBlue);
+  });
 }

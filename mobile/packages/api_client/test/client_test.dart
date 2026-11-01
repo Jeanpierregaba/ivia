@@ -507,8 +507,9 @@ void main() {
       );
       expect(server.last.query, {
         'q': 'riz',
-        'lat': '6.1375',
-        'lng': '1.2123',
+        // Arrondie à 3 décimales (environ 110 m) : elle part dans l'URL.
+        'lat': 6.1375.toStringAsFixed(3),
+        'lng': '1.212',
         'radius_m': '2000',
         'sort': 'distance',
         'offset': '0',
@@ -518,7 +519,8 @@ void main() {
         'Riz parfumé 5 kg',
         'Riz brisé 25 kg',
       ]);
-      expect(page.items.first.distanceM, 0);
+      // Position arrondie : à moins de 110 m près.
+      expect(page.items.first.distanceM, lessThan(110));
       expect(page.items.last.distanceM, greaterThan(1000));
       expect(page.items.first.shopName, 'Chez Afi');
     });
@@ -549,9 +551,8 @@ void main() {
         expect(products.items.map((p) => p.name), ['Riz parfumé 5 kg']);
         expect(products.items.single.distanceM, isNull);
 
-        final shops = await client.searchShops(
-          query.copyWith(sort: SearchSort.relevance),
-        );
+        // Tri par prix demandé : les boutiques passent en pertinence.
+        final shops = await client.searchShops(query);
         expect(server.last.path, '/v1/search/shops');
         expect(server.last.query, {
           'neighborhood_id': tokoinId,
@@ -612,5 +613,17 @@ void main() {
         ),
       );
     });
+
+    test(
+      'faux serveur fidèle : texte de plus de 100 caractères refusé',
+      () async {
+        await expectLater(
+          client.searchProducts(SearchQuery(text: 'x' * 101)),
+          throwsA(
+            isA<ApiException>().having((e) => e.fields.keys, 'champs', ['q']),
+          ),
+        );
+      },
+    );
   });
 }

@@ -205,6 +205,12 @@ abstract final class IviaTheme {
         thickness: 1,
         space: 1,
       ),
+      // Option choisie d'une liste : couleur des liens (Imperial n'est jamais
+      // une couleur de texte courant).
+      listTileTheme: ListTileThemeData(
+        selectedColor: brand.link,
+        iconColor: IviaColors.textSecondary,
+      ),
       // Interrupteurs : partie colorée des titres (Cobalt pour le marchand).
       switchTheme: SwitchThemeData(
         trackColor: WidgetStateProperty.resolveWith(

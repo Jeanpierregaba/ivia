@@ -10,6 +10,7 @@ import 'package:ivia_api_client/testing.dart';
 import 'package:ivia_app_core/ivia_app_core.dart';
 import 'package:ivia_buyer/app/buyer_area.dart';
 import 'package:ivia_buyer/app/identity.dart';
+import 'package:ivia_buyer/features/search/search_state.dart';
 import 'package:ivia_buyer/features/onboarding/onboarding_screen.dart';
 import 'package:ivia_buyer/main.dart';
 import 'package:ivia_ui/ivia_ui.dart';
@@ -20,6 +21,9 @@ const _email = 'awa@test.tg';
 
 class _DeniedLocation implements LocationService {
   const _DeniedLocation();
+
+  @override
+  Future<bool> openSettings() async => true;
 
   @override
   Future<LocationResult> current() async =>
@@ -743,5 +747,34 @@ void main() {
     expect(find.text('awa@test.tg'), findsOneWidget);
     await tapText(tester, 'Ouvrir une boutique');
     expect(find.textContaining('ivia Marchand'), findsWidgets);
+  });
+
+  testWidgets('autre compte : filtres de recherche remis à zéro', (
+    tester,
+  ) async {
+    onboardingSeen();
+    await SessionStore().save(
+      'jeton-secret',
+      User.fromJson(userBody(complete: true)),
+    );
+    server.on(
+      'GET',
+      '/v1/me',
+      (_) => FakeResponse.json(200, userBody(complete: true)),
+    );
+    await launchApp(tester);
+    final container = ProviderScope.containerOf(
+      tester.element(find.byType(MaterialApp)),
+    );
+    container
+        .read(searchFiltersProvider.notifier)
+        .update((f) => f.copyWith(text: 'riz', inStockOnly: true));
+    container.read(searchFocusRequestProvider.notifier).request();
+    await tester.tap(find.byIcon(Icons.person_outline));
+    await tester.pumpAndSettle();
+    await tapText(tester, 'Se déconnecter');
+    expect(container.read(searchFiltersProvider).text, isEmpty);
+    expect(container.read(searchFiltersProvider).inStockOnly, isFalse);
+    expect(container.read(searchFocusRequestProvider), 0);
   });
 }

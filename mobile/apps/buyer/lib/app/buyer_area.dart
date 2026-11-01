@@ -123,11 +123,22 @@ class BuyerAreaController extends Notifier<BuyerArea> {
   /// Position déjà demandée pendant cette ouverture de l'app.
   var _asked = false;
 
+  /// Numéro de la dernière demande : une réponse de position arrivée après
+  /// un choix plus récent (quartier, nouvelle demande) est ignorée.
+  var _request = 0;
+
+  /// Dernière zone connue (position ou quartier), gardée si une nouvelle
+  /// demande de position échoue.
+  BuyerArea? _settled;
+
   /// Sans quartier gardé, l'app part en recherche de la position : aucune
   /// recherche n'est lancée sans zone en attendant.
   @override
-  BuyerArea build() =>
-      ref.read(areaStoreProvider).initial ?? const AreaLocating();
+  BuyerArea build() {
+    final stored = ref.read(areaStoreProvider).initial;
+    _settled = stored;
+    return stored ?? const AreaLocating();
+  }
 
   /// À l'ouverture de l'accueil : sans quartier choisi, la position est
   /// demandée une fois par ouverture de l'app.
@@ -136,11 +147,11 @@ class BuyerAreaController extends Notifier<BuyerArea> {
     await locate();
   }
 
-  /// « Utiliser ma position ». Échec : la zone précédente est gardée (ou
+  /// « Utiliser ma position ». Échec : la zone connue est gardée (ou
   /// inconnue, avec la raison) ; renvoie la raison.
   Future<LocationFailure?> locate() async {
     _asked = true;
-    final previous = state;
+    final request = ++_request;
     state = const AreaLocating();
     LocationResult result;
     try {
@@ -148,21 +159,21 @@ class BuyerAreaController extends Notifier<BuyerArea> {
     } on Exception {
       result = const LocationResult.failed(LocationFailure.unavailable);
     }
-    if (!ref.mounted) return result.failure;
+    // Choix plus récent pendant l'attente : il prime.
+    if (!ref.mounted || request != _request) return result.failure;
     if (result.point case final point?) {
-      state = AreaPosition(point);
+      state = _settled = AreaPosition(point);
       await ref.read(areaStoreProvider).savePosition();
       return null;
     }
-    state = previous is AreaNeighborhood
-        ? previous
-        : AreaUnknown(result.failure);
+    state = _settled ?? AreaUnknown(result.failure);
     return result.failure;
   }
 
   Future<void> chooseNeighborhood(Choice neighborhood) async {
+    _request++;
     final area = AreaNeighborhood(neighborhood.id, neighborhood.name);
-    state = area;
+    state = _settled = area;
     await ref.read(areaStoreProvider).saveNeighborhood(area);
   }
 }

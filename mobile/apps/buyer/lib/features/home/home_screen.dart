@@ -37,11 +37,12 @@ class _HomeScreenState extends ConsumerState<HomeScreen> {
   void _search({
     String? categoryId,
     SearchTab tab = SearchTab.products,
+    SearchSort sort = SearchSort.relevance,
     bool focus = false,
   }) {
     ref
         .read(searchFiltersProvider.notifier)
-        .startFromHome(categoryId: categoryId, tab: tab);
+        .startFromHome(categoryId: categoryId, tab: tab, sort: sort);
     if (focus) ref.read(searchFocusRequestProvider.notifier).request();
     context.go(Routes.search);
   }
@@ -156,7 +157,12 @@ class _HomeScreenState extends ConsumerState<HomeScreen> {
               _pad(
                 _SectionTitle(
                   title: 'Boutiques autour de vous',
-                  onSeeAll: () => _search(tab: SearchTab.shops),
+                  onSeeAll: () => _search(
+                    tab: SearchTab.shops,
+                    sort: area.point == null
+                        ? SearchSort.relevance
+                        : SearchSort.distance,
+                  ),
                 ),
               ),
               const SizedBox(height: IviaSpacing.md),
@@ -320,9 +326,23 @@ class _AreaMissing extends StatelessWidget {
             ),
           ),
           const SizedBox(height: IviaSpacing.sm),
-          TextButton(
-            onPressed: () => showAreaSheet(context),
-            child: const Text('Choisir mon quartier'),
+          Wrap(
+            spacing: IviaSpacing.sm,
+            children: [
+              TextButton(
+                onPressed: () => showAreaSheet(context),
+                child: const Text('Choisir mon quartier'),
+              ),
+              // Refus définitif : seule l'app Réglages peut le lever.
+              if (failure == LocationFailure.deniedForever)
+                Consumer(
+                  builder: (context, ref, _) => TextButton(
+                    onPressed: () =>
+                        ref.read(locationServiceProvider).openSettings(),
+                    child: const Text('Ouvrir les réglages'),
+                  ),
+                ),
+            ],
           ),
         ],
       ),

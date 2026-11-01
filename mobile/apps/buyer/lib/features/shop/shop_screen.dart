@@ -79,6 +79,7 @@ class _ShopScreenState extends ConsumerState<ShopScreen> {
                       IviaSearchField(
                         controller: _search,
                         hint: 'Chercher dans la boutique',
+                        maxLength: 100,
                         onChanged: _onText,
                       ),
                       const SizedBox(height: IviaSpacing.lg),
@@ -125,9 +126,13 @@ class _ShopScreenState extends ConsumerState<ShopScreen> {
       ),
     );
     if (results.hasError && page == null) {
+      final error = results.error;
       return [
         message(
-          'Impossible de charger les produits. Vérifiez votre connexion.',
+          error is ApiException && !error.isNetwork
+              ? error.message
+              : 'Impossible de charger les produits. Vérifiez votre '
+                    'connexion.',
           action: TextButton(
             onPressed: () => ref.invalidate(productResultsProvider(query)),
             child: const Text('Réessayer'),
@@ -171,6 +176,16 @@ class _ShopScreenState extends ConsumerState<ShopScreen> {
           child: Padding(
             padding: EdgeInsets.all(IviaSpacing.lg),
             child: Center(child: CircularProgressIndicator()),
+          ),
+        )
+      else if (page.loadMoreFailed)
+        SliverToBoxAdapter(
+          child: Center(
+            child: TextButton(
+              onPressed: () =>
+                  ref.read(productResultsProvider(query).notifier).loadMore(),
+              child: const Text('Afficher la suite'),
+            ),
           ),
         ),
     ];

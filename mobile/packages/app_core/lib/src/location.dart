@@ -19,6 +19,10 @@ class LocationResult {
 /// Position du téléphone, demandée seulement quand l'utilisateur la veut.
 abstract interface class LocationService {
   Future<LocationResult> current();
+
+  /// Réglages de l'app (position refusée définitivement) ; `false` si
+  /// l'ouverture a échoué.
+  Future<bool> openSettings();
 }
 
 /// Position du téléphone par `geolocator`. [approximate] : précision d'un
@@ -28,6 +32,15 @@ class DeviceLocationService implements LocationService {
   const DeviceLocationService({this.approximate = false});
 
   final bool approximate;
+
+  @override
+  Future<bool> openSettings() async {
+    try {
+      return await Geolocator.openAppSettings();
+    } on Exception {
+      return false;
+    }
+  }
 
   @override
   Future<LocationResult> current() async {

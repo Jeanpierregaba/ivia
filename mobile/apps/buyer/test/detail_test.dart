@@ -93,6 +93,23 @@ void main() {
       expect(find.text('Riz parfumé 5 kg'), findsOneWidget);
     });
 
+    testWidgets('produits de la boutique : message du serveur', (tester) async {
+      await app.launch(tester);
+      // Après les recherches de l'accueil.
+      app.search.failures['GET /v1/search/products'] = FakeResponse.error(
+        429,
+        'rate_limited',
+        'Trop de recherches. Patientez un instant.',
+      );
+      GoRouter.of(tester.element(find.byType(IviaBottomNav)))
+          .push(Routes.shop(afi['id'] as String));
+      await tester.pumpAndSettle();
+      expect(
+        find.text('Trop de recherches. Patientez un instant.'),
+        findsOneWidget,
+      );
+    });
+
     testWidgets('commandes suspendues signalées', (tester) async {
       final closed = app.search.shop('Pharma Bè', acceptingOrders: false);
       await open(tester, Routes.shop(closed['id'] as String));

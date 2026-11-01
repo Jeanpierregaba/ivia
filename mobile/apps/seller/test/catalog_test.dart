@@ -42,6 +42,14 @@ class _FakePicker implements PhotoPicker {
 }
 
 class _NoLocation implements LocationService {
+  var settingsOpened = 0;
+
+  @override
+  Future<bool> openSettings() async {
+    settingsOpened++;
+    return true;
+  }
+
   @override
   Future<LocationResult> current() async =>
       const LocationResult.found(GeoPoint(lat: 6.1375, lng: 1.2123));

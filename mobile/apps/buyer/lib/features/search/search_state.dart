@@ -1,5 +1,6 @@
 import 'package:flutter_riverpod/flutter_riverpod.dart';
 import 'package:ivia_api_client/ivia_api_client.dart';
+import 'package:ivia_app_core/ivia_app_core.dart';
 
 import '../../app/buyer_area.dart';
 
@@ -9,18 +10,27 @@ enum SearchTab { products, shops }
 /// Rayons proposés pour « Autour de moi », en kilomètres.
 const searchRadii = [1, 2, 5, 10];
 
+/// Rayon par défaut, commun à l'accueil et à la recherche (« Voir tout »
+/// montre les mêmes boutiques que la section).
+const defaultRadiusKm = 5;
+
 /// Filtres de l'onglet Recherche ; l'accueil les remplit avant d'y aller.
 class SearchFilters {
   const SearchFilters({
     this.text = '',
     this.tab = SearchTab.products,
-    this.radiusKm = 2,
+    this.radiusKm = defaultRadiusKm,
     this.categoryId,
     this.minPrice,
     this.maxPrice,
     this.inStockOnly = false,
     this.sort = SearchSort.relevance,
+    this.session = 0,
   });
+
+  /// Numéro de la recherche lancée depuis l'accueil : l'écran de recherche
+  /// abandonne la frappe en attente quand il change.
+  final int session;
 
   final String text;
   final SearchTab tab;
@@ -33,29 +43,40 @@ class SearchFilters {
   final bool inStockOnly;
   final SearchSort sort;
 
-  /// Filtres posés en plus du texte et de la zone (« Effacer les filtres »).
-  bool get hasFilters =>
-      categoryId != null ||
-      minPrice != null ||
-      maxPrice != null ||
-      inStockOnly ||
-      sort != SearchSort.relevance;
+  /// Filtres visibles posés en plus du texte et de la zone, pour l'onglet
+  /// ouvert (« Effacer les filtres »).
+  bool hasFiltersFor(BuyerArea area) {
+    final effectiveSort = toQuery(area).sort;
+    if (tab == SearchTab.shops) return effectiveSort != SearchSort.relevance;
+    return categoryId != null ||
+        minPrice != null ||
+        maxPrice != null ||
+        inStockOnly ||
+        effectiveSort != SearchSort.relevance;
+  }
 
-  /// Requête envoyée au serveur pour [area] : rayon et tri par distance
-  /// seulement avec la position du téléphone.
+  /// Requête envoyée au serveur pour [area] et l'onglet ouvert : rayon et
+  /// tri par distance seulement avec la position du téléphone ; pour les
+  /// boutiques, ni catégorie, ni prix, ni stock, ni tri par prix (clé de
+  /// liste stable quand ces filtres changent sur l'autre onglet).
   SearchQuery toQuery(BuyerArea area) {
     final hasPoint = area.point != null;
     final km = radiusKm;
+    final products = tab == SearchTab.products;
+    final effectiveSort = switch (sort) {
+      SearchSort.distance when !hasPoint => SearchSort.relevance,
+      SearchSort.priceAsc ||
+      SearchSort.priceDesc when !products => SearchSort.relevance,
+      _ => sort,
+    };
     return area.apply(
       SearchQuery(
         text: text,
-        categoryId: categoryId,
-        minPrice: minPrice,
-        maxPrice: maxPrice,
-        inStockOnly: inStockOnly,
-        sort: !hasPoint && sort == SearchSort.distance
-            ? SearchSort.relevance
-            : sort,
+        categoryId: products ? categoryId : null,
+        minPrice: products ? minPrice : null,
+        maxPrice: products ? maxPrice : null,
+        inStockOnly: products && inStockOnly,
+        sort: effectiveSort,
         radiusM: hasPoint && km != null ? km * 1000 : null,
       ),
     );
@@ -79,28 +100,46 @@ class SearchFilters {
     maxPrice: maxPrice == null ? this.maxPrice : maxPrice(),
     inStockOnly: inStockOnly ?? this.inStockOnly,
     sort: sort ?? this.sort,
+    session: session,
   );
 }
 
 final searchFiltersProvider =
     NotifierProvider<SearchFiltersState, SearchFilters>(SearchFiltersState.new);
 
+/// Compte connecté : filtres et focus repartent de zéro quand il change
+/// (déconnexion, autre compte sur le même téléphone).
+String? _accountId(Ref ref) => ref.watch(
+  authControllerProvider.select(
+    (auth) => switch (auth) {
+      AuthSignedIn(:final user) || AuthNeedsProfile(:final user) => user.id,
+      _ => null,
+    },
+  ),
+);
+
 class SearchFiltersState extends Notifier<SearchFilters> {
   @override
-  SearchFilters build() => const SearchFilters();
+  SearchFilters build() {
+    _accountId(ref);
+    return const SearchFilters();
+  }
 
   void update(SearchFilters Function(SearchFilters) change) =>
       state = change(state);
 
   /// Depuis l'accueil : nouvelle recherche, filtres remis à zéro (rayon
-  /// gardé), éventuellement dans une catégorie ou sur un onglet.
+  /// gardé), éventuellement dans une catégorie, sur un onglet ou triée.
   void startFromHome({
     String? categoryId,
     SearchTab tab = SearchTab.products,
+    SearchSort sort = SearchSort.relevance,
   }) => state = SearchFilters(
     radiusKm: state.radiusKm,
     categoryId: categoryId,
     tab: tab,
+    sort: sort,
+    session: state.session + 1,
   );
 
   /// Garde la zone et le texte, retire les autres filtres.
@@ -108,6 +147,7 @@ class SearchFiltersState extends Notifier<SearchFilters> {
     text: state.text,
     tab: state.tab,
     radiusKm: state.radiusKm,
+    session: state.session,
   );
 }
 
@@ -119,7 +159,10 @@ final searchFocusRequestProvider = NotifierProvider<SearchFocusRequest, int>(
 
 class SearchFocusRequest extends Notifier<int> {
   @override
-  int build() => 0;
+  int build() {
+    _accountId(ref);
+    return 0;
+  }
 
   void request() => state++;
 }

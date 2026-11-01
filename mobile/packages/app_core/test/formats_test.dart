@@ -45,6 +45,12 @@ void main() {
       expect(type('', '0').text, '0');
     });
 
+    test('au-delà de 100 000 000 F : frappe ignorée', () {
+      final v = type('99\u202F999\u202F999', '999999999');
+      expect(plain(v.text), '99 999 999');
+      expect(plain(type('', '100000000').text), '100 000 000');
+    });
+
     test('au-delà de 9 chiffres : frappe ignorée', () {
       final v = type('100 000 000', '1000000000');
       expect(plain(v.text), '100 000 000');

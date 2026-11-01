@@ -15,6 +15,14 @@ const lomeTokoin = GeoPoint(lat: 6.1375, lng: 1.2123);
 
 /// Position simulée du téléphone.
 class FakeLocation implements LocationService {
+  var settingsOpened = 0;
+
+  @override
+  Future<bool> openSettings() async {
+    settingsOpened++;
+    return true;
+  }
+
   LocationResult next = const LocationResult.found(lomeTokoin);
   var calls = 0;
 

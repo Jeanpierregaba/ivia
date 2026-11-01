@@ -26,9 +26,12 @@ int? parseXof(String input) {
 /// Saisie d'un prix : chiffres seulement, groupés par milliers pendant la
 /// frappe, [maxDigits] au plus.
 class XofInputFormatter extends TextInputFormatter {
-  XofInputFormatter({this.maxDigits = 9});
+  XofInputFormatter({this.maxDigits = 9, this.maxValue = 100000000});
 
   final int maxDigits;
+
+  /// Plus grand prix accepté par le serveur.
+  final int maxValue;
 
   @override
   TextEditingValue formatEditUpdate(
@@ -36,7 +39,10 @@ class XofInputFormatter extends TextInputFormatter {
     TextEditingValue newValue,
   ) {
     var digits = newValue.text.replaceAll(RegExp(r'\D'), '');
-    if (digits.length > maxDigits) return oldValue;
+    if (digits.length > maxDigits ||
+        (digits.isNotEmpty && int.parse(digits) > maxValue)) {
+      return oldValue;
+    }
     // Zéros de tête retirés : « 0 » seul reste possible.
     digits = digits.replaceFirst(RegExp(r'^0+(?=\d)'), '');
     final text = digits.isEmpty ? '' : groupDigits(int.parse(digits));

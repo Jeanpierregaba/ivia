@@ -639,6 +639,11 @@ class FakeSearch {
 
   var _seq = 0;
 
+  /// Identifiant au format UUID, comme ceux de la base ([kind] : chiffre de
+  /// tête qui distingue boutiques et produits à la lecture).
+  static String _uuid(int kind, int n) =>
+      '${kind.toRadixString(16)}0000000-0000-4000-8000-${n.toRadixString(16).padLeft(12, '0')}';
+
   FakeResponse? _failure(RecordedRequest r) {
     for (final key in failures.keys) {
       if ('${r.method} ${r.path}'.contains(key)) return failures.remove(key);
@@ -655,8 +660,7 @@ class FakeSearch {
     String? logoUrl,
   }) {
     final s = {
-      'id':
-          's${(_seq++).toString().padLeft(7, '0')}-0000-4000-8000-000000000000',
+      'id': _uuid(0x5, _seq++),
       'name': name,
       'description': '',
       'phone': '+22890123456',
@@ -666,6 +670,11 @@ class FakeSearch {
       'location': location.toJson(),
       'logo_url': logoUrl,
       'accepting_orders': acceptingOrders,
+      'created_at': DateTime.utc(
+        2026,
+        10,
+        1,
+      ).add(Duration(minutes: _seq)).toIso8601String(),
     };
     shops.add(s);
     return s;
@@ -684,7 +693,7 @@ class FakeSearch {
     String description = '',
   }) {
     final n = _seq++;
-    final id = 'p${n.toString().padLeft(7, '0')}-0000-4000-8000-000000000000';
+    final id = _uuid(0xa, n);
     final p = {
       ...productBody(
         id: id,
@@ -751,8 +760,17 @@ class FakeSearch {
       p['stock_mode'] == 'untracked' ||
       ((p['stock_quantity'] as int?) ?? 0) > 0;
 
-  FakeResponse? _validate(RecordedRequest r) {
+  FakeResponse? _validate(RecordedRequest r, {required bool products}) {
     final q = r.query;
+    const shopSorts = ['relevance', 'distance'];
+    const productSorts = [...shopSorts, 'price_asc', 'price_desc'];
+    if (q['sort'] case final sort?
+        when !(products ? productSorts : shopSorts).contains(sort)) {
+      return _invalid('sort', 'Valeur non reconnue.');
+    }
+    if ((q['q'] ?? '').trim().length > 100) {
+      return _invalid('q', 'Valeur trop longue.');
+    }
     if (q.containsKey('lat') != q.containsKey('lng')) {
       return _invalid('lat', 'Indiquez lat et lng ensemble.');
     }
@@ -800,7 +818,7 @@ class FakeSearch {
   Future<FakeResponse> _searchProducts(RecordedRequest r) async {
     if (beforeSearch case final wait?) await wait(r);
     if (_failure(r) case final f?) return f;
-    if (_validate(r) case final f?) return f;
+    if (_validate(r, products: true) case final f?) return f;
     final q = r.query;
     final text = _fold(q['q'] ?? '');
     final point = _point(r);
@@ -829,18 +847,26 @@ class FakeSearch {
       if (q['in_stock'] == 'true' && !_inStock(p)) continue;
       hits.add((p, d));
     }
-    hits.sort((a, b) {
-      switch (q['sort']) {
-        case 'distance':
-          return a.$2!.compareTo(b.$2!);
-        case 'price_asc':
-          return (a.$1['price_xof'] as int).compareTo(b.$1['price_xof'] as int);
-        case 'price_desc':
-          return (b.$1['price_xof'] as int).compareTo(a.$1['price_xof'] as int);
-      }
-      return (b.$1['created_at'] as String).compareTo(
-        a.$1['created_at'] as String,
+    // Comme le backend : critère demandé, puis le plus récent, puis l'id.
+    int newest(Map<String, dynamic> a, Map<String, dynamic> b) {
+      final c = (b['created_at'] as String).compareTo(
+        a['created_at'] as String,
       );
+      return c != 0 ? c : (a['id'] as String).compareTo(b['id'] as String);
+    }
+
+    hits.sort((a, b) {
+      final first = switch (q['sort']) {
+        'distance' => a.$2!.compareTo(b.$2!),
+        'price_asc' => (a.$1['price_xof'] as int).compareTo(
+          b.$1['price_xof'] as int,
+        ),
+        'price_desc' => (b.$1['price_xof'] as int).compareTo(
+          a.$1['price_xof'] as int,
+        ),
+        _ => 0,
+      };
+      return first != 0 ? first : newest(a.$1, b.$1);
     });
     return _page(r, [
       for (final (p, d) in hits)
@@ -864,7 +890,7 @@ class FakeSearch {
   Future<FakeResponse> _searchShops(RecordedRequest r) async {
     if (beforeSearch case final wait?) await wait(r);
     if (_failure(r) case final f?) return f;
-    if (_validate(r) case final f?) return f;
+    if (_validate(r, products: false) case final f?) return f;
     final q = r.query;
     final text = _fold(q['q'] ?? '');
     final point = _point(r);
@@ -881,7 +907,16 @@ class FakeSearch {
       if (radius != null && d! > radius) continue;
       hits.add((s, d));
     }
-    if (q['sort'] == 'distance') hits.sort((a, b) => a.$2!.compareTo(b.$2!));
+    hits.sort((a, b) {
+      final first = q['sort'] == 'distance' ? a.$2!.compareTo(b.$2!) : 0;
+      if (first != 0) return first;
+      final c = (b.$1['created_at'] as String).compareTo(
+        a.$1['created_at'] as String,
+      );
+      return c != 0
+          ? c
+          : (a.$1['id'] as String).compareTo(b.$1['id'] as String);
+    });
     return _page(r, [
       for (final (s, d) in hits)
         {

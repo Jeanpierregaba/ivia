@@ -10,14 +10,6 @@ const buyerTabs = [
   IviaNavItem(icon: Icons.person_outline, label: 'Profil'),
 ];
 
-/// Index des onglets, pour y aller depuis un autre écran.
-abstract final class BuyerTab {
-  static const home = 0;
-  static const search = 1;
-  static const orders = 2;
-  static const profile = 3;
-}
-
 /// Cadre des onglets : barre du bas en pilule.
 class BuyerShell extends StatelessWidget {
   const BuyerShell({super.key, required this.shell});

@@ -131,8 +131,11 @@ class _SearchScreenState extends ConsumerState<SearchScreen> {
     ref
       ..listen(searchFocusRequestProvider, (_, _) => _focus.requestFocus())
       // Texte posé depuis l'accueil (nouvelle recherche) : le champ suit.
-      ..listen(searchFiltersProvider.select((f) => f.text), (_, text) {
-        if (_text.text.trim() != text) _text.text = text;
+      // Nouvelle recherche depuis l'accueil : la frappe en attente est
+      // abandonnée et le champ prend le texte de la recherche.
+      ..listen(searchFiltersProvider.select((f) => f.session), (_, _) {
+        _debounce?.cancel();
+        _text.text = ref.read(searchFiltersProvider).text;
       });
 
     final zoneChip = switch (area) {
@@ -206,6 +209,7 @@ class _SearchScreenState extends ConsumerState<SearchScreen> {
                     controller: _text,
                     focusNode: _focus,
                     hint: 'Produit ou boutique…',
+                    maxLength: 100,
                     onChanged: _onText,
                   ),
                   const SizedBox(height: IviaSpacing.lg),
@@ -260,16 +264,10 @@ class _SearchScreenState extends ConsumerState<SearchScreen> {
             else if (products)
               ..._results(
                 ref.watch(productResultsProvider(query)),
+                area: area,
                 filters: filters,
                 query: query,
-                builder: (items) => SliverToBoxAdapter(
-                  child: Padding(
-                    padding: const EdgeInsets.symmetric(
-                      horizontal: IviaSpacing.screen,
-                    ),
-                    child: ProductGrid(items: items),
-                  ),
-                ),
+                builder: (items) => ProductGridSliver(items: items),
                 emptyText: filters.text.isEmpty
                     ? 'Aucun produit autour de vous pour l’instant.'
                     : 'Aucun produit ne correspond à « ${filters.text} ».',
@@ -277,6 +275,7 @@ class _SearchScreenState extends ConsumerState<SearchScreen> {
             else
               ..._results(
                 ref.watch(shopResultsProvider(query)),
+                area: area,
                 filters: filters,
                 query: query,
                 builder: (items) => SliverPadding(
@@ -303,6 +302,7 @@ class _SearchScreenState extends ConsumerState<SearchScreen> {
 
   List<Widget> _results<T>(
     AsyncValue<Results<T>> results, {
+    required BuyerArea area,
     required SearchFilters filters,
     required SearchQuery query,
     required Widget Function(List<T> items) builder,
@@ -332,7 +332,7 @@ class _SearchScreenState extends ConsumerState<SearchScreen> {
         SliverToBoxAdapter(
           child: _Message(
             text: emptyText,
-            action: filters.hasFilters
+            action: filters.hasFiltersFor(area)
                 ? OutlinedButton(
                     onPressed: _filters.clearFilters,
                     child: const Text('Effacer les filtres'),

@@ -44,12 +44,14 @@ void main() {
       isTrue,
     );
     final shops = app.searches('/v1/search/shops').last.query;
-    expect(shops['lat'], '${lomeTokoin.lat}');
+    // Position arrondie à 3 décimales avant l'envoi (ADR 0010).
+    expect(shops['lat'], lomeTokoin.lat.toStringAsFixed(3));
     expect(shops['radius_m'], '5000');
     expect(shops['sort'], 'distance');
     // Plus proche d'abord ; quartier et distance.
     expect(find.text('Chez Afi'), findsOneWidget);
-    expect(find.textContaining('Tokoin · 330'), findsOneWidget);
+    // Distance du serveur, depuis la position arrondie.
+    expect(find.textContaining('Tokoin · 280'), findsOneWidget);
     final afi = tester.getTopLeft(find.text('Chez Afi'));
     final wax = tester.getTopLeft(find.text('Wax & Co'));
     expect(afi.dx, lessThan(wax.dx));
@@ -97,7 +99,8 @@ void main() {
       );
       expect(find.text('Chez Afi'), findsNothing);
       expect(
-        find.textContaining(' m'),
+        // Espace insécable avant l'unité (formatDistance).
+        find.textContaining(RegExp('\u00A0(m|km)\\b')),
         findsNothing,
         reason: 'aucune distance',
       );
@@ -236,5 +239,30 @@ void main() {
     );
     expect(tester.takeException(), isNull);
     expect(find.byType(IviaProductCard), findsWidgets);
+  });
+
+  testWidgets('« Voir tout » boutiques : même rayon, tri par distance', (
+    tester,
+  ) async {
+    await app.launch(tester);
+    final home = app.searches('/v1/search/shops').last.query;
+    await tester.tap(
+      find.bySemanticsLabel('Voir tout : Boutiques autour de vous'),
+    );
+    await tester.pumpAndSettle();
+    final all = app.searches('/v1/search/shops').last.query;
+    expect(all['radius_m'], home['radius_m']);
+    expect(all['sort'], 'distance');
+  });
+
+  testWidgets('position refusée définitivement : « Ouvrir les réglages »', (
+    tester,
+  ) async {
+    app.location.next = const LocationResult.failed(
+      LocationFailure.deniedForever,
+    );
+    await app.launch(tester);
+    await tapText(tester, 'Ouvrir les réglages');
+    expect(app.location.settingsOpened, 1);
   });
 }
