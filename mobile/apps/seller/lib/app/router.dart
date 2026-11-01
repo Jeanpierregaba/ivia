@@ -166,13 +166,13 @@ final routerProvider = Provider<GoRouter>((ref) {
                   GoRoute(
                     path: 'published',
                     parentNavigatorKey: rootKey,
-                    builder: (context, state) => switch (state.extra) {
-                      final Product product => ProductPublishedScreen(
-                        product: product,
-                      ),
-                      // Écran rouvert sans produit (restauration) : catalogue.
-                      _ => const CatalogScreen(),
-                    },
+                    // Écran rouvert sans produit (restauration, lien) :
+                    // retour au catalogue, dans ses onglets.
+                    redirect: (context, state) =>
+                        state.extra is Product ? null : Routes.catalog,
+                    builder: (context, state) => ProductPublishedScreen(
+                      product: state.extra! as Product,
+                    ),
                   ),
                   GoRoute(
                     path: 'draft/:id',

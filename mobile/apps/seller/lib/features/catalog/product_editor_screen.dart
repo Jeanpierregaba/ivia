@@ -62,7 +62,14 @@ class _ProductEditorScreenState extends ConsumerState<ProductEditorScreen> {
       final product = await ref
           .read(apiClientProvider)
           .sellerProduct(widget.productId!);
-      if (mounted) setState(() => _form = ProductForm.fromProduct(product));
+      if (!mounted) return;
+      // Lien vers un produit qui n'est plus un brouillon (liste périmée,
+      // autre téléphone) : « Modifier », pour ne pas le retirer par erreur.
+      if (product.status != ProductStatus.draft) {
+        context.pushReplacement(Routes.productEdit(product.id));
+        return;
+      }
+      setState(() => _form = ProductForm.fromProduct(product));
     } on Exception catch (e) {
       if (mounted) setState(() => _loadError = e);
     }
@@ -92,8 +99,15 @@ class _ProductEditorScreenState extends ConsumerState<ProductEditorScreen> {
     if (_scroll.hasClients) _scroll.jumpTo(0);
   }
 
+  /// Catégories actives chargées ; `null` : pas encore connues.
+  Set<String>? get _categoryIds =>
+      switch (ref.read(productCategoriesProvider).value) {
+        final all? => {for (final c in all) c.id},
+        null => null,
+      };
+
   void _continue() {
-    final errors = _form!.validateDetails();
+    final errors = _form!.validateDetails(categoryIds: _categoryIds);
     setState(() => _errors = errors);
     if (errors.isEmpty) _goTo(1);
   }
@@ -111,7 +125,10 @@ class _ProductEditorScreenState extends ConsumerState<ProductEditorScreen> {
   Future<void> _save({required bool publish}) async {
     if (_isBusy) return;
     final form = _form!;
-    final errors = {...form.validateDetails(), ...form.validateDelivery()};
+    final errors = {
+      ...form.validateDetails(categoryIds: _categoryIds),
+      ...form.validateDelivery(),
+    };
     if (errors.isNotEmpty) {
       setState(() => _errors = errors);
       _goTo(errors.keys.any(detailFields.contains) ? 0 : 1);
@@ -147,15 +164,21 @@ class _ProductEditorScreenState extends ConsumerState<ProductEditorScreen> {
     } on ApiException catch (e) {
       if (!mounted) return;
       final fields = e.fields;
-      setState(() {
-        _errors = fields;
-        if (fields.isEmpty) _generalError = catalogErrorMessage(container, e);
-      });
+      if (fields.containsKey('category_id')) {
+        ref.invalidate(productCategoriesProvider);
+      }
       if (fields.keys.any(detailFields.contains)) {
         _goTo(0);
-      } else if (fields.isNotEmpty) {
+      } else if (fields.keys.any(shownFields.contains)) {
         _goTo(1);
       }
+      // Erreur sans champ affiché : message général sur l'étape en cours.
+      setState(() {
+        _errors = fields;
+        if (!fields.keys.any(shownFields.contains)) {
+          _generalError = catalogErrorMessage(container, e);
+        }
+      });
     } on Exception catch (e) {
       if (mounted) {
         setState(() => _generalError = catalogErrorMessage(container, e));
@@ -351,7 +374,11 @@ class _ProductEditorScreenState extends ConsumerState<ProductEditorScreen> {
         ),
       ),
       const SizedBox(height: IviaSpacing.lg),
-      DescriptionField(controller: form.description, enabled: enabled),
+      DescriptionField(
+        controller: form.description,
+        enabled: enabled,
+        onChanged: (_) => _changed('description'),
+      ),
       const SizedBox(height: IviaSpacing.xl),
       if (_generalError != null) _generalErrorText(),
       FilledButton(onPressed: _continue, child: const Text('Continuer')),

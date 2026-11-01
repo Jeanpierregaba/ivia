@@ -57,8 +57,31 @@ class _CatalogScreenState extends ConsumerState<CatalogScreen> {
     );
     try {
       await ref.read(catalogListProvider(filter).future);
-    } on Exception {
-      // Erreur affichée par la liste.
+    } on Exception catch (e) {
+      // Liste déjà affichée : elle reste, un message dit qu'elle n'est pas
+      // à jour.
+      if (!mounted || ref.read(catalogListProvider(filter)).value == null) {
+        return;
+      }
+      ScaffoldMessenger.of(context)
+        ..hideCurrentSnackBar()
+        ..showSnackBar(
+          SnackBar(
+            content: Text(
+              'Catalogue non actualisé. '
+              '${catalogErrorMessage(ProviderScope.containerOf(context, listen: false), e)}',
+            ),
+          ),
+        );
+    }
+  }
+
+  /// Boutique suspendue ou retirée entre-temps : la boutique est relue et le
+  /// routeur ouvre l'écran qui l'explique.
+  void _onLoadError(Object? error) {
+    if (error is ApiException &&
+        (error.code == 'shop_suspended' || error.code == 'shop_not_found')) {
+      ref.read(sellerShopProvider.notifier).refresh();
     }
   }
 
@@ -72,6 +95,12 @@ class _CatalogScreenState extends ConsumerState<CatalogScreen> {
     final counts = ref.watch(catalogCountsProvider).value;
     final filter = (tab, query);
     final list = ref.watch(catalogListProvider(filter));
+    ref
+      ..listen(
+        catalogListProvider(filter),
+        (_, next) => _onLoadError(next.error),
+      )
+      ..listen(catalogCountsProvider, (_, next) => _onLoadError(next.error));
     final categories = ref.watch(productCategoriesProvider).value ?? const [];
 
     final subtitle = [
@@ -80,106 +109,119 @@ class _CatalogScreenState extends ConsumerState<CatalogScreen> {
         counts.total == 1 ? '1 produit' : '${counts.total} produits',
     ].join(' · ');
 
-    return SafeArea(
-      bottom: false,
-      child: RefreshIndicator(
-        onRefresh: _refresh,
-        child: NotificationListener<ScrollNotification>(
-          onNotification: (n) {
-            if (n.metrics.extentAfter < 400) {
-              ref.read(catalogListProvider(filter).notifier).loadMore();
-            }
-            return false;
-          },
-          child: CustomScrollView(
-            physics: const AlwaysScrollableScrollPhysics(),
-            slivers: [
-              SliverPadding(
-                padding: const EdgeInsets.fromLTRB(
-                  IviaSpacing.screen,
-                  IviaSpacing.lg,
-                  IviaSpacing.screen,
-                  0,
-                ),
-                sliver: SliverList.list(
-                  children: [
-                    if (pending) ...[
-                      Align(
-                        alignment: Alignment.centerLeft,
-                        child: IviaBackButton(
-                          onPressed: () => context.go(Routes.shopPending),
+    return PopScope(
+      // En attente de validation, le catalogue remplace l'écran de
+      // validation : le retour d'Android y revient au lieu de fermer l'app.
+      canPop: !pending,
+      onPopInvokedWithResult: (didPop, _) {
+        if (!didPop && pending) context.go(Routes.shopPending);
+      },
+      child: SafeArea(
+        bottom: false,
+        child: RefreshIndicator(
+          onRefresh: _refresh,
+          child: NotificationListener<ScrollNotification>(
+            onNotification: (n) {
+              // Défilement vertical de la liste seulement (pas celui du champ
+              // de recherche) ; après un échec, « Afficher la suite » relance.
+              if (n.depth == 0 &&
+                  n.metrics.axis == Axis.vertical &&
+                  n.metrics.extentAfter < 400 &&
+                  !(list.value?.loadMoreFailed ?? false)) {
+                ref.read(catalogListProvider(filter).notifier).loadMore();
+              }
+              return false;
+            },
+            child: CustomScrollView(
+              physics: const AlwaysScrollableScrollPhysics(),
+              slivers: [
+                SliverPadding(
+                  padding: const EdgeInsets.fromLTRB(
+                    IviaSpacing.screen,
+                    IviaSpacing.lg,
+                    IviaSpacing.screen,
+                    0,
+                  ),
+                  sliver: SliverList.list(
+                    children: [
+                      if (pending) ...[
+                        Align(
+                          alignment: Alignment.centerLeft,
+                          child: IviaBackButton(
+                            onPressed: () => context.go(Routes.shopPending),
+                          ),
                         ),
+                        const SizedBox(height: IviaSpacing.lg),
+                      ],
+                      Wrap(
+                        alignment: WrapAlignment.spaceBetween,
+                        crossAxisAlignment: WrapCrossAlignment.center,
+                        spacing: IviaSpacing.lg,
+                        runSpacing: IviaSpacing.md,
+                        children: [
+                          Column(
+                            mainAxisSize: MainAxisSize.min,
+                            crossAxisAlignment: CrossAxisAlignment.start,
+                            children: [
+                              Semantics(
+                                header: true,
+                                child: Text(
+                                  'Catalogue',
+                                  style: textTheme.headlineLarge,
+                                ),
+                              ),
+                              if (subtitle.isNotEmpty)
+                                Text(subtitle, style: textTheme.bodyMedium),
+                            ],
+                          ),
+                          FilledButton.icon(
+                            onPressed: () => context.push(Routes.productNew),
+                            icon: const Icon(Icons.add),
+                            label: const Text(
+                              'Produit',
+                              semanticsLabel: 'Ajouter un produit',
+                            ),
+                          ),
+                        ],
+                      ),
+                      if (pending) ...[
+                        const SizedBox(height: IviaSpacing.md),
+                        const IviaInfoCard(
+                          text:
+                              'Vos produits seront visibles dès que votre '
+                              'boutique sera validée.',
+                        ),
+                      ],
+                      const SizedBox(height: IviaSpacing.xl),
+                      IviaSearchField(
+                        controller: _search,
+                        hint: 'Rechercher un produit',
+                        onChanged: _onSearch,
+                      ),
+                      const SizedBox(height: IviaSpacing.lg),
+                      IviaSegmentedTabs(
+                        segments: [
+                          for (final status in ProductStatus.values)
+                            IviaSegment(
+                              label: statusLabel(status),
+                              count: counts?.of(status),
+                            ),
+                        ],
+                        selected: ProductStatus.values.indexOf(tab),
+                        onSelected: (i) => ref
+                            .read(catalogTabProvider.notifier)
+                            .select(ProductStatus.values[i]),
                       ),
                       const SizedBox(height: IviaSpacing.lg),
                     ],
-                    Wrap(
-                      alignment: WrapAlignment.spaceBetween,
-                      crossAxisAlignment: WrapCrossAlignment.center,
-                      spacing: IviaSpacing.lg,
-                      runSpacing: IviaSpacing.md,
-                      children: [
-                        Column(
-                          mainAxisSize: MainAxisSize.min,
-                          crossAxisAlignment: CrossAxisAlignment.start,
-                          children: [
-                            Semantics(
-                              header: true,
-                              child: Text(
-                                'Catalogue',
-                                style: textTheme.headlineLarge,
-                              ),
-                            ),
-                            if (subtitle.isNotEmpty)
-                              Text(subtitle, style: textTheme.bodyMedium),
-                          ],
-                        ),
-                        FilledButton.icon(
-                          onPressed: () => context.push(Routes.productNew),
-                          icon: const Icon(Icons.add),
-                          label: const Text(
-                            'Produit',
-                            semanticsLabel: 'Ajouter un produit',
-                          ),
-                        ),
-                      ],
-                    ),
-                    if (pending) ...[
-                      const SizedBox(height: IviaSpacing.md),
-                      const IviaInfoCard(
-                        text:
-                            'Vos produits seront visibles dès que votre '
-                            'boutique sera validée.',
-                      ),
-                    ],
-                    const SizedBox(height: IviaSpacing.xl),
-                    IviaSearchField(
-                      controller: _search,
-                      hint: 'Rechercher un produit',
-                      onChanged: _onSearch,
-                    ),
-                    const SizedBox(height: IviaSpacing.lg),
-                    IviaSegmentedTabs(
-                      segments: [
-                        for (final status in ProductStatus.values)
-                          IviaSegment(
-                            label: statusLabel(status),
-                            count: counts?.of(status),
-                          ),
-                      ],
-                      selected: ProductStatus.values.indexOf(tab),
-                      onSelected: (i) => ref
-                          .read(catalogTabProvider.notifier)
-                          .select(ProductStatus.values[i]),
-                    ),
-                    const SizedBox(height: IviaSpacing.lg),
-                  ],
+                  ),
                 ),
-              ),
-              ..._body(list, tab, query, categories),
-              const SliverToBoxAdapter(
-                child: SizedBox(height: IviaSpacing.xxxl),
-              ),
-            ],
+                ..._body(list, tab, query, categories),
+                const SliverToBoxAdapter(
+                  child: SizedBox(height: IviaSpacing.xxxl),
+                ),
+              ],
+            ),
           ),
         ),
       ),
@@ -194,9 +236,12 @@ class _CatalogScreenState extends ConsumerState<CatalogScreen> {
   ) {
     final page = list.value;
     if (list.hasError && page == null) {
+      final error = list.error;
       return [
         _Message(
-          text: 'Impossible de charger vos produits. Vérifiez votre connexion.',
+          text: error is ApiException && !error.isNetwork
+              ? error.message
+              : 'Impossible de charger vos produits. Vérifiez votre connexion.',
           action: OutlinedButton(
             onPressed: () {
               ref

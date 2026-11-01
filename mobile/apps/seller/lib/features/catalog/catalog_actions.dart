@@ -49,19 +49,38 @@ class CatalogActions {
     onPressed: () => _router.push(Routes.productEdit(p.id)),
   );
 
+  /// Erreur d'une action sur [product] : une catégorie refusée (désactivée
+  /// par l'admin) propose « Modifier » pour en choisir une autre.
+  void _sayError(Object error, Product product) {
+    final field = error is ApiException ? error.fields['category_id'] : null;
+    if (field != null) {
+      _container.invalidate(productCategoriesProvider);
+      _say('$field Choisissez-en une autre.', action: _editAction(product));
+      return;
+    }
+    _say(catalogErrorMessage(_container, error));
+  }
+
   /// Confirme puis retire de la vente ; ouvre l'onglet « Retirés » avec un
   /// message « Annuler ». `true` : retiré.
   Future<bool> withdraw(BuildContext context, Product product) async {
     if (!await showWithdrawSheet(context, product)) return false;
+    final Product withdrawn;
     try {
-      await _client.updateProduct(
+      withdrawn = await _client.updateProduct(
         product.id,
         inputFrom(product, isActive: false),
       );
     } on Exception catch (e) {
-      _say(catalogErrorMessage(_container, e));
+      _sayError(e, product);
       return false;
     }
+    announceWithdrawn(withdrawn);
+    return true;
+  }
+
+  /// Après un retrait : onglet « Retirés », message « Annuler ».
+  void announceWithdrawn(Product product) {
     refreshCatalog(_container);
     _container
         .read(catalogTabProvider.notifier)
@@ -74,7 +93,6 @@ class CatalogActions {
         onPressed: () => restore(product, undo: true),
       ),
     );
-    return true;
   }
 
   /// Remet en vente (« Remettre », ou « Annuler » d'un retrait).
@@ -88,13 +106,8 @@ class CatalogActions {
         product.id,
         inputFrom(product, isActive: true),
       );
-    } on ApiException catch (e) {
-      // Catégorie désactivée entre-temps : à changer dans « Modifier ».
-      final field = e.fields['category_id'];
-      _say(
-        field ?? catalogErrorMessage(_container, e),
-        action: field == null ? null : _editAction(product),
-      );
+    } on Exception catch (e) {
+      _sayError(e, product);
       return;
     }
     refreshCatalog(_container);

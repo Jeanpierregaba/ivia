@@ -177,6 +177,12 @@ la quantité. La feuille l'explique.
 - Commandes (011), accueil marchand définitif, profil complet du compte (002).
 - Fiche produit et recherche côté acheteur (007).
 - Variantes (taille, couleur), promotions, import en masse.
+- Bornes du serveur plus larges que celles de l'app : 6 photos et 5 000 caractères de
+  description acceptés par l'API (back-office, appels directs) ; l'app en montre 5 et 500. Un
+  produit qui les dépasse s'affiche, mais l'app refuse de l'enregistrer tel quel.
+- Création rejouée après une coupure réseau en fin de requête (le serveur a créé le produit, la
+  réponse s'est perdue) : un second produit peut être créé au nouvel essai. Une clé
+  d'idempotence sur `POST /v1/seller/shops/{id}/products` est à prévoir (voir `TASKS.md`).
 
 ## Questions ouvertes
 

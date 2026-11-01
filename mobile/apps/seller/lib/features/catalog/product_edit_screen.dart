@@ -55,6 +55,11 @@ class _ProductEditScreenState extends ConsumerState<ProductEditScreen> {
           .read(apiClientProvider)
           .sellerProduct(widget.productId);
       if (!mounted) return;
+      // Lien vers un brouillon (liste périmée) : il se reprend à l'étape 1.
+      if (product.status == ProductStatus.draft) {
+        context.pushReplacement(Routes.productDraft(product.id));
+        return;
+      }
       setState(() {
         _product = product;
         _form?.dispose();
@@ -80,10 +85,17 @@ class _ProductEditScreenState extends ConsumerState<ProductEditScreen> {
     });
   }
 
-  Future<void> _save() async {
+  /// Enregistre le formulaire ; [withdrawing] : retrait confirmé, annoncé
+  /// dans le catalogue avec « Annuler ».
+  Future<void> _save({bool withdrawing = false}) async {
     final form = _form!;
     if (_busy) return;
-    final errors = form.validateDetails();
+    final categories = ref.read(productCategoriesProvider).value;
+    final errors = form.validateDetails(
+      categoryIds: categories == null
+          ? null
+          : {for (final c in categories) c.id},
+    );
     final missing = _active ? photosMissing(form) : null;
     setState(() {
       _errors = errors;
@@ -95,33 +107,43 @@ class _ProductEditScreenState extends ConsumerState<ProductEditScreen> {
     setState(() => _busy = true);
     final container = ProviderScope.containerOf(context, listen: false);
     final messenger = ScaffoldMessenger.of(context);
+    final actions = CatalogActions.of(context);
     try {
-      await form.save(
+      final product = await form.save(
         ref.read(apiClientProvider),
         shopId: shopId,
         active: _active,
       );
       if (!mounted) return;
       _dirty = false;
+      _product = product;
+      if (withdrawing) {
+        actions.announceWithdrawn(product);
+        return;
+      }
       refreshCatalog(container);
       messenger.showSnackBar(
         const SnackBar(content: Text('Modifications enregistrées')),
       );
       _leave();
     } on ApiException catch (e) {
-      if (mounted) {
-        setState(() {
-          _errors = e.fields;
-          if (e.fields.isEmpty) {
-            _generalError = catalogErrorMessage(container, e);
-          }
-        });
+      if (!mounted) return;
+      if (e.fields.containsKey('category_id')) {
+        ref.invalidate(productCategoriesProvider);
       }
+      setState(() {
+        _errors = e.fields;
+        if (!e.fields.keys.any(shownFields.contains)) {
+          _generalError = catalogErrorMessage(container, e);
+        }
+      });
     } on Exception catch (e) {
       if (mounted) {
         setState(() => _generalError = catalogErrorMessage(container, e));
       }
     } finally {
+      // Ce qui a été enregistré avant un échec reste la référence.
+      if (form.saved case final saved?) _product = saved;
       if (mounted) setState(() => _busy = false);
     }
   }
@@ -159,10 +181,18 @@ class _ProductEditScreenState extends ConsumerState<ProductEditScreen> {
     if (mounted) _leave();
   }
 
+  /// Retrait par le formulaire : les changements en cours sont enregistrés
+  /// avec lui, rien n'est perdu ni écrasé par une version plus ancienne.
   Future<void> _withdraw() async {
     final product = _product;
     if (product == null || _busy) return;
-    await CatalogActions.of(context).withdraw(context, product);
+    if (!await showWithdrawSheet(context, product)) return;
+    if (!mounted) return;
+    setState(() => _active = false);
+    await _save(withdrawing: true);
+    // Échec : l'interrupteur montre « Retiré », à enregistrer à nouveau ;
+    // quitter demandera confirmation.
+    if (mounted && _product?.status != ProductStatus.withdrawn) _dirty = true;
   }
 
   Future<void> _editDescription(ProductForm form) async {

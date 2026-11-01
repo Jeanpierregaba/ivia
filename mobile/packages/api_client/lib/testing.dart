@@ -345,7 +345,32 @@ class FakeCatalog {
 
   /// Produits, dans l'ordre de création.
   final products = <Map<String, dynamic>>[];
-  var _clock = DateTime.utc(2026, 10, 31, 10);
+
+  /// Horloge du serveur : aujourd'hui (UTC, heure de Lomé), à partir de
+  /// 00 h 01, une minute par écriture. Les dates écrites par le faux serveur
+  /// s'affichent donc « aujourd'hui » dans l'app.
+  var _clock = () {
+    final now = DateTime.now().toUtc();
+    return DateTime.utc(now.year, now.month, now.day, 0, 1);
+  }();
+
+  /// Attendu avant de répondre à une lecture de la liste (réseau lent
+  /// simulé) ; `null` : réponse immédiate.
+  Future<void> Function(RecordedRequest request)? beforeList;
+
+  /// Catégories désactivées par l'admin : refusées comme par le backend
+  /// (création, catégorie changée, produit en vente) ; un retrait passe.
+  final inactiveCategories = <String>{};
+
+  FakeResponse? _categoryRefused(Object? categoryId, {required bool check}) =>
+      check && inactiveCategories.contains(categoryId)
+      ? FakeResponse.error(
+          400,
+          'validation_failed',
+          'Certaines informations sont invalides.',
+          fields: {'category_id': 'Catégorie inconnue.'},
+        )
+      : null;
   var _uploads = 0;
 
   /// Prochaine erreur à renvoyer, une seule fois, pour la première requête
@@ -410,7 +435,8 @@ class FakeCatalog {
     return out.toString();
   }
 
-  FakeResponse _list(RecordedRequest r) {
+  Future<FakeResponse> _list(RecordedRequest r) async {
+    if (beforeList case final wait?) await wait(r);
     if (_failure(r) case final f?) return f;
     final status = r.query['status'];
     final q = _fold(r.query['q']?.trim() ?? '');
@@ -437,6 +463,7 @@ class FakeCatalog {
   }
 
   FakeResponse _get(RecordedRequest r) {
+    if (_failure(r) case final f?) return f;
     final id = r.path.split('/').last;
     final p = products.where((p) => p['id'] == id).firstOrNull;
     return p == null
@@ -448,6 +475,9 @@ class FakeCatalog {
     if (_failure(r) case final f?) return f;
     final input = r.body! as Map<String, dynamic>;
     final active = input['is_active'] as bool? ?? true;
+    if (_categoryRefused(input['category_id'], check: true) case final f?) {
+      return f;
+    }
     final now = _tick().toIso8601String();
     final tracked = input['stock_mode'] == 'tracked';
     final id =
@@ -481,6 +511,11 @@ class FakeCatalog {
     final input = r.body! as Map<String, dynamic>;
     final was = p['is_active'] as bool;
     final active = input['is_active'] as bool? ?? was;
+    final refused = _categoryRefused(
+      input['category_id'],
+      check: active || input['category_id'] != p['category_id'],
+    );
+    if (refused != null) return refused;
     final now = _tick().toIso8601String();
     if (active && !was) p['published_at'] = now;
     if (active) {

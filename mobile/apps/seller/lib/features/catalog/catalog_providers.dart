@@ -7,6 +7,17 @@ import '../../app/seller_shop.dart';
 /// Taille d'une page du catalogue.
 const catalogPageSize = 20;
 
+/// Compte connecté : l'onglet et la recherche repartent de zéro quand il
+/// change (déconnexion, autre marchand).
+String? _accountId(Ref ref) => ref.watch(
+  authControllerProvider.select(
+    (auth) => switch (auth) {
+      AuthSignedIn(:final user) || AuthNeedsProfile(:final user) => user.id,
+      _ => null,
+    },
+  ),
+);
+
 /// Onglet ouvert du catalogue (En vente, Brouillons, Retirés).
 final catalogTabProvider = NotifierProvider<CatalogTab, ProductStatus>(
   CatalogTab.new,
@@ -14,7 +25,10 @@ final catalogTabProvider = NotifierProvider<CatalogTab, ProductStatus>(
 
 class CatalogTab extends Notifier<ProductStatus> {
   @override
-  ProductStatus build() => ProductStatus.active;
+  ProductStatus build() {
+    _accountId(ref);
+    return ProductStatus.active;
+  }
 
   void select(ProductStatus status) => state = status;
 }
@@ -26,7 +40,10 @@ final catalogQueryProvider = NotifierProvider<CatalogQuery, String>(
 
 class CatalogQuery extends Notifier<String> {
   @override
-  String build() => '';
+  String build() {
+    _accountId(ref);
+    return '';
+  }
 
   void set(String query) => state = query.trim();
 }
@@ -78,8 +95,14 @@ class CatalogList extends AsyncNotifier<CatalogPage> {
 
   final (ProductStatus, String) filter;
 
+  /// Incrémenté à chaque (re)chargement : une page de suite demandée avant
+  /// un rechargement est ignorée (Riverpod garde la même instance du
+  /// notifier, `ref.mounted` ne le signale pas).
+  var _generation = 0;
+
   @override
   Future<CatalogPage> build() async {
+    _generation++;
     final shopId = _shopId(ref);
     if (shopId == null) return const CatalogPage(items: [], nextOffset: null);
     final page = await ref
@@ -101,9 +124,11 @@ class CatalogList extends AsyncNotifier<CatalogPage> {
     if (current == null ||
         offset == null ||
         current.loadingMore ||
+        state.isLoading ||
         shopId == null) {
       return;
     }
+    final generation = _generation;
     state = AsyncData(
       current.copyWith(loadingMore: true, loadMoreFailed: false),
     );
@@ -117,15 +142,20 @@ class CatalogList extends AsyncNotifier<CatalogPage> {
             offset: offset,
             limit: catalogPageSize,
           );
-      if (!ref.mounted) return;
+      if (!ref.mounted || generation != _generation) return;
+      // Sans doublon si un produit a glissé d'une page à l'autre.
+      final known = {for (final p in current.items) p.id};
       state = AsyncData(
         CatalogPage(
-          items: [...current.items, ...page.items],
+          items: [
+            ...current.items,
+            ...page.items.where((p) => !known.contains(p.id)),
+          ],
           nextOffset: page.nextOffset,
         ),
       );
     } on Exception {
-      if (!ref.mounted) return;
+      if (!ref.mounted || generation != _generation) return;
       state = AsyncData(
         current.copyWith(loadingMore: false, loadMoreFailed: true),
       );

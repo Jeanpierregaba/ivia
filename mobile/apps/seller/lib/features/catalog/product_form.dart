@@ -35,6 +35,7 @@ class ProductForm {
 
   ProductForm.fromProduct(Product p)
     : productId = p.id,
+      saved = p,
       photos = [for (final image in p.images) EditorPhoto.remote(image)],
       categoryId = p.categoryId,
       parcelSize = p.parcelSize,
@@ -60,6 +61,10 @@ class ProductForm {
   /// encore créé.
   String? productId;
 
+  /// Dernière version enregistrée sur le serveur (y compris après un
+  /// enregistrement interrompu entre deux requêtes).
+  Product? saved;
+
   /// Mode de stock enregistré : il ne change plus.
   StockMode? savedStockMode;
   int? savedQuantity;
@@ -73,7 +78,10 @@ class ProductForm {
   }
 
   /// Étape 1 : vérifications locales, le serveur valide à nouveau.
-  Map<String, String> validateDetails() {
+  /// [categoryIds] : catégories actives chargées ; une catégorie absente
+  /// (désactivée par l'admin) est à choisir à nouveau, avant l'envoi des
+  /// photos.
+  Map<String, String> validateDetails({Set<String>? categoryIds}) {
     final errors = <String, String>{};
     final n = name.text.trim();
     if (n.length < 2 || n.length > 150) {
@@ -83,7 +91,11 @@ class ProductForm {
     if (p == null || p < 1 || p > 100000000) {
       errors['price_xof'] = 'Prix entre 1 et 100 000 000 FCFA.';
     }
-    if (categoryId == null) errors['category_id'] = 'Choisissez une catégorie.';
+    final category = categoryId;
+    if (category == null ||
+        (categoryIds != null && !categoryIds.contains(category))) {
+      errors['category_id'] = 'Choisissez une catégorie.';
+    }
     if (description.text.trim().length > 500) {
       errors['description'] = '500 caractères au plus.';
     }
@@ -128,15 +140,15 @@ class ProductForm {
       isActive: active,
     );
     if (creating) {
-      final product = await client.createProduct(shopId, input);
+      final product = saved = await client.createProduct(shopId, input);
       productId = product.id;
       savedStockMode = product.stockMode;
       savedQuantity = product.stockQuantity;
       return product;
     }
-    var product = await client.updateProduct(productId!, input);
+    var product = saved = await client.updateProduct(productId!, input);
     if (product.stockMode == StockMode.tracked && quantity != savedQuantity) {
-      product = await client.setStock(product.id, quantity);
+      product = saved = await client.setStock(product.id, quantity);
       savedQuantity = quantity;
     }
     return product;
@@ -151,6 +163,10 @@ class ProductForm {
     tracked ? 'Stock suivi : $quantity' : 'Stock non suivi',
   ];
 }
+
+/// Champs affichés par les formulaires produit : une erreur du serveur sur
+/// un autre champ s'affiche en message général.
+const shownFields = {...detailFields, 'parcel_size', 'stock_quantity'};
 
 /// Champs de l'étape 1 (une erreur sur l'un d'eux y ramène).
 const detailFields = {

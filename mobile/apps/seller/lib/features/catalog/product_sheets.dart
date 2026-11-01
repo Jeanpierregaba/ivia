@@ -157,37 +157,52 @@ Future<bool> showWithdrawSheet(BuildContext context, Product product) async {
 
 /// Quantité d'un stock suivi ; `null` : abandon.
 Future<int?> showStockSheet(BuildContext context, {required int initial}) =>
-    _sheet<int>(context, (context) {
-      var value = initial;
-      return StatefulBuilder(
-        builder: (context, setState) => Column(
-          crossAxisAlignment: CrossAxisAlignment.stretch,
-          children: [
-            const _SheetTitle('Stock'),
-            const SizedBox(height: IviaSpacing.sm),
-            Text(
-              'La quantité baisse à chaque commande. Impossible de vendre '
-              'plus que le stock.',
-              style: Theme.of(context).textTheme.bodyMedium
-                  ?.copyWith(color: IviaColors.textSecondary),
-            ),
-            const SizedBox(height: IviaSpacing.xl),
-            Center(
-              child: IviaQuantityStepper(
-                label: 'Quantité disponible',
-                value: value,
-                onChanged: (v) => setState(() => value = v),
-              ),
-            ),
-            const SizedBox(height: IviaSpacing.xl),
-            FilledButton(
-              onPressed: () => Navigator.pop(context, value),
-              child: const Text('Valider'),
-            ),
-          ],
+    _sheet<int>(context, (context) => _StockSheet(initial: initial));
+
+/// Contenu de la feuille « Stock ». La quantité vit dans l'état du widget :
+/// la feuille se reconstruit à chaque mouvement du clavier.
+class _StockSheet extends StatefulWidget {
+  const _StockSheet({required this.initial});
+
+  final int initial;
+
+  @override
+  State<_StockSheet> createState() => _StockSheetState();
+}
+
+class _StockSheetState extends State<_StockSheet> {
+  late var _value = widget.initial;
+
+  @override
+  Widget build(BuildContext context) {
+    return Column(
+      crossAxisAlignment: CrossAxisAlignment.stretch,
+      children: [
+        const _SheetTitle('Stock'),
+        const SizedBox(height: IviaSpacing.sm),
+        Text(
+          'La quantité baisse à chaque commande. Impossible de vendre plus '
+          'que le stock.',
+          style: Theme.of(context).textTheme.bodyMedium
+              ?.copyWith(color: IviaColors.textSecondary),
         ),
-      );
-    });
+        const SizedBox(height: IviaSpacing.xl),
+        Center(
+          child: IviaQuantityStepper(
+            label: 'Quantité disponible',
+            value: _value,
+            onChanged: (v) => setState(() => _value = v),
+          ),
+        ),
+        const SizedBox(height: IviaSpacing.xl),
+        FilledButton(
+          onPressed: () => Navigator.pop(context, _value),
+          child: const Text('Valider'),
+        ),
+      ],
+    );
+  }
+}
 
 /// Explication d'un stock non suivi (mode figé à la création).
 Future<void> showUntrackedStockSheet(BuildContext context) =>
@@ -243,6 +258,7 @@ class DescriptionField extends StatelessWidget {
     required this.controller,
     this.enabled = true,
     this.autofocus = false,
+    this.onChanged,
   });
 
   static const maxLength = 500;
@@ -250,6 +266,7 @@ class DescriptionField extends StatelessWidget {
   final TextEditingController controller;
   final bool enabled;
   final bool autofocus;
+  final ValueChanged<String>? onChanged;
 
   @override
   Widget build(BuildContext context) {
@@ -259,6 +276,7 @@ class DescriptionField extends StatelessWidget {
         controller: controller,
         enabled: enabled,
         autofocus: autofocus,
+        onChanged: onChanged,
         minLines: 3,
         maxLines: 6,
         maxLength: maxLength,
