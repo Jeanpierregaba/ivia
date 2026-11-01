@@ -11,11 +11,13 @@ class IviaSearchField extends StatefulWidget {
     required this.controller,
     required this.hint,
     this.onChanged,
+    this.focusNode,
   });
 
   final TextEditingController controller;
   final String hint;
   final ValueChanged<String>? onChanged;
+  final FocusNode? focusNode;
 
   @override
   State<IviaSearchField> createState() => _IviaSearchFieldState();
@@ -53,6 +55,7 @@ class _IviaSearchFieldState extends State<IviaSearchField> {
     );
     return TextField(
       controller: widget.controller,
+      focusNode: widget.focusNode,
       onChanged: widget.onChanged,
       textInputAction: TextInputAction.search,
       decoration: InputDecoration(

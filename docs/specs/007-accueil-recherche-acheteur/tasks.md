@@ -17,7 +17,7 @@
   mémorisé, permissions iOS et Android ; tests
 - [x] 6. Accueil : en-tête de position, salutation, champ, puces de catégories, boutiques autour
   de vous, nouveautés, actualisation, vides et erreurs ; tests
-- [ ] 7. Résultats : recherche différée, onglets Produits / Boutiques, filtres (rayon, catégorie,
+- [x] 7. Résultats : recherche différée, onglets Produits / Boutiques, filtres (rayon, catégorie,
   prix, en stock), tri, pagination, vide avec « Effacer les filtres », 429 ; tests
 - [ ] 8. Fiche boutique (recherche dans la boutique) et fiche produit (photos, disponibilité,
   boutique, colis, « Ajouter » annoncé pour la 008), 404 ; tests
