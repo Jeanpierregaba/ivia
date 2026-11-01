@@ -17,7 +17,7 @@
 **Mobile : fondations**
 - [x] 3. `api_client` : modèles et méthodes des produits, faux serveur fidèle (filtres,
   compteurs, état), tests
-- [ ] 4. `app_core` : `formatXof`, `parseXof`, `shortDate`, tests
+- [x] 4. `app_core` : `formatXof`, `parseXof`, `shortDate`, tests
 - [ ] 5. `ui` : `IviaBottomNav`, `IviaSegmentedTabs`, `IviaSearchField`, `IviaQuantityStepper`,
   `IviaChoiceCard`, `IviaStatusPill`, tests (sémantique, police à 200 %)
 

@@ -13,6 +13,7 @@ export 'src/code_screen.dart';
 export 'src/email_screen.dart';
 export 'src/first_launch.dart';
 export 'src/form_fields.dart';
+export 'src/formats.dart';
 export 'src/legal_text.dart';
 export 'src/login_flow.dart';
 export 'src/offline_screen.dart';
