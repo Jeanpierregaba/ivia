@@ -1,4 +1,4 @@
-# HTTPS automatique (Let's Encrypt) devant l'API. Le back-office sera ajouté avec admin/.
+# HTTPS automatique (Let's Encrypt) devant l'API et le back-office.
 {
 	# Journaux d'accès sans chaîne de requête : elle peut contenir une position ou une recherche.
 	log {
@@ -36,6 +36,33 @@
 					delete *
 				}
 				request>headers>Authorization delete
+				request>headers>Cookie delete
+			}
+		}
+	}
+}
+
+{$ADMIN_DOMAIN} {
+	encode zstd gzip
+
+	header {
+		Strict-Transport-Security "max-age=31536000; includeSubDomains"
+		X-Content-Type-Options "nosniff"
+		X-Frame-Options "DENY"
+		Referrer-Policy "no-referrer"
+		-Server
+	}
+
+	reverse_proxy admin:3000
+
+	log {
+		output stdout
+		format filter {
+			wrap json
+			fields {
+				request>uri query {
+					delete *
+				}
 				request>headers>Cookie delete
 			}
 		}

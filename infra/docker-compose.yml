@@ -36,17 +36,29 @@ services:
       - ./secrets:/run/secrets:ro
     # Pas de port publié : Caddy est le seul point d'entrée.
 
+  admin:
+    image: ghcr.io/${GHCR_OWNER}/ivia-admin:${ADMIN_TAG:?ADMIN_TAG obligatoire (SHA du commit)}
+    restart: unless-stopped
+    depends_on:
+      - api
+    environment:
+      # Appels serveur à serveur sur le réseau interne : le jeton ne transite pas par Internet.
+      API_BASE_URL: http://api:8080
+    # Pas de port publié : Caddy est le seul point d'entrée.
+
   caddy:
     image: caddy:2.10-alpine
     restart: unless-stopped
     depends_on:
       - api
+      - admin
     ports:
       - "80:80"
       - "443:443"
       - "443:443/udp"
     environment:
       API_DOMAIN: ${API_DOMAIN:?API_DOMAIN obligatoire}
+      ADMIN_DOMAIN: ${ADMIN_DOMAIN:?ADMIN_DOMAIN obligatoire}
     volumes:
       - ./Caddyfile:/etc/caddy/Caddyfile:ro
       - caddy-data:/data

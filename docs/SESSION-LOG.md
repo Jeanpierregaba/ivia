@@ -14,6 +14,22 @@ Format :
 - Prochaine étape :
 -->
 
+### 2026-11-01 — Activation des livreurs et back-office Next.js
+- Fait : backend — validation d'un livreur refusée sans pièce d'identité ni permis ; correctif
+  (un dossier refusé ne pouvait pas être soumis de nouveau) ; test du parcours d'activation.
+  Back-office `admin/` créé (ADR 0003) : connexion admin par code, cookie httpOnly, pages tableau
+  de bord, boutiques, livreurs, commandes, remboursements, paramètres, journal ; vérifié contre
+  l'API locale (toutes les pages, redirections sans session et session invalide) ; image Docker
+  (utilisateur non privilégié), jobs CI `admin` et `admin-image`, Compose et Caddy de production,
+  Dependabot npm, Prettier dans le hook de formatage. Mode d'emploi : `admin/README.md`.
+- Pièges rencontrés : projet écrit à la main (pas de `create-next-app` ni de CLI shadcn, téléchargements
+  de code refusés) ; Next 16 : `cookies()`, `params` et `searchParams` asynchrones, cookies écrits
+  seulement en Server Action ou Route Handler ; un fichier `"use server"` n'exporte que des
+  fonctions asynchrones ; Tailwind 4 : `rounded-card` généré par `--radius-card` dans `@theme` ;
+  `openapi-typescript` exige TypeScript 5 ; Docker Desktop s'arrête parfois (relancer la base).
+- Prochaine étape : écrans back-office restants (relevés, export CSV, catégories, quartiers,
+  paiements), tests Playwright ; backend : prestataire de paiement (016), VPS (017).
+
 ### 2026-10-31 — Compléments backend : catégories, Sentry, déploiement
 - Fait : audit du backend contre ARCHITECTURE et les specs 001, 004, 027 (ajouts backend du
   développeur frontend relus : consentement, catégories de boutique) ; catégories de boutique

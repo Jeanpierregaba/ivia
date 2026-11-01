@@ -22,6 +22,9 @@ go run ./cmd/api                 # http://localhost:8080/health
 
 # 3. Tests (contre la base Docker)
 go test ./...
+
+# 4. Back-office (autre terminal, depuis admin/) : http://localhost:3000, compte admin@ivia.local
+cd admin && pnpm install && API_BASE_URL=http://localhost:8080 pnpm dev
 ```
 
 En local, tout fonctionne sans compte externe : les codes de connexion s'affichent dans les journaux

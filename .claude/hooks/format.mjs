@@ -5,10 +5,14 @@ import path from "node:path";
 import { projectDir, readStdinJson, relativeToProject } from "./lib.mjs";
 
 // Commande de formatage par extension ; le chemin du fichier est ajouté à la fin.
-// Le back-office (prettier) sera ajouté avec admin/.
+const PRETTIER = "pnpm --dir admin exec prettier --write --ignore-unknown";
 const FORMAT_COMMANDS = {
   ".go": "gofmt -w",
   ".dart": "dart format",
+  ".ts": PRETTIER,
+  ".tsx": PRETTIER,
+  ".css": PRETTIER,
+  ".mjs": PRETTIER,
 };
 
 const input = readStdinJson();

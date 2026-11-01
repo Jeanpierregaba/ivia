@@ -13,8 +13,8 @@ docs/specs/NNN-nom/tasks.md. Les petites tâches isolées (bug, retouche) peuven
 
 Fin du squelette (étapes 8-9 du cadrage) :
 - [x] Mobile (frontend) — convertir `mobile/` en pub workspace : `apps/buyer`, `apps/seller`, `apps/driver`, `packages/api_client`, `packages/ui` (ADR 0002) ; mettre à jour les commandes Mobile d'`AGENTS.md` et le job `mobile` de la CI
-- [ ] Back-office (frontend) — créer `admin/` avec Next.js 16, TypeScript, Tailwind, pnpm (ADR 0003) ; ajouter ses commandes à `AGENTS.md`, un job `admin` à la CI et `prettier` au hook de formatage
-- [ ] Outillage — gitleaks en CI ; Dependabot npm avec `admin/`
+- [x] Back-office (frontend) — créer `admin/` avec Next.js 16, TypeScript, Tailwind, pnpm (ADR 0003) ; ajouter ses commandes à `AGENTS.md`, un job `admin` à la CI et `prettier` au hook de formatage
+- [ ] Outillage — gitleaks en CI
 
 ## À faire
 
@@ -26,8 +26,8 @@ version « retrait seulement » (voir `docs/PRD.md`).
 ### Phase 1 — Comptes et catalogue
 - [ ] 001 — Écrans de connexion par OTP e-mail dans l'app livreur (acheteur et marchand : faits)
 - [ ] 002 — Profil, carnet d'adresses (choix du point sur la carte), suppression du compte
-- [ ] 003 — Back-office : connexion admin (cookie httpOnly côté serveur Next.js), journal des actions
-- [ ] 004 — Boutiques : validation / suspension dans le back-office (création côté marchand : en cours)
+- [x] 003 — Back-office : connexion admin (cookie httpOnly côté serveur Next.js), journal des actions
+- [ ] 004 — Boutiques : création côté marchand en cours (validation / suspension dans le back-office : faite)
 - [ ] 005 — Catalogue : produits et photos (redimensionnées, sans métadonnées GPS, avant envoi)
 - [ ] 006 — Stock suivi et non suivi (écrans marchand)
 - [ ] 007 — Recherche : texte, catégorie, prix, quartier, « autour de moi »
@@ -39,13 +39,13 @@ version « retrait seulement » (voir `docs/PRD.md`).
 - [ ] 011 — Marchand : acceptation / refus sous 15 min, préparation, remise par code
 - [ ] 012 — Notifications push (`firebase_messaging`, enregistrement `PUT /v1/me/devices`) et liste
 - [ ] 013 — Suivi de commande et annulation par l'acheteur
-- [ ] 014 — Back-office : supervision des commandes et paiements, file de remboursement
-- [ ] 015 — Back-office : paramètres (commission, barème, délais, catégories, quartiers)
+- [ ] 014 — Back-office : supervision des paiements (liste, revérification, doublons) ; commandes, actions admin et file de remboursement : faites
+- [ ] 015 — Back-office : catégories de produits et de boutique, quartiers, comptes admin ; paramètres (commission, barème, délais) : faits
 - [ ] 016 — **Backend** : intégrer le vrai prestataire de paiement derrière `payments.Provider` (dépend de l'ADR 0007 accepté) ; tester ses webhooks réels en staging
 - [ ] 017 — **Infra** : louer et préparer les VPS de production et de staging, remplir `infra/.env`, DNS, compte Sentry, puis premier déploiement et premier test de restauration (mode d'emploi : `infra/README.md`). Image, Compose, Caddy, sauvegardes, Sentry et publication CI : faits
 
 ### Phase 3 — Livraison
-- [ ] 018 — Livreurs : inscription et envoi des documents (app livreur), validation dans le back-office
+- [ ] 018 — Livreurs : inscription et envoi des documents (app livreur) ; validation du dossier dans le back-office : faite
 - [ ] 019 — Disponibilité et position du livreur (service de premier plan Android, position toutes les 30 s, propositions interrogées toutes les 10 s)
 - [ ] 020 — Commande en livraison : adresse, véhicule compatible, frais (écrans)
 - [ ] 021 — Attribution : écran de proposition (45 s) ; alertes dans le back-office
@@ -54,7 +54,7 @@ version « retrait seulement » (voir `docs/PRD.md`).
 ### Phase 4 — Finances et lancement
 - [ ] 023 — Back-office : relevés marchands et marquage « réglé » ; relevés dans l'app marchand
 - [ ] 024 — Back-office : export des livraisons par livreur (CSV)
-- [ ] 025 — Back-office : indicateurs métier (`GET /v1/admin/metrics`)
+- [x] 025 — Back-office : indicateurs métier (`GET /v1/admin/metrics`), tableau de bord
 - [ ] 026 — Publication Play Store des 3 apps (fiches, politique de confidentialité, déclarations de localisation)
 
 ### Après le MVP (dès que Meta valide)
@@ -75,6 +75,10 @@ version « retrait seulement » (voir `docs/PRD.md`).
 - [ ] Boutiques et livreurs pilotes pour les tests terrain
 
 ## Terminé
+- [x] Back-office `admin/` (2026-11-01) : Next.js 16, TypeScript strict, Tailwind 4, pnpm ;
+  connexion admin par code (cookie httpOnly), tableau de bord, boutiques, livreurs (dossier et
+  activation), commandes (détail et actions admin), remboursements, paramètres, journal ; types
+  générés depuis `openapi.yaml` ; image Docker, CI, Compose de production et Caddy (`admin/README.md`)
 - [x] Backend (2026-11-01) : activation des livreurs par l'admin sur dossier complet (pièce
   d'identité et permis obligatoires) ; correction d'un dossier refusé (plantait) ; test du
   parcours complet d'activation

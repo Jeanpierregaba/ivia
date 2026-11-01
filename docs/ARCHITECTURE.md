@@ -196,7 +196,8 @@ mobile/                    Dart pub workspace
   packages/api_client      appels HTTP, modèles, gestion du jeton
   packages/app_core        session, connexion par code, champs communs (spec 004)
   packages/ui              thème et composants partagés
-admin/                     back-office Next.js
+admin/                     back-office Next.js (app/(admin)/ pages, lib/api.ts client serveur,
+                           lib/api-types.ts généré depuis openapi.yaml) : admin/README.md
 infra/                     docker-compose de production, Caddyfile, sauvegardes
 ```
 
