@@ -15,6 +15,7 @@ export 'src/first_launch.dart';
 export 'src/form_fields.dart';
 export 'src/formats.dart';
 export 'src/legal_text.dart';
+export 'src/location.dart';
 export 'src/login_flow.dart';
 export 'src/offline_screen.dart';
 export 'src/onboarding_store.dart';

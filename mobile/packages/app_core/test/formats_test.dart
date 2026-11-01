@@ -78,4 +78,16 @@ void main() {
       expect(onDate(DateTime.utc(2026, 10, 31), now: now), "aujourd'hui");
     });
   });
+
+  test('distances : mètres sous 1 km, puis kilomètres à la virgule', () {
+    expect(plain(formatDistance(3)), '10 m');
+    expect(plain(formatDistance(347)), '350 m');
+    expect(plain(formatDistance(994)), '990 m');
+    expect(plain(formatDistance(996)), '1 km', reason: 'jamais « 1000 m »');
+    expect(plain(formatDistance(1150)), '1,2 km');
+    expect(plain(formatDistance(2000)), '2 km');
+    expect(plain(formatDistance(9960)), '10 km');
+    expect(plain(formatDistance(12400)), '12 km');
+    expect(formatDistance(350), contains('\u00A0'));
+  });
 }

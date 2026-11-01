@@ -6,6 +6,8 @@ import 'package:google_maps_flutter/google_maps_flutter.dart';
 import 'package:ivia_api_client/ivia_api_client.dart';
 import 'package:ivia_ui/ivia_ui.dart';
 
+import 'package:ivia_app_core/ivia_app_core.dart';
+
 import '../../app/device_services.dart';
 
 /// Centre de Lomé : position de départ de la carte.

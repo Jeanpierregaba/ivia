@@ -93,3 +93,17 @@ String onDate(DateTime date, {DateTime? now}) {
   final s = shortDate(date, now: now);
   return s == "aujourd'hui" || s == 'hier' ? s : 'le $s';
 }
+
+/// Distance affichée : « 350 m » sous 1 km (arrondie à 10 m), puis
+/// « 1,2 km » (une décimale, virgule française), « 12 km » à partir de 10 km.
+String formatDistance(int meters) {
+  if (meters < 995) {
+    final rounded = (meters / 10).round() * 10;
+    return '${rounded < 10 ? 10 : rounded}\u00A0m';
+  }
+  // Dixièmes de kilomètre entiers : pas d'arrondi flottant (1 150 m → 1,2).
+  final tenths = (meters / 100).round();
+  if (tenths >= 100) return '${(meters / 1000).round()}\u00A0km';
+  final decimal = tenths % 10;
+  return '${tenths ~/ 10}${decimal == 0 ? '' : ',$decimal'}\u00A0km';
+}

@@ -3,7 +3,7 @@
 <!-- Ordonnées. Chaque tâche est petite, testable et committable seule. Cochée dès qu'elle est faite et commitée. -->
 
 **Fondations**
-- [ ] 1. `app_core` : position partagée (`location.dart`, précision réglable), `formatDistance` ;
+- [x] 1. `app_core` : position partagée (`location.dart`, précision réglable), `formatDistance` ;
   app marchand branchée dessus, ses tests au vert
 - [ ] 2. `api_client` : modèles et méthodes de recherche et des fiches publiques, `FakeSearch`
   fidèle, tests
