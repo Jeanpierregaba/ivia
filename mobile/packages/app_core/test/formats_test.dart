@@ -1,5 +1,6 @@
 import 'package:flutter/services.dart';
 import 'package:flutter_test/flutter_test.dart';
+import 'package:ivia_api_client/ivia_api_client.dart';
 import 'package:ivia_app_core/ivia_app_core.dart';
 
 /// Espaces typographiques remplacés par des espaces simples, pour lire les
@@ -89,5 +90,15 @@ void main() {
     expect(plain(formatDistance(9960)), '10 km');
     expect(plain(formatDistance(12400)), '12 km');
     expect(formatDistance(350), contains('\u00A0'));
+  });
+
+  test('distance entre deux points de Lomé', () {
+    const tokoin = GeoPoint(lat: 6.1375, lng: 1.2123);
+    expect(distanceMeters(tokoin, tokoin), 0);
+    // 0,003° de latitude ≈ 334 m.
+    expect(
+      distanceMeters(tokoin, const GeoPoint(lat: 6.1405, lng: 1.2123)),
+      inInclusiveRange(330, 338),
+    );
   });
 }

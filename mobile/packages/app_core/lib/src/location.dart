@@ -1,3 +1,5 @@
+import 'dart:math' as math;
+
 import 'package:flutter_riverpod/flutter_riverpod.dart';
 import 'package:geolocator/geolocator.dart';
 import 'package:ivia_api_client/ivia_api_client.dart';
@@ -73,3 +75,18 @@ class DeviceLocationService implements LocationService {
 final locationServiceProvider = Provider<LocationService>(
   (ref) => const DeviceLocationService(),
 );
+
+/// Distance à vol d'oiseau en mètres (formule de haversine), précise à
+/// quelques mètres près à l'échelle de Lomé.
+int distanceMeters(GeoPoint a, GeoPoint b) {
+  const earthRadius = 6371000.0;
+  double rad(double degrees) => degrees * math.pi / 180;
+  final dLat = rad(b.lat - a.lat);
+  final dLng = rad(b.lng - a.lng);
+  final h =
+      math.pow(math.sin(dLat / 2), 2) +
+      math.cos(rad(a.lat)) *
+          math.cos(rad(b.lat)) *
+          math.pow(math.sin(dLng / 2), 2);
+  return (2 * earthRadius * math.asin(math.sqrt(h))).round();
+}
