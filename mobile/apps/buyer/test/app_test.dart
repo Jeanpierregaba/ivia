@@ -8,6 +8,7 @@ import 'package:flutter_test/flutter_test.dart';
 import 'package:ivia_api_client/ivia_api_client.dart';
 import 'package:ivia_api_client/testing.dart';
 import 'package:ivia_app_core/ivia_app_core.dart';
+import 'package:ivia_buyer/app/buyer_area.dart';
 import 'package:ivia_buyer/app/identity.dart';
 import 'package:ivia_buyer/features/onboarding/onboarding_screen.dart';
 import 'package:ivia_buyer/main.dart';
@@ -16,6 +17,14 @@ import 'package:shared_preferences/shared_preferences.dart';
 
 const _firstTitle = "Trouvez ce qu'il vous faut, tout près.";
 const _email = 'awa@test.tg';
+
+class _DeniedLocation implements LocationService {
+  const _DeniedLocation();
+
+  @override
+  Future<LocationResult> current() async =>
+      const LocationResult.failed(LocationFailure.denied);
+}
 
 void main() {
   late FakeApiServer server;
@@ -45,12 +54,16 @@ void main() {
     bool settle = true,
   }) async {
     final store = await OnboardingStore.open();
+    final area = await AreaStore.open();
     // Nouvel arbre : simule un redémarrage de l'app.
     await tester.pumpWidget(const SizedBox());
     await tester.pumpWidget(
       ProviderScope(
         overrides: [
           onboardingStoreProvider.overrideWithValue(store),
+          areaStoreProvider.overrideWithValue(area),
+          // Jamais le GPS du poste de test : position refusée.
+          locationServiceProvider.overrideWithValue(const _DeniedLocation()),
           appIdentityProvider.overrideWithValue(buyerIdentity),
           apiClientProvider.overrideWithValue(
             IviaApiClient(

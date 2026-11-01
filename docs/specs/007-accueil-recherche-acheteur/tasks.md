@@ -13,7 +13,7 @@
 **App acheteur**
 - [x] 4. Shell à 4 onglets (Accueil, Recherche, Commandes, Profil), Profil (déconnexion),
   Commandes « Bientôt disponible », routeur à préfixes ; tests du routeur
-- [ ] 5. Zone de recherche : position (autorisée, refusée, indisponible), choix du quartier
+- [x] 5. Zone de recherche : position (autorisée, refusée, indisponible), choix du quartier
   mémorisé, permissions iOS et Android ; tests
 - [ ] 6. Accueil : en-tête de position, salutation, champ, puces de catégories, boutiques autour
   de vous, nouveautés, actualisation, vides et erreurs ; tests

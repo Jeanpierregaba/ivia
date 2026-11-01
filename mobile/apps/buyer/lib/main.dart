@@ -6,6 +6,7 @@ import 'package:ivia_ui/ivia_ui.dart';
 
 import 'package:ivia_app_core/ivia_app_core.dart';
 
+import 'app/buyer_area.dart';
 import 'app/identity.dart';
 import 'app/router.dart';
 
@@ -17,12 +18,18 @@ Future<void> main() async {
   await SystemChrome.setPreferredOrientations([DeviceOrientation.portraitUp]);
   await clearSessionAfterReinstall(SessionStore());
   final onboarding = await OnboardingStore.open();
+  final area = await AreaStore.open();
   // Logotype du splash de chargement prêt dès sa première image.
   await IviaLogo.precache(IviaLogoColor.white);
   runApp(
     ProviderScope(
       overrides: [
         onboardingStoreProvider.overrideWithValue(onboarding),
+        areaStoreProvider.overrideWithValue(area),
+        // « Autour de moi » : la précision d'un quartier suffit.
+        locationServiceProvider.overrideWithValue(
+          const DeviceLocationService(approximate: true),
+        ),
         appIdentityProvider.overrideWithValue(buyerIdentity),
         apiClientProvider.overrideWithValue(
           IviaApiClient(config: ApiConfig.fromEnvironment()),
