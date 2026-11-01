@@ -213,7 +213,10 @@ infra/                     docker-compose de production, Caddyfile, sauvegardes
     `httpOnly`, `Secure`, `SameSite=Lax`, jamais lisible par le JavaScript du navigateur.
 - **Rôles** dans `user_roles`. `buyer` est donné à l'inscription. `seller` est ajouté quand
   l'utilisateur crée une boutique : elle reste invisible tant que l'admin ne l'a pas validée.
-  `driver` et `admin` ne sont **attribués que par un admin**.
+  `driver` et `admin` ne sont **attribués que par un admin**. Un candidat livreur dépose sa
+  candidature et ses documents (compartiment privé) ; il n'obtient le rôle `driver`, donc l'accès
+  aux missions, qu'après validation par un admin, refusée tant que la pièce d'identité et le
+  permis de conduire manquent. Un dossier refusé peut être corrigé et soumis de nouveau.
 - **Contrôle d'accès dans le backend, à deux niveaux** :
   1. middleware de route : rôle requis (`requireRole("seller")`) ;
   2. service : propriété de la ressource (le marchand ne voit que les commandes de **ses** boutiques,

@@ -75,6 +75,9 @@ version « retrait seulement » (voir `docs/PRD.md`).
 - [ ] Boutiques et livreurs pilotes pour les tests terrain
 
 ## Terminé
+- [x] Backend (2026-11-01) : activation des livreurs par l'admin sur dossier complet (pièce
+  d'identité et permis obligatoires) ; correction d'un dossier refusé (plantait) ; test du
+  parcours complet d'activation
 - [x] Backend (2026-10-31) : catégories de boutique complètes (gestion admin, fiche publique,
   filtres de recherche) ; suivi des erreurs Sentry (sans donnée personnelle) ; image Docker de
   l'API, `infra/` (Compose de production, Caddy, sauvegarde et restauration vers R2), publication

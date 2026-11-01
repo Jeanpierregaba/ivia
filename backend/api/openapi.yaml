@@ -2303,7 +2303,7 @@ paths:
       tags:
         - Livreur
       operationId: putDriverApplication
-      description: "Le rôle driver n'est donné qu'après validation par un admin."
+      description: "Le rôle driver n'est donné qu'après validation par un admin, sur un dossier contenant au moins la pièce d'identité et le permis de conduire (POST /v1/driver/application/documents). Un dossier refusé peut être corrigé puis soumis de nouveau : il repasse en attente de validation."
       x-roles:
         - any
       requestBody:
@@ -3667,6 +3667,7 @@ paths:
   "/v1/admin/drivers/{id}/approve":
     post:
       summary: "Valider un livreur (donne le rôle driver)"
+      description: "Active le compte : seul un livreur validé peut passer en ligne, envoyer sa position et recevoir des missions. Refusé tant que le dossier ne contient pas la pièce d'identité (id_card) et le permis de conduire (driving_license) : 409 `driver_documents_missing`. Journalisé."
       tags:
         - Admin
       operationId: postAdminDriversByIdApprove

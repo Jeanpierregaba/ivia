@@ -80,6 +80,18 @@ func (l *Local) Exists(_ context.Context, vis Visibility, key string) (bool, err
 	return err == nil, err
 }
 
+// Write dépose un fichier directement (données de démonstration en local, cmd/manage seed-dev).
+func (l *Local) Write(vis Visibility, key string, data []byte) error {
+	p, err := l.path(vis, key)
+	if err != nil {
+		return err
+	}
+	if err := os.MkdirAll(filepath.Dir(p), 0o755); err != nil {
+		return err
+	}
+	return os.WriteFile(p, data, 0o644)
+}
+
 // Delete implémente ObjectStore.
 func (l *Local) Delete(_ context.Context, vis Visibility, key string) error {
 	p, err := l.path(vis, key)
