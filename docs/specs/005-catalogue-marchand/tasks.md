@@ -43,8 +43,8 @@
   `TASKS.md` (005 et 006)
 
 **Vérifications**
-- [ ] Parcours réel sur le simulateur iPhone 17 Pro contre l'API locale (création avec photo,
+- [x] Parcours réel sur le simulateur iPhone 17 Pro contre l'API locale (création avec photo,
   brouillon, retrait, remise en vente)
-- [ ] Vérifier tous les critères d'acceptation de spec.md
+- [x] Vérifier tous les critères d'acceptation de spec.md
 - [x] Relecture par le sous-agent reviewer : 1 bloquant, 5 importants et 11 mineurs corrigés et
   testés ; reportés : idempotence de la création, bornes du serveur (voir spec, hors périmètre)

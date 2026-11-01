@@ -8,7 +8,6 @@ docs/specs/NNN-nom/tasks.md. Les petites tâches isolées (bug, retouche) peuven
 
 ## En cours
 
-- [ ] 005 — Catalogue marchand : produits, photos, publication, brouillons, retrait ([spec](docs/specs/005-catalogue-marchand/spec.md)) : implémenté, relu et corrigé ; reste le parcours sur le simulateur, la relecture de la migration 00020 par Gedeon
 - [ ] 018 — Espace livreur : lancement, connexion, dossier de candidature ([spec](docs/specs/018-espace-livreur/spec.md)) : relu et corrigé ; appareil photo à vérifier sur un vrai téléphone
 - [ ] 004 — Espace marchand : lancement, connexion, création de la boutique ([spec](docs/specs/004-espace-marchand/spec.md)) : relu et corrigé ; reste les clés Google Maps (vérification de la carte)
 - [ ] 027 — Splash et présentation des 3 apps ([spec](docs/specs/027-splash-onboarding/spec.md)) : reste la vérification sur Android, la validation des textes et des couleurs par le designer
@@ -30,7 +29,7 @@ version « retrait seulement » (voir `docs/PRD.md`).
 - [ ] 002 — Profil, carnet d'adresses (choix du point sur la carte), suppression du compte
 - [ ] 003 — Back-office : connexion admin (cookie httpOnly côté serveur Next.js), journal des actions
 - [ ] 004 — Boutiques : validation / suspension dans le back-office (création côté marchand : en cours)
-- [ ] 005 — Catalogue : produits et photos (redimensionnées, sans métadonnées GPS, avant envoi) : écrans marchand en cours (voir « En cours »)
+- [x] 005 — Catalogue : produits et photos (redimensionnées, sans métadonnées GPS, avant envoi) : écrans marchand faits (voir « Terminé »)
 - [ ] 006 — Stock : journal des mouvements et alertes de réapprovisionnement (saisie et ajustement de la quantité faits dans 005)
 - [ ] **Backend** : clé d'idempotence à la création d'un produit (et des autres créations rejouables depuis les apps), pour qu'un nouvel essai après une coupure ne crée pas de doublon
 - [ ] 007 — Recherche : texte, catégorie, prix, quartier, « autour de moi »
@@ -78,6 +77,7 @@ version « retrait seulement » (voir `docs/PRD.md`).
 - [ ] Boutiques et livreurs pilotes pour les tests terrain
 
 ## Terminé
+- [x] 005 — Catalogue marchand ([spec](docs/specs/005-catalogue-marchand/spec.md), 2026-11-01) : barre du bas, catalogue par onglets avec recherche et compteurs serveur, création en deux étapes, aperçu, brouillons, modification, retrait et remise en vente, stock ; migration 00020 (états de publication) à faire relire par Gedeon dans la PR
 - [x] Corrections de la revue du 2026-10-30 : `APP_ENV` obligatoire, code de remise compté avant
   comparaison, confirmation du retour par l'admin, machine à états testée exhaustivement, accès aux
   ressources d'autrui testés sur toutes les routes, paiement incohérent en échec, commandes non

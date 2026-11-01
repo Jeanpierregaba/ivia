@@ -106,33 +106,33 @@ la quantité. La feuille l'explique.
 
 ## Critères d'acceptation
 
-- [ ] Étant donné une boutique publiée, alors la barre du bas montre Accueil, Commandes, Catalogue,
+- [x] Étant donné une boutique publiée, alors la barre du bas montre Accueil, Commandes, Catalogue,
       Compte ; Compte permet de se déconnecter.
-- [ ] Étant donné des produits dans les trois états, alors chaque onglet ne liste que les siens et
+- [x] Étant donné des produits dans les trois états, alors chaque onglet ne liste que les siens et
       affiche le nombre donné par le serveur ; l'en-tête affiche le total.
-- [ ] Étant donné une recherche « riz », alors l'onglet ne montre que les produits dont le nom
+- [x] Étant donné une recherche « riz », alors l'onglet ne montre que les produits dont le nom
       contient « riz » ou « Riz », accents ignorés (« cafe » trouve « Café ») ; le filtrage est
       fait par le serveur.
-- [ ] Étant donné les deux étapes remplies, quand le marchand publie depuis l'aperçu, alors les
+- [x] Étant donné les deux étapes remplies, quand le marchand publie depuis l'aperçu, alors les
       photos (redimensionnées à 1600 px au plus, sans métadonnées) sont envoyées par URL signée,
       le produit est créé en vente avec ses photos dans l'ordre, et « Produit publié » s'affiche.
-- [ ] Étant donné « Brouillon » à l'étape 2, alors le produit est créé non visible, apparaît dans
+- [x] Étant donné « Brouillon » à l'étape 2, alors le produit est créé non visible, apparaît dans
       « Brouillons », et un appui le rouvre prérempli ; le publier le fait passer « En vente ».
-- [ ] Étant donné un produit sans photo, alors « Voir l'aperçu » et « Remettre » sont refusés avec
+- [x] Étant donné un produit sans photo, alors « Voir l'aperçu » et « Remettre » sont refusés avec
       « Ajoutez au moins une photo. » ; un brouillon sans photo peut être enregistré.
-- [ ] Étant donné un produit en vente, quand le marchand le retire et confirme, alors il passe dans
+- [x] Étant donné un produit en vente, quand le marchand le retire et confirme, alors il passe dans
       « Retirés » avec la date du jour ; « Annuler » dans le message le remet en vente.
-- [ ] Étant donné un produit retiré, quand le marchand appuie sur « Remettre », alors il repasse
+- [x] Étant donné un produit retiré, quand le marchand appuie sur « Remettre », alors il repasse
       « En vente » et « Visible depuis » prend la date du jour.
-- [ ] Étant donné un produit à stock suivi, quand le marchand ajuste la quantité, alors le serveur
+- [x] Étant donné un produit à stock suivi, quand le marchand ajuste la quantité, alors le serveur
       l'enregistre (journal de stock) et la ligne l'affiche ; à 0, la ligne affiche « Épuisé · à
       réapprovisionner ».
-- [ ] Étant donné une modification du prix, du nom, de la catégorie ou des photos, quand le marchand
+- [x] Étant donné une modification du prix, du nom, de la catégorie ou des photos, quand le marchand
       enregistre, alors le serveur renvoie le produit modifié et le catalogue l'affiche.
-- [ ] Côté serveur : un produit créé avec `is_active: false` est un brouillon (`status: draft`) ;
+- [x] Côté serveur : un produit créé avec `is_active: false` est un brouillon (`status: draft`) ;
       publié, il est `active` avec `published_at` ; désactivé, il est `withdrawn` avec
       `withdrawn_at` ; un brouillon modifié reste un brouillon.
-- [ ] Côté serveur : la liste du marchand accepte `status` et `q` ; les compteurs par état ne
+- [x] Côté serveur : la liste du marchand accepte `status` et `q` ; les compteurs par état ne
       comptent que les produits de la boutique demandée ; la boutique d'un autre marchand répond
       404 (liste comme compteurs).
 
