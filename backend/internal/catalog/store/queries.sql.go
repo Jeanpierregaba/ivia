@@ -202,6 +202,55 @@ func (q *Queries) InsertImage(ctx context.Context, arg InsertImageParams) error 
 	return err
 }
 
+const listActiveProductsByShop = `-- name: ListActiveProductsByShop :many
+SELECT id, shop_id, category_id, name, description, price_xof, parcel_size, stock_mode, is_active, search_vector, created_at, updated_at, published_at, withdrawn_at FROM products
+WHERE shop_id = $1 AND is_active
+ORDER BY created_at DESC, id
+LIMIT $3 OFFSET $2
+`
+
+type ListActiveProductsByShopParams struct {
+	ShopID uuid.UUID
+	Off    int32
+	Lim    int32
+}
+
+// Produits en vente d'une boutique (vue publique). Le marchand a ListSellerProducts.
+func (q *Queries) ListActiveProductsByShop(ctx context.Context, arg ListActiveProductsByShopParams) ([]Product, error) {
+	rows, err := q.db.Query(ctx, listActiveProductsByShop, arg.ShopID, arg.Off, arg.Lim)
+	if err != nil {
+		return nil, err
+	}
+	defer rows.Close()
+	items := []Product{}
+	for rows.Next() {
+		var i Product
+		if err := rows.Scan(
+			&i.ID,
+			&i.ShopID,
+			&i.CategoryID,
+			&i.Name,
+			&i.Description,
+			&i.PriceXof,
+			&i.ParcelSize,
+			&i.StockMode,
+			&i.IsActive,
+			&i.SearchVector,
+			&i.CreatedAt,
+			&i.UpdatedAt,
+			&i.PublishedAt,
+			&i.WithdrawnAt,
+		); err != nil {
+			return nil, err
+		}
+		items = append(items, i)
+	}
+	if err := rows.Err(); err != nil {
+		return nil, err
+	}
+	return items, nil
+}
+
 const listCategories = `-- name: ListCategories :many
 SELECT id, name, parent_id, position, is_active, created_at, updated_at FROM categories
 WHERE ($1::boolean OR is_active)
@@ -255,60 +304,6 @@ func (q *Queries) ListImages(ctx context.Context, productIds []uuid.UUID) ([]Pro
 			&i.ObjectKey,
 			&i.Position,
 			&i.CreatedAt,
-		); err != nil {
-			return nil, err
-		}
-		items = append(items, i)
-	}
-	if err := rows.Err(); err != nil {
-		return nil, err
-	}
-	return items, nil
-}
-
-const listProductsByShop = `-- name: ListProductsByShop :many
-SELECT id, shop_id, category_id, name, description, price_xof, parcel_size, stock_mode, is_active, search_vector, created_at, updated_at, published_at, withdrawn_at FROM products
-WHERE shop_id = $1 AND ($2::boolean OR is_active)
-ORDER BY created_at DESC
-LIMIT $4 OFFSET $3
-`
-
-type ListProductsByShopParams struct {
-	ShopID          uuid.UUID
-	IncludeInactive bool
-	Off             int32
-	Lim             int32
-}
-
-func (q *Queries) ListProductsByShop(ctx context.Context, arg ListProductsByShopParams) ([]Product, error) {
-	rows, err := q.db.Query(ctx, listProductsByShop,
-		arg.ShopID,
-		arg.IncludeInactive,
-		arg.Off,
-		arg.Lim,
-	)
-	if err != nil {
-		return nil, err
-	}
-	defer rows.Close()
-	items := []Product{}
-	for rows.Next() {
-		var i Product
-		if err := rows.Scan(
-			&i.ID,
-			&i.ShopID,
-			&i.CategoryID,
-			&i.Name,
-			&i.Description,
-			&i.PriceXof,
-			&i.ParcelSize,
-			&i.StockMode,
-			&i.IsActive,
-			&i.SearchVector,
-			&i.CreatedAt,
-			&i.UpdatedAt,
-			&i.PublishedAt,
-			&i.WithdrawnAt,
 		); err != nil {
 			return nil, err
 		}

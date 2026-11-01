@@ -2,6 +2,7 @@ package app_test
 
 import (
 	"context"
+	"fmt"
 	"net/http"
 	"net/url"
 	"testing"
@@ -216,5 +217,45 @@ func TestSellerProductListsOfAnotherShop(t *testing.T) {
 	b := newBuyer(t, s1.lat, s1.lng)
 	if r := call(t, b.token, "GET", "/v1/seller/shops/"+s1.shopID+"/product-counts", nil); r.Status != http.StatusForbidden {
 		t.Errorf("acheteur : %d, attendu 403", r.Status)
+	}
+}
+
+// Catégorie désactivée par l'admin : le produit ne peut plus rester ni revenir en vente sans en
+// changer, mais il peut toujours être retiré ou gardé en brouillon.
+func TestWithdrawWithInactiveCategory(t *testing.T) {
+	requireApp(t)
+	s := newSeller(t, 5)
+	cat := mustStatus(t, call(t, admin(t), "POST", "/v1/admin/categories", map[string]any{
+		"name": fmt.Sprintf("Éphémère %d", seq.Add(1)),
+	}), http.StatusCreated).str("id")
+	body := func(active bool) map[string]any {
+		return map[string]any{
+			"category_id": cat, "name": "Jus de bissap", "price_xof": 800,
+			"parcel_size": "small", "stock_mode": "untracked", "is_active": active,
+		}
+	}
+	id := mustStatus(t, call(t, s.token, "POST", "/v1/seller/shops/"+s.shopID+"/products", body(true)), http.StatusCreated).str("id")
+	mustStatus(t, call(t, admin(t), "PATCH", "/v1/admin/categories/"+cat, map[string]any{
+		"name": "Désactivée " + id, "is_active": false,
+	}), http.StatusOK)
+
+	// Rester en vente avec la catégorie désactivée : refusé.
+	if r := call(t, s.token, "PATCH", "/v1/seller/products/"+id, body(true)); !hasField(r, "category_id") {
+		t.Fatalf("en vente, catégorie désactivée : %d %s", r.Status, r.Raw)
+	}
+	// Retrait : accepté.
+	w := mustStatus(t, call(t, s.token, "PATCH", "/v1/seller/products/"+id, body(false)), http.StatusOK)
+	if w.str("status") != "withdrawn" {
+		t.Fatalf("retrait : %s", w.Raw)
+	}
+	// Remise en vente sans changer de catégorie : refusée.
+	if r := call(t, s.token, "PATCH", "/v1/seller/products/"+id, body(true)); !hasField(r, "category_id") {
+		t.Fatalf("remise en vente, catégorie désactivée : %d %s", r.Status, r.Raw)
+	}
+	// Retiré, autre catégorie inconnue : refusée (catégorie changée).
+	other := body(false)
+	other["category_id"] = "7d5c1d38-3c1b-4b8f-9a77-1f2e3d4c5b6a"
+	if r := call(t, s.token, "PATCH", "/v1/seller/products/"+id, other); !hasField(r, "category_id") {
+		t.Fatalf("catégorie changée inconnue : %d %s", r.Status, r.Raw)
 	}
 }

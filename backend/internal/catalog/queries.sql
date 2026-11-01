@@ -43,10 +43,11 @@ SET category_id = sqlc.arg(category_id), name = sqlc.arg(name), description = sq
     updated_at = now()
 WHERE id = sqlc.arg(id);
 
--- name: ListProductsByShop :many
+-- name: ListActiveProductsByShop :many
+-- Produits en vente d'une boutique (vue publique). Le marchand a ListSellerProducts.
 SELECT * FROM products
-WHERE shop_id = sqlc.arg(shop_id) AND (sqlc.arg(include_inactive)::boolean OR is_active)
-ORDER BY created_at DESC
+WHERE shop_id = sqlc.arg(shop_id) AND is_active
+ORDER BY created_at DESC, id
 LIMIT sqlc.arg(lim) OFFSET sqlc.arg(off);
 
 -- name: ListSellerProducts :many

@@ -134,7 +134,9 @@ func NewService(db *database.DB, shopSvc *shops.Service, stockSvc *stock.Service
 
 var errProductNotFound = apperr.NotFound("product_not_found", "Produit introuvable.")
 
-func (s *Service) validateProduct(ctx context.Context, ownerID uuid.UUID, in *ProductInput, creating bool, currentKeys []string) error {
+// validateProduct vérifie un produit. checkCategory : la catégorie doit être active (création,
+// catégorie changée, produit en vente) ; un retrait reste possible si l'admin l'a désactivée.
+func (s *Service) validateProduct(ctx context.Context, ownerID uuid.UUID, in *ProductInput, creating, checkCategory bool, currentKeys []string) error {
 	in.Name = validate.Clean(in.Name)
 	in.Description = validate.Clean(in.Description)
 	v := validate.New()
@@ -153,12 +155,14 @@ func (s *Service) validateProduct(ctx context.Context, ownerID uuid.UUID, in *Pr
 	if err := v.Err(); err != nil {
 		return err
 	}
-	cat, err := store.New(s.db.Conn(ctx)).GetCategory(ctx, in.CategoryID)
-	if database.IsNoRows(err) || (err == nil && !cat.IsActive) {
-		return apperr.Validation(map[string]string{"category_id": "Catégorie inconnue."})
-	}
-	if err != nil {
-		return fmt.Errorf("lecture de la catégorie : %w", err)
+	if checkCategory {
+		cat, err := store.New(s.db.Conn(ctx)).GetCategory(ctx, in.CategoryID)
+		if database.IsNoRows(err) || (err == nil && !cat.IsActive) {
+			return apperr.Validation(map[string]string{"category_id": "Catégorie inconnue."})
+		}
+		if err != nil {
+			return fmt.Errorf("lecture de la catégorie : %w", err)
+		}
 	}
 	for _, k := range in.ImageKeys {
 		if slices.Contains(currentKeys, k) {
@@ -176,7 +180,7 @@ func (s *Service) Create(ctx context.Context, ownerID, shopID uuid.UUID, in Prod
 	if _, err := s.shops.RequireOwned(ctx, ownerID, shopID); err != nil {
 		return Product{}, err
 	}
-	if err := s.validateProduct(ctx, ownerID, &in, true, nil); err != nil {
+	if err := s.validateProduct(ctx, ownerID, &in, true, true, nil); err != nil {
 		return Product{}, err
 	}
 	active := in.IsActive == nil || *in.IsActive
@@ -217,12 +221,13 @@ func (s *Service) Update(ctx context.Context, ownerID, productID uuid.UUID, in P
 	if in.ImageKeys == nil {
 		in.ImageKeys = imageKeys(cur.Images)
 	}
-	if err := s.validateProduct(ctx, ownerID, &in, false, imageKeys(cur.Images)); err != nil {
-		return Product{}, err
-	}
 	active := cur.IsActive
 	if in.IsActive != nil {
 		active = *in.IsActive
+	}
+	checkCategory := active || in.CategoryID != cur.CategoryID
+	if err := s.validateProduct(ctx, ownerID, &in, false, checkCategory, imageKeys(cur.Images)); err != nil {
+		return Product{}, err
 	}
 	err = s.db.InTx(ctx, func(ctx context.Context) error {
 		if err := store.New(s.db.Conn(ctx)).UpdateProduct(ctx, store.UpdateProductParams{
@@ -293,24 +298,18 @@ func (s *Service) GetPublic(ctx context.Context, productID uuid.UUID) (Product, 
 	return p, shop.Public(), nil
 }
 
-// ListForShop retourne les produits d'une boutique : actifs seulement pour le public, tous pour
-// le marchand (includeInactive).
-func (s *Service) ListForShop(ctx context.Context, shopID uuid.UUID, includeInactive bool, limit, offset int32) ([]Product, error) {
-	rows, err := store.New(s.db.Conn(ctx)).ListProductsByShop(ctx, store.ListProductsByShopParams{
-		ShopID: shopID, IncludeInactive: includeInactive, Lim: limit, Off: offset,
+// ListPublicForShop retourne les produits en vente d'une boutique publiée.
+func (s *Service) ListPublicForShop(ctx context.Context, shopID uuid.UUID, limit, offset int32) ([]Product, error) {
+	if _, err := s.shops.RequirePublished(ctx, shopID); err != nil {
+		return nil, err
+	}
+	rows, err := store.New(s.db.Conn(ctx)).ListActiveProductsByShop(ctx, store.ListActiveProductsByShopParams{
+		ShopID: shopID, Lim: limit, Off: offset,
 	})
 	if err != nil {
 		return nil, fmt.Errorf("liste des produits : %w", err)
 	}
 	return s.enrich(ctx, rows)
-}
-
-// ListPublicForShop retourne les produits actifs d'une boutique publiée.
-func (s *Service) ListPublicForShop(ctx context.Context, shopID uuid.UUID, limit, offset int32) ([]Product, error) {
-	if _, err := s.shops.RequirePublished(ctx, shopID); err != nil {
-		return nil, err
-	}
-	return s.ListForShop(ctx, shopID, false, limit, offset)
 }
 
 // ListForSeller retourne les produits d'une boutique du marchand, filtrés par état et par nom.
