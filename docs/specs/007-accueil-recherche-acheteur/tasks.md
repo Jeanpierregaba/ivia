@@ -27,4 +27,6 @@
 - [ ] Parcours réel sur le simulateur iPhone 17 Pro contre l'API locale (position, quartier,
   recherche, filtres, fiches)
 - [ ] Vérifier tous les critères d'acceptation de spec.md
-- [ ] Relecture par le sous-agent reviewer
+- [x] Relecture par le sous-agent reviewer : 1 bloquant, 6 importants et les mineurs corrigés et
+  testés ; position arrondie dans l'URL (ADR 0010) ; recherche par préfixe et `LIKE` des boutiques
+  signalés au backend (TASKS)

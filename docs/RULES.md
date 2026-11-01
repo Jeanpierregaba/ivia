@@ -42,7 +42,9 @@ hooks dans `.claude/settings.json`) sont marquées [bloqué].
 - Ne jamais renvoyer le numéro ou l'adresse d'un acheteur à un livreur hors de sa mission en cours,
   ni à un marchand.
 - Ne jamais écrire de donnée personnelle (numéro complet, e-mail, adresse, position), de code OTP,
-  de jeton ou de donnée de paiement dans les logs, Sentry ou une URL.
+  de jeton ou de donnée de paiement dans les logs, Sentry ou une URL. Seule exception : la
+  position arrondie à environ 110 m des recherches « autour de moi », sans journalisation des
+  paramètres d'URL ([ADR 0010](decisions/0010-position-arrondie-dans-les-recherches.md)).
 - Ne jamais placer de clé de service (prestataire de paiement, Brevo, R2, Firebase admin) dans une
   app mobile ou dans du code exécuté par le navigateur. Seule la clé Google Maps, restreinte aux
   apps, est embarquée.

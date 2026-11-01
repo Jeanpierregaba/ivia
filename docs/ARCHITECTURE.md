@@ -294,6 +294,7 @@ Chaque intégration est derrière une interface Go (`PaymentProvider`, `OTPSende
 - [ADR-0007](decisions/0007-paiement-mobile-money.md) — Paiement derrière une interface, agrégateur à choisir (proposé)
 - [ADR-0008](decisions/0008-hebergement-vps-hetzner.md) — Hébergement sur VPS Hetzner avec Docker Compose, fichiers sur R2
 - [ADR-0009](decisions/0009-recherche-vues-lecture-seule.md) — Recherche par vues SQL en lecture seule du catalogue publié
+- [ADR-0010](decisions/0010-position-arrondie-dans-les-recherches.md) — Position arrondie dans l'URL des recherches, paramètres d'URL non journalisés
 
 ## Points d'attention
 

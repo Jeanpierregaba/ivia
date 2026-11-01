@@ -33,6 +33,7 @@ version « retrait seulement » (voir `docs/PRD.md`).
 - [x] 005 — Catalogue : produits et photos (redimensionnées, sans métadonnées GPS, avant envoi) : écrans marchand faits (voir « Terminé »)
 - [ ] 006 — Stock : journal des mouvements et alertes de réapprovisionnement (saisie et ajustement de la quantité faits dans 005)
 - [ ] **Backend** : clé d'idempotence à la création d'un produit (et des autres créations rejouables depuis les apps), pour qu'un nouvel essai après une coupure ne crée pas de doublon
+- [ ] **Backend** (pour Gedeon, vu en 007) : recherche par préfixe du dernier mot (« pag » doit trouver « pagne » : la recherche part pendant la frappe ; aujourd'hui plein texte entier + trigramme) ; échapper `%` et `_` dans le `LIKE` de `SearchShops`
 - [ ] 007 — Recherche : texte, catégorie, prix, quartier, « autour de moi »
 
 ### Phase 2 — Commande et paiement (retrait en boutique)
@@ -45,7 +46,7 @@ version « retrait seulement » (voir `docs/PRD.md`).
 - [ ] 014 — Back-office : supervision des commandes et paiements, file de remboursement
 - [ ] 015 — Back-office : paramètres (commission, barème, délais, catégories, quartiers)
 - [ ] 016 — **Backend** : intégrer le vrai prestataire de paiement derrière `payments.Provider` (dépend de l'ADR 0007 accepté) ; tester ses webhooks réels en staging
-- [ ] 017 — **Backend / infra** : déploiement (Dockerfile de l'API, `infra/` : Compose de production, Caddy, sauvegardes `pg_dump` vers R2 testées), VPS de production et de staging, intégration Sentry
+- [ ] 017 — **Backend / infra** : déploiement (Dockerfile de l'API, `infra/` : Compose de production, Caddy, sauvegardes `pg_dump` vers R2 testées), VPS de production et de staging, intégration Sentry ; Caddy ne journalise pas les paramètres d'URL ([ADR 0010](docs/decisions/0010-position-arrondie-dans-les-recherches.md))
 
 ### Phase 3 — Livraison
 - [ ] 018 — Livreurs : validation des dossiers dans le back-office (inscription et documents côté app : en cours)

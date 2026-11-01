@@ -22,7 +22,8 @@ fonctionnalités. Couleurs de l'app acheteur : action en Imperial, textes cliqua
 - L'en-tête de l'accueil montre « Près de · Ma position » ou « Près de · Tokoin » ; un appui
   ouvre une feuille : « Utiliser ma position » ou la liste des quartiers.
 - Le choix est gardé sur le téléphone ; la position, elle, est redemandée à chaque ouverture de
-  l'app (jamais envoyée au serveur ailleurs que dans les recherches).
+  l'app (jamais envoyée au serveur ailleurs que dans les recherches, arrondie à environ 110 m :
+  [ADR 0010](../../decisions/0010-position-arrondie-dans-les-recherches.md)).
 
 **1. Barre du bas** : Accueil · Recherche · Commandes · Profil, même composant que l'app
 marchand en Imperial. Le panier sera une icône de l'en-tête, avec la 008.
@@ -49,8 +50,8 @@ marchand en Imperial. Le panier sera une icône de l'en-tête, avec la 008.
   produits autour de l'acheteur s'affichent.
 - Onglets **Produits / Boutiques**.
 - Puces de filtres, en défilement horizontal :
-  - « Autour de moi · 2 km » (rayon 1, 2, 5, 10 km) avec la position du téléphone, ou le quartier
-    choisi ;
+  - « Autour de moi · 5 km » (rayon 1, 2, 5, 10 km ou sans limite ; 5 km par défaut, le même que
+    l'accueil) avec la position du téléphone, ou le quartier choisi ;
   - catégorie ;
   - prix (minimum et maximum, en FCFA) ;
   - « En stock » (produits seulement).

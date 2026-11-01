@@ -64,7 +64,8 @@ existants).
 
 ## Données
 
-Aucune migration. Préférence locale `buyer_neighborhood_id` (identifiant de quartier).
+Aucune migration. Préférence locale `buyer_area` : `n|<id>|<nom>` (quartier choisi) ou
+`position` (position du téléphone, jamais ses coordonnées).
 
 ## API / interfaces
 
