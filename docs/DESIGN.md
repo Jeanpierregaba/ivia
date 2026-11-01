@@ -196,10 +196,22 @@ Maquettes : à venir (lien Figma à ajouter ici). Les statuts affichés suivent
 - **Profil** : informations, déconnexion, **suppression du compte** (confirmation explicite).
 
 ### App acheteur (couleur : Imperial)
-- **Accueil** : barre de recherche, « Autour de moi », mosaïque des catégories, boutiques proches.
-- **Résultats** : liste produits / boutiques ; puces de filtre (catégorie, prix, quartier), tri pertinence / distance.
-- **Boutique** : nom, quartier, distance, produits.
-- **Produit** : photos, prix, disponibilité, boutique, « Ajouter au panier ».
+- **Barre du bas** ([spec 007](specs/007-accueil-recherche-acheteur/spec.md)) : Accueil ·
+  Recherche · Commandes · Profil, pilule Imperial pour l'onglet actif. Le panier sera une icône de
+  l'en-tête (008).
+- **Accueil** : « Près de · Tokoin ▾ » (position du téléphone ou quartier, feuille de choix),
+  « Bonjour Awa, **que cherchez-vous ?** », champ factice qui ouvre l'onglet Recherche, puces de
+  catégories, « Boutiques autour de vous » (cartes en défilement horizontal, distance en Cobalt),
+  « Nouveautés autour de vous » (grille de cartes produit). « Voir tout » en Cornell.
+- **Recherche** : champ, onglets Produits / Boutiques, **puces de filtre** (`IviaChip` : blanches,
+  pleines en Berkeley quand elles sont actives, flèche quand elles ouvrent un choix) pour la zone
+  (« Autour de moi · 2 km » ou le quartier), la catégorie, le prix, « En stock » ; « Trier :
+  pertinence ▾ ». Produits en grille de deux colonnes (une seule avec une police agrandie).
+- **Boutique** : carte d'en-tête (logo, nom, adresse, pastilles « Ouverte » et distance), recherche
+  dans la boutique, liste des produits (« En stock » en Cobalt, « Épuisé » en rouge).
+- **Produit** : photos défilantes en haut avec retour par-dessus, nom et prix, disponibilité,
+  carte de la boutique, description, pastilles catégorie et « Colis moyen · moto », quantité et
+  « Ajouter · 4 500 F » en bas.
 - **Panier** : une seule boutique ; ajout d'un produit d'une autre boutique ⇒ feuille « Vider le panier ? ».
 - **Validation de commande** : retrait ou livraison ; en livraison : adresse, véhicule, frais ; total détaillé.
 - **Paiement** : Flooz ou T-Money, numéro, puis écran d'attente « Validez le paiement sur votre

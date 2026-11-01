@@ -194,7 +194,8 @@ backend/
 mobile/                    Dart pub workspace
   apps/buyer, apps/seller, apps/driver
   packages/api_client      appels HTTP, modèles, gestion du jeton
-  packages/app_core        session, connexion par code, champs communs (spec 004)
+  packages/app_core        session, connexion par code, champs communs (spec 004), position du
+                           téléphone (précise pour le marchand, approximative pour l'acheteur, spec 007)
   packages/ui              thème et composants partagés
 admin/                     back-office Next.js
 infra/                     docker-compose de production, Caddyfile, sauvegardes

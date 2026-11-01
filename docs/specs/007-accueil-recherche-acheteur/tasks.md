@@ -21,7 +21,7 @@
   prix, en stock), tri, pagination, vide avec « Effacer les filtres », 429 ; tests
 - [x] 8. Fiche boutique (recherche dans la boutique) et fiche produit (photos, disponibilité,
   boutique, colis, « Ajouter » annoncé pour la 008), 404 ; tests
-- [ ] 9. Docs : `DESIGN.md`, `ARCHITECTURE.md`, `TASKS.md`
+- [x] 9. Docs : `DESIGN.md`, `ARCHITECTURE.md`, `TASKS.md`
 
 **Vérifications**
 - [ ] Parcours réel sur le simulateur iPhone 17 Pro contre l'API locale (position, quartier,
