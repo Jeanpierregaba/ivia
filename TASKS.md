@@ -8,7 +8,6 @@ docs/specs/NNN-nom/tasks.md. Les petites tâches isolées (bug, retouche) peuven
 
 ## En cours
 
-- [ ] 007 — Accueil et recherche de l'acheteur : position ou quartier, recherche et filtres, fiches boutique et produit ([spec](docs/specs/007-accueil-recherche-acheteur/spec.md))
 - [ ] 018 — Espace livreur : lancement, connexion, dossier de candidature ([spec](docs/specs/018-espace-livreur/spec.md)) : relu et corrigé ; appareil photo à vérifier sur un vrai téléphone
 - [ ] 004 — Espace marchand : lancement, connexion, création de la boutique ([spec](docs/specs/004-espace-marchand/spec.md)) : relu et corrigé ; reste les clés Google Maps (vérification de la carte)
 - [ ] 027 — Splash et présentation des 3 apps ([spec](docs/specs/027-splash-onboarding/spec.md)) : reste la vérification sur Android, la validation des textes et des couleurs par le designer
@@ -34,7 +33,7 @@ version « retrait seulement » (voir `docs/PRD.md`).
 - [ ] 006 — Stock : journal des mouvements et alertes de réapprovisionnement (saisie et ajustement de la quantité faits dans 005)
 - [ ] **Backend** : clé d'idempotence à la création d'un produit (et des autres créations rejouables depuis les apps), pour qu'un nouvel essai après une coupure ne crée pas de doublon
 - [ ] **Backend** (pour Gedeon, vu en 007) : recherche par préfixe du dernier mot (« pag » doit trouver « pagne » : la recherche part pendant la frappe ; aujourd'hui plein texte entier + trigramme) ; échapper `%` et `_` dans le `LIKE` de `SearchShops`
-- [ ] 007 — Recherche : texte, catégorie, prix, quartier, « autour de moi »
+- [x] 007 — Recherche : texte, catégorie, prix, quartier, « autour de moi » : écrans acheteur faits (voir « Terminé »)
 
 ### Phase 2 — Commande et paiement (retrait en boutique)
 - [ ] 008 — Panier mono-boutique
@@ -79,6 +78,7 @@ version « retrait seulement » (voir `docs/PRD.md`).
 - [ ] Boutiques et livreurs pilotes pour les tests terrain
 
 ## Terminé
+- [x] 007 — Accueil et recherche de l'acheteur ([spec](docs/specs/007-accueil-recherche-acheteur/spec.md), 2026-11-01) : barre du bas, zone (position approximative ou quartier), accueil, onglet Recherche avec filtres et tri, fiches boutique et produit ; position arrondie dans l'URL ([ADR 0010](docs/decisions/0010-position-arrondie-dans-les-recherches.md))
 - [x] 005 — Catalogue marchand ([spec](docs/specs/005-catalogue-marchand/spec.md), 2026-11-01) : barre du bas, catalogue par onglets avec recherche et compteurs serveur, création en deux étapes, aperçu, brouillons, modification, retrait et remise en vente, stock ; migration 00020 (états de publication) à faire relire par Gedeon dans la PR
 - [x] Corrections de la revue du 2026-10-30 : `APP_ENV` obligatoire, code de remise compté avant
   comparaison, confirmation du retour par l'admin, machine à états testée exhaustivement, accès aux

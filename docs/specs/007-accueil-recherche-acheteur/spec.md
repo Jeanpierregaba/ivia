@@ -83,24 +83,24 @@ marchand en Imperial. Le panier sera une icône de l'en-tête, avec la 008.
 
 ## Critères d'acceptation
 
-- [ ] Étant donné la position autorisée, alors l'accueil affiche les boutiques les plus proches
+- [x] Étant donné la position autorisée, alors l'accueil affiche les boutiques les plus proches
       avec leur distance, et les recherches envoient `lat`, `lng` (et `radius_m` pour « Autour de
       moi »).
-- [ ] Étant donné la position refusée, alors l'acheteur choisit un quartier ; les recherches
+- [x] Étant donné la position refusée, alors l'acheteur choisit un quartier ; les recherches
       envoient `neighborhood_id`, aucune distance n'est affichée, et le choix est retrouvé au
       lancement suivant.
-- [ ] Étant donné une recherche « riz », alors la requête part 300 ms après la dernière frappe
+- [x] Étant donné une recherche « riz », alors la requête part 300 ms après la dernière frappe
       (une seule requête pour une frappe rapide) et les produits trouvés s'affichent en grille.
-- [ ] Étant donné les filtres catégorie, prix, « En stock » et le tri, alors chaque choix est
+- [x] Étant donné les filtres catégorie, prix, « En stock » et le tri, alors chaque choix est
       envoyé au serveur (`category_id`, `min_price`, `max_price`, `in_stock`, `sort`) et la liste
       se recharge.
-- [ ] Étant donné l'onglet Boutiques, alors la recherche porte sur les boutiques
+- [x] Étant donné l'onglet Boutiques, alors la recherche porte sur les boutiques
       (`/v1/search/shops`) et un appui ouvre la fiche boutique.
-- [ ] Étant donné une fiche boutique, alors ses produits en vente s'affichent, la recherche dans
+- [x] Étant donné une fiche boutique, alors ses produits en vente s'affichent, la recherche dans
       la boutique filtre par nom (`shop_id` + `q`), et un appui ouvre la fiche produit.
-- [ ] Étant donné une fiche produit, alors photos, prix, disponibilité, boutique, description,
+- [x] Étant donné une fiche produit, alors photos, prix, disponibilité, boutique, description,
       catégorie et taille de colis s'affichent ; « Ajouter » annonce que le panier arrive bientôt.
-- [ ] La barre du bas montre Accueil, Recherche, Commandes, Profil ; le champ et les puces de
+- [x] La barre du bas montre Accueil, Recherche, Commandes, Profil ; le champ et les puces de
       l'accueil ouvrent l'onglet Recherche ; Profil permet de se déconnecter.
 
 ## Cas limites et erreurs
