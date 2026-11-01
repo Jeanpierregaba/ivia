@@ -14,8 +14,16 @@ pnpm install
 API_BASE_URL=http://localhost:8080 pnpm dev   # http://localhost:3000
 ```
 
-Connexion : `admin@ivia.local` (créé par `seed-dev`), code lu dans les journaux de l'API ou par
-`POST http://localhost:8080/v1/dev/otp` avec `{"recipient":"admin@ivia.local"}`.
+Connexion : `admin@ivia.local` (créé par `seed-dev`). Avec l'API lancée en `OTP_SENDER=smtp`, l'e-mail
+du code arrive dans Mailpit : http://localhost:8025. Sinon : `POST http://localhost:8080/v1/dev/otp`
+avec `{"recipient":"admin@ivia.local"}`.
+
+Design : même langage visuel que les apps (`mobile/packages/ui`) — Berkeley Blue pour la barre
+latérale et les en-têtes de fiche, Imperial Red pour l'action principale et la partie colorée des
+titres, cartes blanches sans ombre (rayons 14/18), boutons pilules, surtitres en capitales, tuiles de
+mosaïque au tableau de bord, icônes `lucide-react`. Briques : `components/ui.tsx` (cartes, en-têtes,
+tableaux, statuts, états vides), `components/brand.tsx` (logotypes de `public/brand/`) et
+`components/illustration.tsx` (mosaïque, fiches inclinées, pastilles).
 Premier admin d'un autre environnement : `go run ./cmd/manage grant-admin <email>`.
 
 ## Commandes

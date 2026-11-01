@@ -1,10 +1,11 @@
+import { ChevronLeft, CreditCard, History, Receipt, ShoppingBasket, Wrench } from "lucide-react";
 import Link from "next/link";
 import { notFound } from "next/navigation";
 
 import { ActionForm } from "@/components/action-form";
-import { Card, DefinitionList, ErrorState, PageHeader, StatusBadge, Table, Td } from "@/components/ui";
+import { Card, CardTitle, DefinitionList, ErrorState, StatusBadge, Table, Td } from "@/components/ui";
 import { api, ApiError, type Schemas } from "@/lib/api";
-import { formatDateTime, formatXOF, ORDER_STATUS, statusOf, VEHICLE } from "@/lib/format";
+import { formatDateTime, formatXOF, ORDER_STATUS, PAYMENT_STATUS, statusOf, VEHICLE } from "@/lib/format";
 import { orderAction } from "../actions";
 
 export const metadata = { title: "Commande" };
@@ -31,17 +32,32 @@ export default async function OrderPage({ params }: { params: Promise<{ id: stri
 
   return (
     <>
-      <Link href="/orders" className="mb-2 inline-block text-sm font-semibold text-secondary hover:underline">
-        ← Commandes
+      <Link
+        href="/orders"
+        className="mb-4 inline-flex items-center gap-1 text-[13px] font-semibold text-secondary hover:underline"
+      >
+        <ChevronLeft size={16} aria-hidden="true" /> Commandes
       </Link>
-      <PageHeader
-        title={`Commande ${o.reference}`}
-        actions={<StatusBadge {...statusOf(ORDER_STATUS, o.status)} />}
-      />
+      <header className="mb-6 flex items-center gap-6 rounded-field bg-tertiary p-6 text-white">
+        <div className="min-w-0 flex-1">
+          <p className="text-[12px] font-semibold uppercase tracking-[0.08em] text-white/60">
+            Commande · {o.fulfillment === "delivery" ? "Livraison" : "Retrait en boutique"}
+          </p>
+          <h1 className="text-[28px] font-bold leading-8 tracking-[-0.02em]">{o.reference}</h1>
+          <p className="mt-1 text-white/75">Créée le {formatDateTime(o.created_at)}</p>
+        </div>
+        <div className="text-right">
+          <p className="text-[13px] text-white/60">Total payé</p>
+          <p className="text-[28px] font-bold leading-8">{formatXOF(o.total_xof)}</p>
+        </div>
+        <span className="rounded-full bg-surface">
+          <StatusBadge {...statusOf(ORDER_STATUS, o.status)} />
+        </span>
+      </header>
 
       <div className="grid grid-cols-2 gap-4">
         <Card>
-          <h2 className="mb-4 text-[17px] font-bold">Détail</h2>
+          <CardTitle icon={<Receipt size={18} aria-hidden="true" />}>Détail</CardTitle>
           <DefinitionList
             items={[
               [
@@ -61,13 +77,21 @@ export default async function OrderPage({ params }: { params: Promise<{ id: stri
           />
         </Card>
         <Card>
-          <h2 className="mb-4 text-[17px] font-bold">Historique</h2>
-          <ol className="space-y-2">
+          <CardTitle icon={<History size={18} aria-hidden="true" />}>Historique</CardTitle>
+          <ol className="relative space-y-4 border-l-2 border-border pl-5">
             {o.events.map((e, i) => (
-              <li key={i} className="flex justify-between gap-4">
-                <span>
+              <li key={i} className="relative flex justify-between gap-4">
+                <span
+                  aria-hidden="true"
+                  className={`absolute -left-[27px] top-1.5 size-3 rounded-full ring-4 ring-surface ${
+                    i === o.events.length - 1 ? "bg-primary" : "bg-tertiary"
+                  }`}
+                />
+                <span className="font-semibold">
                   {statusOf(ORDER_STATUS, e.to_status).label}
-                  {e.reason && <span className="block text-[13px] text-text-muted">{e.reason}</span>}
+                  {e.reason && (
+                    <span className="block text-[13px] font-normal text-text-muted">{e.reason}</span>
+                  )}
                 </span>
                 <span className="shrink-0 text-[13px] text-text-muted">{formatDateTime(e.created_at)}</span>
               </li>
@@ -76,21 +100,27 @@ export default async function OrderPage({ params }: { params: Promise<{ id: stri
         </Card>
       </div>
 
-      <h2 className="mb-3 mt-6 text-[17px] font-bold">Produits</h2>
+      <h2 className="mb-3 mt-8 flex items-center gap-2 text-[17px] font-bold">
+        <ShoppingBasket size={18} aria-hidden="true" className="text-secondary" /> Produits
+      </h2>
       <Table head={["Produit", "Prix unitaire", "Quantité", "Total"]}>
         {o.items.map((it) => (
           <tr key={it.product_id}>
             <Td>{it.product_name}</Td>
             <Td>{formatXOF(it.unit_price_xof)}</Td>
             <Td>{it.quantity}</Td>
-            <Td>{formatXOF(it.line_total_xof)}</Td>
+            <Td className="font-semibold">{formatXOF(it.line_total_xof)}</Td>
           </tr>
         ))}
       </Table>
 
-      <h2 className="mb-3 mt-6 text-[17px] font-bold">Paiements</h2>
+      <h2 className="mb-3 mt-8 flex items-center gap-2 text-[17px] font-bold">
+        <CreditCard size={18} aria-hidden="true" className="text-secondary" /> Paiements
+      </h2>
       {payments.items.length === 0 ? (
-        <p className="text-text-secondary">Aucun paiement.</p>
+        <p className="rounded-field bg-surface px-5 py-4 text-text-secondary">
+          Aucun paiement pour cette commande.
+        </p>
       ) : (
         <Table head={["Opérateur", "Numéro", "Montant", "Statut", "Date"]}>
           {payments.items.map((p) => (
@@ -99,8 +129,8 @@ export default async function OrderPage({ params }: { params: Promise<{ id: stri
               <Td>{p.phone_masked}</Td>
               <Td>{formatXOF(p.amount_xof)}</Td>
               <Td>
-                {p.status}
-                {p.is_duplicate && " (en double)"}
+                <StatusBadge {...statusOf(PAYMENT_STATUS, p.status)} />
+                {p.is_duplicate && <span className="ml-2 text-[13px] text-warning">en double</span>}
               </Td>
               <Td>{formatDateTime(p.created_at)}</Td>
             </tr>
@@ -108,8 +138,8 @@ export default async function OrderPage({ params }: { params: Promise<{ id: stri
         </Table>
       )}
 
-      <Card className="mt-6">
-        <h2 className="mb-4 text-[17px] font-bold">Actions</h2>
+      <Card className="mt-8">
+        <CardTitle icon={<Wrench size={18} aria-hidden="true" />}>Actions</CardTitle>
         <div className="flex flex-wrap gap-3">
           {refundable && (
             <ActionForm

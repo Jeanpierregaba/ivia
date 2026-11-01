@@ -33,7 +33,9 @@ type Config struct {
 	AuthSecret []byte
 	SessionTTL time.Duration
 
-	OTPSender       string // log | brevo
+	OTPSender       string // log | smtp | brevo
+	SMTPAddr        string
+	SMTPFrom        string
 	BrevoAPIKey     string
 	BrevoSenderMail string
 	BrevoSenderName string
@@ -87,6 +89,8 @@ func Load(getenv func(string) string) (Config, error) {
 		DatabaseURL:          get("DATABASE_URL", ""),
 		LogLevel:             get("LOG_LEVEL", "info"),
 		OTPSender:            get("OTP_SENDER", "log"),
+		SMTPAddr:             get("SMTP_ADDR", "localhost:1025"),
+		SMTPFrom:             get("SMTP_FROM", "ivia <no-reply@ivia.local>"),
 		BrevoAPIKey:          get("BREVO_API_KEY", ""),
 		BrevoSenderMail:      get("BREVO_SENDER_EMAIL", ""),
 		BrevoSenderName:      get("BREVO_SENDER_NAME", "ivia"),
@@ -155,6 +159,11 @@ func (c Config) validateIntegrations() []error {
 	case "log":
 		if c.IsProduction() {
 			errs = append(errs, errors.New("OTP_SENDER=log interdit hors local"))
+		}
+	case "smtp":
+		// Boîte de réception locale (Mailpit) : jamais hors local et test.
+		if c.IsProduction() {
+			errs = append(errs, errors.New("OTP_SENDER=smtp interdit hors local (utiliser brevo)"))
 		}
 	case "brevo":
 		if c.BrevoAPIKey == "" || c.BrevoSenderMail == "" {

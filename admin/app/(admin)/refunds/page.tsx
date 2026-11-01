@@ -23,11 +23,16 @@ export default async function RefundsPage({ searchParams }: { searchParams: Prom
   return (
     <>
       <PageHeader
-        title="Remboursements"
+        overline="Argent"
+        title="Remboursements à effectuer"
+        highlight="Remboursements"
         description="Commandes annulées après paiement ou revenues en boutique, pas encore remboursées."
       />
       {page.items.length === 0 ? (
-        <EmptyState message="Aucun remboursement en attente." />
+        <EmptyState
+          title="Tout est à jour"
+          message="Aucun remboursement en attente : chaque acheteur concerné a été remboursé."
+        />
       ) : (
         <Table head={["Commande", "Statut", "À rembourser", "Depuis", ""]}>
           {page.items.map((o) => (
@@ -41,7 +46,7 @@ export default async function RefundsPage({ searchParams }: { searchParams: Prom
               <Td>
                 <StatusBadge {...statusOf(ORDER_STATUS, o.status)} />
               </Td>
-              <Td className="font-semibold">{formatXOF(o.refund_due_xof)}</Td>
+              <Td className="font-bold text-primary-strong">{formatXOF(o.refund_due_xof)}</Td>
               <Td>{formatDateTime(o.cancelled_at ?? o.updated_at)}</Td>
               <Td>
                 <ActionForm

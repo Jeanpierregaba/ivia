@@ -10,9 +10,11 @@ export default async function AdminLayout({ children }: { children: React.ReactN
   if (!me.roles.includes("admin")) redirect("/logout");
 
   return (
-    <div className="grid min-h-screen grid-cols-[248px_1fr]">
-      <Sidebar name={me.first_name || me.email || "Admin"} />
-      <main className="min-w-0 px-10 py-8">{children}</main>
+    <div className="grid min-h-screen grid-cols-[272px_minmax(0,1fr)]">
+      <Sidebar name={me.first_name || "Admin"} email={me.email ?? ""} />
+      <main className="min-w-0 px-12 pb-16 pt-10">
+        <div className="mx-auto max-w-[1280px]">{children}</div>
+      </main>
     </div>
   );
 }

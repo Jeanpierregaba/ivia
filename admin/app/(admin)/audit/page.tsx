@@ -1,6 +1,6 @@
 import { EmptyState, ErrorState, PageHeader, Pagination, Table, Td } from "@/components/ui";
 import { api, ApiError, type Schemas } from "@/lib/api";
-import { formatDateTime } from "@/lib/format";
+import { AUDIT_ACTION, formatDateTime } from "@/lib/format";
 
 export const metadata = { title: "Journal des actions" };
 
@@ -19,17 +19,22 @@ export default async function AuditPage({ searchParams }: { searchParams: Promis
   return (
     <>
       <PageHeader
+        overline="Traçabilité"
         title="Journal des actions"
+        highlight="actions"
         description="Toutes les actions des admins, en ajout seul : rien n'y est modifiable."
       />
       {page.items.length === 0 ? (
-        <EmptyState message="Aucune action pour l'instant." />
+        <EmptyState title="Journal vide" message="Aucune action d'admin enregistrée pour l'instant." />
       ) : (
         <Table head={["Date", "Action", "Cible", "Admin", "Motif"]}>
           {page.items.map((a) => (
             <tr key={a.id}>
               <Td className="whitespace-nowrap">{formatDateTime(a.created_at)}</Td>
-              <Td className="font-semibold">{a.action}</Td>
+              <Td>
+                <p className="font-semibold">{AUDIT_ACTION[a.action] ?? a.action}</p>
+                <p className="font-mono text-[12px] text-text-muted">{a.action}</p>
+              </Td>
               <Td className="text-[13px]">
                 {a.target_type} <span className="text-text-muted">{a.target_id}</span>
               </Td>

@@ -1,5 +1,6 @@
 import { ActionForm } from "@/components/action-form";
 import {
+  Avatar,
   EmptyState,
   ErrorState,
   FilterTabs,
@@ -42,25 +43,32 @@ export default async function ShopsPage({ searchParams }: Props) {
   return (
     <>
       <PageHeader
-        title="Boutiques"
+        overline="Marchands"
+        title="Les boutiques de la plateforme"
+        highlight="boutiques"
         description="Une boutique n'est visible des acheteurs qu'une fois publiée."
       />
       <FilterTabs current={status} tabs={TABS.map((t) => ({ ...t, href: `/shops?status=${t.value}` }))} />
       {page.items.length === 0 ? (
-        <EmptyState message="Aucune boutique dans cette liste." />
+        <EmptyState title="Rien à afficher" message="Aucune boutique dans cette liste pour le moment." />
       ) : (
         <Table head={["Boutique", "Catégorie", "Contact", "Statut", "Créée le", "Actions"]}>
           {page.items.map((s) => (
             <tr key={s.id}>
               <Td>
-                <p className="font-semibold">{s.name}</p>
-                <p className="text-[13px] text-text-muted">
-                  {s.address_text}
-                  {s.neighborhood_name && ` · ${s.neighborhood_name}`}
-                </p>
-                {s.status_reason && (
-                  <p className="text-[13px] text-text-secondary">Motif : {s.status_reason}</p>
-                )}
+                <div className="flex items-center gap-3">
+                  <Avatar name={s.name} tone="imperial" />
+                  <div className="min-w-0">
+                    <p className="font-semibold">{s.name}</p>
+                    <p className="text-[13px] text-text-muted">
+                      {s.address_text}
+                      {s.neighborhood_name && ` · ${s.neighborhood_name}`}
+                    </p>
+                    {s.status_reason && (
+                      <p className="text-[13px] text-text-secondary">Motif : {s.status_reason}</p>
+                    )}
+                  </div>
+                </div>
               </Td>
               <Td>{s.category_name || "—"}</Td>
               <Td>{formatPhone(s.phone)}</Td>

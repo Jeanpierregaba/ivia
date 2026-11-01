@@ -1,8 +1,9 @@
+import { AlertTriangle, ChevronLeft, FileText, Gavel, IdCard } from "lucide-react";
 import Link from "next/link";
 import { notFound } from "next/navigation";
 
 import { ActionForm } from "@/components/action-form";
-import { Card, DefinitionList, ErrorState, PageHeader, StatusBadge } from "@/components/ui";
+import { Avatar, Card, CardTitle, DefinitionList, ErrorState, StatusBadge } from "@/components/ui";
 import { api, ApiError, type Schemas } from "@/lib/api";
 import { DOCUMENT_KIND, DRIVER_STATUS, formatDateTime, formatPhone, statusOf, VEHICLE } from "@/lib/format";
 import { reviewDriver } from "../actions";
@@ -31,18 +32,32 @@ export default async function DriverPage({ params }: { params: Promise<{ id: str
     <>
       <Link
         href="/drivers"
-        className="mb-2 inline-block text-sm font-semibold text-secondary hover:underline"
+        className="mb-4 inline-flex items-center gap-1 text-[13px] font-semibold text-secondary hover:underline"
       >
-        ← Livreurs
+        <ChevronLeft size={16} aria-hidden="true" /> Livreurs
       </Link>
-      <PageHeader
-        title={`Dossier de ${name}`}
-        actions={<StatusBadge {...statusOf(DRIVER_STATUS, d.status)} />}
-      />
+      <header className="mb-6 flex items-center gap-5 rounded-field bg-tertiary p-6 text-white">
+        <Avatar name={d.first_name || "?"} tone="cobalt" size={64} />
+        <div className="min-w-0 flex-1">
+          <p className="text-[12px] font-semibold uppercase tracking-[0.08em] text-white/60">
+            Dossier livreur
+          </p>
+          <h1 className="text-[28px] font-bold leading-8 tracking-[-0.02em]">
+            {d.first_name || "Sans prénom"}
+          </h1>
+          <p className="mt-1 text-white/75">
+            {VEHICLE[d.vehicle_type] ?? d.vehicle_type}
+            {d.vehicle_plate && ` · ${d.vehicle_plate}`} · {formatPhone(d.phone)}
+          </p>
+        </div>
+        <span className="rounded-full bg-surface">
+          <StatusBadge {...statusOf(DRIVER_STATUS, d.status)} />
+        </span>
+      </header>
 
       <div className="grid grid-cols-2 gap-4">
         <Card>
-          <h2 className="mb-4 text-[17px] font-bold">Identité et véhicule</h2>
+          <CardTitle icon={<IdCard size={18} aria-hidden="true" />}>Identité et véhicule</CardTitle>
           <DefinitionList
             items={[
               ["Prénom", d.first_name || "—"],
@@ -58,14 +73,20 @@ export default async function DriverPage({ params }: { params: Promise<{ id: str
         </Card>
 
         <Card>
-          <h2 className="mb-4 text-[17px] font-bold">Documents</h2>
+          <CardTitle icon={<FileText size={18} aria-hidden="true" />}>Documents</CardTitle>
           {d.documents.length === 0 ? (
             <p className="text-text-secondary">Aucun document déposé.</p>
           ) : (
             <ul className="space-y-2">
               {d.documents.map((doc) => (
-                <li key={doc.id} className="flex items-center justify-between">
-                  <span>{DOCUMENT_KIND[doc.kind] ?? doc.kind}</span>
+                <li
+                  key={doc.id}
+                  className="flex items-center justify-between rounded-card bg-background px-4 py-3"
+                >
+                  <span className="flex items-center gap-2 font-semibold">
+                    <FileText size={16} aria-hidden="true" className="text-secondary" />
+                    {DOCUMENT_KIND[doc.kind] ?? doc.kind}
+                  </span>
                   {doc.url ? (
                     // Lien temporaire (10 min) vers le compartiment privé.
                     <a
@@ -84,15 +105,19 @@ export default async function DriverPage({ params }: { params: Promise<{ id: str
             </ul>
           )}
           {missing.length > 0 && (
-            <p role="status" className="mt-4 text-sm text-warning">
-              ◷ Manquant pour valider : {missing.join(", ")}.
+            <p
+              role="status"
+              className="mt-4 flex items-start gap-2 rounded-card bg-[#FBEFE3] px-4 py-3 text-[13px] text-warning"
+            >
+              <AlertTriangle size={16} aria-hidden="true" className="mt-px shrink-0" />
+              Manquant pour valider : {missing.join(", ")}.
             </p>
           )}
         </Card>
       </div>
 
       <Card className="mt-4">
-        <h2 className="mb-4 text-[17px] font-bold">Décision</h2>
+        <CardTitle icon={<Gavel size={18} aria-hidden="true" />}>Décision</CardTitle>
         <div className="flex flex-wrap gap-2">
           {(d.review_status === "pending_review" || d.review_status === "rejected") && (
             <ActionForm

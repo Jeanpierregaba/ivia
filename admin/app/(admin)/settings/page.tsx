@@ -16,7 +16,9 @@ export default async function SettingsPage() {
   return (
     <>
       <PageHeader
-        title="Paramètres"
+        overline="Plateforme"
+        title="Paramètres de la plateforme"
+        highlight="Paramètres"
         description={`Dernière modification : ${formatDateTime(s.updated_at)}.`}
       />
       <Card>

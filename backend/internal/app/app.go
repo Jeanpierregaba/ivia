@@ -225,6 +225,10 @@ func (a *App) buildOTPSender() (auth.OTPSender, error) {
 	case "log":
 		a.DevOTP = &auth.LogSender{Logger: a.Logger}
 		return a.DevOTP, nil
+	case "smtp":
+		// E-mail dans la boîte locale Mailpit, et code gardé pour POST /v1/dev/otp.
+		a.DevOTP = &auth.LogSender{Logger: a.Logger}
+		return auth.TeeSender{&auth.SMTPSender{Addr: a.Config.SMTPAddr, From: a.Config.SMTPFrom}, a.DevOTP}, nil
 	}
 	return nil, fmt.Errorf("envoi OTP inconnu : %s", a.Config.OTPSender)
 }

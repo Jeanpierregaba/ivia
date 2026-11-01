@@ -1,5 +1,6 @@
 "use client";
 
+import { AlertCircle, CheckCircle2 } from "lucide-react";
 import { useActionState } from "react";
 
 import { buttonClass } from "@/components/ui";
@@ -57,12 +58,14 @@ export function SettingsForm({ settings }: { settings: Schemas["Settings"] }) {
   return (
     <form action={action} className="space-y-8">
       {GROUPS.map((g) => (
-        <fieldset key={g.title}>
-          <legend className="mb-3 text-[17px] font-bold">{g.title}</legend>
+        <fieldset key={g.title} className="border-b border-border pb-8 last-of-type:border-0">
+          <legend className="mb-4 text-[12px] font-semibold uppercase tracking-[0.08em] text-secondary">
+            {g.title}
+          </legend>
           <div className="grid grid-cols-3 gap-4">
             {g.fields.map((f) => (
               <label key={f.name} className="block">
-                <span className="mb-1 block text-sm font-semibold">{f.label}</span>
+                <span className="mb-2 block text-[13px] font-semibold text-text-secondary">{f.label}</span>
                 <span className="flex items-center gap-2">
                   <input
                     name={f.name}
@@ -71,7 +74,7 @@ export function SettingsForm({ settings }: { settings: Schemas["Settings"] }) {
                     min={0}
                     required
                     defaultValue={String(settings[f.name])}
-                    className="w-full rounded-field border border-border-input bg-surface px-3 py-2"
+                    className="h-12 w-full rounded-field border border-border-input bg-surface px-4 outline-none focus:border-2 focus:border-primary"
                   />
                   <span className="shrink-0 text-[13px] text-text-muted">{f.unit}</span>
                 </span>
@@ -82,16 +85,26 @@ export function SettingsForm({ settings }: { settings: Schemas["Settings"] }) {
         </fieldset>
       ))}
       <label className="block">
-        <span className="mb-1 block text-sm font-semibold">Motif de la modification (journal)</span>
+        <span className="mb-2 block text-[13px] font-semibold text-text-secondary">
+          Motif de la modification (journal)
+        </span>
         <input
           name="reason"
           maxLength={300}
-          className="w-full rounded-field border border-border-input bg-surface px-3 py-2"
+          placeholder="Ex. ajustement des frais de livraison"
+          className="h-12 w-full rounded-field border border-border-input bg-surface px-4 outline-none focus:border-2 focus:border-primary"
         />
       </label>
       {state && (
-        <p role="status" className={state.ok ? "text-sm text-success" : "text-sm text-error"}>
-          {state.ok ? "✓ " : "✕ "}
+        <p
+          role="status"
+          className={`flex items-center gap-2 text-[13px] ${state.ok ? "text-success" : "text-error"}`}
+        >
+          {state.ok ? (
+            <CheckCircle2 size={16} aria-hidden="true" />
+          ) : (
+            <AlertCircle size={16} aria-hidden="true" />
+          )}
           {state.message}
           {!state.ok &&
             state.fields &&
@@ -99,7 +112,7 @@ export function SettingsForm({ settings }: { settings: Schemas["Settings"] }) {
             ` (${Object.values(state.fields).join(" ")})`}
         </p>
       )}
-      <button type="submit" disabled={pending} className={buttonClass("primary")}>
+      <button type="submit" disabled={pending} className={buttonClass("imperial")}>
         {pending ? "Enregistrement…" : "Enregistrer les paramètres"}
       </button>
     </form>

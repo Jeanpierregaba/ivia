@@ -86,3 +86,42 @@ export const VEHICLE: Record<string, string> = { motorbike: "Moto", car: "Voitur
 export function statusOf(map: Record<string, { label: string; tone: Tone }>, code: string) {
   return map[code] ?? { label: code, tone: "muted" as Tone };
 }
+
+/** Statuts de paiement (ADR 0004). */
+export const PAYMENT_STATUS: Record<string, { label: string; tone: Tone }> = {
+  pending: { label: "En attente", tone: "warning" },
+  succeeded: { label: "Reçu", tone: "success" },
+  failed: { label: "Échoué", tone: "error" },
+  expired: { label: "Expiré", tone: "muted" },
+  refund_pending: { label: "Remboursement en cours", tone: "warning" },
+  refunded: { label: "Remboursé", tone: "info" },
+};
+
+/** Libellés des actions du journal d'audit (identifiant technique affiché si inconnu). */
+export const AUDIT_ACTION: Record<string, string> = {
+  "shop.approve": "Boutique publiée",
+  "shop.reject": "Boutique refusée",
+  "shop.suspend": "Boutique suspendue",
+  "shop.reinstate": "Boutique rétablie",
+  "driver.approve": "Livreur validé",
+  "driver.reject": "Livreur refusé",
+  "driver.suspend": "Livreur suspendu",
+  "driver.reinstate": "Livreur rétabli",
+  "order.cancel": "Commande annulée",
+  "order.confirm_return": "Retour en boutique confirmé",
+  "order.unassign_driver": "Livreur retiré",
+  "order.unlock_handover": "Code de remise débloqué",
+  "payment.refund_requested": "Remboursement demandé",
+  "settings.update": "Paramètres modifiés",
+  "settlement.create": "Reversement créé",
+  "settlement.delete": "Reversement supprimé",
+  "settlement.mark_settled": "Reversement effectué",
+  "category.create": "Catégorie de produits créée",
+  "category.update": "Catégorie de produits modifiée",
+  "shop_category.create": "Catégorie de boutiques créée",
+  "shop_category.update": "Catégorie de boutiques modifiée",
+  "neighborhood.create": "Quartier créé",
+  "neighborhood.update": "Quartier modifié",
+  "user.grant_admin": "Droits admin accordés",
+  "user.revoke_admin": "Droits admin retirés",
+};

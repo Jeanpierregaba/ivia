@@ -14,6 +14,17 @@ Format :
 - Prochaine étape :
 -->
 
+### 2026-11-01 — Back-office aux couleurs des apps, e-mails reçus en local
+- Fait : back-office refait dans le langage visuel des apps (logotypes, barre Berkeley, mosaïque
+  « à traiter », fiches livreur et commande à en-tête bleu, frise d'historique, statuts de paiement
+  et actions du journal en français, connexion illustrée). Backend : envoi des codes par SMTP
+  (`OTP_SENDER=smtp`) vers Mailpit ajouté à `docker-compose.yml` (http://localhost:8025), e-mail du
+  code à la charte ; refusé en production. `project_progression.md` créé à la racine.
+- Pièges rencontrés : en local, aucun e-mail ne partait (code seulement dans les journaux) : c'est
+  voulu par les règles (pas d'envoi réel depuis le local), d'où Mailpit ; une vraie boîte exige Brevo.
+- Prochaine étape : écrans back-office restants (relevés, export CSV, catégories, quartiers,
+  paiements), choix du prestataire de paiement (016), VPS (017).
+
 ### 2026-11-01 — Activation des livreurs et back-office Next.js
 - Fait : backend — validation d'un livreur refusée sans pièce d'identité ni permis ; correctif
   (un dossier refusé ne pouvait pas être soumis de nouveau) ; test du parcours d'activation.

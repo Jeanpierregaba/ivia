@@ -1,6 +1,8 @@
+import { ChevronRight } from "lucide-react";
 import Link from "next/link";
 
 import {
+  Avatar,
   EmptyState,
   ErrorState,
   FilterTabs,
@@ -45,7 +47,9 @@ export default async function DriversPage({ searchParams }: Props) {
   return (
     <>
       <PageHeader
-        title="Livreurs"
+        overline="Flotte"
+        title="Les livreurs et leurs dossiers"
+        highlight="livreurs"
         description="Un livreur ne reçoit de missions qu'après validation de son dossier (pièce d'identité et permis)."
       />
       <FilterTabs
@@ -53,14 +57,19 @@ export default async function DriversPage({ searchParams }: Props) {
         tabs={TABS.map((t) => ({ value: t.value, label: t.label, href: `/drivers?${t.query}` }))}
       />
       {page.items.length === 0 ? (
-        <EmptyState message="Aucun livreur dans cette liste." />
+        <EmptyState title="Rien à afficher" message="Aucun livreur dans cette liste pour le moment." />
       ) : (
         <Table head={["Livreur", "Véhicule", "Documents", "Statut", "Candidature", ""]}>
           {page.items.map((d) => (
             <tr key={d.user_id}>
               <Td>
-                <p className="font-semibold">{d.first_name || "—"}</p>
-                <p className="text-[13px] text-text-muted">{formatPhone(d.phone)}</p>
+                <div className="flex items-center gap-3">
+                  <Avatar name={d.first_name || "?"} tone="cobalt" />
+                  <div>
+                    <p className="font-semibold">{d.first_name || "—"}</p>
+                    <p className="text-[13px] text-text-muted">{formatPhone(d.phone)}</p>
+                  </div>
+                </div>
               </Td>
               <Td>
                 {VEHICLE[d.vehicle_type] ?? d.vehicle_type} · {d.vehicle_plate}
@@ -71,8 +80,11 @@ export default async function DriversPage({ searchParams }: Props) {
               </Td>
               <Td>{formatDateTime(d.created_at)}</Td>
               <Td>
-                <Link href={`/drivers/${d.user_id}`} className="font-semibold text-secondary hover:underline">
-                  Ouvrir le dossier
+                <Link
+                  href={`/drivers/${d.user_id}`}
+                  className="inline-flex items-center gap-1 font-semibold text-secondary hover:underline"
+                >
+                  Ouvrir le dossier <ChevronRight size={16} aria-hidden="true" />
                 </Link>
               </Td>
             </tr>

@@ -27,8 +27,11 @@ go test ./...
 cd admin && pnpm install && API_BASE_URL=http://localhost:8080 pnpm dev
 ```
 
-En local, tout fonctionne sans compte externe : les codes de connexion s'affichent dans les journaux
-de l'API (et `POST /v1/dev/otp`, routes `/v1/dev` ouvertes en local et test seulement), les paiements passent par un faux prestataire
+En local, tout fonctionne sans compte externe : avec `OTP_SENDER=smtp`, les e-mails de connexion
+arrivent dans **Mailpit** (boîte de réception de test lancée par `docker compose`, lisible sur
+http://localhost:8025 ; aucun e-mail ne part sur Internet). Le code reste aussi lisible par
+`POST /v1/dev/otp` (routes `/v1/dev` ouvertes en local et test seulement). Pour recevoir les e-mails
+dans une vraie boîte, il faut `OTP_SENDER=brevo` avec les clés Brevo (staging et production). Les paiements passent par un faux prestataire
 (`POST /v1/dev/payments/{id}/simulate`), les fichiers sont stockés sur le disque. Documentation interactive : http://localhost:8080/docs. Le contrat de
 l'API est dans [`backend/api/openapi.yaml`](backend/api/openapi.yaml) et les variables dans
 [`.env.example`](.env.example).
