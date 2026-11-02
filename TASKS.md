@@ -18,7 +18,7 @@ docs/specs/NNN-nom/tasks.md. Les petites tâches isolées (bug, retouche) peuven
 Fin du squelette (étapes 8-9 du cadrage) :
 - [x] Mobile (frontend) — convertir `mobile/` en pub workspace : `apps/buyer`, `apps/seller`, `apps/driver`, `packages/api_client`, `packages/ui` (ADR 0002) ; mettre à jour les commandes Mobile d'`AGENTS.md` et le job `mobile` de la CI
 - [x] Back-office (frontend) — créer `admin/` avec Next.js 16, TypeScript, Tailwind, pnpm (ADR 0003) ; ajouter ses commandes à `AGENTS.md`, un job `admin` à la CI et `prettier` au hook de formatage
-- [ ] Outillage — gitleaks en CI
+- [x] Outillage — gitleaks en CI (job `secrets`, 2026-11-02) ; secrets de production en fichiers (`infra/init-secrets.sh`)
 
 ## À faire
 

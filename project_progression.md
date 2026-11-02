@@ -53,6 +53,8 @@ Go 1.27, PostgreSQL 18 + PostGIS, tâches de fond River, 22 migrations, document
 - Relevés marchands (reversements) et marquage « réglé », export des livraisons par livreur.
 - Notifications push (Firebase), suivi des erreurs (Sentry).
 
+**Secrets** : jamais dans Git (détection gitleaks en CI, historique vérifié sain) ; en production, un fichier par secret (droits 400, lisible par root et le conteneur seulement), jamais en variable d'environnement ; démarrage refusé avec un secret faible ou mal protégé ; aucun secret dans les journaux ; sauvegardes chiffrées.
+
 **Qualité** : tests sur base réelle pour chaque module et parcours de bout en bout ; `go vet`, `gofmt`, `govulncheck` en CI.
 
 ## 2. Back-office web (`admin/`) — fait

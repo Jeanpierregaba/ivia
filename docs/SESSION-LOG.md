@@ -14,6 +14,16 @@ Format :
 - Prochaine étape :
 -->
 
+### 2026-11-02 — Secrets protégés
+- Fait : secrets lus dans des fichiers en staging/production (`<NOM>_FILE`, Compose `secrets:`,
+  `/run/secrets`) au lieu de variables d'environnement ; `infra/init-secrets.sh` (génération,
+  saisie masquée, dossier 700, fichiers 400) ; `infra/.env` sans secret ; refus au démarrage des
+  secrets faibles, d'exemple ou trop ouverts ; configuration masquée dans `%v`, `%+v`, `%#v` et slog ;
+  sauvegardes chiffrées par rclone `crypt` ; job CI gitleaks ; historique analysé : aucune fuite.
+- Pièges rencontrés : chemins Docker sous Git Bash (`MSYS_NO_PATHCONV=1`) ; les secrets Compose
+  hors Swarm gardent propriétaire et droits de l'hôte (d'où chown 65532 / 70).
+- Prochaine étape : écrans back-office restants.
+
 ### 2026-11-02 — Validation des marchands sur pièces, relecture des commits de Jean-Pierre
 - Fait : relecture des 52 commits de develop (005, 007, 008, 009, 018) ; migration 00021 et test du
   panier conformes, suite backend verte. Nouveau : pièces du marchand (migration 00022

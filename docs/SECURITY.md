@@ -5,13 +5,24 @@ Points à vérifier, adaptés à la stack (API Go, PostgreSQL, apps Flutter, bac
 place **et** vérifié.
 
 ## Secrets et configuration
-- [ ] Aucun secret dans le code ni dans l'historique git (gitleaks dans la CI).
+- [x] Aucun secret dans le code ni dans l'historique git : job `secrets` (gitleaks, historique
+      complet) dans la CI, exceptions limitées aux faux secrets de test (`.gitleaks.toml`).
+      Historique vérifié le 2026-11-02 : aucune fuite.
+- [x] En staging et production, chaque secret est un fichier (`infra/secrets/`, dossier 700,
+      fichiers 400 au nom de l'utilisateur du conteneur) monté dans `/run/secrets` et lu par
+      `<NOM>_FILE` : jamais en variable d'environnement (invisible dans `docker inspect`), jamais
+      dans `infra/.env`. Création et rotation : `infra/init-secrets.sh`, `infra/README.md`.
+- [x] L'API refuse de démarrer hors local avec un secret court, d'exemple ou peu aléatoire, un
+      fichier de secret trop ouvert, ou une variable et son fichier définis ensemble ; les messages
+      ne recopient jamais la valeur, et la configuration se journalise sans ses secrets (testé).
 - [ ] Aucun secret exposé au navigateur : les variables `NEXT_PUBLIC_*` ne contiennent que du public.
 - [ ] Aucune clé de service dans les apps mobiles ; la clé Google Maps est restreinte aux
       identifiants des apps et à leur empreinte de signature.
 - [ ] Clés différentes entre local, staging et production ; prestataire de paiement en mode test
       hors production.
-- [ ] Sur le VPS : `.env` lisible uniquement par l'utilisateur du déploiement, SSH par clé, pare-feu
+- [ ] Sauvegardes chiffrées avant l'envoi (rclone `crypt`), fichier temporaire réservé à root ;
+      mot de passe de chiffrement dans le gestionnaire de mots de passe de l'équipe.
+- [ ] Sur le VPS : `.env` (sans secret) en 600, `secrets/` lisible par root seulement, SSH par clé, pare-feu
       n'ouvrant que 80/443, mises à jour de sécurité automatiques.
 - [ ] La base de production n'est joignable que depuis le réseau Docker interne (aucun port public).
 

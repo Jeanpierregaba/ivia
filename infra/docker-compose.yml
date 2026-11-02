@@ -1,6 +1,8 @@
 # Production (et staging) sur un VPS (ADR 0008). Depuis infra/ sur le serveur :
 #   docker compose pull && docker compose up -d
-# Les secrets sont dans infra/.env (droits 600, jamais commité) : voir infra/README.md.
+# Réglages dans infra/.env (sans secret) ; secrets dans infra/secrets/, un fichier par secret créé
+# par ./init-secrets.sh (dossier 700, fichiers 400). Montés en lecture seule dans /run/secrets : ils
+# n'apparaissent ni dans `docker inspect` ni dans l'environnement des processus. Voir infra/README.md.
 name: ivia
 
 services:
@@ -10,7 +12,9 @@ services:
     environment:
       POSTGRES_USER: ivia
       POSTGRES_DB: ivia
-      POSTGRES_PASSWORD: ${POSTGRES_PASSWORD:?POSTGRES_PASSWORD obligatoire}
+      POSTGRES_PASSWORD_FILE: /run/secrets/postgres_password
+    secrets:
+      - postgres_password
     # Aucun port publié : la base n'est joignable que depuis le réseau Docker interne (SECURITY.md).
     volumes:
       - postgres-data:/var/lib/postgresql
@@ -28,12 +32,25 @@ services:
         condition: service_healthy
     env_file: .env
     environment:
-      DATABASE_URL: postgres://ivia:${POSTGRES_PASSWORD}@postgres:5432/ivia?sslmode=disable
+      DATABASE_URL_FILE: /run/secrets/database_url
+      AUTH_SECRET_FILE: /run/secrets/auth_secret
+      PAYMENT_WEBHOOK_SECRET_FILE: /run/secrets/payment_webhook_secret
+      BREVO_API_KEY_FILE: /run/secrets/brevo_api_key
+      R2_ACCESS_KEY_ID_FILE: /run/secrets/r2_access_key_id
+      R2_SECRET_ACCESS_KEY_FILE: /run/secrets/r2_secret_access_key
+      SENTRY_DSN_FILE: /run/secrets/sentry_dsn
+      FCM_CREDENTIALS_FILE: /run/secrets/fcm.json
       TRUST_PROXY_HEADERS: "true"
       RUN_WORKERS: "true"
-    volumes:
-      # Compte de service Firebase (FCM_CREDENTIALS_FILE=/run/secrets/fcm.json), lecture seule.
-      - ./secrets:/run/secrets:ro
+    secrets:
+      - database_url
+      - auth_secret
+      - payment_webhook_secret
+      - brevo_api_key
+      - r2_access_key_id
+      - r2_secret_access_key
+      - sentry_dsn
+      - fcm.json
     # Pas de port publié : Caddy est le seul point d'entrée.
 
   admin:
@@ -63,6 +80,28 @@ services:
       - ./Caddyfile:/etc/caddy/Caddyfile:ro
       - caddy-data:/data
       - caddy-config:/config
+
+# Un fichier par secret (infra/secrets/, jamais commité). L'API refuse de démarrer si un fichier
+# est trop ouvert (droits autres que 400 ou 600), vide, ou contient une valeur faible.
+secrets:
+  postgres_password:
+    file: ./secrets/postgres_password
+  database_url:
+    file: ./secrets/database_url
+  auth_secret:
+    file: ./secrets/auth_secret
+  payment_webhook_secret:
+    file: ./secrets/payment_webhook_secret
+  brevo_api_key:
+    file: ./secrets/brevo_api_key
+  r2_access_key_id:
+    file: ./secrets/r2_access_key_id
+  r2_secret_access_key:
+    file: ./secrets/r2_secret_access_key
+  sentry_dsn:
+    file: ./secrets/sentry_dsn
+  fcm.json:
+    file: ./secrets/fcm.json
 
 volumes:
   postgres-data:
