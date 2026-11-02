@@ -744,6 +744,7 @@ void main() {
       var c = await client.cart();
       expect(c.items.first.issue, 'Plus que 2 en stock.');
       expect(c.items.first.hasIssue, isTrue);
+      expect(c.items.first.issueCode, CartIssue.insufficientStock);
       expect(c.items.first.stockLeft, 2);
       expect(c.items.last.hasIssue, isFalse);
       expect(c.items.last.stockLeft, isNull);
@@ -761,7 +762,27 @@ void main() {
       huile['is_active'] = false;
       c = await client.cart();
       expect(c.items.last.issue, "Ce produit n'est plus disponible.");
+      expect(c.items.last.issueCode, CartIssue.unavailable);
       expect(c.items.last.stockLeft, isNull);
+    });
+
+    test('raison : le code fait foi, pas le texte', () {
+      final item = CartItem.fromJson({
+        'product_id': 'p',
+        'name': 'Riz',
+        'image_url': null,
+        'unit_price_xof': 4500,
+        'quantity': 3,
+        'line_total_xof': 13500,
+        'parcel_size': 'small',
+        // Texte reformulé côté serveur : sans effet sur l'action proposée.
+        'issue': 'Il ne reste que 2 articles.',
+        'issue_code': 'insufficient_stock',
+        'stock_left': 2,
+      });
+      expect(item.stockLeft, 2);
+      expect(item.hasIssue, isTrue);
+      expect(CartIssue.parse('on_hold'), CartIssue.unknown);
     });
 
     test('30 produits différents au plus : le panier ne change pas', () async {

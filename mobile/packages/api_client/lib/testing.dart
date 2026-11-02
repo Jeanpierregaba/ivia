@@ -1104,11 +1104,11 @@ class FakeCart {
       final price = p['price_xof'] as int;
       final stock = _stock(p);
       final images = p['images'] as List;
-      final issue = p['is_active'] == false || shop == null
-          ? "Ce produit n'est plus disponible."
+      final (issue, issueCode) = p['is_active'] == false || shop == null
+          ? ("Ce produit n'est plus disponible.", 'unavailable')
           : stock != null && stock < qty
-          ? 'Plus que $stock en stock.'
-          : '';
+          ? ('Plus que $stock en stock.', 'insufficient_stock')
+          : ('', '');
       if (issue.isEmpty) {
         subtotal += price * qty;
       } else {
@@ -1123,6 +1123,8 @@ class FakeCart {
         'line_total_xof': price * qty,
         'parcel_size': p['parcel_size'],
         'issue': issue,
+        'issue_code': issueCode,
+        'stock_left': issueCode == 'insufficient_stock' ? stock : null,
       });
     }
     return {

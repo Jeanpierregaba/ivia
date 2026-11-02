@@ -789,6 +789,8 @@ class CartItem {
     required this.lineTotalXof,
     required this.parcelSize,
     required this.issue,
+    this.issueCode = CartIssue.none,
+    this.stockLeft,
   });
 
   factory CartItem.fromJson(Map<String, dynamic> json) => CartItem(
@@ -800,6 +802,8 @@ class CartItem {
     lineTotalXof: json['line_total_xof'] as int,
     parcelSize: ParcelSize.parse(json['parcel_size'] as String),
     issue: json['issue'] as String? ?? '',
+    issueCode: CartIssue.parse(json['issue_code'] as String? ?? ''),
+    stockLeft: json['stock_left'] as int?,
   );
 
   final String productId;
@@ -810,18 +814,35 @@ class CartItem {
   final int lineTotalXof;
   final ParcelSize parcelSize;
 
-  /// Pourquoi la ligne empêche de commander, en français ; vide si elle est
-  /// commandable.
+  /// Pourquoi la ligne empêche de commander, en français, à afficher tel
+  /// quel ; vide si elle est commandable. Jamais analysé : lire [issueCode].
   final String issue;
 
-  bool get hasIssue => issue.isNotEmpty;
+  /// La même raison, en code (`issue_code`).
+  final CartIssue issueCode;
 
-  /// Stock restant annoncé par [issue] (« Plus que 2 en stock. ») ; `null`
-  /// si la ligne n'est pas limitée par le stock.
-  int? get stockLeft {
-    final m = RegExp(r'^Plus que (\d+) en stock').firstMatch(issue);
-    return m == null ? null : int.parse(m.group(1)!);
-  }
+  /// Stock restant quand [issueCode] vaut [CartIssue.insufficientStock]
+  /// (`stock_left`) ; `null` sinon.
+  final int? stockLeft;
+
+  bool get hasIssue => issue.isNotEmpty || issueCode != CartIssue.none;
+}
+
+/// Raison d'une ligne de panier qui empêche de commander (`issue_code`).
+enum CartIssue {
+  none(''),
+  unavailable('unavailable'),
+  insufficientStock('insufficient_stock'),
+
+  /// Raison ajoutée au serveur après cette version de l'app.
+  unknown('unknown');
+
+  const CartIssue(this.code);
+
+  final String code;
+
+  static CartIssue parse(String code) =>
+      values.firstWhere((i) => i.code == code, orElse: () => unknown);
 }
 
 /// Panier de l'acheteur, d'une seule boutique (schéma `Cart`).
