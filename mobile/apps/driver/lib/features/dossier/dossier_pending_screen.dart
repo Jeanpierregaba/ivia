@@ -7,7 +7,6 @@ import 'package:ivia_ui/ivia_ui.dart';
 
 import '../../app/driver_dossier.dart';
 import '../../app/router.dart';
-import 'document_row.dart';
 import 'dossier_labels.dart';
 
 /// « Votre dossier est en cours de vérification » : suivi des étapes.

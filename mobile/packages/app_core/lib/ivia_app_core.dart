@@ -10,6 +10,7 @@ export 'src/auth_controller.dart';
 export 'src/auth_routes.dart';
 export 'src/button_progress.dart';
 export 'src/code_screen.dart';
+export 'src/document_photo_row.dart';
 export 'src/email_screen.dart';
 export 'src/first_launch.dart';
 export 'src/form_fields.dart';

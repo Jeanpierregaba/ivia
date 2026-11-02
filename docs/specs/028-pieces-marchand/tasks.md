@@ -5,7 +5,7 @@
 **Fondations**
 - [x] 1. `api_client` : modèles des pièces, `Shop.merchantDocuments`, `addMerchantDocument`,
   `FakeMerchantDocuments` ; tests
-- [ ] 2. `app_core` : `DocumentPhotoRow` (repris du livreur), l'app livreur l'utilise ; tests
+- [x] 2. `app_core` : `DocumentPhotoRow` (repris du livreur), l'app livreur l'utilise ; tests
 
 **App marchand**
 - [ ] 3. Écran « Vérifions votre identité » : lignes, choix des photos, envoi (URL signée,

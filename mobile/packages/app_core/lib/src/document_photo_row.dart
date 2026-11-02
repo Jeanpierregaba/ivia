@@ -2,56 +2,54 @@ import 'dart:typed_data';
 
 import 'package:flutter/material.dart';
 import 'package:flutter_riverpod/flutter_riverpod.dart';
-import 'package:ivia_api_client/ivia_api_client.dart';
-import 'package:ivia_app_core/ivia_app_core.dart';
 import 'package:ivia_ui/ivia_ui.dart';
 
-/// Taille maximale d'un fichier accepté par le serveur (POST /v1/uploads).
+import 'photo_picker.dart';
+
+/// Taille maximale d'un fichier accepté par le serveur (`POST /v1/uploads`).
 const maxUploadBytes = 5 * 1024 * 1024;
 
-/// Documents demandés au livreur, dans l'ordre d'affichage.
-const requiredDocuments = [
-  DriverDocumentKind.idCard,
-  DriverDocumentKind.drivingLicense,
-  DriverDocumentKind.vehicleRegistration,
-];
-
-String documentLabel(DriverDocumentKind kind) => switch (kind) {
-  DriverDocumentKind.idCard => "Pièce d'identité",
-  DriverDocumentKind.drivingLicense => 'Permis de conduire',
-  DriverDocumentKind.vehicleRegistration => 'Carte grise',
-  DriverDocumentKind.photo => 'Photo',
-  DriverDocumentKind.other => 'Autre document',
-};
-
-/// Une ligne de document : « Ajouter », puis « Ajouté » (photo choisie) ou
-/// « Envoyé » (déjà dans le dossier, lors d'une correction). Un appui
-/// propose de prendre ou de choisir une photo.
-class DocumentRow extends ConsumerStatefulWidget {
-  const DocumentRow({
+/// Une ligne de document à photographier (dossier livreur, pièces du
+/// marchand) : « Ajouter », puis [pickedLabel] (photo choisie, à envoyer) ou
+/// [sentLabel] (déjà reçu par le serveur). Un appui propose de prendre ou de
+/// choisir une photo ; une photo trop lourde est refusée dès le choix.
+class DocumentPhotoRow extends ConsumerStatefulWidget {
+  const DocumentPhotoRow({
     super.key,
-    required this.kind,
+    required this.label,
     required this.photo,
     required this.alreadySent,
     required this.onPicked,
+    this.tag,
+    this.hint,
+    this.pickedLabel = 'Ajouté',
+    this.sentLabel = 'Envoyé',
     this.enabled = true,
   });
 
-  final DriverDocumentKind kind;
+  final String label;
+
+  /// Mention sous le libellé (« Obligatoire », « Facultatif »).
+  final String? tag;
+
+  /// Précision sur le document attendu.
+  final String? hint;
 
   /// Photo choisie, prête à l'envoi ; `null` : aucune.
   final Uint8List? photo;
 
-  /// Déjà reçu par le serveur (correction d'un dossier refusé).
+  /// Déjà reçu par le serveur.
   final bool alreadySent;
   final ValueChanged<Uint8List> onPicked;
+  final String pickedLabel;
+  final String sentLabel;
   final bool enabled;
 
   @override
-  ConsumerState<DocumentRow> createState() => _DocumentRowState();
+  ConsumerState<DocumentPhotoRow> createState() => _DocumentPhotoRowState();
 }
 
-class _DocumentRowState extends ConsumerState<DocumentRow> {
+class _DocumentPhotoRowState extends ConsumerState<DocumentPhotoRow> {
   String? _error;
 
   Future<void> _pick() async {
@@ -106,16 +104,24 @@ class _DocumentRowState extends ConsumerState<DocumentRow> {
     final picked = widget.photo != null;
     final done = picked || widget.alreadySent;
     final status = picked
-        ? 'Ajouté'
+        ? widget.pickedLabel
         : widget.alreadySent
-        ? 'Envoyé'
+        ? widget.sentLabel
         : 'Ajouter';
+    final statusText = Text(
+      status,
+      style: textTheme.titleSmall?.copyWith(
+        color: done ? IviaColors.textMuted : brand.link,
+      ),
+    );
+    // Grand texte : l'état passe sous le libellé, qui garde toute la largeur.
+    final stacked = MediaQuery.textScalerOf(context).scale(10) > 15;
     return Column(
       crossAxisAlignment: CrossAxisAlignment.stretch,
       children: [
         Semantics(
           button: true,
-          label: '${documentLabel(widget.kind)}, $status',
+          label: [widget.label, ?widget.tag, ?widget.hint, status].join(', '),
           enabled: widget.enabled,
           onTap: widget.enabled ? _pick : null,
           excludeSemantics: true,
@@ -150,18 +156,35 @@ class _DocumentRowState extends ConsumerState<DocumentRow> {
                     ),
                     const SizedBox(width: IviaSpacing.lg),
                     Expanded(
-                      child: Text(
-                        documentLabel(widget.kind),
-                        style: textTheme.titleSmall,
+                      child: Column(
+                        crossAxisAlignment: CrossAxisAlignment.start,
+                        children: [
+                          Text(widget.label, style: textTheme.titleSmall),
+                          if (widget.tag case final tag?)
+                            Text(
+                              tag,
+                              style: textTheme.labelMedium?.copyWith(
+                                color: IviaColors.textSecondary,
+                              ),
+                            ),
+                          if (widget.hint case final hint?)
+                            Padding(
+                              padding: const EdgeInsets.only(
+                                top: IviaSpacing.xs,
+                              ),
+                              child: Text(hint, style: textTheme.bodySmall),
+                            ),
+                          if (stacked) ...[
+                            const SizedBox(height: IviaSpacing.xs),
+                            statusText,
+                          ],
+                        ],
                       ),
                     ),
-                    const SizedBox(width: IviaSpacing.sm),
-                    Text(
-                      status,
-                      style: textTheme.titleSmall?.copyWith(
-                        color: done ? IviaColors.textMuted : brand.link,
-                      ),
-                    ),
+                    if (!stacked) ...[
+                      const SizedBox(width: IviaSpacing.sm),
+                      statusText,
+                    ],
                   ],
                 ),
               ),

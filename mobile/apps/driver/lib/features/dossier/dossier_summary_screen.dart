@@ -4,7 +4,6 @@ import 'package:go_router/go_router.dart';
 import 'package:ivia_ui/ivia_ui.dart';
 
 import '../../app/driver_dossier.dart';
-import 'document_row.dart';
 import 'dossier_labels.dart';
 
 /// Récapitulatif du dossier envoyé : véhicule, immatriculation, types de
