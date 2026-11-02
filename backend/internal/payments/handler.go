@@ -32,6 +32,7 @@ func (h *Handler) Register(rt *httpapi.Router) {
 	rt.Roles("POST /v1/orders/{id}/payments", h.initiate, identity.RoleBuyer)
 	rt.Roles("GET /v1/orders/{id}/payments", h.listForOrder, identity.RoleBuyer)
 	rt.Roles("GET /v1/payments/{id}", h.get, identity.RoleBuyer)
+	rt.Roles("POST /v1/payments/{id}/cancel", h.cancel, identity.RoleBuyer)
 
 	rt.Raw("POST /v1/webhooks/payments/{provider}", http.HandlerFunc(h.webhook))
 
@@ -84,6 +85,18 @@ func (h *Handler) get(w http.ResponseWriter, r *http.Request) error {
 		return err
 	}
 	p, err := h.svc.GetForBuyer(r.Context(), identity.MustFromContext(r.Context()).UserID, id)
+	if err != nil {
+		return err
+	}
+	return httpapi.OK(w, p)
+}
+
+func (h *Handler) cancel(w http.ResponseWriter, r *http.Request) error {
+	id, err := httpapi.PathUUID(r, "id")
+	if err != nil {
+		return err
+	}
+	p, err := h.svc.Cancel(r.Context(), identity.MustFromContext(r.Context()).UserID, id)
 	if err != nil {
 		return err
 	}

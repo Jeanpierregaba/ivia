@@ -8,7 +8,8 @@ docs/specs/NNN-nom/tasks.md. Les petites tâches isolées (bug, retouche) peuven
 
 ## En cours
 
-- [ ] 009 — Commande en retrait et suivi ([spec](docs/specs/009-commande-retrait/spec.md)) : implémenté et testé ; reste la relecture et le parcours sur le simulateur
+- [ ] 010 — Paiement Mobile Money ([spec](docs/specs/010-paiement/spec.md)) : en cours
+- [ ] 009 — Commande en retrait et suivi ([spec](docs/specs/009-commande-retrait/spec.md)) : implémenté, testé et relu ; reste le parcours sur le simulateur (fait avec celui de la 010)
 - [ ] 018 — Espace livreur : lancement, connexion, dossier de candidature ([spec](docs/specs/018-espace-livreur/spec.md)) : relu et corrigé ; appareil photo à vérifier sur un vrai téléphone
 - [ ] 004 — Espace marchand : lancement, connexion, création de la boutique ([spec](docs/specs/004-espace-marchand/spec.md)) : relu et corrigé ; reste les clés Google Maps (vérification de la carte)
 - [ ] 027 — Splash et présentation des 3 apps ([spec](docs/specs/027-splash-onboarding/spec.md)) : reste la vérification sur Android, la validation des textes et des couleurs par le designer

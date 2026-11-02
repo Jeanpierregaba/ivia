@@ -31,6 +31,7 @@ import (
 	"ivia/backend/internal/platform/apperr"
 	"ivia/backend/internal/platform/database"
 	"ivia/backend/internal/platform/jobs"
+	"ivia/backend/internal/platform/ratelimit"
 	"ivia/backend/internal/platform/validate"
 )
 
@@ -48,6 +49,16 @@ const (
 
 // pendingGiveUpAfter : un paiement encore en attente chez le prestataire après ce délai est expiré.
 const pendingGiveUpAfter = time.Hour
+
+// Demandes de paiement par acheteur : avec l'annulation, sans limite, on pourrait envoyer des
+// demandes en boucle vers le numéro d'un tiers.
+const (
+	requestLimit       = 10
+	requestLimitWindow = time.Hour
+)
+
+// cancelledByBuyer est la raison d'échec d'une demande abandonnée par l'acheteur.
+const cancelledByBuyer = "Annulé par l'acheteur."
 
 // Payment est la vue d'un paiement.
 type Payment struct {
@@ -111,11 +122,16 @@ type Service struct {
 	audit    *admin.Service
 	notify   *notifications.Service
 	logger   *slog.Logger
+	// requests limite les nouvelles demandes de paiement par acheteur.
+	requests *ratelimit.Limiter
 }
 
 // NewService crée le service.
 func NewService(db *database.DB, enq jobs.Enqueuer, provider Provider, ord *orders.Service, audit *admin.Service, notify *notifications.Service, logger *slog.Logger) *Service {
-	return &Service{db: db, jobs: enq, provider: provider, orders: ord, audit: audit, notify: notify, logger: logger}
+	return &Service{
+		db: db, jobs: enq, provider: provider, orders: ord, audit: audit, notify: notify, logger: logger,
+		requests: ratelimit.New(requestLimit, requestLimitWindow),
+	}
 }
 
 // Provider retourne le prestataire configuré.
@@ -143,6 +159,10 @@ func (s *Service) Initiate(ctx context.Context, buyerID, orderID uuid.UUID, oper
 		return toPayment(cur), nil
 	} else if !database.IsNoRows(err) {
 		return Payment{}, fmt.Errorf("lecture du paiement en cours : %w", err)
+	}
+	// Seule une nouvelle demande compte : rendre la demande en attente n'envoie rien au payeur.
+	if ok, retry := s.requests.Allow(buyerID.String()); !ok {
+		return Payment{}, apperr.TooManyRequests("rate_limited", "Trop de demandes de paiement. Réessayez plus tard.", retry)
 	}
 	row, err := q.CreatePayment(ctx, store.CreatePaymentParams{
 		OrderID: orderID, BuyerID: buyerID, Provider: s.provider.Name(), Reference: newReference("ivp"),
@@ -189,6 +209,34 @@ func (s *Service) GetForBuyer(ctx context.Context, buyerID, id uuid.UUID) (Payme
 		return Payment{}, fmt.Errorf("lecture du paiement : %w", err)
 	}
 	return toPayment(row), nil
+}
+
+// Cancel abandonne une demande de paiement en attente de l'acheteur : elle passe en échec, ce qui
+// permet d'en lancer une autre (autre numéro, autre opérateur). Le prestataire n'est pas prévenu :
+// une validation tardive arrive par webhook et reste appliquée (applySuccess part aussi de
+// failed) ; deux demandes réussies font un doublon à rembourser. Idempotent.
+func (s *Service) Cancel(ctx context.Context, buyerID, paymentID uuid.UUID) (Payment, error) {
+	q := store.New(s.db.Conn(ctx))
+	if _, err := s.GetForBuyer(ctx, buyerID, paymentID); err != nil {
+		return Payment{}, err
+	}
+	if _, err := q.SetPaymentStatus(ctx, store.SetPaymentStatusParams{
+		ID: paymentID, NewStatus: string(StatusFailed), FailureReason: cancelledByBuyer,
+		FromStatuses: []string{string(StatusPending)},
+	}); err != nil {
+		return Payment{}, fmt.Errorf("annulation du paiement : %w", err)
+	}
+	// Relu après la transition conditionnelle : un webhook a pu la croiser.
+	p, err := s.GetForBuyer(ctx, buyerID, paymentID)
+	if err != nil {
+		return Payment{}, err
+	}
+	switch p.Status {
+	case StatusFailed, StatusExpired:
+		return p, nil
+	default:
+		return Payment{}, apperr.Conflict("payment_not_cancellable", "Ce paiement est déjà confirmé : il ne peut plus être annulé.")
+	}
 }
 
 // ListForOrder retourne les paiements d'une commande de l'acheteur.

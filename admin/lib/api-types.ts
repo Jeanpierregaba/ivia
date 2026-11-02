@@ -685,7 +685,7 @@ export interface paths {
         put?: never;
         /**
          * Payer par Mobile Money
-         * @description Lance le paiement chez le prestataire ; l'acheteur valide sur son téléphone. Le statut ne change que sur notification vérifiée du prestataire.
+         * @description Lance le paiement chez le prestataire ; l'acheteur valide sur son téléphone. Le statut ne change que sur notification vérifiée du prestataire. S'il y a déjà une demande en attente pour la commande, elle est rendue telle quelle (l'annuler d'abord pour changer de numéro). 10 nouvelles demandes par heure et par acheteur (429 `rate_limited`).
          */
         post: operations["postOrdersByIdPayments"];
         delete?: never;
@@ -705,6 +705,26 @@ export interface paths {
         get: operations["getPaymentsById"];
         put?: never;
         post?: never;
+        delete?: never;
+        options?: never;
+        head?: never;
+        patch?: never;
+        trace?: never;
+    };
+    "/v1/payments/{id}/cancel": {
+        parameters: {
+            query?: never;
+            header?: never;
+            path?: never;
+            cookie?: never;
+        };
+        get?: never;
+        put?: never;
+        /**
+         * Annuler une demande de paiement en attente
+         * @description L'acheteur abandonne sa demande en attente : elle passe en `failed` (« Annulé par l'acheteur. ») et une nouvelle demande devient possible. Le prestataire n'est pas prévenu : une validation tardive reste appliquée par webhook. Idempotent (une demande `failed` ou `expired` est rendue telle quelle) ; 409 `payment_not_cancellable` si le paiement est réussi ou remboursé. `POST /v1/orders/{id}/payments` est limité à 10 nouvelles demandes par heure et par acheteur (429 `rate_limited`).
+         */
+        post: operations["postPaymentsByIdCancel"];
         delete?: never;
         options?: never;
         head?: never;
@@ -4779,6 +4799,37 @@ export interface operations {
         };
     };
     getPaymentsById: {
+        parameters: {
+            query?: never;
+            header?: never;
+            path: {
+                id: string;
+            };
+            cookie?: never;
+        };
+        requestBody?: never;
+        responses: {
+            /** @description Succès */
+            200: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["Payment"];
+                };
+            };
+            /** @description Erreur (voir `code`) */
+            default: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["Error"];
+                };
+            };
+        };
+    };
+    postPaymentsByIdCancel: {
         parameters: {
             query?: never;
             header?: never;
