@@ -5,9 +5,6 @@ import 'package:flutter_riverpod/flutter_riverpod.dart';
 import 'package:ivia_app_core/ivia_app_core.dart';
 import 'package:ivia_ui/ivia_ui.dart';
 
-/// Taille maximale d'un fichier accepté par le serveur (POST /v1/uploads).
-const maxUploadBytes = 5 * 1024 * 1024;
-
 /// Logo de la boutique (facultatif) : carré pointillé, ou aperçu de la photo
 /// choisie avec « Retirer ».
 class ShopLogoField extends ConsumerStatefulWidget {

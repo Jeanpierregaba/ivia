@@ -2,50 +2,44 @@ import 'dart:typed_data';
 
 import 'package:flutter/material.dart';
 import 'package:flutter_riverpod/flutter_riverpod.dart';
-import 'package:ivia_api_client/ivia_api_client.dart';
-import 'package:ivia_app_core/ivia_app_core.dart';
 import 'package:ivia_ui/ivia_ui.dart';
+
+import 'photo_picker.dart';
 
 /// Taille maximale d'un fichier accepté par le serveur (POST /v1/uploads).
 const maxUploadBytes = 5 * 1024 * 1024;
 
-/// Documents demandés au livreur, dans l'ordre d'affichage.
-const requiredDocuments = [
-  DriverDocumentKind.idCard,
-  DriverDocumentKind.drivingLicense,
-  DriverDocumentKind.vehicleRegistration,
-];
-
-String documentLabel(DriverDocumentKind kind) => switch (kind) {
-  DriverDocumentKind.idCard => "Pièce d'identité",
-  DriverDocumentKind.drivingLicense => 'Permis de conduire',
-  DriverDocumentKind.vehicleRegistration => 'Carte grise',
-  DriverDocumentKind.photo => 'Photo',
-  DriverDocumentKind.other => 'Autre document',
-};
-
-/// Une ligne de document : « Ajouter », puis « Ajouté » (photo choisie) ou
-/// « Envoyé » (déjà dans le dossier, lors d'une correction). Un appui
-/// propose de prendre ou de choisir une photo.
+/// Une pièce à fournir (dossier livreur, pièces du marchand) : « Ajouter »,
+/// puis « Ajouté » (photo choisie), « Envoi… » ou « Envoyé » (reçu par le
+/// serveur). Un appui propose de prendre ou de choisir une photo.
 class DocumentRow extends ConsumerStatefulWidget {
   const DocumentRow({
     super.key,
-    required this.kind,
+    required this.label,
     required this.photo,
     required this.alreadySent,
     required this.onPicked,
+    this.hint,
     this.enabled = true,
+    this.busy = false,
   });
 
-  final DriverDocumentKind kind;
+  /// Nom de la pièce (« Pièce d'identité »).
+  final String label;
+
+  /// Précision sous le nom (« Obligatoire », « Facultatif »).
+  final String? hint;
 
   /// Photo choisie, prête à l'envoi ; `null` : aucune.
   final Uint8List? photo;
 
-  /// Déjà reçu par le serveur (correction d'un dossier refusé).
+  /// Déjà reçu par le serveur.
   final bool alreadySent;
   final ValueChanged<Uint8List> onPicked;
   final bool enabled;
+
+  /// Envoi en cours : la ligne affiche « Envoi… » et ne réagit plus.
+  final bool busy;
 
   @override
   ConsumerState<DocumentRow> createState() => _DocumentRowState();
@@ -105,7 +99,10 @@ class _DocumentRowState extends ConsumerState<DocumentRow> {
     final brand = IviaAppBrand.of(context);
     final picked = widget.photo != null;
     final done = picked || widget.alreadySent;
-    final status = picked
+    final active = widget.enabled && !widget.busy;
+    final status = widget.busy
+        ? 'Envoi…'
+        : picked
         ? 'Ajouté'
         : widget.alreadySent
         ? 'Envoyé'
@@ -115,15 +112,15 @@ class _DocumentRowState extends ConsumerState<DocumentRow> {
       children: [
         Semantics(
           button: true,
-          label: '${documentLabel(widget.kind)}, $status',
-          enabled: widget.enabled,
-          onTap: widget.enabled ? _pick : null,
+          label: '${widget.label}, $status',
+          enabled: active,
+          onTap: active ? _pick : null,
           excludeSemantics: true,
           child: Material(
             color: IviaColors.surface,
             borderRadius: BorderRadius.circular(IviaRadius.large),
             child: InkWell(
-              onTap: widget.enabled ? _pick : null,
+              onTap: active ? _pick : null,
               borderRadius: BorderRadius.circular(IviaRadius.large),
               child: Padding(
                 padding: const EdgeInsets.symmetric(
@@ -150,16 +147,33 @@ class _DocumentRowState extends ConsumerState<DocumentRow> {
                     ),
                     const SizedBox(width: IviaSpacing.lg),
                     Expanded(
-                      child: Text(
-                        documentLabel(widget.kind),
-                        style: textTheme.titleSmall,
+                      flex: 3,
+                      child: Column(
+                        crossAxisAlignment: CrossAxisAlignment.start,
+                        children: [
+                          Text(widget.label, style: textTheme.titleSmall),
+                          if (widget.hint case final hint?)
+                            Text(
+                              hint,
+                              style: textTheme.bodySmall?.copyWith(
+                                color: IviaColors.textMuted,
+                              ),
+                            ),
+                        ],
                       ),
                     ),
                     const SizedBox(width: IviaSpacing.sm),
-                    Text(
-                      status,
-                      style: textTheme.titleSmall?.copyWith(
-                        color: done ? IviaColors.textMuted : brand.link,
+                    // Flexible : à 200 % sur un petit écran, le statut passe
+                    // à la ligne plutôt que de déborder.
+                    Flexible(
+                      child: Text(
+                        status,
+                        textAlign: TextAlign.end,
+                        style: textTheme.titleSmall?.copyWith(
+                          color: done || widget.busy
+                              ? IviaColors.textMuted
+                              : brand.link,
+                        ),
                       ),
                     ),
                   ],

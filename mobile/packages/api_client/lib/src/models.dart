@@ -129,6 +129,20 @@ enum ShopStatus {
 }
 
 /// Boutique vue par son marchand (schéma `Shop`).
+/// Pièce du marchand, vérifiée par l'admin avant de publier une boutique.
+enum MerchantDocumentKind {
+  idCard('id_card'),
+  businessRegistration('business_registration'),
+  other('other');
+
+  const MerchantDocumentKind(this.code);
+
+  final String code;
+
+  static MerchantDocumentKind parse(String code) =>
+      values.firstWhere((k) => k.code == code, orElse: () => other);
+}
+
 class Shop {
   const Shop({
     required this.id,
@@ -138,6 +152,7 @@ class Shop {
     required this.neighborhoodName,
     required this.categoryName,
     required this.logoUrl,
+    this.merchantDocuments = const [],
   });
 
   factory Shop.fromJson(Map<String, dynamic> json) => Shop(
@@ -148,11 +163,34 @@ class Shop {
     neighborhoodName: json['neighborhood_name'] as String? ?? '',
     categoryName: json['category_name'] as String? ?? '',
     logoUrl: json['logo_url'] as String?,
+    merchantDocuments: [
+      for (final doc in json['merchant_documents'] as List? ?? const [])
+        MerchantDocumentKind.parse((doc as Map)['kind'] as String),
+    ],
   );
 
   final String id;
   final String name;
   final ShopStatus status;
+
+  /// Pièces déjà reçues par le serveur. Sans pièce d'identité, l'admin ne
+  /// peut pas publier la boutique.
+  final List<MerchantDocumentKind> merchantDocuments;
+
+  bool get identityProvided =>
+      merchantDocuments.contains(MerchantDocumentKind.idCard);
+
+  /// La même boutique avec les pièces renvoyées par le serveur.
+  Shop withDocuments(List<MerchantDocumentKind> documents) => Shop(
+    id: id,
+    name: name,
+    status: status,
+    statusReason: statusReason,
+    neighborhoodName: neighborhoodName,
+    categoryName: categoryName,
+    logoUrl: logoUrl,
+    merchantDocuments: documents,
+  );
 
   /// Motif d'un refus ou d'une suspension, donné par l'admin.
   final String statusReason;
@@ -778,6 +816,23 @@ class PublicShop {
   final bool acceptingOrders;
 }
 
+/// Raison pour laquelle une ligne du panier empêche de commander.
+enum CartIssue {
+  none(''),
+  unavailable('unavailable'),
+  insufficientStock('insufficient_stock');
+
+  const CartIssue(this.code);
+
+  final String code;
+
+  /// Code inconnu (serveur plus récent) : traité comme indisponible, la
+  /// ligne reste bloquante.
+  static CartIssue parse(String? code) => code == null || code.isEmpty
+      ? none
+      : values.firstWhere((v) => v.code == code, orElse: () => unavailable);
+}
+
 /// Ligne du panier, au prix et au stock du moment (schéma `CartItem`).
 class CartItem {
   const CartItem({
@@ -789,6 +844,8 @@ class CartItem {
     required this.lineTotalXof,
     required this.parcelSize,
     required this.issue,
+    this.issueCode = CartIssue.none,
+    this.stockLeft,
   });
 
   factory CartItem.fromJson(Map<String, dynamic> json) => CartItem(
@@ -800,6 +857,8 @@ class CartItem {
     lineTotalXof: json['line_total_xof'] as int,
     parcelSize: ParcelSize.parse(json['parcel_size'] as String),
     issue: json['issue'] as String? ?? '',
+    issueCode: CartIssue.parse(json['issue_code'] as String?),
+    stockLeft: json['stock_left'] as int?,
   );
 
   final String productId;
@@ -816,12 +875,13 @@ class CartItem {
 
   bool get hasIssue => issue.isNotEmpty;
 
-  /// Stock restant annoncé par [issue] (« Plus que 2 en stock. ») ; `null`
-  /// si la ligne n'est pas limitée par le stock.
-  int? get stockLeft {
-    final m = RegExp(r'^Plus que (\d+) en stock').firstMatch(issue);
-    return m == null ? null : int.parse(m.group(1)!);
-  }
+  /// Raison sous forme de code, pour décider de l'action à proposer ;
+  /// [issue] reste le texte à afficher.
+  final CartIssue issueCode;
+
+  /// Stock restant quand [issueCode] vaut [CartIssue.insufficientStock]
+  /// (« Ajuster à N ») ; `null` sinon.
+  final int? stockLeft;
 }
 
 /// Panier de l'acheteur, d'une seule boutique (schéma `Cart`).

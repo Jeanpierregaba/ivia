@@ -713,6 +713,84 @@ void main() {
       expect(find.text('Motif : Photo du logo illisible.'), findsOneWidget);
     });
 
+    testWidgets("pièce d'identité : envoyée depuis l'attente, étape à jour", (
+      tester,
+    ) async {
+      await withShop('pending_review');
+      final docs = FakeMerchantDocuments(server);
+      await launchApp(tester);
+      expect(
+        find.textContaining("Ajoutez votre pièce d'identité"),
+        findsOneWidget,
+      );
+      expect(find.text('À ajouter ci-dessous'), findsOneWidget);
+
+      final row = find.widgetWithText(DocumentRow, "Pièce d'identité");
+      await tester.ensureVisible(row);
+      await tester.pumpAndSettle();
+      await tester.tap(row);
+      await tester.pumpAndSettle();
+      await tester.tap(find.text('Choisir une photo'));
+      await tester.pumpAndSettle();
+
+      expect(server.calls('POST', '/v1/uploads').single.body, {
+        'purpose': 'merchant_document',
+        'content_type': 'image/jpeg',
+        'size_bytes': _png.length,
+      });
+      expect(server.calls('PUT', '/merchants/u1.jpg'), hasLength(1));
+      expect(server.calls('POST', '/v1/seller/documents').single.body, {
+        'kind': 'id_card',
+        'object_key': 'merchants/u1.jpg',
+      });
+      expect(docs.kinds, ['id_card']);
+      expect(
+        find.descendant(of: row, matching: find.text('Envoyé')),
+        findsOneWidget,
+      );
+      expect(find.text('Envoyée'), findsOneWidget);
+      expect(find.textContaining("L'équipe ivia vérifie"), findsOneWidget);
+    });
+
+    testWidgets('pièce non rattachée : message, à renvoyer', (tester) async {
+      await withShop('pending_review');
+      FakeMerchantDocuments(server).nextAddFailure =
+          FakeResponse.networkError();
+      await launchApp(tester);
+      final row = find.widgetWithText(DocumentRow, "Pièce d'identité");
+      await tester.ensureVisible(row);
+      await tester.pumpAndSettle();
+      await tester.tap(row);
+      await tester.pumpAndSettle();
+      await tester.tap(find.text('Choisir une photo'));
+      await tester.pumpAndSettle();
+      expect(find.textContaining('pièce non envoyée'), findsOneWidget);
+      expect(
+        find.descendant(of: row, matching: find.text('Ajouter')),
+        findsOneWidget,
+      );
+      expect(find.text('À ajouter ci-dessous'), findsOneWidget);
+    });
+
+    testWidgets("pièce d'identité déjà reçue : validation en cours", (
+      tester,
+    ) async {
+      await signedInWith(_user(seller: true));
+      server.on(
+        'GET',
+        '/v1/seller/shops',
+        (_) => FakeResponse.json(200, {
+          'items': [
+            shopBody(documents: ['id_card']),
+          ],
+        }),
+      );
+      await launchApp(tester);
+      expect(find.text('Envoyée'), findsOneWidget);
+      expect(find.text('En cours'), findsOneWidget);
+      expect(find.textContaining("L'équipe ivia vérifie"), findsOneWidget);
+    });
+
     testWidgets('serveur injoignable : hors ligne, puis « Réessayer »', (
       tester,
     ) async {

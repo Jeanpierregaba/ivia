@@ -6,8 +6,11 @@ import 'package:ivia_ui/ivia_ui.dart';
 
 import '../../app/router.dart';
 import '../../app/seller_shop.dart';
+import 'merchant_documents.dart';
 
-/// « Votre boutique est en cours de validation » : suivi des étapes.
+/// « Votre boutique est en cours de validation » : suivi des étapes et
+/// pièces du marchand. Sans pièce d'identité, l'équipe ivia ne peut pas
+/// publier la boutique : l'étape l'annonce et l'encart permet de l'envoyer.
 class ShopPendingScreen extends ConsumerWidget {
   const ShopPendingScreen({super.key});
 
@@ -18,12 +21,15 @@ class ShopPendingScreen extends ConsumerWidget {
       shop?.name,
       shop?.neighborhoodName,
     ].whereType<String>().where((s) => s.isNotEmpty).join(' · ');
+    final identity = shop?.identityProvided ?? false;
     return ReviewPendingView(
       progressLabel: 'Validation en cours',
       title: 'Votre boutique est en cours de validation',
-      body:
-          "L'équipe ivia vérifie vos informations. Vous recevrez une "
-          'notification dès que la boutique sera publiée.',
+      body: identity
+          ? "L'équipe ivia vérifie vos informations. Vous recevrez une "
+                'notification dès que la boutique sera publiée.'
+          : "Ajoutez votre pièce d'identité : l'équipe ivia la vérifie "
+                'avant de publier votre boutique.',
       onRefresh: ref.read(sellerShopProvider.notifier).refresh,
       steps: [
         const IviaStep(title: 'Compte créé', state: IviaStepState.done),
@@ -32,16 +38,22 @@ class ShopPendingScreen extends ConsumerWidget {
           subtitle: shopLine.isEmpty ? null : shopLine,
           state: IviaStepState.done,
         ),
-        const IviaStep(
+        IviaStep(
+          title: "Pièce d'identité",
+          subtitle: identity ? 'Envoyée' : 'À ajouter ci-dessous',
+          state: identity ? IviaStepState.done : IviaStepState.current,
+        ),
+        IviaStep(
           title: 'Validation par ivia',
-          subtitle: 'En cours',
-          state: IviaStepState.current,
+          subtitle: identity ? 'En cours' : null,
+          state: identity ? IviaStepState.current : IviaStepState.upcoming,
         ),
         const IviaStep(
           title: 'Boutique visible des acheteurs',
           state: IviaStepState.upcoming,
         ),
       ],
+      extra: shop == null ? null : MerchantDocumentsSection(shop: shop),
       action: FilledButton(
         onPressed: () => context.go(Routes.catalog),
         child: const Text('Préparer mes produits'),

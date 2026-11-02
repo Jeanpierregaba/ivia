@@ -369,6 +369,24 @@ class IviaApiClient {
     ),
   );
 
+  /// Rattache au marchand une pièce déjà envoyée (`merchant_document`) ;
+  /// renvoie toutes ses pièces reçues. Elles valent pour toutes ses
+  /// boutiques.
+  Future<List<MerchantDocumentKind>> addMerchantDocument(
+    MerchantDocumentKind kind,
+    String objectKey,
+  ) async {
+    final json = await _send(
+      'POST',
+      '/v1/seller/documents',
+      data: {'kind': kind.code, 'object_key': objectKey},
+    );
+    return [
+      for (final doc in json['items'] as List)
+        MerchantDocumentKind.parse((doc as Map)['kind'] as String),
+    ];
+  }
+
   /// Prépare l'envoi d'un fichier (URL signée).
   Future<PreparedUpload> prepareUpload({
     required String purpose,

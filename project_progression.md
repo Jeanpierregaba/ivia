@@ -74,9 +74,8 @@ Next.js 16, TypeScript strict, Tailwind 4, même langage visuel que les apps (lo
 - Espace de travail à 3 apps (acheteur, marchand, livreur) + client API + bibliothèque d'interface commune.
 - Splash et présentation des 3 apps ; connexion par code e-mail dans les 3 apps.
 - **Acheteur** : accueil (zone par position ou quartier, catégories, boutiques, nouveautés), recherche avec filtres et tri, fiches boutique et produit, panier (008), commande en retrait et suivi avec code de remise (009, en relecture).
-- **Marchand** : création de la boutique, écran « en cours de validation », catalogue (produits, photos, brouillons, retrait, stock) (005).
+- **Marchand** : création de la boutique, écran « en cours de validation » avec dépôt de la pièce d'identité et du RCCM, catalogue (produits, photos, brouillons, retrait, stock) (005).
 - **Livreur** : dossier de candidature avec documents (018).
-- **Manque côté marchand** : écran de dépôt de la pièce d'identité, nécessaire pour que l'admin puisse publier la boutique (backend prêt).
 
 ## 4. Infrastructure — fait
 
@@ -101,8 +100,7 @@ Next.js 16, TypeScript strict, Tailwind 4, même langage visuel que les apps (lo
 - [ ] Tests navigateur (Playwright).
 
 **Apps mobiles**
-- [ ] Marchand : dépôt de la pièce d'identité et du RCCM (backend prêt depuis le 2026-11-02).
-- [ ] Acheteur : lire `issue_code` / `stock_left` du panier ; écrans de paiement Mobile Money ; commande en livraison ; notifications push.
+- [ ] Acheteur : écrans de paiement Mobile Money ; commande en livraison ; notifications push.
 - [ ] Marchand : commandes reçues (accepter sous 15 min, préparation, remise par code), relevés.
 - [ ] Livreur : disponibilité et position, propositions (45 s), déroulé de mission.
 - [ ] Profil, adresses, suppression du compte ; publication Play Store.

@@ -172,8 +172,12 @@ Map<String, dynamic> sessionBody({bool complete = false}) => {
   'user': userBody(complete: complete),
 };
 
-/// Boutique type (schéma `Shop`).
-Map<String, dynamic> shopBody({String status = 'pending_review'}) => {
+/// Boutique type (schéma `Shop`) ; [documents] : types des pièces du
+/// marchand déjà reçues (`id_card`, `business_registration`).
+Map<String, dynamic> shopBody({
+  String status = 'pending_review',
+  List<String> documents = const [],
+}) => {
   'id': '0b8e7f52-6a1c-4c3e-8f0d-2a9b7c6d5e4f',
   'owner_id': '7d5c1d38-3c1b-4b8f-9a77-1f2e3d4c5b6a',
   'name': 'Chez Afi',
@@ -192,7 +196,84 @@ Map<String, dynamic> shopBody({String status = 'pending_review'}) => {
   'reviewed_at': null,
   'created_at': '2026-10-31T10:00:00Z',
   'updated_at': '2026-10-31T10:00:00Z',
+  'merchant_documents': [
+    for (final (i, kind) in documents.indexed)
+      {'id': 'd$i', 'kind': kind, 'created_at': '2026-10-31T10:00:00Z'},
+  ],
 };
+
+/// Pièces du marchand en mémoire, fidèles au module `shops` du backend :
+/// `POST /v1/uploads` (purpose `merchant_document`, clé `merchants/…`),
+/// envoi sur l'URL signée, puis `POST /v1/seller/documents` (type connu,
+/// clé délivrée pour cet usage, 10 pièces au plus) ; la réponse liste
+/// toutes les pièces et `required` (`id_card`). [kinds] est relu par
+/// [shopBody] dans les tests.
+class FakeMerchantDocuments {
+  FakeMerchantDocuments(this.server) {
+    server
+      ..on('POST', '/v1/uploads', _prepareUpload)
+      ..onPattern('PUT', '/merchants/[^/]+', (_) => FakeResponse.json(200, ''))
+      ..on('POST', '/v1/seller/documents', _add);
+  }
+
+  final FakeApiServer server;
+
+  /// Types des pièces reçues, dans l'ordre d'envoi.
+  final kinds = <String>[];
+  var _uploads = 0;
+
+  /// Réponse forcée au prochain rattachement (erreur simulée) ; `null` :
+  /// comportement normal.
+  FakeResponse? nextAddFailure;
+
+  FakeResponse _prepareUpload(RecordedRequest r) {
+    final body = r.body as Map;
+    if (body['purpose'] != 'merchant_document') {
+      return FakeResponse.error(400, 'validation_failed', 'Usage inconnu.');
+    }
+    final key = 'merchants/u${++_uploads}.jpg';
+    return FakeResponse.json(201, {
+      'object_key': key,
+      'upload': {
+        'method': 'PUT',
+        'url': 'https://storage.test/$key',
+        'headers': {'Content-Type': 'image/jpeg'},
+        'expires_at': '2026-10-31T10:05:00Z',
+      },
+    });
+  }
+
+  FakeResponse _add(RecordedRequest r) {
+    if (nextAddFailure case final f?) {
+      nextAddFailure = null;
+      return f;
+    }
+    final body = r.body as Map;
+    final kind = body['kind'];
+    if (!const ['id_card', 'business_registration', 'other'].contains(kind)) {
+      return FakeResponse.error(400, 'validation_failed', 'Type inconnu.');
+    }
+    if (body['object_key'] is! String ||
+        !(body['object_key'] as String).startsWith('merchants/')) {
+      return FakeResponse.error(400, 'validation_failed', 'Fichier invalide.');
+    }
+    if (kinds.length >= 10) {
+      return FakeResponse.error(
+        409,
+        'too_many_documents',
+        'Nombre maximal de documents atteint.',
+      );
+    }
+    kinds.add(kind as String);
+    return FakeResponse.json(201, {
+      'items': [
+        for (final (i, k) in kinds.indexed)
+          {'id': 'd$i', 'kind': k, 'created_at': '2026-10-31T10:00:00Z'},
+      ],
+      'required': ['id_card'],
+    });
+  }
+}
 
 /// Listes de choix types : catégories de boutique et quartiers.
 const shopCategoriesBody = {
@@ -960,7 +1041,8 @@ class FakeSearch {
 /// d'une [FakeSearch], fidèle au module `cart` du backend : une seule
 /// boutique (`cart_shop_conflict`, sauf `replace_cart`), quantité totale de
 /// 0 à 99, stock vérifié, 30 lignes au plus, lignes dans l'ordre d'ajout,
-/// `issue` et `orderable` recalculés à chaque lecture.
+/// `issue`, `issue_code`, `stock_left` et `orderable` recalculés à chaque
+/// lecture.
 ///
 /// Un test retire un produit avec `p['is_active'] = false` et change le
 /// stock avec `p['stock_quantity'] = n` ; une boutique fermée aux commandes
@@ -1077,9 +1159,11 @@ class FakeCart {
       final price = p['price_xof'] as int;
       final stock = _stock(p);
       final images = p['images'] as List;
-      final issue = p['is_active'] == false || shop == null
+      final unavailable = p['is_active'] == false || shop == null;
+      final short = !unavailable && stock != null && stock < qty;
+      final issue = unavailable
           ? "Ce produit n'est plus disponible."
-          : stock != null && stock < qty
+          : short
           ? 'Plus que $stock en stock.'
           : '';
       if (issue.isEmpty) {
@@ -1096,6 +1180,12 @@ class FakeCart {
         'line_total_xof': price * qty,
         'parcel_size': p['parcel_size'],
         'issue': issue,
+        'issue_code': unavailable
+            ? 'unavailable'
+            : short
+            ? 'insufficient_stock'
+            : '',
+        'stock_left': short ? stock : null,
       });
     }
     return {

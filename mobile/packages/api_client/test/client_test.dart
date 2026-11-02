@@ -745,7 +745,9 @@ void main() {
       expect(c.items.first.issue, 'Plus que 2 en stock.');
       expect(c.items.first.hasIssue, isTrue);
       expect(c.items.first.stockLeft, 2);
+      expect(c.items.first.issueCode, CartIssue.insufficientStock);
       expect(c.items.last.hasIssue, isFalse);
+      expect(c.items.last.issueCode, CartIssue.none);
       expect(c.items.last.stockLeft, isNull);
       // Les lignes en erreur ne comptent pas dans le sous-total.
       expect(c.subtotalXof, 3000);
@@ -761,6 +763,7 @@ void main() {
       huile['is_active'] = false;
       c = await client.cart();
       expect(c.items.last.issue, "Ce produit n'est plus disponible.");
+      expect(c.items.last.issueCode, CartIssue.unavailable);
       expect(c.items.last.stockLeft, isNull);
     });
 

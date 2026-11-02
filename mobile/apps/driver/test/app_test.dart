@@ -612,6 +612,10 @@ void main() {
           driverBody(review: 'approved', status: 'offline'),
         ),
       );
+      // « Voir mon dossier » a fait défiler l'écran : on remonte en haut pour
+      // que le geste tire bien pour actualiser.
+      await tester.drag(find.text('Compte créé'), const Offset(0, 200));
+      await tester.pumpAndSettle();
       await tester.fling(find.text('Compte créé'), const Offset(0, 400), 1000);
       await tester.pumpAndSettle();
       expect(find.text('Vous êtes livreur ivia'), findsOneWidget);

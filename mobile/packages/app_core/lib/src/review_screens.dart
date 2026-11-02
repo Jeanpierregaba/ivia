@@ -13,6 +13,7 @@ class ReviewPendingView extends StatefulWidget {
     required this.action,
     required this.onRefresh,
     required this.progressLabel,
+    this.extra,
   });
 
   final String title;
@@ -24,6 +25,9 @@ class ReviewPendingView extends StatefulWidget {
 
   /// Bouton du bas (« Préparer mes produits », « Voir mon dossier »).
   final Widget action;
+
+  /// Contenu affiché sous les étapes (pièces à fournir) ; `null` : aucun.
+  final Widget? extra;
 
   /// Relit le statut ; `false` : échec (réseau).
   final Future<bool> Function() onRefresh;
@@ -116,6 +120,10 @@ class _ReviewPendingViewState extends State<ReviewPendingView> {
                       ),
                       const SizedBox(height: IviaSpacing.xxl),
                       IviaStepList(steps: widget.steps),
+                      if (widget.extra case final extra?) ...[
+                        const SizedBox(height: IviaSpacing.xxl),
+                        extra,
+                      ],
                       const Spacer(),
                       const SizedBox(height: IviaSpacing.xxl),
                       widget.action,

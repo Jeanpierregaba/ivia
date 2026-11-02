@@ -14,6 +14,16 @@ Format :
 - Prochaine étape :
 -->
 
+### 2026-11-02 — Pièces du marchand dans l'app, panier structuré
+- Fait : app marchand, encart « Vos pièces » sur l'écran d'attente (pièce d'identité obligatoire,
+  RCCM facultatif, envoi immédiat), étape « Pièce d'identité » ; `DocumentRow` déplacée dans
+  `ivia_app_core` (livreur et marchand) avec précision et état « Envoi… » ; app acheteur sur
+  `issue_code` / `stock_left` ; faux serveurs à jour ; test du livreur « en vérification » corrigé
+  (il échouait déjà : écran encore défilé, le geste ne tirait pas pour actualiser) ; statut de la
+  ligne de document flexible (débordement à 200 % sur 320 dp).
+- Pièges rencontrés : RAM (6 Go) : lancer les tests Flutter fichier par fichier ou par groupe
+  (`--name`), sinon la VM Dart s'arrête.
+
 ### 2026-11-02 — Secrets protégés
 - Fait : secrets lus dans des fichiers en staging/production (`<NOM>_FILE`, Compose `secrets:`,
   `/run/secrets`) au lieu de variables d'environnement ; `infra/init-secrets.sh` (génération,

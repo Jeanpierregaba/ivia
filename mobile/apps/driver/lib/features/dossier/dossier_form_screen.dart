@@ -8,7 +8,7 @@ import 'package:ivia_app_core/ivia_app_core.dart';
 import 'package:ivia_ui/ivia_ui.dart';
 
 import '../../app/driver_dossier.dart';
-import 'document_row.dart';
+import 'dossier_documents.dart';
 
 /// « Devenez livreur ivia » : profil (s'il est incomplet), véhicule,
 /// immatriculation et documents. En correction ([correction]), le formulaire
@@ -305,7 +305,7 @@ class _DossierFormScreenState extends ConsumerState<DossierFormScreen> {
                 const SizedBox(height: IviaSpacing.sm),
                 for (final kind in requiredDocuments) ...[
                   DocumentRow(
-                    kind: kind,
+                    label: documentLabel(kind),
                     photo: _photos[kind],
                     alreadySent: _alreadySent.contains(kind),
                     enabled: !_busy,
