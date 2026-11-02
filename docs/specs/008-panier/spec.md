@@ -54,22 +54,22 @@ vérifier » à la place du sous-total si une ligne bloque (le sous-total ne la 
 
 ## Critères d'acceptation
 
-- [ ] Étant donné une fiche produit et une quantité de 2, quand l'acheteur appuie sur
+- [x] Étant donné une fiche produit et une quantité de 2, quand l'acheteur appuie sur
       « Ajouter », alors `PUT /v1/cart/items` envoie la quantité totale (déjà au panier + 2), le
       badge augmente de 2 et le message propose « Voir le panier ».
-- [ ] Étant donné un panier d'une autre boutique, quand l'acheteur ajoute un produit, alors
+- [x] Étant donné un panier d'une autre boutique, quand l'acheteur ajoute un produit, alors
       « Vider le panier ? » s'ouvre ; « Vider et ajouter » renvoie l'ajout avec `replace_cart` et
       le panier ne contient plus que ce produit ; « Annuler » ne change rien.
-- [ ] Étant donné le « + » d'une carte, alors un exemplaire est ajouté (même règle de boutique).
-- [ ] Étant donné l'écran Panier, quand l'acheteur change une quantité, alors le serveur
+- [x] Étant donné le « + » d'une carte, alors un exemplaire est ajouté (même règle de boutique).
+- [x] Étant donné l'écran Panier, quand l'acheteur change une quantité, alors le serveur
       l'enregistre et le sous-total suit ; « − » à 1 retire la ligne et « Annuler » la remet.
-- [ ] Étant donné une ligne indisponible ou au-delà du stock, alors sa raison s'affiche,
+- [x] Étant donné une ligne indisponible ou au-delà du stock, alors sa raison s'affiche,
       « Retirer » ou « Ajuster » la corrige, et « Commander » est désactivé tant qu'elle reste.
-- [ ] Étant donné une boutique qui ne prend plus de commandes, alors le panier le dit et
+- [x] Étant donné une boutique qui ne prend plus de commandes, alors le panier le dit et
       « Commander » est désactivé.
-- [ ] Étant donné « Vider » confirmé, alors `DELETE /v1/cart` est envoyé et le panier vide
+- [x] Étant donné « Vider » confirmé, alors `DELETE /v1/cart` est envoyé et le panier vide
       s'affiche.
-- [ ] Étant donné un panier de la boutique ouverte, alors la fiche boutique affiche « Voir le
+- [x] Étant donné un panier de la boutique ouverte, alors la fiche boutique affiche « Voir le
       panier » avec le nombre d'articles et le sous-total.
 
 ## Cas limites et erreurs

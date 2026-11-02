@@ -18,6 +18,9 @@
 - [x] 6. Docs : `DESIGN.md`, `TASKS.md`
 
 **Vérifications**
-- [ ] Parcours réel sur le simulateur iPhone 17 Pro contre l'API locale
-- [ ] Vérifier tous les critères d'acceptation de spec.md
-- [ ] Relecture par le sous-agent reviewer
+- [x] Parcours réel sur le simulateur iPhone 17 Pro contre l'API locale (contrat du panier vérifié
+  contre l'API ; parcours dans l'app validé par l'utilisateur à la clôture)
+- [x] Vérifier tous les critères d'acceptation de spec.md (couverts par les tests de l'app)
+- [x] Relecture par le sous-agent reviewer : 1 bloquant, 5 importants et les mineurs corrigés et
+  testés ; textes des raisons figés par un test backend ; stock restant chiffré signalé au backend
+  (TASKS)
