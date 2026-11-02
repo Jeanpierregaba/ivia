@@ -10,7 +10,7 @@ docs/specs/NNN-nom/tasks.md. Les petites tâches isolées (bug, retouche) peuven
 
 - [ ] 018 — Espace livreur : lancement, connexion, dossier de candidature ([spec](docs/specs/018-espace-livreur/spec.md)) : relu et corrigé ; appareil photo à vérifier sur un vrai téléphone
 - [ ] 004 — Espace marchand : lancement, connexion, création de la boutique ([spec](docs/specs/004-espace-marchand/spec.md)) : relu et corrigé ; reste les clés Google Maps (vérification de la carte)
-- [ ] 004 bis — **App marchand (Jean-Pierre)** : écran de dépôt de la pièce d'identité (et du RCCM, facultatif) après « Envoyer pour validation ». Backend et back-office faits (2026-11-02) : `POST /v1/uploads` (purpose `merchant_document`) puis `POST /v1/seller/documents` ; `GET /v1/seller/documents` donne les pièces et `required` ; `merchant_documents` sur la boutique. Sans pièce, l'admin ne peut pas publier (409 `merchant_documents_missing`) : le parcours marchand reste bloqué en attente tant que l'écran manque. Le faux serveur mobile doit suivre
+- [ ] 028 — Pièces du marchand : pièce d'identité (obligatoire) et RCCM après la création de la boutique ([spec](docs/specs/028-pieces-marchand/spec.md)) — « 004 bis » demandé par Gedeon : sans pièce, l'admin ne peut pas publier (409 `merchant_documents_missing`)
 - [ ] 027 — Splash et présentation des 3 apps ([spec](docs/specs/027-splash-onboarding/spec.md)) : reste la vérification sur Android, la validation des textes et des couleurs par le designer
 
 Fin du squelette (étapes 8-9 du cadrage) :

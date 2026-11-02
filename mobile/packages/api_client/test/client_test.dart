@@ -290,6 +290,89 @@ void main() {
     });
   });
 
+  group('pièces du marchand', () {
+    test('boutique : types des pièces, inconnus tolérés, absentes', () {
+      final shop = Shop.fromJson({
+        ...shopBody(documents: ['id_card', 'business_registration']),
+      });
+      expect(shop.merchantDocuments, [
+        MerchantDocumentKind.idCard,
+        MerchantDocumentKind.businessRegistration,
+      ]);
+      final unknown = Shop.fromJson(shopBody(documents: ['tax_card']));
+      expect(unknown.merchantDocuments, [MerchantDocumentKind.unknown]);
+      final none = Shop.fromJson(shopBody(documents: []));
+      expect(none.merchantDocuments, isEmpty);
+      final absent = Shop.fromJson(shopBody()..remove('merchant_documents'));
+      expect(absent.merchantDocuments, isNull);
+      final updated = none.withDocuments([MerchantDocumentKind.idCard]);
+      expect(updated.merchantDocuments, [MerchantDocumentKind.idCard]);
+      expect(updated.name, none.name);
+      expect(updated.status, none.status);
+    });
+
+    test('dépôt : URL signée privée, puis rattachement', () async {
+      final docs = FakeMerchantDocuments(server);
+      final prepared = await client.prepareUpload(
+        purpose: 'merchant_document',
+        contentType: 'image/jpeg',
+        sizeBytes: 3,
+      );
+      await client.upload(prepared, [1, 2, 3]);
+      final kinds = await client.addMerchantDocument(
+        MerchantDocumentKind.idCard,
+        prepared.objectKey,
+      );
+      expect(server.last.body, {
+        'kind': 'id_card',
+        'object_key': prepared.objectKey,
+      });
+      expect(kinds, [MerchantDocumentKind.idCard]);
+      expect(docs.kinds, ['id_card']);
+      expect(server.calls('GET', '/v1/seller/documents'), isEmpty);
+    });
+
+    test('faux serveur : fichier non envoyé refusé', () async {
+      FakeMerchantDocuments(server);
+      await expectLater(
+        client.addMerchantDocument(
+          MerchantDocumentKind.idCard,
+          'merchant_document/inconnu.jpg',
+        ),
+        throwsA(
+          isA<ApiException>().having(
+            (e) => e.fields['object_key'],
+            'object_key',
+            isNotNull,
+          ),
+        ),
+      );
+    });
+
+    test('dix pièces au plus : too_many_documents', () async {
+      FakeMerchantDocuments(server, documents: List.filled(10, 'other'));
+      final prepared = await client.prepareUpload(
+        purpose: 'merchant_document',
+        contentType: 'image/jpeg',
+        sizeBytes: 3,
+      );
+      await client.upload(prepared, [1, 2, 3]);
+      await expectLater(
+        client.addMerchantDocument(
+          MerchantDocumentKind.businessRegistration,
+          prepared.objectKey,
+        ),
+        throwsA(
+          isA<ApiException>().having(
+            (e) => e.code,
+            'code',
+            'too_many_documents',
+          ),
+        ),
+      );
+    });
+  });
+
   group('livreur', () {
     test('aucun dossier : null', () async {
       server.on(

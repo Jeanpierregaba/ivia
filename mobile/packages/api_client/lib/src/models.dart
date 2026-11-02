@@ -138,6 +138,7 @@ class Shop {
     required this.neighborhoodName,
     required this.categoryName,
     required this.logoUrl,
+    this.merchantDocuments,
   });
 
   factory Shop.fromJson(Map<String, dynamic> json) => Shop(
@@ -148,6 +149,10 @@ class Shop {
     neighborhoodName: json['neighborhood_name'] as String? ?? '',
     categoryName: json['category_name'] as String? ?? '',
     logoUrl: json['logo_url'] as String?,
+    merchantDocuments: switch (json['merchant_documents']) {
+      final List<dynamic> docs => merchantDocumentKinds(docs),
+      _ => null,
+    },
   );
 
   final String id;
@@ -159,7 +164,48 @@ class Shop {
   final String neighborhoodName;
   final String categoryName;
   final String? logoUrl;
+
+  /// Types des pièces déjà déposées par le marchand (elles valent pour
+  /// toutes ses boutiques) ; `null` : réponse sans les pièces.
+  final List<MerchantDocumentKind>? merchantDocuments;
+
+  /// La même boutique, avec les pièces rendues par le serveur après un dépôt.
+  Shop withDocuments(List<MerchantDocumentKind> documents) => Shop(
+    id: id,
+    name: name,
+    status: status,
+    statusReason: statusReason,
+    neighborhoodName: neighborhoodName,
+    categoryName: categoryName,
+    logoUrl: logoUrl,
+    merchantDocuments: documents,
+  );
 }
+
+/// Type d'une pièce du marchand.
+enum MerchantDocumentKind {
+  idCard('id_card'),
+  businessRegistration('business_registration'),
+  other('other'),
+
+  /// Type ajouté au serveur après cette version de l'app.
+  unknown('');
+
+  const MerchantDocumentKind(this.code);
+
+  final String code;
+
+  static MerchantDocumentKind parse(String code) =>
+      values.firstWhere((k) => k.code == code, orElse: () => unknown);
+}
+
+/// Types d'une liste de pièces du marchand (schéma `MerchantDocument`) : le
+/// lien de lecture est réservé aux admins. Un type peut revenir (pièce
+/// remplacée).
+List<MerchantDocumentKind> merchantDocumentKinds(List<dynamic> docs) => [
+  for (final doc in docs)
+    MerchantDocumentKind.parse((doc as Map)['kind'] as String),
+];
 
 /// Boutique à créer (schéma `ShopInput`).
 class ShopDraft {

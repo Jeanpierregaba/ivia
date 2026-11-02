@@ -200,7 +200,10 @@ Map<String, dynamic> sessionBody({bool complete = false}) => {
 };
 
 /// Boutique type (schéma `Shop`).
-Map<String, dynamic> shopBody({String status = 'pending_review'}) => {
+Map<String, dynamic> shopBody({
+  String status = 'pending_review',
+  List<String> documents = const ['id_card'],
+}) => {
   'id': '0b8e7f52-6a1c-4c3e-8f0d-2a9b7c6d5e4f',
   'owner_id': '7d5c1d38-3c1b-4b8f-9a77-1f2e3d4c5b6a',
   'name': 'Chez Afi',
@@ -219,6 +222,16 @@ Map<String, dynamic> shopBody({String status = 'pending_review'}) => {
   'reviewed_at': null,
   'created_at': '2026-10-31T10:00:00Z',
   'updated_at': '2026-10-31T10:00:00Z',
+  'merchant_documents': [
+    for (final (i, kind) in documents.indexed) merchantDocumentBody(i, kind),
+  ],
+};
+
+/// Pièce du marchand vue par son propriétaire (sans lien de lecture).
+Map<String, dynamic> merchantDocumentBody(int index, String kind) => {
+  'id': 'd${index.toString().padLeft(7, '0')}-0000-4000-8000-000000000000',
+  'kind': kind,
+  'created_at': '2026-10-31T10:00:00Z',
 };
 
 /// Listes de choix types : catégories de boutique et quartiers.
@@ -623,6 +636,116 @@ class FakeCatalog {
         'expires_at': '2026-10-31T10:05:00Z',
       },
     });
+  }
+}
+
+/// Pièces du marchand en mémoire, fidèles au backend : envoi par URL signée
+/// (`POST /v1/uploads`, `merchant_document`, compartiment privé), puis
+/// rattachement (`POST /v1/seller/documents`, 10 pièces au plus) ; la liste
+/// (`GET /v1/seller/documents`) et `required`.
+class FakeMerchantDocuments {
+  FakeMerchantDocuments(this.server, {List<String> documents = const []})
+    : kinds = [...documents] {
+    server
+      ..on('GET', '/v1/seller/documents', (_) => _list(200))
+      ..on('POST', '/v1/seller/documents', _add)
+      ..on('POST', '/v1/uploads', _prepareUpload)
+      ..onPattern('PUT', '/merchant_document/[^/]+', (r) {
+        if (_failure(r) case final f?) return f;
+        uploaded.add(r.path.substring(1));
+        return FakeResponse.json(200, '');
+      });
+  }
+
+  final FakeApiServer server;
+
+  /// Types des pièces rattachées, dans l'ordre.
+  final List<String> kinds;
+
+  /// Clés envoyées sur une URL signée (fichiers déposés).
+  final uploaded = <String>[];
+
+  /// Prochaine erreur à renvoyer, une seule fois, pour la première requête
+  /// dont « MÉTHODE chemin » contient la clé (ex. `POST /v1/uploads`,
+  /// `PUT /merchant_document`, `POST /v1/seller/documents`).
+  final failures = <String, FakeResponse>{};
+
+  var _prepared = 0;
+
+  FakeResponse? _failure(RecordedRequest r) {
+    for (final key in failures.keys) {
+      if ('${r.method} ${r.path}'.contains(key)) return failures.remove(key);
+    }
+    return null;
+  }
+
+  FakeResponse _list(int status) => FakeResponse.json(status, {
+    'items': [
+      for (final (i, kind) in kinds.indexed) merchantDocumentBody(i, kind),
+    ],
+    'required': ['id_card'],
+  });
+
+  FakeResponse _prepareUpload(RecordedRequest r) {
+    if (_failure(r) case final f?) return f;
+    final body = r.body! as Map;
+    if (body['purpose'] != 'merchant_document' ||
+        body['content_type'] != 'image/jpeg' ||
+        (body['size_bytes'] as int) > 5 * 1024 * 1024) {
+      return FakeResponse.error(
+        400,
+        'validation_failed',
+        'Certaines informations sont invalides.',
+      );
+    }
+    final key = 'merchant_document/u${++_prepared}.jpg';
+    return FakeResponse.json(201, {
+      'object_key': key,
+      'upload': {
+        'method': 'PUT',
+        'url': 'https://storage.test/$key',
+        'headers': {'Content-Type': 'image/jpeg'},
+        'expires_at': '2026-10-31T10:05:00Z',
+      },
+    });
+  }
+
+  FakeResponse _add(RecordedRequest r) {
+    if (_failure(r) case final f?) return f;
+    final body = r.body! as Map;
+    final kind = body['kind'];
+    if (!const ['id_card', 'business_registration', 'other'].contains(kind)) {
+      return FakeResponse.error(
+        400,
+        'validation_failed',
+        'Certaines informations sont invalides.',
+        fields: {
+          'kind':
+              'Type de document inconnu : id_card, business_registration ou '
+              'other.',
+        },
+      );
+    }
+    if (kinds.length >= 10) {
+      return FakeResponse.error(
+        409,
+        'too_many_documents',
+        'Nombre maximal de documents atteint.',
+      );
+    }
+    // Comme `uploads.Check` : la clé doit venir d'une URL signée de ce
+    // compte, pour cet usage.
+    final key = body['object_key'];
+    if (key is! String || !uploaded.contains(key)) {
+      return FakeResponse.error(
+        400,
+        'validation_failed',
+        'Certaines informations sont invalides.',
+        fields: {'object_key': 'Fichier introuvable.'},
+      );
+    }
+    kinds.add(kind as String);
+    return _list(201);
   }
 }
 
