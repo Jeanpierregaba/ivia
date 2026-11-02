@@ -10,7 +10,7 @@
 **App marchand**
 - [x] 3. Écran « Vérifions votre identité » : lignes, choix des photos, envoi (URL signée,
   rattachement, nouvel essai), erreurs ; route ; ouvert après la création de la boutique ; tests
-- [ ] 4. Écran « en cours de validation » : étape « Pièce d'identité », « Ajouter ma pièce
+- [x] 4. Écran « en cours de validation » : étape « Pièce d'identité », « Ajouter ma pièce
   d'identité », pièces relues avec la boutique ; tests
 - [ ] 5. Docs : `DESIGN.md`, `TASKS.md`
 

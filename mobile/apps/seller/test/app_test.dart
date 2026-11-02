@@ -11,6 +11,7 @@ import 'package:ivia_api_client/testing.dart';
 import 'package:ivia_app_core/ivia_app_core.dart';
 import 'package:ivia_seller/app/device_services.dart';
 import 'package:ivia_seller/app/identity.dart';
+import 'package:ivia_seller/app/router.dart';
 import 'package:ivia_seller/features/onboarding/onboarding_screen.dart';
 import 'package:ivia_seller/main.dart';
 import 'package:ivia_ui/ivia_ui.dart';
@@ -642,6 +643,18 @@ void main() {
     });
   });
 
+  /// Choisit une photo pour une ligne de l'écran des pièces (le libellé
+  /// « Pièce d'identité » est aussi sur l'écran en attente, dessous).
+  Future<void> addPhoto(WidgetTester tester, String document) async {
+    final row = find.widgetWithText(DocumentPhotoRow, document);
+    await tester.ensureVisible(row);
+    await tester.pumpAndSettle();
+    await tester.tap(row);
+    await tester.pumpAndSettle();
+    await tester.tap(find.text('Choisir une photo'));
+    await tester.pumpAndSettle();
+  }
+
   group('pièces du marchand', () {
     late FakeMerchantDocuments docs;
 
@@ -657,12 +670,6 @@ void main() {
       await fillShopForm(tester);
       await tapText(tester, 'Envoyer pour validation');
       expect(find.text('Vérifions votre identité'), findsOneWidget);
-    }
-
-    Future<void> addPhoto(WidgetTester tester, String document) async {
-      await tapText(tester, document);
-      await tester.tap(find.text('Choisir une photo'));
-      await tester.pumpAndSettle();
     }
 
     Finder row(String label) => find.ancestor(
@@ -872,16 +879,147 @@ void main() {
   });
 
   group('relance avec une boutique', () {
-    Future<void> withShop(String status) async {
+    Future<void> withShop(
+      String status, {
+      List<String> documents = const ['id_card'],
+    }) async {
       await signedInWith(_user(seller: true));
       server.on(
         'GET',
         '/v1/seller/shops',
         (_) => FakeResponse.json(200, {
-          'items': [shopBody(status: status)],
+          'items': [shopBody(status: status, documents: documents)],
         }),
       );
     }
+
+    testWidgets('en attente sans pièce d\'identité : étape à faire, envoi', (
+      tester,
+    ) async {
+      await withShop('pending_review', documents: []);
+      final docs = FakeMerchantDocuments(server);
+      await launchApp(tester);
+      expect(find.text("Pièce d'identité"), findsOneWidget);
+      expect(
+        find.text(
+          'À ajouter : sans elle, la boutique ne peut pas être publiée',
+        ),
+        findsOneWidget,
+      );
+      expect(find.text('En cours'), findsNothing);
+      expect(find.text('Préparer mes produits'), findsOneWidget);
+
+      await tapText(tester, "Ajouter ma pièce d'identité");
+      expect(find.text('Vérifions votre identité'), findsOneWidget);
+      await addPhoto(tester, "Pièce d'identité");
+      await tapText(tester, 'Envoyer mes pièces');
+
+      expect(docs.kinds, ['id_card']);
+      expect(
+        find.text('Votre boutique est en cours de validation'),
+        findsOneWidget,
+      );
+      expect(find.text('Envoyée'), findsOneWidget);
+      expect(find.text('En cours'), findsOneWidget);
+      expect(find.text("Ajouter ma pièce d'identité"), findsNothing);
+    });
+
+    testWidgets('pièce déjà envoyée : étape faite, « Envoyée » sur l\'écran '
+        'des pièces', (tester) async {
+      await withShop('pending_review');
+      await launchApp(tester);
+      expect(find.text('Envoyée'), findsOneWidget);
+      expect(find.text('En cours'), findsOneWidget);
+      expect(find.text("Ajouter ma pièce d'identité"), findsNothing);
+
+      ProviderScope.containerOf(tester.element(find.byType(SellerApp)))
+          .read(routerProvider)
+          .go(Routes.shopDocuments);
+      await tester.pumpAndSettle();
+      expect(find.text('Vérifions votre identité'), findsOneWidget);
+      expect(
+        find.descendant(
+          of: find.ancestor(
+            of: find.text("Pièce d'identité"),
+            matching: find.byType(DocumentPhotoRow),
+          ),
+          matching: find.text('Envoyée'),
+        ),
+        findsOneWidget,
+      );
+      // Rien de nouveau à envoyer : retour à l'écran en attente.
+      await tapText(tester, 'Envoyer mes pièces');
+      expect(server.calls('POST', '/v1/uploads'), isEmpty);
+      expect(
+        find.text('Votre boutique est en cours de validation'),
+        findsOneWidget,
+      );
+    });
+
+    testWidgets('pièce déposée ailleurs : relue en tirant vers le bas', (
+      tester,
+    ) async {
+      await withShop('pending_review', documents: []);
+      await launchApp(tester);
+      expect(find.text("Ajouter ma pièce d'identité"), findsOneWidget);
+      server.on(
+        'GET',
+        '/v1/seller/shops',
+        (_) => FakeResponse.json(200, {
+          'items': [shopBody(status: 'pending_review')],
+        }),
+      );
+      await tester.fling(find.text('Compte créé'), const Offset(0, 400), 1000);
+      await tester.pumpAndSettle();
+      expect(find.text('Envoyée'), findsOneWidget);
+      expect(find.text("Ajouter ma pièce d'identité"), findsNothing);
+    });
+
+    testWidgets('boutique lue sans ses pièces : pas d\'étape', (tester) async {
+      await signedInWith(_user(seller: true));
+      server.on(
+        'GET',
+        '/v1/seller/shops',
+        (_) => FakeResponse.json(200, {
+          'items': [shopBody()..remove('merchant_documents')],
+        }),
+      );
+      await launchApp(tester);
+      expect(
+        find.text('Votre boutique est en cours de validation'),
+        findsOneWidget,
+      );
+      expect(find.text("Pièce d'identité"), findsNothing);
+      expect(find.text('En cours'), findsOneWidget);
+      expect(find.text('Préparer mes produits'), findsOneWidget);
+    });
+
+    testWidgets('publiée : écran des pièces jamais proposé', (tester) async {
+      await withShop('published', documents: []);
+      await launchApp(tester);
+      ProviderScope.containerOf(tester.element(find.byType(SellerApp)))
+          .read(routerProvider)
+          .go(Routes.shopDocuments);
+      await tester.pumpAndSettle();
+      expect(find.text('Vérifions votre identité'), findsNothing);
+      expect(find.textContaining('Votre boutique est publiée'), findsOneWidget);
+    });
+
+    testWidgets('sans pièce, police à 200 % sur 320 dp : deux boutons', (
+      tester,
+    ) async {
+      tester.view.physicalSize = const Size(320, 568);
+      tester.view.devicePixelRatio = 1;
+      tester.platformDispatcher.textScaleFactorTestValue = 2;
+      addTearDown(tester.view.reset);
+      addTearDown(tester.platformDispatcher.clearTextScaleFactorTestValue);
+      await withShop('pending_review', documents: []);
+      await launchApp(tester);
+      await tester.ensureVisible(find.text('Préparer mes produits'));
+      await tester.pumpAndSettle();
+      expect(tester.takeException(), isNull);
+      expect(find.text("Ajouter ma pièce d'identité"), findsOneWidget);
+    });
 
     testWidgets('en attente : étapes, actualisation, publiée', (tester) async {
       await withShop('pending_review');
