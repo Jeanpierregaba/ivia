@@ -24,15 +24,10 @@ class PaymentWaitScreen extends ConsumerStatefulWidget {
     super.key,
     required this.orderId,
     required this.paymentId,
-    this.phone,
   });
 
   final String orderId;
   final String paymentId;
-
-  /// Numéro complet saisi juste avant (« Renvoyer la demande ») ; inconnu
-  /// quand l'attente est reprise depuis le suivi. Jamais gardé.
-  final String? phone;
 
   @override
   ConsumerState<PaymentWaitScreen> createState() => _PaymentWaitScreenState();
@@ -51,19 +46,36 @@ class _PaymentWaitScreenState extends ConsumerState<PaymentWaitScreen> {
   /// Paiement confirmé : le suivi est déjà ouvert.
   var _done = false;
 
+  /// Numéro complet de cette demande, s'il vient d'être saisi (« Renvoyer
+  /// la demande ») ; inconnu quand l'attente est reprise depuis le suivi.
+  String? _phone;
+
   @override
   void initState() {
     super.initState();
+    _phone = ref.read(paymentPhonesProvider).remove(widget.paymentId);
     _start();
     // App en arrière-plan (l'acheteur valide dans le menu de son opérateur) :
-    // rien n'est relu ; au retour, relue aussitôt.
+    // rien n'est relu ; au retour, relue aussitôt si l'attente continue.
     _lifecycle = AppLifecycleListener(
       onHide: _stop,
       onShow: () {
-        _reload();
+        if (!_waiting) return;
+        if (ModalRoute.of(context)?.isCurrent ?? false) _reload();
         _start();
       },
     );
+  }
+
+  /// Heure du serveur : l'heure limite est la sienne.
+  DateTime _now() => ref.read(apiClientProvider).now();
+
+  /// L'attente continue : issue inconnue, et relecture pas encore finie.
+  bool get _waiting {
+    final payment = ref.read(paymentProvider(widget.paymentId)).value;
+    if (payment != null && payment.status.isFinal) return false;
+    final order = ref.read(orderProvider(widget.orderId)).value;
+    return order == null || !_pollingOver(order);
   }
 
   @override
@@ -89,11 +101,14 @@ class _PaymentWaitScreenState extends ConsumerState<PaymentWaitScreen> {
   void _tick() {
     if (!mounted) return;
     setState(() {}); // temps restant
+    // Issue connue ou relecture finie : plus rien ne change à l'écran.
+    if (!_waiting) {
+      _stop();
+      return;
+    }
     if (++_seconds % paymentRefreshInterval.inSeconds != 0) return;
-    final payment = ref.read(paymentProvider(widget.paymentId)).value;
-    if (payment != null && !payment.status.isPending) return;
-    final order = ref.read(orderProvider(widget.orderId)).value;
-    if (order != null && _pollingOver(order)) return;
+    // Pas sous une feuille ni un autre écran : une annulation qui croise
+    // une validation est de toute façon rattrapée (409).
     if (!(ModalRoute.of(context)?.isCurrent ?? false)) return;
     _reload();
   }
@@ -101,7 +116,7 @@ class _PaymentWaitScreenState extends ConsumerState<PaymentWaitScreen> {
   /// Un paiement validé en retard reprend encore la commande pendant
   /// [latePaymentWindow] après l'heure limite ; au-delà, on ne relit plus.
   bool _pollingOver(BuyerOrder order) =>
-      DateTime.now().isAfter(order.paymentDeadlineAt.add(latePaymentWindow));
+      _now().isAfter(order.paymentDeadlineAt.add(latePaymentWindow));
 
   void _reload() {
     if (!mounted || _busy) return;
@@ -150,13 +165,14 @@ class _PaymentWaitScreenState extends ConsumerState<PaymentWaitScreen> {
     if (!confirmed || !mounted) return;
     final messenger = ScaffoldMessenger.of(context);
     final router = GoRouter.of(context);
+    final payable = order != null && _now().isBefore(order.paymentDeadlineAt);
     await _cancelThen(() async {
       showMessage(
         messenger,
-        order == null
-            ? 'Paiement annulé.'
-            : 'Paiement annulé. Vous pouvez payer jusqu’à '
-                  '${timeOfDay(order.paymentDeadlineAt)}.',
+        payable
+            ? 'Paiement annulé. Vous pouvez payer jusqu’à '
+                  '${timeOfDay(order.paymentDeadlineAt)}.'
+            : 'Paiement annulé.',
       );
       router.go(Routes.order(widget.orderId));
     });
@@ -167,7 +183,7 @@ class _PaymentWaitScreenState extends ConsumerState<PaymentWaitScreen> {
     if (choice == null || !mounted) return;
     final router = GoRouter.of(context);
     final messenger = ScaffoldMessenger.of(context);
-    final phone = widget.phone;
+    final phone = _phone;
     await _cancelThen(() async {
       if (choice == _Retry.changeNumber || phone == null) {
         router.go(Routes.pay(widget.orderId, operator: payment.operator));
@@ -181,7 +197,8 @@ class _PaymentWaitScreenState extends ConsumerState<PaymentWaitScreen> {
               operator: payment.operator,
               phone: phone,
             );
-        router.go(Routes.payWait(widget.orderId, next.id), extra: phone);
+        ref.read(paymentPhonesProvider)[next.id] = phone;
+        router.go(Routes.payWait(widget.orderId, next.id));
       } on ApiException catch (e) {
         // La demande est annulée : on repart de l'écran Paiement.
         showMessage(messenger, e.message);
@@ -223,7 +240,8 @@ class _PaymentWaitScreenState extends ConsumerState<PaymentWaitScreen> {
               gone: 'Ce paiement n’est plus disponible.',
               onRetry: () => ref.invalidate(paymentProvider(widget.paymentId)),
             ),
-            AsyncValue(value: final p?) when p.status.isPending => _pending(
+            // Statut inconnu de cette version : traité comme en attente.
+            AsyncValue(value: final p?) when !p.status.isFinal => _pending(
               p,
               order,
             ),
@@ -247,13 +265,14 @@ class _PaymentWaitScreenState extends ConsumerState<PaymentWaitScreen> {
     final ending = payment.phoneMasked.length >= 2
         ? payment.phoneMasked.substring(payment.phoneMasked.length - 2)
         : '';
-    final late =
-        order != null && DateTime.now().isAfter(order.paymentDeadlineAt);
+    final now = _now();
+    final late = order != null && now.isAfter(order.paymentDeadlineAt);
     final over = order != null && _pollingOver(order);
     return ListView(
       padding: const EdgeInsets.all(IviaSpacing.screen),
       children: [
-        const SizedBox(height: IviaSpacing.xxl),
+        _back(),
+        const SizedBox(height: IviaSpacing.lg),
         Align(
           alignment: Alignment.centerLeft,
           child: Container(
@@ -294,7 +313,7 @@ class _PaymentWaitScreenState extends ConsumerState<PaymentWaitScreen> {
         ),
         if (order != null) ...[
           const SizedBox(height: IviaSpacing.xl),
-          _TimeLeft(order: order, late: late),
+          _TimeLeft(order: order, now: now, late: late),
         ],
         const SizedBox(height: IviaSpacing.xxl),
         if (over) ...[
@@ -335,11 +354,12 @@ class _PaymentWaitScreenState extends ConsumerState<PaymentWaitScreen> {
     final payable =
         order != null &&
         order.status == OrderStatus.pendingPayment &&
-        DateTime.now().isBefore(order.paymentDeadlineAt);
+        _now().isBefore(order.paymentDeadlineAt);
     return ListView(
       padding: const EdgeInsets.all(IviaSpacing.screen),
       children: [
-        const SizedBox(height: IviaSpacing.xxl),
+        _back(),
+        const SizedBox(height: IviaSpacing.lg),
         Align(
           alignment: Alignment.centerLeft,
           child: Container(
@@ -392,19 +412,34 @@ class _PaymentWaitScreenState extends ConsumerState<PaymentWaitScreen> {
     );
   }
 
+  /// Retour au suivi, sans annuler ; bloqué pendant une annulation.
+  Widget _back() => Align(
+    alignment: Alignment.centerLeft,
+    child: IviaBackButton(
+      onPressed: _busy
+          ? null
+          : () => context.canPop()
+                ? context.pop()
+                : context.go(Routes.order(widget.orderId)),
+    ),
+  );
+
   Future<bool> _confirmCancel(BuyerOrder? order) async {
+    final payable = order != null && _now().isBefore(order.paymentDeadlineAt);
     final confirmed = await showModalBottomSheet<bool>(
       context: context,
       isScrollControlled: true,
       useSafeArea: true,
       builder: (context) => _Sheet(
         title: 'Annuler le paiement ?',
-        body: order == null
-            ? 'La demande envoyée sur votre téléphone sera abandonnée.'
-            : 'La demande envoyée sur votre téléphone sera abandonnée. Votre '
+        body: payable
+            ? 'La demande envoyée sur votre téléphone sera abandonnée. Votre '
                   'commande reste réservée jusqu’à '
                   '${timeOfDay(order.paymentDeadlineAt)} : vous pourrez la '
-                  'payer depuis son suivi.',
+                  'payer depuis son suivi.'
+            : 'La demande envoyée sur votre téléphone sera abandonnée. Le '
+                  'délai de paiement est dépassé : la commande ne pourra plus '
+                  'être payée.',
         actions: [
           FilledButton(
             style: FilledButton.styleFrom(backgroundColor: IviaColors.error),
@@ -455,9 +490,12 @@ class _PaymentWaitScreenState extends ConsumerState<PaymentWaitScreen> {
 
 /// Temps restant avant l'heure limite de la commande, barre qui se vide.
 class _TimeLeft extends StatelessWidget {
-  const _TimeLeft({required this.order, required this.late});
+  const _TimeLeft({required this.order, required this.now, required this.late});
 
   final BuyerOrder order;
+
+  /// Heure du serveur.
+  final DateTime now;
   final bool late;
 
   @override
@@ -465,7 +503,7 @@ class _TimeLeft extends StatelessWidget {
     final textTheme = Theme.of(context).textTheme;
     final brand = IviaAppBrand.of(context);
     final total = order.paymentDeadlineAt.difference(order.createdAt);
-    final left = order.paymentDeadlineAt.difference(DateTime.now());
+    final left = order.paymentDeadlineAt.difference(now);
     final fraction = total.inSeconds <= 0 || left.isNegative
         ? 0.0
         : (left.inMilliseconds / total.inMilliseconds).clamp(0.0, 1.0);

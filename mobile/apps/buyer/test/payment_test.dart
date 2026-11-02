@@ -134,8 +134,8 @@ void main() {
         findsOneWidget,
       );
 
-      // Retour : le suivi, sans annuler la demande.
-      await tester.binding.handlePopRoute();
+      // Retour (flèche) : le suivi, sans annuler la demande.
+      await tester.tap(find.byTooltip('Retour'));
       await tester.pumpAndSettle();
       expect(find.byType(OrderScreen), findsOneWidget);
       expect(payment()['status'], 'pending');
@@ -425,7 +425,7 @@ void main() {
       expect(reads(id).length, before + 1);
     });
 
-    testWidgets("paiement d'un autre compte : plus disponible", (tester) async {
+    testWidgets('paiement inconnu : plus disponible', (tester) async {
       await goTo(
         tester,
         Routes.payWait(orderId, 'c0000000-0000-4000-8000-000000000099'),
@@ -466,6 +466,193 @@ void main() {
     });
   });
 
+  group('attente : cas limites', () {
+    testWidgets('relecture finie 10 min après l’heure limite', (tester) async {
+      app.orders.now = () =>
+          DateTime.now().toUtc().subtract(const Duration(minutes: 12));
+      order['payment_deadline_at'] = DateTime.now()
+          .toUtc()
+          .subtract(const Duration(minutes: 11))
+          .toIso8601String();
+      await startPayment(tester);
+      expect(find.text('Retour à la commande'), findsOneWidget);
+      final id = payment()['id'] as String;
+      final before = reads(id).length;
+      await tester.pump(const Duration(seconds: 10));
+      expect(reads(id).length, before);
+      // Annulation : le texte ne promet plus de payer plus tard.
+      await tester.tap(find.text('Annuler le paiement'));
+      await settle(tester);
+      expect(find.textContaining('ne pourra plus être payée'), findsOneWidget);
+      await tester.tap(find.text('Annuler le paiement').last);
+      await tester.pumpAndSettle();
+      expect(find.text('Paiement annulé.'), findsOneWidget);
+    });
+
+    testWidgets('heure du téléphone en retard : celle du serveur fait foi', (
+      tester,
+    ) async {
+      app.server.clock = () => DateTime.now().add(const Duration(minutes: 12));
+      await startPayment(tester);
+      expect(find.text('Délai de paiement dépassé'), findsOneWidget);
+    });
+
+    testWidgets(
+      'réseau coupé pendant l’attente : rien ne passe pour un échec',
+      (tester) async {
+        await startPayment(tester);
+        final id = payment()['id'] as String;
+        app.payments.failures['GET /v1/payments/$id'] =
+            FakeResponse.networkError();
+        await tester.pump(const Duration(seconds: 3));
+        await settle(tester);
+        expect(
+          find.text('Validez le paiement sur votre téléphone'),
+          findsOneWidget,
+        );
+        app.payments.succeed(payment());
+        await tester.pump(const Duration(seconds: 3));
+        await settle(tester);
+        expect(find.byType(IviaHandoverCode), findsOneWidget);
+      },
+    );
+
+    testWidgets('statut inconnu de l’app : attente, relecture continue', (
+      tester,
+    ) async {
+      await startPayment(tester);
+      payment()['status'] = 'on_hold';
+      final id = payment()['id'] as String;
+      await tester.pump(const Duration(seconds: 3));
+      await settle(tester);
+      expect(
+        find.text('Validez le paiement sur votre téléphone'),
+        findsOneWidget,
+      );
+      final before = reads(id).length;
+      await tester.pump(const Duration(seconds: 3));
+      expect(reads(id).length, before + 1);
+    });
+
+    testWidgets('statut final : relecture arrêtée', (tester) async {
+      await startPayment(tester);
+      app.payments.fail(payment());
+      await tester.pump(const Duration(seconds: 3));
+      await tester.pumpAndSettle();
+      expect(find.text('Le paiement n’a pas abouti'), findsOneWidget);
+      final id = payment()['id'] as String;
+      final before = reads(id).length;
+      await tester.pump(const Duration(seconds: 10));
+      expect(reads(id).length, before);
+    });
+
+    testWidgets('retour bloqué pendant l’annulation', (tester) async {
+      await startPayment(tester);
+      final gate = Completer<void>();
+      app.payments.beforeRequest = (r) =>
+          r.path.endsWith('/cancel') ? gate.future : Future.value();
+      await tester.tap(find.text('Annuler le paiement'));
+      await settle(tester);
+      await tester.tap(find.text('Annuler le paiement').last);
+      await settle(tester);
+      await tester.binding.handlePopRoute();
+      await settle(tester);
+      expect(find.byType(PaymentWaitScreen), findsOneWidget);
+      gate.complete();
+      await tester.pumpAndSettle();
+      expect(find.byType(OrderScreen), findsOneWidget);
+    });
+
+    testWidgets('renvoi refusé après l’annulation : écran Paiement, message', (
+      tester,
+    ) async {
+      await startPayment(tester);
+      app.payments.rateLimited = true;
+      await tester.tap(find.text('Je n’ai rien reçu'));
+      await settle(tester);
+      await tester.tap(find.text('Renvoyer la demande'));
+      await tester.pumpAndSettle();
+      expect(payment()['status'], 'failed');
+      expect(find.byType(PaymentScreen), findsOneWidget);
+      expect(
+        find.text('Trop de demandes de paiement. Réessayez plus tard.'),
+        findsOneWidget,
+      );
+    });
+
+    testWidgets(
+      'réponse perdue puis autre numéro : la demande du serveur est montrée, '
+      '« Renvoyer » rouvre le paiement',
+      (tester) async {
+        await goTo(tester, Routes.pay(orderId));
+        app.payments.loseNextStartResponse = true;
+        await tester.tap(textPlain('Payer 10 500 F'));
+        await tester.pumpAndSettle();
+        expect(
+          find.textContaining('Pas de connexion internet'),
+          findsOneWidget,
+        );
+        await tester.tap(find.text('T-Money'));
+        await tester.pump();
+        await tester.enterText(find.byType(TextField), '70 11 22 33');
+        await tester.tap(textPlain('Payer 10 500 F'));
+        await settle(tester);
+        // Le serveur rend la demande Flooz déjà en attente.
+        expect(
+          textPlainContaining(
+            'Une demande Flooz de 10 500 F a été envoyée au '
+            '+228 90 •• •• 56.',
+          ),
+          findsOneWidget,
+        );
+        ScaffoldMessenger.of(tester.element(find.byType(PaymentWaitScreen)))
+            .hideCurrentSnackBar();
+        await settle(tester);
+        await tester.tap(find.text('Je n’ai rien reçu'));
+        await settle(tester);
+        await tester.tap(find.text('Renvoyer la demande'));
+        await tester.pumpAndSettle();
+        expect(find.byType(PaymentScreen), findsOneWidget);
+        expect(starts(), hasLength(2));
+        expect(app.payments.payments, hasLength(1));
+        expect(payment()['status'], 'failed');
+      },
+    );
+
+    testWidgets("paiement d'un autre compte : plus disponible, retour", (
+      tester,
+    ) async {
+      await startPayment(tester);
+      final id = payment()['id'] as String;
+      app.payments.giveTo(payment(), 'Bearer jeton-kofi');
+      final router = GoRouter.of(tester.element(find.byType(PaymentWaitScreen)))
+        ..go(Routes.order(orderId));
+      await tester.pumpAndSettle();
+      router.go(Routes.payWait(orderId, id));
+      await settle(tester);
+      expect(find.text('Ce paiement n’est plus disponible.'), findsOneWidget);
+      await tester.tap(find.byTooltip('Retour'));
+      await tester.pumpAndSettle();
+      expect(find.byType(OrderScreen), findsOneWidget);
+    });
+  });
+
+  group('écran Paiement, délai', () {
+    testWidgets('délai dépassé au serveur : message et retour au suivi', (
+      tester,
+    ) async {
+      await goTo(tester, Routes.pay(orderId));
+      order['payment_deadline_at'] = DateTime.now()
+          .toUtc()
+          .subtract(const Duration(seconds: 1))
+          .toIso8601String();
+      await tester.tap(textPlain('Payer 10 500 F'));
+      await tester.pumpAndSettle();
+      expect(find.text('Le délai de paiement est dépassé.'), findsOneWidget);
+      expect(find.byType(OrderScreen), findsOneWidget);
+    });
+  });
+
   testWidgets('police 200 %, écran de 320 dp : rien ne déborde', (
     tester,
   ) async {
@@ -482,6 +669,22 @@ void main() {
     await tester.tap(find.text('Je n’ai rien reçu'));
     await settle(tester);
     expect(find.text('Renvoyer la demande'), findsOneWidget);
+    expect(tester.takeException(), isNull);
+    // Feuille fermée.
+    Navigator.of(tester.element(find.text('Renvoyer la demande'))).pop();
+    await settle(tester);
+    await tester.drag(find.byType(ListView), const Offset(0, -3000));
+    await settle(tester);
+    await tester.tap(find.text('Annuler le paiement'));
+    await settle(tester);
+    expect(find.text('Annuler le paiement ?'), findsOneWidget);
+    expect(tester.takeException(), isNull);
+    Navigator.of(tester.element(find.text('Annuler le paiement ?'))).pop();
+    await settle(tester);
+    app.payments.fail(payment());
+    await tester.pump(const Duration(seconds: 3));
+    await tester.pumpAndSettle();
+    expect(find.text('Le paiement n’a pas abouti'), findsOneWidget);
     expect(tester.takeException(), isNull);
   });
 }

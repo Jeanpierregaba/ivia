@@ -15,6 +15,15 @@ final devPaymentsProvider = Provider<bool>(
   (ref) => !kReleaseMode && const bool.fromEnvironment('IVIA_DEV_PAYMENT'),
 );
 
+/// Numéro complet de chaque demande envoyée depuis l'écran Paiement, par
+/// identifiant de demande : en mémoire seulement (ni URL, ni état de
+/// navigation, ni stockage), pour « Renvoyer la demande ». Lu une fois par
+/// l'écran d'attente ; vidé au changement de compte.
+final paymentPhonesProvider = Provider<Map<String, String>>((ref) {
+  ref.watch(accountIdProvider);
+  return {};
+});
+
 /// Nom de l'opérateur tel qu'affiché.
 String operatorLabel(PaymentOperator operator) => switch (operator) {
   PaymentOperator.flooz => 'Flooz',

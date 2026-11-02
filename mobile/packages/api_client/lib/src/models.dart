@@ -1140,6 +1140,10 @@ enum PaymentStatus {
   /// La demande attend la validation du payeur sur son téléphone.
   bool get isPending => this == pending;
 
+  /// Issue connue : plus rien n'arrivera de lui-même (un statut inconnu de
+  /// cette version de l'app n'est pas considéré comme final).
+  bool get isFinal => !(this == pending || this == unknown);
+
   /// L'argent a été reçu (même s'il a été remboursé depuis).
   bool get isPaid => switch (this) {
     succeeded || refundPending || refunded => true,

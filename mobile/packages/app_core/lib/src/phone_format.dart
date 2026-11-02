@@ -57,3 +57,10 @@ String formatMaskedTogoPhone(String masked) {
   final rest = masked.substring(4);
   return '+228 ${[for (var i = 0; i < 8; i += 2) rest.substring(i, i + 2)].join(' ')}';
 }
+
+/// Masque d'un numéro `+228XXXXXXXX` comme le serveur le rend
+/// (`validate.MaskPhone`) : « +22896••••78 ». Sert à reconnaître la demande
+/// d'un numéro saisi, sans jamais afficher ni garder ce numéro.
+String maskTogoPhone(String e164) => e164.length < 6
+    ? '••••'
+    : '${e164.substring(0, 6)}••••${e164.substring(e164.length - 2)}';

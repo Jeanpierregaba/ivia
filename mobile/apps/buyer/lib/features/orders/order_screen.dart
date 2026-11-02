@@ -86,7 +86,7 @@ class _OrderScreenState extends ConsumerState<OrderScreen> {
     if (!mounted) return;
     final order = ref.read(orderProvider(widget.orderId)).value;
     if (order == null) return;
-    if (!shouldPoll(order)) {
+    if (!shouldPoll(order, now: ref.read(apiClientProvider).now())) {
       _stop();
       return;
     }

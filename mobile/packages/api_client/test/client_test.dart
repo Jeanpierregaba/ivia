@@ -1127,6 +1127,11 @@ void main() {
         ),
         apiError('payment_provider_unavailable'),
       );
+      // Comme le serveur : la demande est enregistrée, close.
+      expect(
+        (await client.orderPayments(id)).single.failureReason,
+        'Prestataire injoignable.',
+      );
       payments
         ..providerDown = false
         ..rateLimited = true;
@@ -1181,5 +1186,99 @@ void main() {
       await expectLater(client.orderPayments(id), apiError('order_not_found'));
       expect(payments.payments.single['status'], 'pending');
     });
+  });
+
+  group('heure du serveur', () {
+    test('en-tête Date lu ; petit écart ignoré', () async {
+      server.on('GET', '/v1/me', (_) => FakeResponse.json(200, userBody()));
+      expect(
+        parseHttpDate('Mon, 02 Nov 2026 06:56:01 GMT'),
+        DateTime.utc(2026, 11, 2, 6, 56, 1),
+      );
+      expect(parseHttpDate('hier'), isNull);
+      expect(parseHttpDate(null), isNull);
+
+      server.clock = () => DateTime.now().add(const Duration(minutes: 12));
+      await client.getMe();
+      expect(
+        client.now().difference(DateTime.now()).inMinutes,
+        inInclusiveRange(11, 12),
+      );
+      server.clock = () => DateTime.now().add(const Duration(seconds: 5));
+      await client.getMe();
+      expect(client.now().difference(DateTime.now()).inSeconds.abs(), 0);
+    });
+  });
+
+  group('paiement après expiration', () {
+    late FakeOrders orders;
+    late FakePayments payments;
+    late FakeSearch search;
+    late Map<String, dynamic> afi;
+
+    setUp(() {
+      search = FakeSearch(server);
+      orders = FakeOrders(FakeCart(search));
+      payments = FakePayments(orders);
+      afi = search.shop('Chez Afi');
+    });
+
+    Future<Map<String, dynamic>> paidLate(
+      Map<String, dynamic> product, {
+      void Function()? afterExpiry,
+    }) async {
+      final order = orders.seed(afi, [(product, 1)])
+        ..['payment_deadline_at'] = DateTime.now()
+            .toUtc()
+            .add(const Duration(minutes: 10))
+            .toIso8601String();
+      await client.startPayment(
+        order['id'] as String,
+        operator: PaymentOperator.flooz,
+        phone: '96451278',
+      );
+      orders.advance(order, 'expired');
+      afterExpiry?.call();
+      payments.succeed(payments.payments.last);
+      return order;
+    }
+
+    test('stock encore là : reprise ; épuisé : annulée', () async {
+      final riz = search.product(afi, 'Riz', stock: 1);
+      // La commande avait réservé le stock : l'expiration le rend.
+      riz['stock_quantity'] = 0;
+      final first = await paidLate(riz);
+      expect(first['status'], 'awaiting_seller');
+      expect(riz['stock_quantity'], 0);
+
+      // Seconde commande : le stock rendu à l'expiration part ailleurs.
+      final second = await paidLate(
+        riz,
+        afterExpiry: () => riz['stock_quantity'] = 0,
+      );
+      expect(second['status'], 'cancelled');
+      expect(second['cancel_reason'], contains('stock épuisé'));
+    });
+
+    test(
+      'commande annulée avant le paiement : inchangée, pas un doublon',
+      () async {
+        final order = orders.seed(afi, [(search.product(afi, 'Huile'), 1)])
+          ..['payment_deadline_at'] = DateTime.now()
+              .toUtc()
+              .add(const Duration(minutes: 10))
+              .toIso8601String();
+        final p = await client.startPayment(
+          order['id'] as String,
+          operator: PaymentOperator.flooz,
+          phone: '96451278',
+        );
+        orders.advance(order, 'cancelled', reason: 'Annulée par ivia.');
+        payments.succeed(payments.payments.single);
+        expect(order['status'], 'cancelled');
+        expect((await client.payment(p.id)).status, PaymentStatus.succeeded);
+        expect(payments.payments.single['is_duplicate'], isFalse);
+      },
+    );
   });
 }

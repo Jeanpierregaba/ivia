@@ -83,6 +83,10 @@ class FakeApiServer implements HttpClientAdapter {
 
   RecordedRequest get last => requests.last;
 
+  /// Heure du serveur, envoyée dans l'en-tête `Date` des réponses ; aucun
+  /// en-tête si `null`.
+  DateTime Function()? clock;
+
   Iterable<RecordedRequest> calls(String method, String path) =>
       requests.where((r) => r.method == method && r.path == path);
 
@@ -133,12 +137,35 @@ class FakeApiServer implements HttpClientAdapter {
       response.status,
       headers: {
         Headers.contentTypeHeader: [Headers.jsonContentType],
+        if (clock case final now?) 'date': [_httpDate(now())],
       },
     );
   }
 
   @override
   void close({bool force = false}) {}
+}
+
+String _httpDate(DateTime date) {
+  const days = ['Mon', 'Tue', 'Wed', 'Thu', 'Fri', 'Sat', 'Sun'];
+  const months = [
+    'Jan',
+    'Feb',
+    'Mar',
+    'Apr',
+    'May',
+    'Jun',
+    'Jul',
+    'Aug',
+    'Sep',
+    'Oct',
+    'Nov',
+    'Dec',
+  ];
+  final d = date.toUtc();
+  String two(int n) => n.toString().padLeft(2, '0');
+  return '${days[d.weekday - 1]}, ${two(d.day)} ${months[d.month - 1]} '
+      '${d.year} ${two(d.hour)}:${two(d.minute)}:${two(d.second)} GMT';
 }
 
 /// Réponse type de `POST /v1/auth/otp`.
@@ -1570,10 +1597,34 @@ class FakeOrders {
       'reason': reason,
       'created_at': when,
     });
+    // Comme le serveur : une commande expirée rend son stock suivi.
+    if (status == 'expired' && order['status'] == 'pending_payment') {
+      _moveStock(order, 1);
+    }
     order
       ..['status'] = status
       ..['updated_at'] = when;
     if (status == 'cancelled') order['cancel_reason'] = reason;
+  }
+
+  /// Rend (+1) ou reprend (-1) le stock suivi des articles de [order] ;
+  /// `false` sans rien changer si un article n'a plus assez de stock.
+  bool _moveStock(Map<String, dynamic> order, int sign) {
+    final changes = <(Map<String, dynamic>, int)>[];
+    for (final item in order['items'] as List) {
+      final p = _search.products
+          .where((p) => p['id'] == item['product_id'])
+          .firstOrNull;
+      if (p == null || p['stock_mode'] != 'tracked') continue;
+      final next =
+          (p['stock_quantity'] as int) + sign * (item['quantity'] as int);
+      if (next < 0) return false;
+      changes.add((p, next));
+    }
+    for (final (p, next) in changes) {
+      p['stock_quantity'] = next;
+    }
+    return true;
   }
 
   bool _visible(Map<String, dynamic> order, RecordedRequest r) {
@@ -1665,6 +1716,10 @@ class FakePayments {
 
   /// Prestataire injoignable : `payment_provider_unavailable`.
   var providerDown = false;
+
+  /// La prochaine demande est créée, mais sa réponse se perd (coupure
+  /// réseau après l'enregistrement).
+  var loseNextStartResponse = false;
 
   var _number = 0;
 
@@ -1769,13 +1824,6 @@ class FakePayments {
         'Trop de demandes de paiement. Réessayez plus tard.',
       );
     }
-    if (providerDown) {
-      return FakeResponse.error(
-        503,
-        'payment_provider_unavailable',
-        "Le paiement n'a pas pu être lancé. Réessayez dans un instant.",
-      );
-    }
     final number = ++_number;
     final at = orders.now().toIso8601String();
     final payment = <String, dynamic>{
@@ -1794,6 +1842,19 @@ class FakePayments {
     };
     payments.add(payment);
     _buyerOf[payment['id'] as String] = r.headers['authorization'] ?? '';
+    if (providerDown) {
+      // Comme le serveur : la demande est enregistrée puis close.
+      _set(payment, 'failed', 'Prestataire injoignable.');
+      return FakeResponse.error(
+        503,
+        'payment_provider_unavailable',
+        "Le paiement n'a pas pu être lancé. Réessayez dans un instant.",
+      );
+    }
+    if (loseNextStartResponse) {
+      loseNextStartResponse = false;
+      return FakeResponse.networkError();
+    }
     return FakeResponse.json(201, {
       ...payment,
       'instructions':
@@ -1869,25 +1930,47 @@ class FakePayments {
       ..['updated_at'] = orders.now().toIso8601String();
   }
 
-  /// Le prestataire confirme [payment] (webhook vérifié) : appliqué même
-  /// après une annulation ; la commande passe en attente de la boutique, ou
-  /// le paiement est marqué en double si elle était déjà payée.
+  /// Le prestataire confirme [payment] (webhook vérifié), comme
+  /// `orders.OnPaymentSucceeded` : appliqué même après une annulation ; la
+  /// commande passe en attente de la boutique (après expiration : si le
+  /// stock suivi est encore là, sinon elle est annulée) ; commande annulée
+  /// avant le paiement : inchangée (à rembourser) ; déjà payée : doublon.
   void succeed(Map<String, dynamic> payment) {
     if (!{'pending', 'failed', 'expired'}.contains(payment['status'])) return;
     _set(payment, 'succeeded');
     final order = orders.orders.firstWhere(
       (o) => o['id'] == payment['order_id'],
     );
-    if (order['status'] == 'pending_payment' || order['status'] == 'expired') {
-      orders.advance(
-        order,
-        'awaiting_seller',
-        reason: 'Paiement confirmé par le prestataire.',
-      );
-    } else {
-      payment['is_duplicate'] = true;
+    switch (order['status']) {
+      case 'pending_payment':
+        orders.advance(
+          order,
+          'awaiting_seller',
+          reason: 'Paiement confirmé par le prestataire.',
+        );
+      case 'expired' when orders._moveStock(order, -1):
+        orders.advance(
+          order,
+          'awaiting_seller',
+          reason: 'Paiement reçu après expiration, stock disponible.',
+        );
+      case 'expired':
+        orders.advance(
+          order,
+          'cancelled',
+          reason: 'Paiement reçu après expiration, stock épuisé.',
+        );
+      case 'cancelled':
+        break;
+      default:
+        payment['is_duplicate'] = true;
     }
   }
+
+  /// Donne [payment] à un autre compte (en-tête `Authorization`) : il
+  /// devient introuvable pour le compte actuel.
+  void giveTo(Map<String, dynamic> payment, String authorization) =>
+      _buyerOf[payment['id'] as String] = authorization;
 
   /// Le prestataire refuse [payment] (code faux, solde insuffisant…).
   void fail(

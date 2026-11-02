@@ -33,5 +33,7 @@ void main() {
   test('numéro masqué du serveur mis en forme', () {
     expect(formatMaskedTogoPhone('+22896••••78'), '+228 96 •• •• 78');
     expect(formatMaskedTogoPhone('••••'), '••••');
+    expect(maskTogoPhone('+22896451278'), '+22896••••78');
+    expect(maskTogoPhone('123'), '••••');
   });
 }

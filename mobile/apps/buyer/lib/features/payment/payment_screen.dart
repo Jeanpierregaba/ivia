@@ -74,8 +74,14 @@ class _PaymentScreenState extends ConsumerState<PaymentScreen> {
         operator: _operator,
         phone: phone,
       );
-      // Le numéro complet ne sert qu'à « Renvoyer la demande » : en mémoire.
-      router.go(Routes.payWait(widget.orderId, payment.id), extra: phone);
+      // Le numéro complet ne sert qu'à « Renvoyer la demande », et seulement
+      // s'il est bien celui de la demande rendue : le serveur rend telle
+      // quelle une demande déjà en attente (réponse perdue, autre numéro).
+      if (payment.operator == _operator &&
+          payment.phoneMasked == maskTogoPhone(phone)) {
+        ref.read(paymentPhonesProvider)[payment.id] = phone;
+      }
+      router.go(Routes.payWait(widget.orderId, payment.id));
     } on ApiException catch (e) {
       if (!mounted) return;
       if (e.code == 'validation_failed' && e.fields['phone'] != null) {

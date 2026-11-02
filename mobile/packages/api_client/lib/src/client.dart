@@ -42,11 +42,35 @@ class IviaApiClient {
           if (token != null) options.headers['Authorization'] = 'Bearer $token';
           handler.next(options);
         },
+        onResponse: (response, handler) {
+          _readServerClock(response.headers.value('date'));
+          handler.next(response);
+        },
       ),
     );
   }
 
   final Dio _dio;
+
+  /// Écart entre l'heure du serveur et celle du téléphone, lu dans l'en-tête
+  /// `Date` des réponses ; nul tant qu'il reste sous [_clockTolerance].
+  Duration _clockOffset = Duration.zero;
+
+  /// L'en-tête `Date` est à la seconde près et arrive après le trajet : en
+  /// dessous, l'heure du téléphone fait foi.
+  static const _clockTolerance = Duration(seconds: 30);
+
+  /// Heure du serveur, estimée : à utiliser pour les délais fixés par le
+  /// serveur (heure limite de paiement), qu'un téléphone mal réglé ne doit
+  /// pas avancer ni retarder.
+  DateTime now() => DateTime.now().add(_clockOffset);
+
+  void _readServerClock(String? header) {
+    final server = parseHttpDate(header);
+    if (server == null) return;
+    final offset = server.difference(DateTime.now());
+    _clockOffset = offset.abs() < _clockTolerance ? Duration.zero : offset;
+  }
 
   /// Envois vers les URL signées du stockage : sans intercepteur, le jeton
   /// de session ne doit jamais partir vers un autre serveur que l'API.
@@ -540,4 +564,36 @@ class IviaApiClient {
             : ApiException.unknown(statusCode: e.response?.statusCode);
     }
   }
+}
+
+/// Date d'un en-tête HTTP (« Mon, 02 Nov 2026 06:56:01 GMT ») ; `null` si
+/// elle est absente ou illisible.
+@visibleForTesting
+DateTime? parseHttpDate(String? value) {
+  final parts = value?.trim().split(RegExp(r'\s+'));
+  if (parts == null || parts.length != 6 || parts[5] != 'GMT') return null;
+  const months = [
+    'Jan',
+    'Feb',
+    'Mar',
+    'Apr',
+    'May',
+    'Jun',
+    'Jul',
+    'Aug',
+    'Sep',
+    'Oct',
+    'Nov',
+    'Dec',
+  ];
+  final month = months.indexOf(parts[2]) + 1;
+  final time = parts[4].split(':');
+  final day = int.tryParse(parts[1]);
+  final year = int.tryParse(parts[3]);
+  if (month == 0 || time.length != 3 || day == null || year == null) {
+    return null;
+  }
+  final [h, m, sec] = [for (final t in time) int.tryParse(t)];
+  if (h == null || m == null || sec == null) return null;
+  return DateTime.utc(year, month, day, h, m, sec);
 }

@@ -16,9 +16,14 @@
     Le prestataire n'est pas prévenu (l'interface n'a pas d'annulation) : une validation tardive
     arrive par webhook et `applySuccess` l'applique déjà depuis `failed` (doublon ⇒ file
     existante de remboursement).
-  - `Initiate` : limiteur en mémoire (`ratelimit.New(10, time.Hour)`, clé acheteur), compté
-    seulement à la création d'une nouvelle demande, après le contrôle de la commande et de la
-    demande en attente ; 429 `rate_limited`.
+  - `Initiate` : limiteurs en mémoire (`ratelimit.New(10, time.Hour)`), par acheteur et par
+    numéro payeur, comptés seulement à la création d'une nouvelle demande, après le contrôle de
+    la commande et de la demande en attente ; rendus (`Limiter.Cancel`) si la demande n'atteint
+    pas le prestataire ; 429 `rate_limited`.
+  - Revérification (relecture) : une demande annulée par l'acheteur ou au prestataire
+    injoignable reste interrogée par la tâche périodique pendant une heure (le prestataire n'en
+    est pas prévenu : un webhook perdu ne doit pas laisser un compte débité sans commande
+    payée) ; « Vérifier maintenant » de l'admin vaut pour toute demande `failed` ou `expired`.
 - **Parcours de l'app** :
   - écran Commande : « Payer » crée la commande (inchangé), puis `go(suivi)` + `push(paiement)` :
     le retour depuis Paiement mène au suivi ;
@@ -26,11 +31,16 @@
     sinon écran Paiement ;
   - Paiement → `POST …/payments` → `pushReplacement` de l'écran d'attente ;
   - attente : `GET /v1/payments/{id}` toutes les 3 s (premier plan, route courante, comme le
-    suivi de la 009), arrêt sur un statut final ou 10 min après l'heure limite ; `succeeded` ⇒
+    suivi de la 009 ; pas sous une feuille), arrêt sur un statut final ou 10 min après l'heure
+    limite (un statut inconnu de l'app n'est pas final) ; `succeeded` ⇒
     retour au suivi (relu) avec message ; `failed` ⇒ état d'échec dans l'écran.
 - **Numéro** : celui du profil de la session (`+228XXXXXXXX` → « 96 45 12 78 »), contrôlé comme le
   serveur (8 chiffres, 7 ou 9 en tête). Le numéro affiché à l'attente est `phone_masked` du
-  serveur, mis en forme « +228 96 •• •• 78 ».
+  serveur, mis en forme « +228 96 •• •• 78 ». Le numéro complet, pour « Renvoyer la demande »,
+  est passé à l'attente par `paymentPhonesProvider` (mémoire seulement, jamais dans l'état de
+  navigation), et seulement s'il correspond à la demande rendue par le serveur.
+- **Heure** : l'heure limite est celle du serveur ; l'app l'estime par l'en-tête `Date` des
+  réponses (`IviaApiClient.now()`, écart ignoré sous 30 s).
 - **Temps restant** : `paymentDeadlineAt` de la commande, barre = restant / (`paymentDeadlineAt`
   − `createdAt`), minuteur d'une seconde.
 - **Simulation locale** : `devPaymentsProvider` = `!kReleaseMode &&

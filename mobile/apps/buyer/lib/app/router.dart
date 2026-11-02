@@ -165,7 +165,6 @@ final routerProvider = Provider<GoRouter>((ref) {
                             builder: (context, state) => PaymentWaitScreen(
                               orderId: state.pathParameters['id']!,
                               paymentId: state.pathParameters['paymentId']!,
-                              phone: state.extra as String?,
                             ),
                           ),
                         ],

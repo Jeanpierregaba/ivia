@@ -8,7 +8,7 @@ docs/specs/NNN-nom/tasks.md. Les petites tâches isolées (bug, retouche) peuven
 
 ## En cours
 
-- [ ] 010 — Paiement Mobile Money ([spec](docs/specs/010-paiement/spec.md)) : implémenté et testé ; reste la relecture et le parcours sur le simulateur
+- [ ] 010 — Paiement Mobile Money ([spec](docs/specs/010-paiement/spec.md)) : implémenté, testé, relu et corrigé ; reste le parcours sur le simulateur
 - [ ] 009 — Commande en retrait et suivi ([spec](docs/specs/009-commande-retrait/spec.md)) : implémenté, testé et relu ; reste le parcours sur le simulateur (fait avec celui de la 010)
 - [ ] 018 — Espace livreur : lancement, connexion, dossier de candidature ([spec](docs/specs/018-espace-livreur/spec.md)) : relu et corrigé ; appareil photo à vérifier sur un vrai téléphone
 - [ ] 004 — Espace marchand : lancement, connexion, création de la boutique ([spec](docs/specs/004-espace-marchand/spec.md)) : relu et corrigé ; reste les clés Google Maps (vérification de la carte)
@@ -34,7 +34,7 @@ version « retrait seulement » (voir `docs/PRD.md`).
 - [x] 005 — Catalogue : produits et photos (redimensionnées, sans métadonnées GPS, avant envoi) : écrans marchand faits (voir « Terminé »)
 - [ ] 006 — Stock : journal des mouvements et alertes de réapprovisionnement (saisie et ajustement de la quantité faits dans 005)
 - [ ] **Backend** : clé d'idempotence à la création d'un produit (et des autres créations rejouables depuis les apps), pour qu'un nouvel essai après une coupure ne crée pas de doublon
-- [ ] **Backend** (pour Gedeon, fait en 010, à relire) : `POST /v1/payments/{id}/cancel` (demande en attente → `failed`, idempotente, 409 `payment_not_cancellable`) et limite de 10 nouvelles demandes de paiement par heure et par acheteur dans `payments.Initiate` ; à revoir avec le vrai prestataire (016) s'il permet d'annuler une demande
+- [ ] **Backend** (pour Gedeon, fait en 010, à relire) : `POST /v1/payments/{id}/cancel` (demande en attente → `failed`, idempotente, 409 `payment_not_cancellable`) ; limite de 10 nouvelles demandes de paiement par heure par acheteur et par numéro dans `payments.Initiate` ; revérification d'une demande annulée pendant une heure (requête `PaymentsToRecheck`) et « Vérifier maintenant » sur une demande `failed` / `expired` ; à revoir avec le vrai prestataire (016) s'il permet d'annuler une demande
 - [ ] **Backend** (pour Gedeon, vu en 009) : filtre `status` (en cours / terminées) sur `GET /v1/orders` ; l'app sépare aujourd'hui les 50 dernières commandes, une commande en cours plus ancienne manquerait à « En cours »
 - [ ] **Backend** (pour Gedeon, vu en 008) : ajouter à `CartItem` le stock restant en chiffre (`available_quantity`, `null` si non suivi) ; l'app lit aujourd'hui le nombre dans le texte de `issue` (« Plus que 2 en stock. ») pour proposer « Ajuster à 2 »
 - [ ] **Backend** (pour Gedeon, vu en 007) : recherche par préfixe du dernier mot (« pag » doit trouver « pagne » : la recherche part pendant la frappe ; aujourd'hui plein texte entier + trigramme) ; échapper `%` et `_` dans le `LIKE` de `SearchShops`
