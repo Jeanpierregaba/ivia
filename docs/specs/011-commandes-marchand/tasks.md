@@ -12,7 +12,7 @@
       `onExpired`, « 9+ », lecteur d'écran).
 - [x] 4. `app_core` : libellés de commande communs déplacés de l'app acheteur ; suite acheteur
       verte.
-- [ ] 5. App marchand : `sellerOrdersProvider` / `sellerOrderProvider`, relecture toutes les 30 s
+- [x] 5. App marchand : `sellerOrdersProvider` / `sellerOrderProvider`, relecture toutes les 30 s
       dans le cadre (premier plan seulement), pastille de l'onglet Commandes ; tests de relecture.
 - [ ] 6. App marchand : onglet Commandes (Nouvelles / En cours / Terminées, compteurs, comptes à
       rebours, vides, tirer pour actualiser, « Afficher plus ») ; routes `/orders?tab=…`.

@@ -1204,7 +1204,7 @@ void main() {
       final first = fake.add();
       final second = fake.add(status: 'preparing');
       final third = fake.add();
-      var page = await client.sellerOrders(shopId: 's1');
+      var page = await client.sellerOrders(shopId: shopId);
       expect(page.items.map((o) => o.id), [
         third['id'],
         second['id'],
@@ -1225,7 +1225,7 @@ void main() {
 
     test('autre boutique ou commande inconnue : 404', () async {
       await expectLater(
-        client.sellerOrders(shopId: 's2'),
+        client.sellerOrders(shopId: 'autre'),
         throwsA(
           isA<ApiException>().having((e) => e.code, 'code', 'shop_not_found'),
         ),

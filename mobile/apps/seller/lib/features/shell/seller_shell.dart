@@ -1,3 +1,5 @@
+import 'dart:async';
+
 import 'package:flutter/material.dart';
 import 'package:flutter_riverpod/flutter_riverpod.dart';
 import 'package:go_router/go_router.dart';
@@ -5,6 +7,8 @@ import 'package:ivia_api_client/ivia_api_client.dart';
 import 'package:ivia_ui/ivia_ui.dart';
 
 import '../../app/seller_shop.dart';
+import '../orders/order_labels.dart';
+import '../orders/orders_providers.dart';
 
 /// Onglets de l'app marchand, dans l'ordre des branches du routeur.
 const sellerTabs = [
@@ -14,27 +18,106 @@ const sellerTabs = [
   IviaNavItem(icon: Icons.person_outline, label: 'Compte'),
 ];
 
+/// Index de l'onglet Commandes dans [sellerTabs].
+const ordersTabIndex = 1;
+
 /// Cadre des onglets : barre du bas pour une boutique publiée. En attente de
 /// validation, seul le catalogue est ouvert, sans barre.
-class SellerShell extends ConsumerWidget {
+///
+/// Boutique publiée : relit les commandes toutes les 30 s tant que l'app est
+/// au premier plan, et aussitôt au retour ; rien en arrière-plan. La
+/// pastille de l'onglet Commandes compte les nouvelles.
+class SellerShell extends ConsumerStatefulWidget {
   const SellerShell({super.key, required this.shell});
 
   final StatefulNavigationShell shell;
 
   @override
-  Widget build(BuildContext context, WidgetRef ref) {
+  ConsumerState<SellerShell> createState() => _SellerShellState();
+}
+
+class _SellerShellState extends ConsumerState<SellerShell> {
+  Timer? _timer;
+  late final AppLifecycleListener _lifecycle;
+
+  @override
+  void initState() {
+    super.initState();
+    _start();
+    _lifecycle = AppLifecycleListener(
+      onHide: _stop,
+      onShow: () {
+        _reload();
+        _start();
+      },
+    );
+  }
+
+  @override
+  void dispose() {
+    _stop();
+    _lifecycle.dispose();
+    super.dispose();
+  }
+
+  void _start() {
+    _timer?.cancel();
+    _timer = Timer.periodic(ordersRefreshInterval, (_) => _reload());
+  }
+
+  void _stop() {
+    _timer?.cancel();
+    _timer = null;
+  }
+
+  /// Relecture automatique : erreur ignorée, les dernières données restent
+  /// (la suivante réessaiera).
+  void _reload() {
+    if (!mounted || !_published) return;
+    unawaited(
+      ref.read(sellerOrdersProvider.notifier).refresh().catchError((_) {}),
+    );
+  }
+
+  bool get _published =>
+      ref.read(sellerShopProvider).value?.status == ShopStatus.published;
+
+  @override
+  Widget build(BuildContext context) {
     final published = ref.watch(
       sellerShopProvider.select((s) => s.value?.status == ShopStatus.published),
     );
+    final fresh = published
+        ? ref.watch(
+            sellerOrdersProvider.select(
+              (s) => s.value?.count(OrderTab.fresh) ?? 0,
+            ),
+          )
+        : 0;
     return Scaffold(
-      body: shell,
+      body: widget.shell,
       bottomNavigationBar: published
           ? IviaBottomNav(
-              items: sellerTabs,
-              currentIndex: shell.currentIndex,
+              items: [
+                for (final (i, tab) in sellerTabs.indexed)
+                  if (i == ordersTabIndex)
+                    IviaNavItem(
+                      icon: tab.icon,
+                      label: tab.label,
+                      badge: fresh,
+                      badgeLabel: fresh == 1
+                          ? '1 nouvelle'
+                          : '$fresh nouvelles',
+                    )
+                  else
+                    tab,
+              ],
+              currentIndex: widget.shell.currentIndex,
               // Onglet déjà ouvert : retour à son premier écran.
-              onSelected: (i) =>
-                  shell.goBranch(i, initialLocation: i == shell.currentIndex),
+              onSelected: (i) => widget.shell.goBranch(
+                i,
+                initialLocation: i == widget.shell.currentIndex,
+              ),
             )
           : null,
     );

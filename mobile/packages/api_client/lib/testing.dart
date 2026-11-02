@@ -205,7 +205,7 @@ Map<String, dynamic> sessionBody({bool complete = false}) => {
 Map<String, dynamic> sellerOrderBody({
   String id = 'o1',
   int number = 1042,
-  String shopId = 's1',
+  String shopId = testShopId,
   String status = 'awaiting_seller',
   String fulfillment = 'pickup',
   String buyerFirstName = 'Koffi',
@@ -374,6 +374,9 @@ Map<String, dynamic> driverBody({
 
 /// Identifiant de la boutique de [shopBody].
 const shopId = '0b8e7f52-6a1c-4c3e-8f0d-2a9b7c6d5e4f';
+
+/// [shopId], quand un paramètre porte le même nom.
+const testShopId = shopId;
 
 /// Catégories de produits types (`GET /v1/categories`).
 const productCategoriesBody = {
@@ -2207,7 +2210,7 @@ class FakePayments {
 /// tourné), code de remise compté
 /// avant comparaison et bloqué au 5e essai, boutique suspendue (403).
 class FakeSellerOrders {
-  FakeSellerOrders(this.server, {this.shopId = 's1'}) {
+  FakeSellerOrders(this.server, {this.shopId = testShopId}) {
     server
       ..on('GET', '/v1/seller/orders', _list)
       ..onPattern('GET', '/v1/seller/orders/([^/]+)', _get)

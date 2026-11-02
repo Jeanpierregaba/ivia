@@ -1,0 +1,230 @@
+import 'package:flutter_riverpod/flutter_riverpod.dart';
+import 'package:ivia_api_client/ivia_api_client.dart';
+import 'package:ivia_app_core/ivia_app_core.dart';
+
+import '../../app/seller_shop.dart';
+import 'order_labels.dart';
+
+/// Commandes lues à chaque relecture : une nouvelle commande ne vit que
+/// 15 min, elle est toujours parmi les dernières.
+const ordersPageSize = 100;
+
+/// Intervalle de relecture des commandes, app au premier plan.
+const ordersRefreshInterval = Duration(seconds: 30);
+
+/// Commandes de la boutique publiée, réparties par onglet.
+class SellerOrders {
+  const SellerOrders({required this.orders, required this.nextOffset});
+
+  static const empty = SellerOrders(orders: [], nextOffset: null);
+
+  /// Commandes lues, plus récentes d'abord.
+  final List<SellerOrder> orders;
+
+  /// Suite de la liste (« Afficher plus ») ; `null` : tout est lu.
+  final int? nextOffset;
+
+  /// Commandes d'un onglet : les nouvelles par délai croissant (la plus
+  /// urgente en haut), les autres plus récentes d'abord.
+  List<SellerOrder> of(OrderTab tab) {
+    final list = [
+      for (final o in orders)
+        if (tabOf(o.status) == tab) o,
+    ];
+    if (tab == OrderTab.fresh) {
+      list.sort((a, b) {
+        final da = a.sellerDeadlineAt ?? a.createdAt;
+        final db = b.sellerDeadlineAt ?? b.createdAt;
+        return da.compareTo(db);
+      });
+    }
+    return list;
+  }
+
+  int count(OrderTab tab) => orders.where((o) => tabOf(o.status) == tab).length;
+}
+
+/// Boutique dont on lit les commandes : publiée seulement.
+String? _publishedShopId(AsyncValue<Shop?> shop) => switch (shop.value) {
+  final s? when s.status == ShopStatus.published => s.id,
+  _ => null,
+};
+
+/// Commandes de la boutique publiée. Relues par le cadre des onglets
+/// (toutes les 30 s au premier plan), en tirant vers le bas, et mises à jour
+/// par chaque action.
+final sellerOrdersProvider =
+    AsyncNotifierProvider<SellerOrdersController, SellerOrders>(
+      SellerOrdersController.new,
+      // Pas de nouvel essai automatique : la relecture suivante s'en charge.
+      retry: (_, _) => null,
+    );
+
+class SellerOrdersController extends AsyncNotifier<SellerOrders> {
+  String? _shopId;
+
+  @override
+  Future<SellerOrders> build() async {
+    _shopId = ref.watch(sellerShopProvider.select(_publishedShopId));
+    if (_shopId == null) return SellerOrders.empty;
+    return _fetchFirst();
+  }
+
+  IviaApiClient get _client => ref.read(apiClientProvider);
+
+  Future<SellerOrders> _fetchFirst() async {
+    final page = await _guard(
+      () => _client.sellerOrders(shopId: _shopId, limit: ordersPageSize),
+    );
+    return SellerOrders(orders: page.items, nextOffset: page.nextOffset);
+  }
+
+  /// Boutique suspendue ou retirée entre-temps : la boutique est relue et
+  /// le routeur ouvre l'écran « suspendue ».
+  Future<T> _guard<T>(Future<T> Function() call) async {
+    try {
+      return await call();
+    } on ApiException catch (e) {
+      if (e.code == 'shop_suspended' || e.code == 'shop_not_found') {
+        await ref.read(sellerShopProvider.notifier).refresh();
+      }
+      rethrow;
+    }
+  }
+
+  /// Relit la première page. Les pages déjà ajoutées par « Afficher plus »
+  /// restent ; une commande changée ici depuis le départ de la requête
+  /// (action du marchand) garde sa version la plus récente. Échec : les
+  /// données affichées restent, l'erreur remonte à l'appelant.
+  Future<void> refresh() async {
+    if (_shopId == null) return;
+    final fresh = await _fetchFirst();
+    if (!ref.mounted) return;
+    final current = state.value;
+    if (current == null) {
+      state = AsyncData(fresh);
+      return;
+    }
+    final byId = {for (final o in current.orders) o.id: o};
+    final merged = [
+      for (final o in fresh.orders) _newest(byId.remove(o.id), o),
+    ];
+    // Commandes plus anciennes que la première page (« Afficher plus »).
+    final oldest = fresh.orders.lastOrNull?.createdAt;
+    final older = [
+      for (final o in current.orders)
+        if (byId.containsKey(o.id) &&
+            oldest != null &&
+            !o.createdAt.isAfter(oldest))
+          o,
+    ];
+    state = AsyncData(
+      SellerOrders(
+        orders: [...merged, ...older],
+        nextOffset: older.isEmpty ? fresh.nextOffset : current.nextOffset,
+      ),
+    );
+  }
+
+  /// Ajoute la page suivante (« Afficher plus »).
+  Future<void> loadMore() async {
+    final current = state.value;
+    final offset = current?.nextOffset;
+    if (current == null || offset == null || _shopId == null) return;
+    final page = await _guard(
+      () => _client.sellerOrders(
+        shopId: _shopId,
+        offset: offset,
+        limit: ordersPageSize,
+      ),
+    );
+    if (!ref.mounted) return;
+    final known = {for (final o in current.orders) o.id};
+    state = AsyncData(
+      SellerOrders(
+        orders: [
+          ...current.orders,
+          for (final o in page.items)
+            if (!known.contains(o.id)) o,
+        ],
+        nextOffset: page.nextOffset,
+      ),
+    );
+  }
+
+  /// Commande rendue par le serveur (action, détail relu) : remplace la
+  /// version de la liste si elle est au moins aussi récente.
+  void replace(SellerOrder order) {
+    final current = state.value;
+    if (current == null) return;
+    final orders = [...current.orders];
+    final i = orders.indexWhere((o) => o.id == order.id);
+    if (i < 0) {
+      orders.insert(0, order);
+    } else {
+      orders[i] = _newest(orders[i], order);
+    }
+    state = AsyncData(
+      SellerOrders(orders: orders, nextOffset: current.nextOffset),
+    );
+  }
+}
+
+/// Version la plus récente d'une commande (`updated_at`) ; à égalité, celle
+/// qui vient d'arriver.
+SellerOrder _newest(SellerOrder? known, SellerOrder incoming) =>
+    known != null && known.updatedAt.isAfter(incoming.updatedAt)
+    ? known
+    : incoming;
+
+/// Une commande, pour son détail. Relue par l'écran (toutes les 30 s au
+/// premier plan) et mise à jour par chaque action, qui met aussi la liste à
+/// jour.
+final sellerOrderProvider = AsyncNotifierProvider.autoDispose
+    .family<SellerOrderController, SellerOrder, String>(
+      SellerOrderController.new,
+      retry: (_, _) => null,
+    );
+
+class SellerOrderController extends AsyncNotifier<SellerOrder> {
+  SellerOrderController(this.id);
+
+  final String id;
+
+  @override
+  Future<SellerOrder> build() async {
+    // Version de la liste en attendant : l'écran s'ouvre sans attendre.
+    final listed = ref
+        .read(sellerOrdersProvider)
+        .value
+        ?.orders
+        .where((o) => o.id == id)
+        .firstOrNull;
+    if (listed != null) {
+      Future.microtask(() => refresh().catchError((Object _) {}));
+      return listed;
+    }
+    return _fetch();
+  }
+
+  Future<SellerOrder> _fetch() async {
+    final order = await ref.read(apiClientProvider).sellerOrder(id);
+    ref.read(sellerOrdersProvider.notifier).replace(order);
+    return order;
+  }
+
+  /// Relit la commande ; une version plus récente déjà affichée (action
+  /// faite pendant la requête) est gardée.
+  Future<void> refresh() async {
+    final order = await _fetch();
+    if (!ref.mounted) return;
+    set(order);
+  }
+
+  /// Commande rendue par le serveur : affichée si elle est au moins aussi
+  /// récente, et reportée dans la liste.
+  void set(SellerOrder order) {
+    state = AsyncData(_newest(state.value, order));
+    ref.read(sellerOrdersProvider.notifier).replace(order);
+  }
+}
