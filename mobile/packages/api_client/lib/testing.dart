@@ -2198,3 +2198,276 @@ class FakePayments {
     if (payment['status'] == 'pending') _set(payment, 'failed', reason);
   }
 }
+
+/// Commandes vues par le marchand, fidèles au module `orders` : commandes
+/// payées seulement, transitions permises (sinon 409 `invalid_transition`),
+/// délai de 15 min pour accepter (passé, la commande est annulée à la
+/// requête suivante : le serveur, lui, l'annule par une tâche de fond lancée
+/// à l'heure limite, et accepte encore la commande tant qu'elle n'a pas
+/// tourné), code de remise compté
+/// avant comparaison et bloqué au 5e essai, boutique suspendue (403).
+class FakeSellerOrders {
+  FakeSellerOrders(this.server, {this.shopId = 's1'}) {
+    server
+      ..on('GET', '/v1/seller/orders', _list)
+      ..onPattern('GET', '/v1/seller/orders/([^/]+)', _get)
+      ..onPattern(
+        'POST',
+        '/v1/seller/orders/([^/]+)/(accept|reject|preparing|ready|handover)',
+        _action,
+      );
+  }
+
+  final FakeApiServer server;
+
+  /// Boutique du marchand : une autre est introuvable.
+  final String shopId;
+
+  /// Code de remise de toutes les commandes.
+  static const handoverCode = '4827';
+
+  /// Délai laissé au marchand pour accepter.
+  static const sellerTimeout = Duration(minutes: 15);
+
+  /// Commandes payées, de la plus ancienne à la plus récente.
+  final orders = <Map<String, dynamic>>[];
+
+  /// Prochaine erreur, une seule fois, pour la première requête dont
+  /// « MÉTHODE chemin » contient la clé.
+  final failures = <String, FakeResponse>{};
+
+  /// Attendu avant de répondre (réseau lent).
+  Future<void> Function(RecordedRequest request)? beforeRequest;
+
+  /// Boutique suspendue par l'admin : 403 `shop_suspended`.
+  var shopSuspended = false;
+
+  /// Heure du serveur.
+  DateTime Function() now = () => DateTime.now().toUtc();
+
+  var _number = 1041;
+
+  static String _uuid(int n) =>
+      'c0000000-0000-4000-8000-${n.toRadixString(16).padLeft(12, '0')}';
+
+  /// Ajoute une commande payée à l'instant ([paidAgo] plus tôt), à
+  /// accepter dans les 15 min qui suivent le paiement.
+  Map<String, dynamic> add({
+    String status = 'awaiting_seller',
+    String fulfillment = 'pickup',
+    String buyerFirstName = 'Koffi',
+    Duration paidAgo = Duration.zero,
+    int handoverAttempts = 0,
+    String cancelReason = '',
+    List<Map<String, dynamic>>? items,
+  }) {
+    final number = ++_number;
+    final paid = now().subtract(paidAgo);
+    final order = sellerOrderBody(
+      id: _uuid(number),
+      number: number,
+      shopId: shopId,
+      status: status,
+      fulfillment: fulfillment,
+      buyerFirstName: buyerFirstName,
+      paidAt: paid,
+      cancelReason: cancelReason,
+      handoverAttempts: handoverAttempts,
+      items: items,
+    );
+    // Créées dans l'ordre d'ajout, même ajoutées à la même seconde.
+    order['created_at'] = paid
+        .subtract(const Duration(minutes: 2))
+        .add(Duration(milliseconds: number))
+        .toIso8601String();
+    orders.add(order);
+    return order;
+  }
+
+  /// Commande [id] (pour les vérifications des tests).
+  Map<String, dynamic> byId(String id) =>
+      orders.firstWhere((o) => o['id'] == id);
+
+  /// Annulation par l'acheteur (avant l'acceptation) ou par l'admin.
+  void cancel(String id, String reason) =>
+      _set(byId(id), 'cancelled', reason: reason);
+
+  FakeResponse? _failure(RecordedRequest r) {
+    for (final key in failures.keys) {
+      if ('${r.method} ${r.path}'.contains(key)) return failures.remove(key);
+    }
+    return null;
+  }
+
+  /// Contrôles communs : réseau lent, panne programmée, boutique suspendue,
+  /// délais dépassés.
+  Future<FakeResponse?> _before(RecordedRequest r) async {
+    if (beforeRequest case final wait?) await wait(r);
+    if (_failure(r) case final f?) return f;
+    if (shopSuspended) {
+      return FakeResponse.error(
+        403,
+        'shop_suspended',
+        "Cette boutique est suspendue. Contactez l'équipe ivia.",
+      );
+    }
+    _expireLate();
+    return null;
+  }
+
+  void _expireLate() {
+    final at = now();
+    for (final o in orders) {
+      if (o['status'] != 'awaiting_seller') continue;
+      if (at.isAfter(DateTime.parse(o['seller_deadline_at'] as String))) {
+        _set(o, 'cancelled', reason: "Le marchand n'a pas répondu à temps.");
+      }
+    }
+  }
+
+  void _set(Map<String, dynamic> o, String status, {String? reason}) {
+    final at = now().toIso8601String();
+    o
+      ..['status'] = status
+      ..['updated_at'] = at;
+    switch (status) {
+      case 'accepted':
+        o['accepted_at'] = at;
+      case 'ready_for_pickup' || 'awaiting_driver':
+        o['ready_at'] = at;
+      case 'completed':
+        o['completed_at'] = at;
+      case 'cancelled':
+        o
+          ..['cancelled_at'] = at
+          ..['cancel_reason'] = reason ?? '';
+    }
+  }
+
+  static const _labels = {
+    'awaiting_seller': 'en attente du marchand',
+    'accepted': 'acceptée',
+    'preparing': 'en préparation',
+    'ready_for_pickup': 'prête à retirer',
+    'awaiting_driver': "en attente d'un livreur",
+    'driver_assigned': 'livreur en route vers la boutique',
+    'picked_up': 'en cours de livraison',
+    'delivered': 'livrée',
+    'delivery_failed': 'échec de livraison',
+    'returned_to_shop': 'revenue en boutique',
+    'completed': 'retirée',
+    'cancelled': 'annulée',
+    'refunded': 'remboursée',
+  };
+
+  static FakeResponse _invalid(Map<String, dynamic> o) => FakeResponse.error(
+    409,
+    'invalid_transition',
+    'Action impossible : la commande est « ${_labels[o['status']]} ».',
+  );
+
+  static final _notFound = FakeResponse.error(
+    404,
+    'order_not_found',
+    'Commande introuvable.',
+  );
+
+  Map<String, dynamic>? _find(String id) =>
+      orders.where((o) => o['id'] == id).firstOrNull;
+
+  Future<FakeResponse> _list(RecordedRequest r) async {
+    if (await _before(r) case final f?) return f;
+    if (r.query['shop_id'] case final id? when id != shopId) {
+      return FakeResponse.error(404, 'shop_not_found', 'Boutique introuvable.');
+    }
+    final offset = int.parse(r.query['offset'] ?? '0');
+    final limit = int.parse(r.query['limit'] ?? '20');
+    if (limit < 1 || limit > 100) {
+      return FakeResponse.error(
+        400,
+        'validation_failed',
+        'Certaines informations sont invalides.',
+        fields: {'limit': 'Entre 1 et 100.'},
+      );
+    }
+    final status = r.query['status'];
+    // Comme le serveur : les plus récentes d'abord (`created_at`).
+    final matching =
+        [
+          for (final o in orders)
+            if (status == null || o['status'] == status) o,
+        ]..sort(
+          (a, b) =>
+              (b['created_at'] as String).compareTo(a['created_at'] as String),
+        );
+    final page = matching.skip(offset).take(limit).toList();
+    final more = offset + limit < matching.length;
+    return FakeResponse.json(200, {
+      'items': [for (final o in page) Map<String, dynamic>.of(o)],
+      'next_offset': more ? offset + limit : null,
+    });
+  }
+
+  Future<FakeResponse> _get(RecordedRequest r) async {
+    if (await _before(r) case final f?) return f;
+    final order = _find(r.path.split('/').last);
+    if (order == null) return _notFound;
+    return FakeResponse.json(200, Map<String, dynamic>.of(order));
+  }
+
+  Future<FakeResponse> _action(RecordedRequest r) async {
+    if (await _before(r) case final f?) return f;
+    final parts = r.path.split('/');
+    final order = _find(parts[parts.length - 2]);
+    if (order == null) return _notFound;
+    final status = order['status'] as String;
+    switch (parts.last) {
+      case 'accept':
+        if (status != 'awaiting_seller') return _invalid(order);
+        _set(order, 'accepted');
+      case 'reject':
+        if (status != 'awaiting_seller') return _invalid(order);
+        final body = r.body as Map<String, dynamic>? ?? const {};
+        final reason = (body['reason'] as String? ?? '').trim();
+        _set(
+          order,
+          'cancelled',
+          reason: reason.isEmpty ? 'Refusée par le marchand.' : reason,
+        );
+      case 'preparing':
+        if (status != 'accepted') return _invalid(order);
+        _set(order, 'preparing');
+      case 'ready':
+        if (status != 'preparing') return _invalid(order);
+        _set(
+          order,
+          order['fulfillment'] == 'delivery'
+              ? 'awaiting_driver'
+              : 'ready_for_pickup',
+        );
+      case 'handover':
+        if (status != 'ready_for_pickup') return _invalid(order);
+        final locked = FakeResponse.error(
+          409,
+          'handover_locked',
+          "Trop d'essais : le code est bloqué. Contactez l'équipe ivia.",
+        );
+        // Essai compté avant la comparaison, comme le serveur.
+        final attempts = order['handover_attempts'] as int;
+        if (attempts >= maxHandoverAttempts) return locked;
+        order['handover_attempts'] = attempts + 1;
+        final body = r.body as Map<String, dynamic>? ?? const {};
+        if (body['code'] != handoverCode) {
+          if (attempts + 1 >= maxHandoverAttempts) return locked;
+          return FakeResponse.error(
+            422,
+            'handover_code_invalid',
+            'Code incorrect. Il reste '
+                '${maxHandoverAttempts - attempts - 1} essai(s).',
+          );
+        }
+        _set(order, 'completed');
+    }
+    return FakeResponse.json(200, Map<String, dynamic>.of(order));
+  }
+}

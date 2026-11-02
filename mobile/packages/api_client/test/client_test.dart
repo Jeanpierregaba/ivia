@@ -1191,6 +1191,245 @@ void main() {
     });
   });
 
+  group('faux serveur des commandes du marchand', () {
+    late FakeSellerOrders fake;
+    late DateTime clock;
+
+    setUp(() {
+      clock = DateTime.utc(2026, 11, 2, 14);
+      fake = FakeSellerOrders(server)..now = () => clock;
+    });
+
+    test('liste : plus récentes d\'abord, filtre, pagination', () async {
+      final first = fake.add();
+      final second = fake.add(status: 'preparing');
+      final third = fake.add();
+      var page = await client.sellerOrders(shopId: 's1');
+      expect(page.items.map((o) => o.id), [
+        third['id'],
+        second['id'],
+        first['id'],
+      ]);
+      expect(page.nextOffset, isNull);
+
+      page = await client.sellerOrders(status: OrderStatus.awaitingSeller);
+      expect(page.items.map((o) => o.id), [third['id'], first['id']]);
+
+      page = await client.sellerOrders(limit: 2);
+      expect(page.items, hasLength(2));
+      expect(page.nextOffset, 2);
+      page = await client.sellerOrders(offset: 2, limit: 2);
+      expect(page.items.single.id, first['id']);
+      expect(page.nextOffset, isNull);
+    });
+
+    test('autre boutique ou commande inconnue : 404', () async {
+      await expectLater(
+        client.sellerOrders(shopId: 's2'),
+        throwsA(
+          isA<ApiException>().having((e) => e.code, 'code', 'shop_not_found'),
+        ),
+      );
+      await expectLater(
+        client.sellerOrder('c0000000-0000-4000-8000-000000000999'),
+        throwsA(
+          isA<ApiException>().having((e) => e.code, 'code', 'order_not_found'),
+        ),
+      );
+    });
+
+    test('retrait : accepter, préparer, prête, code faux puis juste', () async {
+      final id = fake.add()['id'] as String;
+      expect((await client.acceptOrder(id)).status, OrderStatus.accepted);
+      expect(
+        (await client.startPreparingOrder(id)).status,
+        OrderStatus.preparing,
+      );
+      expect(
+        (await client.markOrderReady(id)).status,
+        OrderStatus.readyForPickup,
+      );
+      await expectLater(
+        client.handOverOrder(id, '0000'),
+        throwsA(
+          isA<ApiException>()
+              .having((e) => e.code, 'code', 'handover_code_invalid')
+              .having(
+                (e) => e.message,
+                'message',
+                'Code incorrect. Il reste 4 essai(s).',
+              ),
+        ),
+      );
+      final done = await client.handOverOrder(
+        id,
+        FakeSellerOrders.handoverCode,
+      );
+      expect(done.status, OrderStatus.completed);
+      expect(done.handoverAttempts, 2);
+      expect(done.completedAt, clock);
+    });
+
+    test('livraison : prête ⇒ recherche d\'un livreur', () async {
+      final id = fake.add(fulfillment: 'delivery')['id'] as String;
+      await client.acceptOrder(id);
+      await client.startPreparingOrder(id);
+      expect(
+        (await client.markOrderReady(id)).status,
+        OrderStatus.awaitingDriver,
+      );
+      await expectLater(
+        client.handOverOrder(id, FakeSellerOrders.handoverCode),
+        throwsA(
+          isA<ApiException>().having(
+            (e) => e.code,
+            'code',
+            'invalid_transition',
+          ),
+        ),
+      );
+    });
+
+    test(
+      'transitions interdites : invalid_transition avec le statut',
+      () async {
+        final id = fake.add()['id'] as String;
+        for (final call in [
+          () => client.startPreparingOrder(id),
+          () => client.markOrderReady(id),
+          () => client.handOverOrder(id, FakeSellerOrders.handoverCode),
+        ]) {
+          await expectLater(
+            call(),
+            throwsA(
+              isA<ApiException>()
+                  .having((e) => e.code, 'code', 'invalid_transition')
+                  .having(
+                    (e) => e.message,
+                    'message',
+                    contains('en attente du marchand'),
+                  ),
+            ),
+          );
+        }
+        await client.acceptOrder(id);
+        await expectLater(
+          client.acceptOrder(id),
+          throwsA(
+            isA<ApiException>().having(
+              (e) => e.code,
+              'code',
+              'invalid_transition',
+            ),
+          ),
+        );
+        await expectLater(
+          client.rejectOrder(id, 'Boutique fermée'),
+          throwsA(
+            isA<ApiException>().having(
+              (e) => e.code,
+              'code',
+              'invalid_transition',
+            ),
+          ),
+        );
+      },
+    );
+
+    test('refus : motif gardé, ou motif par défaut', () async {
+      final a = fake.add()['id'] as String;
+      final b = fake.add()['id'] as String;
+      final refused = await client.rejectOrder(a, 'Boutique fermée');
+      expect(refused.status, OrderStatus.cancelled);
+      expect(refused.cancelReason, 'Boutique fermée');
+      expect(
+        (await client.rejectOrder(b, '  ')).cancelReason,
+        'Refusée par le marchand.',
+      );
+    });
+
+    test('délai de 15 min dépassé : annulée, plus acceptable', () async {
+      final id = fake.add()['id'] as String;
+      clock = clock.add(const Duration(minutes: 15));
+      expect((await client.sellerOrder(id)).status, OrderStatus.awaitingSeller);
+      clock = clock.add(const Duration(seconds: 1));
+      final late = await client.sellerOrder(id);
+      expect(late.status, OrderStatus.cancelled);
+      expect(late.cancelReason, "Le marchand n'a pas répondu à temps.");
+      await expectLater(
+        client.acceptOrder(id),
+        throwsA(
+          isA<ApiException>().having(
+            (e) => e.code,
+            'code',
+            'invalid_transition',
+          ),
+        ),
+      );
+    });
+
+    test('code : bloqué au 5e essai faux, même avec le bon ensuite', () async {
+      final id =
+          fake.add(status: 'ready_for_pickup', handoverAttempts: 3)['id']
+              as String;
+      await expectLater(
+        client.handOverOrder(id, '1111'),
+        throwsA(
+          isA<ApiException>().having(
+            (e) => e.message,
+            'message',
+            'Code incorrect. Il reste 1 essai(s).',
+          ),
+        ),
+      );
+      for (final code in ['2222', FakeSellerOrders.handoverCode]) {
+        await expectLater(
+          client.handOverOrder(id, code),
+          throwsA(
+            isA<ApiException>().having(
+              (e) => e.code,
+              'code',
+              'handover_locked',
+            ),
+          ),
+        );
+      }
+      final locked = await client.sellerOrder(id);
+      expect(locked.handoverAttempts, 5);
+      expect(locked.isHandoverLocked, isTrue);
+      expect(locked.status, OrderStatus.readyForPickup);
+    });
+
+    test('annulée par l\'acheteur, boutique suspendue, panne', () async {
+      final id = fake.add()['id'] as String;
+      fake.cancel(id, "Annulée par l'acheteur.");
+      await expectLater(
+        client.acceptOrder(id),
+        throwsA(
+          isA<ApiException>().having(
+            (e) => e.message,
+            'message',
+            contains('annulée'),
+          ),
+        ),
+      );
+      fake.failures['GET /v1/seller/orders'] = FakeResponse.error(
+        500,
+        'internal',
+        'Erreur.',
+      );
+      await expectLater(client.sellerOrders(), throwsA(isA<ApiException>()));
+      expect((await client.sellerOrders()).items, hasLength(1));
+      fake.shopSuspended = true;
+      await expectLater(
+        client.sellerOrders(),
+        throwsA(
+          isA<ApiException>().having((e) => e.code, 'code', 'shop_suspended'),
+        ),
+      );
+    });
+  });
+
   group('paiements', () {
     late FakeOrders orders;
     late FakePayments payments;

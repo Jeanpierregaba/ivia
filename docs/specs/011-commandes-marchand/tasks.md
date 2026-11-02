@@ -5,7 +5,7 @@
 - [x] 1. `api_client` : modèle `SellerOrder` (+ `OrderItem.stockMode`) et routes marchand
       (`sellerOrders`, `sellerOrder`, `acceptOrder`, `rejectOrder`, `startPreparingOrder`,
       `markOrderReady`, `handOverOrder`), tests du client.
-- [ ] 2. `api_client` : faux serveur `FakeSellerOrders` fidèle au module `orders` (transitions,
+- [x] 2. `api_client` : faux serveur `FakeSellerOrders` fidèle au module `orders` (transitions,
       `invalid_transition`, délai de 15 min, 5 essais de code, `handover_locked`, filtres,
       pagination, pannes) et ses tests.
 - [ ] 3. `ui` : `IviaCountdown` et pastille `IviaNavItem.badge`, tests (défilement, ton,
