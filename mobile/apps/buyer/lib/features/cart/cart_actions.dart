@@ -4,6 +4,7 @@ import 'package:go_router/go_router.dart';
 import 'package:ivia_api_client/ivia_api_client.dart';
 import 'package:ivia_ui/ivia_ui.dart';
 
+import '../../app/messages.dart';
 import '../../app/cart.dart';
 import '../../app/router.dart';
 
@@ -18,29 +19,6 @@ String cartErrorMessage(Object error) => switch (error) {
   // Réponse inattendue (forme changée…) : message générique.
   _ => const ApiException.unknown().message,
 };
-
-/// Message en bas de l'écran. Avec une action, il disparaît quand même
-/// après quelques secondes (sinon il suivrait l'acheteur d'écran en écran),
-/// sauf avec une aide à la navigation (lecteur d'écran, contrôle de
-/// sélection), qui laisse le temps d'y arriver.
-void showCartMessage(
-  ScaffoldMessengerState messenger,
-  String message, {
-  SnackBarAction? action,
-}) {
-  final assisted =
-      MediaQuery.maybeAccessibleNavigationOf(messenger.context) ?? false;
-  messenger
-    ..hideCurrentSnackBar()
-    ..showSnackBar(
-      SnackBar(
-        content: Text(message),
-        action: action,
-        persist: action != null && assisted,
-        duration: const Duration(seconds: 6),
-      ),
-    );
-}
 
 /// « Vider le panier ? » ; [adding] : pour ajouter un produit d'une autre
 /// boutique. `true` : confirmé.
@@ -126,7 +104,7 @@ Future<bool> addToCart(
     await controller.add(productId, count);
   } on ApiException catch (e) {
     if (e.code != 'cart_shop_conflict') {
-      showCartMessage(messenger, cartErrorMessage(e));
+      showMessage(messenger, cartErrorMessage(e));
       return false;
     }
     final root = router.routerDelegate.navigatorKey.currentContext;
@@ -140,14 +118,14 @@ Future<bool> addToCart(
     try {
       await controller.add(productId, count, replaceCart: true);
     } catch (e) {
-      showCartMessage(messenger, cartErrorMessage(e));
+      showMessage(messenger, cartErrorMessage(e));
       return false;
     }
   } catch (e) {
-    showCartMessage(messenger, cartErrorMessage(e));
+    showMessage(messenger, cartErrorMessage(e));
     return false;
   }
-  showCartMessage(
+  showMessage(
     messenger,
     count == 1 ? '$name ajouté au panier' : '$count × $name ajoutés au panier',
     action: SnackBarAction(

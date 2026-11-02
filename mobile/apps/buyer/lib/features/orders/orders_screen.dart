@@ -6,7 +6,7 @@ import 'package:ivia_app_core/ivia_app_core.dart';
 import 'package:ivia_ui/ivia_ui.dart';
 
 import '../../app/router.dart';
-import '../cart/cart_actions.dart' show showCartMessage;
+import '../../app/messages.dart';
 import 'order_labels.dart';
 import 'orders_providers.dart';
 
@@ -26,7 +26,7 @@ class _OrdersScreenState extends ConsumerState<OrdersScreen> {
     try {
       await ref.read(myOrdersProvider.notifier).refresh();
     } catch (_) {
-      showCartMessage(
+      showMessage(
         messenger,
         'Commandes non actualisées. Vérifiez votre connexion.',
       );
@@ -117,7 +117,9 @@ class _OrdersScreenState extends ConsumerState<OrdersScreen> {
         Semantics(
           header: true,
           child: Text(
-            'RÉCEMMENT',
+            // Capitales à l'affichage seulement : lu « Récemment ».
+            'Récemment'.toUpperCase(),
+            semanticsLabel: 'Récemment',
             style: Theme.of(context).textTheme.labelLarge
                 ?.copyWith(color: IviaColors.textMuted, letterSpacing: 1.2),
           ),

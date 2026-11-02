@@ -22,4 +22,5 @@
 - [ ] Parcours réel sur le simulateur iPhone 17 Pro contre l'API locale (commande, paiement
   simulé par le serveur, acceptation et « prête » par le marchand, code)
 - [ ] Vérifier tous les critères d'acceptation de spec.md
-- [ ] Relecture par le sous-agent reviewer
+- [x] Relecture par le sous-agent reviewer : 1 bloquant (retour pendant « Payer »), 6 importants et
+  les mineurs corrigés et testés

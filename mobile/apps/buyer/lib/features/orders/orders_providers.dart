@@ -94,11 +94,13 @@ class MyOrders extends AsyncNotifier<OrdersState> {
   }
 
   /// Relit la première page ; un échec garde la liste affichée (et lève
-  /// l'erreur).
+  /// l'erreur). La génération ne change qu'au succès : une suite en cours
+  /// est alors ignorée (la liste relue la remplace) ; sinon elle aboutit.
   Future<void> refresh() async {
-    final generation = ++_generation;
+    final generation = _generation;
     final page = await _client.myOrders(limit: ordersPageSize);
     if (!ref.mounted || generation != _generation) return;
+    _generation++;
     state = AsyncData(
       OrdersState(
         account: _account,
@@ -142,6 +144,8 @@ class MyOrders extends AsyncNotifier<OrdersState> {
     final current = state.value;
     if (current == null || current.account != _account) return;
     final i = current.items.indexWhere((o) => o.id == order.id);
+    // Version plus ancienne que celle de la liste : ignorée.
+    if (i >= 0 && order.updatedAt.isBefore(current.items[i].updatedAt)) return;
     state = AsyncData(
       current.copyWith(
         items: i < 0 ? [order, ...current.items] : [...current.items]
@@ -184,11 +188,20 @@ class OrderController extends AsyncNotifier<BuyerOrder> {
     }
   }
 
+  /// Relecture en cours, partagée : jamais deux à la fois (relecture
+  /// régulière et « tirer pour actualiser »).
+  Future<void>? _loading;
+
   /// Relit la commande ; un échec garde la version affichée (et lève
-  /// l'erreur).
-  Future<void> refresh() async {
+  /// l'erreur). Une version plus ancienne que l'affichée est ignorée.
+  Future<void> refresh() =>
+      _loading ??= _load().whenComplete(() => _loading = null);
+
+  Future<void> _load() async {
     final order = await _client.myOrder(id);
     if (!ref.mounted) return;
+    final shown = state.value;
+    if (shown != null && order.updatedAt.isBefore(shown.updatedAt)) return;
     state = AsyncData(order);
     _share(order);
   }

@@ -9,8 +9,9 @@ import 'package:ivia_ui/ivia_ui.dart';
 
 import '../../app/cart.dart';
 import '../../app/router.dart';
-import '../cart/cart_actions.dart' show showCartMessage;
+import '../../app/messages.dart';
 import '../orders/order_labels.dart';
+import '../orders/order_parts.dart';
 import '../orders/orders_providers.dart';
 import '../shop/shop_screen.dart' show publicShopProvider;
 
@@ -43,11 +44,42 @@ class _CheckoutScreenState extends ConsumerState<CheckoutScreen> {
   final _requestId = newRequestId();
   var _placing = false;
 
-  void _backToCart() {
-    unawaited(
-      ref.read(cartProvider.notifier).refresh().catchError((Object _) {}),
-    );
-    context.pop();
+  /// Issue inconnue (réseau coupé, réponse inattendue) : la commande a pu
+  /// être créée et le panier vidé. Le panier est relu à la sortie de
+  /// l'écran, pour ne jamais recommander un panier périmé.
+  var _uncertain = false;
+
+  late final CartController _cart = ref.read(cartProvider.notifier);
+  late final ProviderContainer _container = ProviderScope.containerOf(
+    context,
+    listen: false,
+  );
+
+  @override
+  void initState() {
+    super.initState();
+    // Lus ici : ils servent encore après la fermeture de l'écran.
+    _cart;
+    _container;
+  }
+
+  @override
+  void dispose() {
+    if (_uncertain) _refreshCart();
+    super.dispose();
+  }
+
+  void _refreshCart() => unawaited(_cart.refresh().catchError((Object _) {}));
+
+  /// « Revenir au panier » : panier relu ; l'écran se ferme s'il est encore
+  /// ouvert, sinon le panier s'ouvre.
+  void _backToCart(GoRouter router) {
+    _refreshCart();
+    if (mounted) {
+      context.pop();
+    } else if (router.state.matchedLocation != Routes.cart) {
+      router.push(Routes.cart);
+    }
   }
 
   Future<void> _pay() async {
@@ -66,30 +98,42 @@ class _CheckoutScreenState extends ConsumerState<CheckoutScreen> {
         await Future<void>.delayed(const Duration(seconds: 1));
         order = await client.createOrder(clientRequestId: _requestId);
       }
-      if (!mounted) return;
-      // Panier vidé par le serveur ; la liste des commandes la reçoit.
-      unawaited(
-        ref.read(cartProvider.notifier).refresh().catchError((Object _) {}),
-      );
-      if (ref.exists(myOrdersProvider)) {
-        ref.read(myOrdersProvider.notifier).put(order);
+      _uncertain = false;
+      // Même si l'écran a été quitté : panier vidé par le serveur, liste
+      // des commandes à jour.
+      _refreshCart();
+      if (_container.exists(myOrdersProvider)) {
+        _container.read(myOrdersProvider.notifier).put(order);
       }
-      router.go(Routes.order(order.id));
+      if (mounted) {
+        router.go(Routes.order(order.id));
+      } else {
+        showMessage(
+          messenger,
+          'Commande #${order.number} passée.',
+          action: SnackBarAction(
+            label: 'Voir',
+            onPressed: () => router.go(Routes.order(order.id)),
+          ),
+        );
+      }
     } on ApiException catch (e) {
-      if (!mounted) return;
-      showCartMessage(
+      if (e.isNetwork) _uncertain = true;
+      showMessage(
         messenger,
         e.code == 'shop_closed'
             ? 'Cette boutique ne prend pas de commandes pour l’instant.'
             : e.message,
         action: _cartRefusals.contains(e.code)
-            ? SnackBarAction(label: 'Revenir au panier', onPressed: _backToCart)
+            ? SnackBarAction(
+                label: 'Revenir au panier',
+                onPressed: () => _backToCart(router),
+              )
             : null,
       );
     } catch (_) {
-      if (mounted) {
-        showCartMessage(messenger, const ApiException.unknown().message);
-      }
+      _uncertain = true;
+      showMessage(messenger, const ApiException.unknown().message);
     } finally {
       if (mounted) setState(() => _placing = false);
     }
@@ -99,72 +143,76 @@ class _CheckoutScreenState extends ConsumerState<CheckoutScreen> {
   Widget build(BuildContext context) {
     final quote = ref.watch(checkoutQuoteProvider);
     final textTheme = Theme.of(context).textTheme;
-    return Scaffold(
-      body: SafeArea(
-        bottom: false,
-        child: ListView(
-          padding: const EdgeInsets.fromLTRB(
-            IviaSpacing.screen,
-            IviaSpacing.screen,
-            IviaSpacing.screen,
-            IviaSpacing.xxl,
-          ),
-          children: [
-            Align(
-              alignment: Alignment.centerLeft,
-              child: IviaBackButton(
-                onPressed: _placing ? null : () => context.pop(),
+    // Pas de retour pendant l'envoi : l'issue de « Payer » doit être connue.
+    return PopScope(
+      canPop: !_placing,
+      child: Scaffold(
+        body: SafeArea(
+          bottom: false,
+          child: ListView(
+            padding: const EdgeInsets.fromLTRB(
+              IviaSpacing.screen,
+              IviaSpacing.screen,
+              IviaSpacing.screen,
+              IviaSpacing.xxl,
+            ),
+            children: [
+              Align(
+                alignment: Alignment.centerLeft,
+                child: IviaBackButton(
+                  onPressed: _placing ? null : () => context.pop(),
+                ),
               ),
-            ),
-            const SizedBox(height: IviaSpacing.md),
-            Semantics(
-              header: true,
-              child: Text('Commande', style: textTheme.headlineSmall),
-            ),
-            const SizedBox(height: IviaSpacing.lg),
-            ...switch (quote) {
-              AsyncData(:final value) => _content(value),
-              AsyncError(:final error) => [
-                _QuoteError(
-                  error: error,
-                  onRetry: () => ref.invalidate(checkoutQuoteProvider),
-                  onBack: _backToCart,
-                ),
-              ],
-              _ => const [
-                Padding(
-                  padding: EdgeInsets.all(IviaSpacing.xxl),
-                  child: Center(child: CircularProgressIndicator()),
-                ),
-              ],
-            },
-          ],
+              const SizedBox(height: IviaSpacing.md),
+              Semantics(
+                header: true,
+                child: Text('Commande', style: textTheme.headlineSmall),
+              ),
+              const SizedBox(height: IviaSpacing.lg),
+              ...switch (quote) {
+                AsyncData(:final value) => _content(value),
+                AsyncError(:final error) => [
+                  _QuoteError(
+                    error: error,
+                    onRetry: () => ref.invalidate(checkoutQuoteProvider),
+                    onBack: () => _backToCart(GoRouter.of(context)),
+                  ),
+                ],
+                _ => const [
+                  Padding(
+                    padding: EdgeInsets.all(IviaSpacing.xxl),
+                    child: Center(child: CircularProgressIndicator()),
+                  ),
+                ],
+              },
+            ],
+          ),
         ),
+        bottomNavigationBar: switch (quote) {
+          AsyncData(:final value) => SafeArea(
+            top: false,
+            minimum: const EdgeInsets.fromLTRB(
+              IviaSpacing.screen,
+              IviaSpacing.sm,
+              IviaSpacing.screen,
+              IviaSpacing.screen,
+            ),
+            child: FilledButton(
+              onPressed: _placing ? null : _pay,
+              child: _placing
+                  ? const SizedBox.square(
+                      dimension: 24,
+                      child: CircularProgressIndicator(
+                        strokeWidth: 2,
+                        semanticsLabel: 'Commande en cours',
+                      ),
+                    )
+                  : Text('Payer ${formatXof(value.totalXof)}'),
+            ),
+          ),
+          _ => null,
+        },
       ),
-      bottomNavigationBar: switch (quote) {
-        AsyncData(:final value) => SafeArea(
-          top: false,
-          minimum: const EdgeInsets.fromLTRB(
-            IviaSpacing.screen,
-            IviaSpacing.sm,
-            IviaSpacing.screen,
-            IviaSpacing.screen,
-          ),
-          child: FilledButton(
-            onPressed: _placing ? null : _pay,
-            child: _placing
-                ? const SizedBox.square(
-                    dimension: 24,
-                    child: CircularProgressIndicator(
-                      strokeWidth: 2,
-                      semanticsLabel: 'Commande en cours',
-                    ),
-                  )
-                : Text('Payer ${formatXof(value.totalXof)}'),
-          ),
-        ),
-        _ => null,
-      },
     );
   }
 
@@ -212,7 +260,7 @@ class _CheckoutScreenState extends ConsumerState<CheckoutScreen> {
       ),
       const SizedBox(height: IviaSpacing.lg),
       if (shop != null) ...[
-        _Card(
+        OrderCard(
           child: Row(
             children: [
               SizedBox.square(
@@ -250,23 +298,23 @@ class _CheckoutScreenState extends ConsumerState<CheckoutScreen> {
         ),
         const SizedBox(height: IviaSpacing.lg),
       ],
-      _Card(
+      OrderCard(
         child: Column(
           crossAxisAlignment: CrossAxisAlignment.stretch,
           children: [
             for (final item in quote.items)
-              _AmountRow(
+              AmountRow(
                 label: '${item.quantity} × ${item.name}',
                 amount: formatXof(item.lineTotalXof),
               ),
             const Divider(height: IviaSpacing.xl),
-            _AmountRow(
+            AmountRow(
               label: 'Produits · ${articles(quote.articleCount)}',
               amount: formatXof(quote.subtotalXof),
             ),
-            _AmountRow(label: 'Retrait en boutique', amount: 'Gratuit'),
+            AmountRow(label: 'Retrait en boutique', amount: 'Gratuit'),
             const SizedBox(height: IviaSpacing.sm),
-            _AmountRow(
+            AmountRow(
               label: 'Total',
               amount: formatXof(quote.totalXof),
               strong: true,
@@ -297,55 +345,6 @@ class _CheckoutScreenState extends ConsumerState<CheckoutScreen> {
   }
 }
 
-/// Carte blanche.
-class _Card extends StatelessWidget {
-  const _Card({required this.child});
-
-  final Widget child;
-
-  @override
-  Widget build(BuildContext context) => Container(
-    padding: const EdgeInsets.all(IviaSpacing.lg),
-    decoration: BoxDecoration(
-      color: IviaColors.surface,
-      borderRadius: BorderRadius.circular(IviaRadius.large),
-    ),
-    child: child,
-  );
-}
-
-/// Ligne « libellé … montant » du récapitulatif.
-class _AmountRow extends StatelessWidget {
-  const _AmountRow({
-    required this.label,
-    required this.amount,
-    this.strong = false,
-  });
-
-  final String label;
-  final String amount;
-  final bool strong;
-
-  @override
-  Widget build(BuildContext context) {
-    final textTheme = Theme.of(context).textTheme;
-    final style = strong
-        ? textTheme.titleLarge?.copyWith(fontWeight: FontWeight.w700)
-        : textTheme.bodyLarge;
-    return Padding(
-      padding: const EdgeInsets.symmetric(vertical: IviaSpacing.xs),
-      child: Row(
-        crossAxisAlignment: CrossAxisAlignment.start,
-        children: [
-          Expanded(child: Text(label, style: style)),
-          const SizedBox(width: IviaSpacing.md),
-          Text(amount, style: style?.copyWith(fontWeight: FontWeight.w700)),
-        ],
-      ),
-    );
-  }
-}
-
 /// Mode de remise : titre, rond de sélection, description ; « Bientôt »
 /// pour un mode pas encore ouvert.
 class _ModeCard extends StatelessWidget {
@@ -367,7 +366,7 @@ class _ModeCard extends StatelessWidget {
     final brand = IviaAppBrand.of(context);
     return Semantics(
       inMutuallyExclusiveGroup: true,
-      selected: selected,
+      checked: selected,
       enabled: !soon,
       label: [title, body, if (soon) 'bientôt disponible'].join(', '),
       excludeSemantics: true,
@@ -438,7 +437,10 @@ class _QuoteError extends StatelessWidget {
 
   @override
   Widget build(BuildContext context) {
-    final refused = error is ApiException && !(error as ApiException).isNetwork;
+    // Refus venu du panier : on y retourne ; autre erreur : nouvel essai.
+    final refused =
+        error is ApiException &&
+        _cartRefusals.contains((error as ApiException).code);
     final message = switch (error) {
       ApiException(code: 'shop_closed') =>
         'Cette boutique ne prend pas de commandes pour l’instant.',

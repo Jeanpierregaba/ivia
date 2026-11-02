@@ -7,6 +7,7 @@ import 'package:ivia_api_client/ivia_api_client.dart';
 import 'package:ivia_app_core/ivia_app_core.dart';
 import 'package:ivia_ui/ivia_ui.dart';
 
+import '../../app/messages.dart';
 import '../../app/cart.dart';
 import '../../app/router.dart';
 import 'cart_actions.dart';
@@ -44,10 +45,7 @@ class _CartScreenState extends ConsumerState<CartScreen> {
     try {
       await _controller.refresh();
     } catch (_) {
-      showCartMessage(
-        messenger,
-        'Panier non actualisé. Vérifiez votre connexion.',
-      );
+      showMessage(messenger, 'Panier non actualisé. Vérifiez votre connexion.');
     }
   }
 
@@ -63,7 +61,7 @@ class _CartScreenState extends ConsumerState<CartScreen> {
     try {
       await controller.clear();
     } catch (e) {
-      showCartMessage(messenger, cartErrorMessage(e));
+      showMessage(messenger, cartErrorMessage(e));
     }
   }
 
@@ -256,11 +254,11 @@ Future<void> setCartLine(
   try {
     await controller.setQuantity(item.productId, quantity);
   } catch (e) {
-    showCartMessage(messenger, cartErrorMessage(e));
+    showMessage(messenger, cartErrorMessage(e));
     return;
   }
   if (quantity != 0) return;
-  showCartMessage(
+  showMessage(
     messenger,
     '${item.name} retiré du panier',
     action: undoTo == null

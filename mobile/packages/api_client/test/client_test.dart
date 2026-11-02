@@ -934,10 +934,7 @@ void main() {
         OrderStatus.cancelled,
       ]);
 
-      await expectLater(
-        client.myOrder('inconnue'),
-        apiError('order_not_found'),
-      );
+      await expectLater(client.myOrder('inconnue'), apiError('not_found'));
       // Commande d'un autre compte : introuvable.
       client.token = 'jeton-kofi';
       await expectLater(
@@ -945,6 +942,26 @@ void main() {
         apiError('order_not_found'),
       );
       expect((await client.myOrders()).items, isEmpty);
+    });
+
+    test('réponse perdue après la création, puis limite de débit', () async {
+      final id = newRequestId();
+      orders.loseNextCreateResponse = true;
+      await expectLater(
+        client.createOrder(clientRequestId: id),
+        throwsA(isA<ApiException>().having((e) => e.isNetwork, 'réseau', true)),
+      );
+      // Créée malgré tout : le nouvel essai la rend, même limité.
+      expect(orders.orders, hasLength(1));
+      orders.rateLimited = true;
+      final again = await client.createOrder(clientRequestId: id);
+      expect(again.id, orders.orders.single['id']);
+      cart.put(riz, 1);
+      await expectLater(
+        client.createOrder(clientRequestId: newRequestId()),
+        apiError('rate_limited'),
+      );
+      expect(again.updatedAt, again.createdAt);
     });
 
     test('statut inconnu de cette version : en cours, sans planter', () {

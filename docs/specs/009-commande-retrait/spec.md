@@ -91,7 +91,13 @@ rafraîchissement par notification la 013 et la 012.
 - **Commande d'un autre compte** (lien, autre compte sur le téléphone) : 404, « Cette commande
   n'est plus disponible. » ; la liste est relue au changement de compte.
 - **Délai de paiement dépassé** pendant que le suivi est ouvert : la relecture affiche « Paiement
-  expiré ».
+  expiré », et continue 10 minutes après l'heure limite (un paiement arrivé en retard reprend la
+  commande).
+- **Retour pendant « Payer »** : bloqué jusqu'à la réponse ; si l'écran est quitté après une
+  coupure, le panier est relu (la commande a pu être créée et le panier vidé).
+- **Relecture** : jamais en arrière-plan ni sous un autre écran ; au retour dans l'app, la commande
+  est relue aussitôt, quel que soit son statut. Une réponse plus ancienne que la version affichée
+  est ignorée.
 - **Police à 200 %, écran de 320 dp** : rien n'est masqué ; le code reste sur une ligne.
 
 ## Hors périmètre

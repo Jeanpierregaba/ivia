@@ -11,7 +11,7 @@ import '../../app/cart.dart';
 import '../../app/router.dart';
 import '../cart/cart_actions.dart';
 import '../cart/cart_button.dart' show CartButton;
-import '../shop/shop_screen.dart' show UnavailableView;
+import '../common/unavailable_view.dart';
 
 /// Fiche publique d'un produit, avec sa boutique.
 final publicProductProvider = FutureProvider.autoDispose

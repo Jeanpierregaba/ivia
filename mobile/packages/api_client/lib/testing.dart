@@ -1235,6 +1235,14 @@ class FakeOrders {
   var profileComplete = true;
   var paymentTimeoutMinutes = 15;
 
+  /// Limite de débit atteinte : `rate_limited` (après le contrôle
+  /// d'idempotence, avant celui du profil, comme le serveur).
+  var rateLimited = false;
+
+  /// La prochaine commande est créée, mais sa réponse se perd (coupure
+  /// réseau après l'enregistrement).
+  var loseNextCreateResponse = false;
+
   /// Heure du serveur.
   DateTime Function() now = () => DateTime.now().toUtc();
 
@@ -1370,6 +1378,59 @@ class FakeOrders {
     'picked_up',
   };
 
+  /// Commande en attente de paiement, comme le serveur l'enregistre.
+  Map<String, dynamic> _newOrder({
+    required String shopId,
+    required List<Map<String, dynamic>> items,
+    required String fulfillment,
+    required DateTime created,
+    required String? requestId,
+  }) {
+    final number = ++_number;
+    final total = items.fold(0, (n, i) => n + (i['line_total_xof'] as int));
+    final at = created.toIso8601String();
+    return {
+      'id':
+          'b0000000-0000-4000-8000-${number.toRadixString(16).padLeft(12, '0')}',
+      'number': number,
+      'reference': 'IV-${number.toString().padLeft(6, '0')}',
+      'status': 'pending_payment',
+      'fulfillment': fulfillment,
+      'vehicle_type': null,
+      'parcel_size': 'medium',
+      'subtotal_xof': total,
+      'delivery_fee_xof': 0,
+      'total_xof': total,
+      'delivery_address': null,
+      'cancel_reason': '',
+      'payment_deadline_at': created
+          .add(Duration(minutes: paymentTimeoutMinutes))
+          .toIso8601String(),
+      'seller_deadline_at': null,
+      'paid_at': null,
+      'accepted_at': null,
+      'ready_at': null,
+      'picked_up_at': null,
+      'completed_at': null,
+      'cancelled_at': null,
+      'refunded_at': null,
+      'created_at': at,
+      'updated_at': at,
+      'items': items,
+      'events': <Map<String, dynamic>>[
+        {
+          'from_status': null,
+          'to_status': 'pending_payment',
+          'actor_type': 'buyer',
+          'reason': '',
+          'created_at': at,
+        },
+      ],
+      'shop_id': shopId,
+      'client_request_id': requestId,
+    };
+  }
+
   /// La commande telle que l'acheteur la voit.
   Map<String, dynamic> view(Map<String, dynamic> order) => {
     ...order,
@@ -1393,6 +1454,13 @@ class FakeOrders {
           .firstOrNull;
       if (same != null) return FakeResponse.json(201, view(same));
     }
+    if (rateLimited) {
+      return FakeResponse.error(
+        429,
+        'rate_limited',
+        'Trop de commandes en peu de temps. Réessayez plus tard.',
+      );
+    }
     if (!profileComplete) {
       return _conflict(
         'profile_incomplete',
@@ -1412,61 +1480,26 @@ class FakeOrders {
             (p['stock_quantity'] as int) - (item['quantity'] as int);
       }
     }
-    final created = now();
-    final number = ++_number;
-    final id =
-        'b0000000-0000-4000-8000-${number.toRadixString(16).padLeft(12, '0')}';
-    final order = <String, dynamic>{
-      'id': id,
-      'number': number,
-      'reference': 'IV-${number.toString().padLeft(6, '0')}',
-      'status': 'pending_payment',
-      'fulfillment': input['fulfillment'],
-      'vehicle_type': null,
-      'parcel_size': quote['parcel_size'],
-      'subtotal_xof': quote['subtotal_xof'],
-      'delivery_fee_xof': 0,
-      'total_xof': quote['total_xof'],
-      'delivery_address': null,
-      'cancel_reason': '',
-      'payment_deadline_at': created
-          .add(Duration(minutes: paymentTimeoutMinutes))
-          .toIso8601String(),
-      'seller_deadline_at': null,
-      'paid_at': null,
-      'accepted_at': null,
-      'ready_at': null,
-      'picked_up_at': null,
-      'completed_at': null,
-      'cancelled_at': null,
-      'refunded_at': null,
-      'created_at': created.toIso8601String(),
-      'updated_at': created.toIso8601String(),
-      'items': [
+    final order = _newOrder(
+      shopId: quote['shop_id'] as String,
+      items: [
         for (final item in quote['items'] as List)
-          {
-            for (final MapEntry(:key, :value)
-                in (item as Map<String, dynamic>).entries)
-              key: value,
-          },
+          Map<String, dynamic>.of(item as Map<String, dynamic>),
       ],
-      'events': <Map<String, dynamic>>[
-        {
-          'from_status': null,
-          'to_status': 'pending_payment',
-          'actor_type': 'buyer',
-          'reason': '',
-          'created_at': created.toIso8601String(),
-        },
-      ],
-      'shop_id': quote['shop_id'],
-      'client_request_id': requestId,
-    };
+      fulfillment: input['fulfillment'] as String,
+      created: now(),
+      requestId: requestId,
+    );
+    final id = order['id'] as String;
     orders.add(order);
     _buyerOf[id] = auth;
     cart
       ..shopId = null
       ..lines.clear();
+    if (loseNextCreateResponse) {
+      loseNextCreateResponse = false;
+      return FakeResponse.networkError();
+    }
     return FakeResponse.json(201, view(order));
   }
 
@@ -1478,56 +1511,27 @@ class FakeOrders {
     String status = 'pending_payment',
     DateTime? at,
   }) {
-    final created = at ?? now();
-    final number = ++_number;
-    var total = 0;
-    final items = [
-      for (final (p, qty) in lines)
-        {
-          'product_id': p['id'],
-          'product_name': p['name'],
-          'unit_price_xof': p['price_xof'],
-          'quantity': qty,
-          'line_total_xof': (p['price_xof'] as int) * qty,
-          'parcel_size': p['parcel_size'],
-          'stock_mode': p['stock_mode'],
-        },
-    ];
-    for (final i in items) {
-      total += i['line_total_xof']! as int;
-    }
-    final order = <String, dynamic>{
-      'id':
-          'b0000000-0000-4000-8000-${number.toRadixString(16).padLeft(12, '0')}',
-      'number': number,
-      'reference': 'IV-${number.toString().padLeft(6, '0')}',
-      'status': 'pending_payment',
-      'fulfillment': 'pickup',
-      'vehicle_type': null,
-      'parcel_size': 'medium',
-      'subtotal_xof': total,
-      'delivery_fee_xof': 0,
-      'total_xof': total,
-      'delivery_address': null,
-      'cancel_reason': '',
-      'payment_deadline_at': created
-          .add(Duration(minutes: paymentTimeoutMinutes))
-          .toIso8601String(),
-      'created_at': created.toIso8601String(),
-      'updated_at': created.toIso8601String(),
-      'items': items,
-      'events': <Map<String, dynamic>>[
-        {
-          'from_status': null,
-          'to_status': 'pending_payment',
-          'actor_type': 'buyer',
-          'reason': '',
-          'created_at': created.toIso8601String(),
-        },
+    // Passée depuis 5 minutes par défaut : ses étapes sont dans le passé,
+    // avant toute étape ajoutée ensuite par [advance].
+    final created = at ?? now().subtract(const Duration(minutes: 5));
+    final order = _newOrder(
+      shopId: shop['id'] as String,
+      items: [
+        for (final (p, qty) in lines)
+          {
+            'product_id': p['id'],
+            'product_name': p['name'],
+            'unit_price_xof': p['price_xof'],
+            'quantity': qty,
+            'line_total_xof': (p['price_xof'] as int) * qty,
+            'parcel_size': p['parcel_size'],
+            'stock_mode': p['stock_mode'],
+          },
       ],
-      'shop_id': shop['id'],
-      'client_request_id': null,
-    };
+      fulfillment: 'pickup',
+      created: created,
+      requestId: null,
+    );
     orders.add(order);
     // Étapes ordinaires d'un retrait jusqu'à [status].
     const path = [
@@ -1537,13 +1541,15 @@ class FakeOrders {
       'ready_for_pickup',
       'completed',
     ];
+    var step = 0;
+    DateTime next() => created.add(Duration(seconds: 30 * ++step));
     if (path.contains(status)) {
-      for (final step in path) {
-        advance(order, step, at: created.add(const Duration(minutes: 3)));
-        if (step == status) break;
+      for (final s in path) {
+        advance(order, s, at: next());
+        if (s == status) break;
       }
     } else if (status != 'pending_payment') {
-      advance(order, status, at: created.add(const Duration(minutes: 3)));
+      advance(order, status, at: next());
     }
     return order;
   }
@@ -1607,6 +1613,10 @@ class FakeOrders {
     if (beforeRequest case final wait?) await wait(r);
     if (_failure(r) case final f?) return f;
     final id = r.path.split('/').last;
+    if (!RegExp(r'^[0-9a-f]{8}-([0-9a-f]{4}-){3}[0-9a-f]{12}$').hasMatch(id)) {
+      // Comme `httpapi.PathUUID` : identifiant mal formé.
+      return FakeResponse.error(404, 'not_found', 'Ressource introuvable.');
+    }
     final order = orders.where((o) => o['id'] == id).firstOrNull;
     if (order == null || !_visible(order, r)) {
       return FakeResponse.error(

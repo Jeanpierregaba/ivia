@@ -165,9 +165,114 @@ void main() {
         findsOneWidget,
       );
       expect(app.orders.orders, isEmpty);
+      final reads = app.server.calls('GET', '/v1/cart').length;
       await tester.tap(find.text('Revenir au panier'));
       await tester.pumpAndSettle();
       expect(find.byType(CartScreen), findsOneWidget);
+      expect(app.server.calls('GET', '/v1/cart').length, greaterThan(reads));
+    });
+
+    testWidgets('« Revenir au panier » après avoir quitté l’écran', (
+      tester,
+    ) async {
+      await open(tester, Routes.cart);
+      await tester.tap(find.text('Commander'));
+      await tester.pumpAndSettle();
+      afi['accepting_orders'] = false;
+      await tester.tap(find.byType(FilledButton).last);
+      await tester.pumpAndSettle();
+      await tester.tap(find.byTooltip('Retour'));
+      await tester.pumpAndSettle();
+      expect(find.byType(CheckoutScreen), findsNothing);
+      await tester.tap(find.text('Revenir au panier'));
+      await tester.pumpAndSettle();
+      expect(tester.takeException(), isNull);
+      expect(find.byType(CartScreen), findsOneWidget);
+    });
+
+    testWidgets('réponse perdue : commande créée, panier relu au retour', (
+      tester,
+    ) async {
+      await open(tester, Routes.cart);
+      await tester.tap(find.text('Commander'));
+      await tester.pumpAndSettle();
+      app.orders.loseNextCreateResponse = true;
+      await tester.tap(find.byType(FilledButton).last);
+      await tester.pumpAndSettle();
+      expect(find.textContaining('Pas de connexion internet'), findsOneWidget);
+      expect(app.orders.orders, hasLength(1));
+      // L'acheteur repart au lieu de réessayer : le panier n'est plus celui
+      // qu'il a commandé.
+      await tester.tap(find.byTooltip('Retour'));
+      await tester.pumpAndSettle();
+      expect(find.byType(CartScreen), findsOneWidget);
+      expect(find.text('Votre panier est vide.'), findsOneWidget);
+    });
+
+    testWidgets('réponse perdue puis nouvel essai : la même commande', (
+      tester,
+    ) async {
+      await open(tester, Routes.checkout);
+      app.orders.loseNextCreateResponse = true;
+      await tester.tap(find.byType(FilledButton).last);
+      await tester.pumpAndSettle();
+      await tester.tap(find.byType(FilledButton).last);
+      await tester.pumpAndSettle();
+      expect(find.byType(OrderScreen), findsOneWidget);
+      expect(app.orders.orders, hasLength(1));
+      expect(creations(), hasLength(2));
+    });
+
+    testWidgets('création déjà en cours (`duplicate_request`) : rendue', (
+      tester,
+    ) async {
+      await open(tester, Routes.checkout);
+      app.orders.failures['POST /v1/orders'] = FakeResponse.error(
+        409,
+        'duplicate_request',
+        'Cette commande est déjà en cours de création.',
+      );
+      await tester.tap(find.byType(FilledButton).last);
+      await tester.pump(const Duration(seconds: 2));
+      await tester.pumpAndSettle();
+      expect(find.byType(OrderScreen), findsOneWidget);
+      expect(creations(), hasLength(2));
+      expect(app.orders.orders, hasLength(1));
+    });
+
+    testWidgets('retour système pendant « Payer » : bloqué', (tester) async {
+      await open(tester, Routes.checkout);
+      final gate = Completer<void>();
+      app.orders.beforeRequest = (r) =>
+          r.method == 'POST' ? gate.future : Future.value();
+      await tester.tap(find.byType(FilledButton).last);
+      await tester.pump();
+      await tester.binding.handlePopRoute();
+      await tester.pump();
+      expect(find.byType(CheckoutScreen), findsOneWidget);
+      gate.complete();
+      await tester.pumpAndSettle();
+      expect(find.byType(OrderScreen), findsOneWidget);
+    });
+
+    testWidgets('trop de commandes, profil incomplet : message du serveur', (
+      tester,
+    ) async {
+      await open(tester, Routes.checkout);
+      app.orders.rateLimited = true;
+      await tester.tap(find.byType(FilledButton).last);
+      await tester.pumpAndSettle();
+      expect(
+        find.text('Trop de commandes en peu de temps. Réessayez plus tard.'),
+        findsOneWidget,
+      );
+      app.orders
+        ..rateLimited = false
+        ..profileComplete = false;
+      await tester.tap(find.byType(FilledButton).last);
+      await tester.pumpAndSettle();
+      expect(find.textContaining('Complétez votre profil'), findsOneWidget);
+      expect(app.orders.orders, isEmpty);
     });
 
     testWidgets('récapitulatif refusé : panier vide', (tester) async {
@@ -179,6 +284,33 @@ void main() {
       await tester.tap(find.text('Revenir au panier'));
       await tester.pumpAndSettle();
       expect(find.byType(CheckoutScreen), findsNothing);
+    });
+
+    testWidgets('récapitulatif : erreur du serveur, « Réessayer »', (
+      tester,
+    ) async {
+      app.orders.failures['POST /v1/orders/quote'] = FakeResponse.error(
+        500,
+        'internal',
+        'Une erreur est survenue. Réessayez dans un instant.',
+      );
+      await open(tester, Routes.checkout);
+      expect(find.text('Réessayer'), findsOneWidget);
+      expect(find.text('Revenir au panier'), findsNothing);
+    });
+
+    testWidgets('modes annoncés comme boutons radio', (tester) async {
+      await open(tester, Routes.checkout);
+      expect(
+        tester.getSemantics(find.bySemanticsLabel(RegExp('^Retrait, Gratuit'))),
+        isSemantics(
+          isInMutuallyExclusiveGroup: true,
+          hasCheckedState: true,
+          isChecked: true,
+          hasEnabledState: true,
+          isEnabled: true,
+        ),
+      );
     });
 
     testWidgets('récapitulatif injoignable : « Réessayer »', (tester) async {
@@ -215,6 +347,7 @@ void main() {
       expect(find.text('En attente de paiement'), findsOneWidget);
       expect(find.text('En préparation'), findsOneWidget);
       expect(find.text('RÉCEMMENT'), findsOneWidget);
+      expect(find.bySemanticsLabel('Récemment'), findsOneWidget);
       expect(find.text('Remboursée'), findsOneWidget);
       expect(find.text('Retirée'), findsNWidgets(2));
       expect(textPlain('#1042 · 24 oct.'), findsOneWidget);
@@ -317,11 +450,94 @@ void main() {
       await tester.pump(orderRefreshInterval);
       await tester.pumpAndSettle();
       expect(find.text('Retirée'), findsWidgets);
+      expect(
+        find.textContaining(RegExp(r"^Aujourd'hui à \d\d:\d\d\. Merci")),
+        findsOneWidget,
+      );
       expect(find.textContaining('Code de remise'), findsNothing);
       final done = reads();
       await tester.pump(orderRefreshInterval * 3);
       await tester.pumpAndSettle();
       expect(reads(), done);
+    });
+
+    testWidgets('pas de relecture en arrière-plan ni sous un autre écran', (
+      tester,
+    ) async {
+      tallScreen(tester);
+      final o = app.orders.seed(afi, [(riz, 1)], status: 'preparing');
+      await open(tester, Routes.order(o['id'] as String));
+      int reads() => app.server.calls('GET', '/v1/orders/${o['id']}').length;
+      var before = reads();
+      // App en arrière-plan : rien ; au retour, relue aussitôt.
+      for (final state in [
+        AppLifecycleState.inactive,
+        AppLifecycleState.hidden,
+        AppLifecycleState.paused,
+      ]) {
+        tester.binding.handleAppLifecycleStateChanged(state);
+      }
+      await tester.pump(orderRefreshInterval * 3);
+      expect(reads(), before);
+      app.orders.advance(o, 'ready_for_pickup');
+      for (final state in [
+        AppLifecycleState.hidden,
+        AppLifecycleState.inactive,
+        AppLifecycleState.resumed,
+      ]) {
+        tester.binding.handleAppLifecycleStateChanged(state);
+      }
+      await tester.pumpAndSettle();
+      expect(reads(), before + 1);
+      expect(find.text('Chez Chez Afi'), findsOneWidget);
+
+      // Fiche boutique par-dessus : rien.
+      await tester.tap(find.bySemanticsLabel(RegExp('^Boutique Chez Afi')));
+      await tester.pumpAndSettle();
+      before = reads();
+      await tester.pump(orderRefreshInterval * 3);
+      expect(reads(), before);
+
+      // Suivi fermé : plus rien.
+      await tester.tap(find.byTooltip('Retour'));
+      await tester.pumpAndSettle();
+      await tester.tap(find.byTooltip('Retour'));
+      await tester.pumpAndSettle();
+      before = reads();
+      await tester.pump(orderRefreshInterval * 3);
+      expect(reads(), before);
+    });
+
+    testWidgets('délai dépassé pendant le suivi, puis paiement tardif', (
+      tester,
+    ) async {
+      tallScreen(tester);
+      final o = app.orders.seed(afi, [(riz, 1)]);
+      await open(tester, Routes.order(o['id'] as String));
+      app.orders.advance(o, 'expired');
+      await tester.pump(orderRefreshInterval);
+      await tester.pumpAndSettle();
+      expect(find.text('Paiement expiré'), findsWidgets);
+      // Paiement arrivé juste après l'heure limite : la commande reprend.
+      app.orders.advance(o, 'awaiting_seller');
+      await tester.pump(orderRefreshInterval);
+      await tester.pumpAndSettle();
+      expect(find.text('En attente de la boutique'), findsWidgets);
+      expect(find.bySemanticsLabel('Code de remise : 4 8 2 7'), findsOneWidget);
+    });
+
+    testWidgets('frise : seules les raisons d’annulation sont montrées', (
+      tester,
+    ) async {
+      tallScreen(tester);
+      final o = app.orders.seed(afi, [(riz, 1)]);
+      app.orders.advance(
+        o,
+        'awaiting_seller',
+        reason: 'Paiement confirmé par le prestataire.',
+      );
+      await open(tester, Routes.order(o['id'] as String));
+      expect(find.textContaining('prestataire'), findsNothing);
     });
 
     testWidgets('annulée : raison, frise close', (tester) async {
@@ -370,6 +586,22 @@ void main() {
   testWidgets('autre compte : commandes du compte connecté seulement', (
     tester,
   ) async {
+    app.server
+      ..on('POST', '/v1/auth/otp', (_) => FakeResponse.json(202, otpBody))
+      ..on(
+        'POST',
+        '/v1/auth/verify',
+        (_) => FakeResponse.json(200, {
+          'token': 'jeton-kofi',
+          'expires_at': '2026-12-30T08:00:00Z',
+          'is_new_user': false,
+          'user': {
+            ...userBody(complete: true, email: 'kofi@test.tg'),
+            'id': '9e8d7c6b-5a49-4382-a170-6b5c4d3e2f10',
+            'first_name': 'Kofi',
+          },
+        }),
+      );
     app.orders.seed(afi, [(riz, 1)], status: 'preparing');
     await openOrders(tester);
     final container = app.container(tester);
@@ -380,5 +612,20 @@ void main() {
     expect(container.read(myOrdersViewProvider).value, isNull);
     await container.read(myOrdersProvider.future);
     expect(container.read(myOrdersViewProvider).value!.items, isEmpty);
+
+    // Kofi se connecte sur le même téléphone : aucune commande d'Awa.
+    await tester.enterText(find.byType(TextField), 'kofi@test.tg');
+    await tapText(tester, 'Recevoir le code');
+    await tester.enterText(find.byType(TextField), '481902');
+    await tester.pump();
+    await tapText(tester, 'Vérifier le code');
+    await tester.pumpAndSettle();
+    await tester.tap(find.byIcon(Icons.receipt_long_outlined));
+    await tester.pumpAndSettle();
+    expect(find.text('Aucune commande en cours.'), findsOneWidget);
+    expect(
+      app.server.calls('GET', '/v1/orders').last.headers['authorization'],
+      'Bearer jeton-kofi',
+    );
   });
 }

@@ -8,16 +8,18 @@ import 'package:ivia_app_core/ivia_app_core.dart';
 import 'package:ivia_ui/ivia_ui.dart';
 
 import '../../app/router.dart';
-import '../cart/cart_actions.dart' show showCartMessage;
-import '../shop/shop_screen.dart' show UnavailableView;
+import '../../app/messages.dart';
+import '../common/unavailable_view.dart';
 import 'order_labels.dart';
+import 'order_parts.dart';
 import 'orders_providers.dart';
 
 /// Intervalle de relecture d'une commande en cours affichée.
 const orderRefreshInterval = Duration(seconds: 20);
 
 /// Suivi d'une commande : en-tête de l'étape, code de remise, boutique,
-/// frise, articles. Relu toutes les 20 s tant qu'elle est en cours.
+/// frise, articles. Relu toutes les 20 s tant qu'il est au premier plan et
+/// que la commande peut changer.
 class OrderScreen extends ConsumerStatefulWidget {
   const OrderScreen({super.key, required this.orderId});
 
@@ -27,6 +29,18 @@ class OrderScreen extends ConsumerStatefulWidget {
   ConsumerState<OrderScreen> createState() => _OrderScreenState();
 }
 
+/// Après l'heure limite, une commande expirée peut encore être reprise par
+/// un paiement arrivé en retard : elle reste relue ce temps-là.
+const latePaymentWindow = Duration(minutes: 10);
+
+/// La commande peut encore changer d'elle-même : on la relit.
+bool shouldPoll(BuyerOrder order, {DateTime? now}) =>
+    order.status.isActive ||
+    (order.status == OrderStatus.expired &&
+        (now ?? DateTime.now()).isBefore(
+          order.paymentDeadlineAt.add(latePaymentWindow),
+        ));
+
 class _OrderScreenState extends ConsumerState<OrderScreen> {
   Timer? _timer;
   late final AppLifecycleListener _lifecycle;
@@ -34,25 +48,54 @@ class _OrderScreenState extends ConsumerState<OrderScreen> {
   @override
   void initState() {
     super.initState();
-    _timer = Timer.periodic(orderRefreshInterval, (_) => _poll());
-    _lifecycle = AppLifecycleListener(onResume: _poll);
+    _start();
+    // App en arrière-plan : aucune relecture ; au retour, relue aussitôt
+    // (quel que soit son statut), puis toutes les 20 s.
+    _lifecycle = AppLifecycleListener(
+      onHide: _stop,
+      onShow: () {
+        _reload();
+        _start();
+      },
+    );
   }
 
   @override
   void dispose() {
-    _timer?.cancel();
+    _stop();
     _lifecycle.dispose();
     super.dispose();
+  }
+
+  void _start() {
+    _timer?.cancel();
+    _timer = Timer.periodic(orderRefreshInterval, (_) => _tick());
+  }
+
+  void _stop() {
+    _timer?.cancel();
+    _timer = null;
   }
 
   OrderController get _controller =>
       ref.read(orderProvider(widget.orderId).notifier);
 
-  /// Relecture silencieuse d'une commande en cours ; une commande terminée
-  /// n'est plus relue.
-  void _poll() {
+  /// Relecture régulière : seulement si le suivi est au premier plan et la
+  /// commande susceptible de changer ; arrêtée sinon.
+  void _tick() {
+    if (!mounted) return;
     final order = ref.read(orderProvider(widget.orderId)).value;
-    if (order == null || !order.status.isActive) return;
+    if (order == null) return;
+    if (!shouldPoll(order)) {
+      _stop();
+      return;
+    }
+    if (!(ModalRoute.of(context)?.isCurrent ?? false)) return;
+    _reload();
+  }
+
+  void _reload() {
+    if (!mounted) return;
     unawaited(_controller.refresh().catchError((Object _) {}));
   }
 
@@ -61,17 +104,15 @@ class _OrderScreenState extends ConsumerState<OrderScreen> {
     try {
       await _controller.refresh();
     } catch (_) {
-      showCartMessage(
+      showMessage(
         messenger,
         'Commande non actualisée. Vérifiez votre connexion.',
       );
     }
   }
 
-  void _pay() => showCartMessage(
-    ScaffoldMessenger.of(context),
-    'Le paiement arrive bientôt.',
-  );
+  void _pay() =>
+      showMessage(ScaffoldMessenger.of(context), 'Le paiement arrive bientôt.');
 
   @override
   Widget build(BuildContext context) {
@@ -79,13 +120,15 @@ class _OrderScreenState extends ConsumerState<OrderScreen> {
     return Scaffold(
       body: SafeArea(
         bottom: false,
+        // L'erreur d'abord : après un 404, la version précédente (autre
+        // compte) n'est jamais montrée.
         child: switch (order) {
-          AsyncValue(value: final value?) => _content(value),
-          AsyncError(:final error) => UnavailableView(
+          AsyncError(:final error) when !order.isLoading => UnavailableView(
             error: error,
             gone: 'Cette commande n’est plus disponible.',
             onRetry: () => ref.invalidate(orderProvider(widget.orderId)),
           ),
+          AsyncValue(value: final value?) => _content(value),
           _ => const Center(child: CircularProgressIndicator()),
         },
       ),
@@ -122,9 +165,9 @@ class _OrderScreenState extends ConsumerState<OrderScreen> {
           const SizedBox(height: IviaSpacing.lg),
           _ShopTile(shop: order.shop),
           const SizedBox(height: IviaSpacing.lg),
-          _Card(child: IviaTimeline(steps: timelineOf(order))),
+          OrderCard(child: IviaTimeline(steps: timelineOf(order))),
           const SizedBox(height: IviaSpacing.lg),
-          _Card(
+          OrderCard(
             child: Column(
               crossAxisAlignment: CrossAxisAlignment.stretch,
               children: [
@@ -135,12 +178,12 @@ class _OrderScreenState extends ConsumerState<OrderScreen> {
                 ),
                 const SizedBox(height: IviaSpacing.sm),
                 for (final item in order.items)
-                  _AmountRow(
+                  AmountRow(
                     label: '${item.quantity} × ${item.name}',
                     amount: formatXof(item.lineTotalXof),
                   ),
                 const Divider(height: IviaSpacing.xl),
-                _AmountRow(
+                AmountRow(
                   label: 'Total',
                   amount: formatXof(order.totalXof),
                   strong: true,
@@ -196,7 +239,8 @@ class _Header extends StatelessWidget {
         null,
         'Retirée',
         switch (order.reachedAt(OrderStatus.completed)) {
-          final at? => 'Le ${shortDate(at)} à ${timeOfDay(at)}. Merci !',
+          final at? =>
+            '${_capitalized(onDate(at))} à ${timeOfDay(at)}. Merci !',
           null => null,
         },
       ),
@@ -240,9 +284,12 @@ class _Header extends StatelessWidget {
                 kicker,
                 style: textTheme.bodyMedium?.copyWith(color: foreground),
               ),
-            Text(
-              title,
-              style: textTheme.headlineSmall?.copyWith(color: foreground),
+            Semantics(
+              liveRegion: true,
+              child: Text(
+                title,
+                style: textTheme.headlineSmall?.copyWith(color: foreground),
+              ),
             ),
             if (body != null && body.isNotEmpty) ...[
               const SizedBox(height: IviaSpacing.xs),
@@ -253,9 +300,12 @@ class _Header extends StatelessWidget {
             ],
             if (code != null) ...[
               const SizedBox(height: IviaSpacing.lg),
-              Text(
-                'Votre code de remise',
-                style: textTheme.bodyMedium?.copyWith(color: foreground),
+              // Lu par le code lui-même (« Code de remise : 4 8 2 7 »).
+              ExcludeSemantics(
+                child: Text(
+                  'Votre code de remise',
+                  style: textTheme.bodyMedium?.copyWith(color: foreground),
+                ),
               ),
               const SizedBox(height: IviaSpacing.sm),
               IviaHandoverCode(code: code),
@@ -283,6 +333,9 @@ class _Header extends StatelessWidget {
     );
   }
 }
+
+String _capitalized(String s) =>
+    s.isEmpty ? s : s[0].toUpperCase() + s.substring(1);
 
 /// Boutique de la commande : ouvre sa fiche.
 class _ShopTile extends StatelessWidget {
@@ -340,53 +393,6 @@ class _ShopTile extends StatelessWidget {
             ),
           ),
         ),
-      ),
-    );
-  }
-}
-
-class _Card extends StatelessWidget {
-  const _Card({required this.child});
-
-  final Widget child;
-
-  @override
-  Widget build(BuildContext context) => Container(
-    padding: const EdgeInsets.all(IviaSpacing.lg),
-    decoration: BoxDecoration(
-      color: IviaColors.surface,
-      borderRadius: BorderRadius.circular(IviaRadius.large),
-    ),
-    child: child,
-  );
-}
-
-class _AmountRow extends StatelessWidget {
-  const _AmountRow({
-    required this.label,
-    required this.amount,
-    this.strong = false,
-  });
-
-  final String label;
-  final String amount;
-  final bool strong;
-
-  @override
-  Widget build(BuildContext context) {
-    final textTheme = Theme.of(context).textTheme;
-    final style = strong
-        ? textTheme.titleLarge?.copyWith(fontWeight: FontWeight.w700)
-        : textTheme.bodyLarge;
-    return Padding(
-      padding: const EdgeInsets.symmetric(vertical: IviaSpacing.xs),
-      child: Row(
-        crossAxisAlignment: CrossAxisAlignment.start,
-        children: [
-          Expanded(child: Text(label, style: style)),
-          const SizedBox(width: IviaSpacing.md),
-          Text(amount, style: style?.copyWith(fontWeight: FontWeight.w700)),
-        ],
       ),
     );
   }

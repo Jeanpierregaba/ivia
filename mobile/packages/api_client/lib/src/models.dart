@@ -1034,6 +1034,7 @@ class BuyerOrder {
     required this.cancelReason,
     required this.paymentDeadlineAt,
     required this.createdAt,
+    required this.updatedAt,
     required this.items,
     required this.events,
     required this.shop,
@@ -1051,6 +1052,7 @@ class BuyerOrder {
     cancelReason: json['cancel_reason'] as String? ?? '',
     paymentDeadlineAt: DateTime.parse(json['payment_deadline_at'] as String),
     createdAt: DateTime.parse(json['created_at'] as String),
+    updatedAt: DateTime.parse(json['updated_at'] as String),
     items: [
       for (final item in json['items'] as List? ?? const [])
         OrderItem.fromJson(item as Map<String, dynamic>),
@@ -1077,6 +1079,10 @@ class BuyerOrder {
   /// Heure limite de paiement ; passée, la commande expire.
   final DateTime paymentDeadlineAt;
   final DateTime createdAt;
+
+  /// Dernier changement : une réponse plus ancienne que la version affichée
+  /// (arrivée en retard) ne la remplace pas.
+  final DateTime updatedAt;
   final List<OrderItem> items;
 
   /// Historique des statuts, du plus ancien au plus récent.

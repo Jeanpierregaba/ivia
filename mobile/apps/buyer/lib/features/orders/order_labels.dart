@@ -99,7 +99,14 @@ List<IviaTimelineStep> timelineOf(BuyerOrder order) {
     steps.add(
       IviaTimelineStep(
         title: _stepTitle(e.to, order),
-        subtitle: e.reason.isEmpty ? null : e.reason,
+        // Les raisons sont écrites pour le back-office ; seule celle d'une
+        // annulation ou d'un échec parle à l'acheteur.
+        subtitle:
+            e.reason.isNotEmpty &&
+                (e.to == OrderStatus.cancelled ||
+                    e.to == OrderStatus.deliveryFailed)
+            ? e.reason
+            : null,
         time: timeOfDay(e.at),
         state: IviaStepState.done,
       ),
