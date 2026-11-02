@@ -359,6 +359,68 @@ class IviaApiClient {
   Future<BuyerOrder> myOrder(String id) async =>
       BuyerOrder.fromJson(await _send('GET', '/v1/orders/$id'));
 
+  /// Commandes payées des boutiques du marchand (ou de [shopId]), les plus
+  /// récentes d'abord ; [status] filtre sur un statut.
+  Future<Page<SellerOrder>> sellerOrders({
+    String? shopId,
+    OrderStatus? status,
+    int offset = 0,
+    int limit = 100,
+  }) async {
+    final json = await _send(
+      'GET',
+      '/v1/seller/orders',
+      query: {
+        'shop_id': ?shopId,
+        'status': ?status?.code,
+        'offset': '$offset',
+        'limit': '$limit',
+      },
+    );
+    return Page(
+      items: [
+        for (final item in json['items'] as List)
+          SellerOrder.fromJson(item as Map<String, dynamic>),
+      ],
+      nextOffset: json['next_offset'] as int?,
+    );
+  }
+
+  /// Une commande d'une boutique du marchand (404 `order_not_found` sinon).
+  Future<SellerOrder> sellerOrder(String id) async =>
+      SellerOrder.fromJson(await _send('GET', '/v1/seller/orders/$id'));
+
+  /// Accepte une nouvelle commande (et confirme la disponibilité des
+  /// produits à stock non suivi).
+  Future<SellerOrder> acceptOrder(String id) => _sellerAction(id, 'accept');
+
+  /// Refuse une nouvelle commande : annulée, l'acheteur est remboursé et
+  /// voit [reason].
+  Future<SellerOrder> rejectOrder(String id, String reason) =>
+      _sellerAction(id, 'reject', {'reason': reason});
+
+  /// Passe une commande acceptée en préparation.
+  Future<SellerOrder> startPreparingOrder(String id) =>
+      _sellerAction(id, 'preparing');
+
+  /// Commande prête : à retirer (retrait) ou en attente d'un livreur
+  /// (livraison).
+  Future<SellerOrder> markOrderReady(String id) => _sellerAction(id, 'ready');
+
+  /// Remet une commande à retirer contre le [code] de l'acheteur (422
+  /// `handover_code_invalid`, puis 409 `handover_locked` après 5 essais).
+  /// Le code n'est ni gardé ni journalisé.
+  Future<SellerOrder> handOverOrder(String id, String code) =>
+      _sellerAction(id, 'handover', {'code': code});
+
+  Future<SellerOrder> _sellerAction(
+    String id,
+    String action, [
+    Map<String, dynamic>? data,
+  ]) async => SellerOrder.fromJson(
+    await _send('POST', '/v1/seller/orders/$id/$action', data: data),
+  );
+
   /// Demande le paiement de la commande [orderId] : le payeur valide ensuite
   /// sur son téléphone. S'il y a déjà une demande en attente, le serveur la
   /// rend telle quelle (l'annuler d'abord pour changer de numéro).

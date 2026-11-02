@@ -1074,6 +1074,123 @@ void main() {
     });
   });
 
+  group('commandes du marchand', () {
+    test('modèle : montants, prénom, délai, stock non suivi', () {
+      final o = SellerOrder.fromJson(sellerOrderBody(handoverAttempts: 2));
+      expect(o.number, 1042);
+      expect(o.status, OrderStatus.awaitingSeller);
+      expect(o.fulfillment, Fulfillment.pickup);
+      expect(o.buyerFirstName, 'Koffi');
+      expect(o.subtotalXof, 10500);
+      expect(o.commissionXof, 525);
+      expect(o.netXof, 9975);
+      expect(o.sellerDeadlineAt, DateTime.utc(2026, 11, 2, 14, 15));
+      expect(o.paidAt, DateTime.utc(2026, 11, 2, 14));
+      expect(o.completedAt, isNull);
+      expect(o.articleCount, 3);
+      expect(o.items.first.stockMode, StockMode.tracked);
+      expect(o.items.last.stockMode, StockMode.untracked);
+      expect(o.handoverAttempts, 2);
+      expect(o.isHandoverLocked, isFalse);
+      expect(
+        SellerOrder.fromJson(sellerOrderBody(handoverAttempts: 5))
+            .isHandoverLocked,
+        isTrue,
+      );
+    });
+
+    test('modèle : statut inconnu, délai et mode de stock absents', () {
+      final body = sellerOrderBody(status: 'on_hold')
+        ..['seller_deadline_at'] = null;
+      (body['items'] as List).first.remove('stock_mode');
+      final o = SellerOrder.fromJson(body);
+      expect(o.status, OrderStatus.unknown);
+      expect(o.sellerDeadlineAt, isNull);
+      expect(o.items.first.stockMode, isNull);
+    });
+
+    test('liste : boutique, statut, pagination', () async {
+      server.on(
+        'GET',
+        '/v1/seller/orders',
+        (_) => FakeResponse.json(200, {
+          'items': [sellerOrderBody()],
+          'next_offset': 100,
+        }),
+      );
+      final page = await client.sellerOrders(
+        shopId: 's1',
+        status: OrderStatus.awaitingSeller,
+      );
+      expect(server.last.query, {
+        'shop_id': 's1',
+        'status': 'awaiting_seller',
+        'offset': '0',
+        'limit': '100',
+      });
+      expect(page.items.single.id, 'o1');
+      expect(page.nextOffset, 100);
+
+      await client.sellerOrders(offset: 100, limit: 20);
+      expect(server.last.query, {'offset': '100', 'limit': '20'});
+    });
+
+    test('détail et actions : méthode, chemin, corps', () async {
+      server
+        ..onPattern(
+          'GET',
+          '/v1/seller/orders/([^/]+)',
+          (_) => FakeResponse.json(200, sellerOrderBody()),
+        )
+        ..onPattern(
+          'POST',
+          '/v1/seller/orders/([^/]+)/([a-z]+)',
+          (_) => FakeResponse.json(200, sellerOrderBody(status: 'accepted')),
+        );
+      expect((await client.sellerOrder('o1')).id, 'o1');
+      expect(server.last.path, '/v1/seller/orders/o1');
+
+      final accepted = await client.acceptOrder('o1');
+      expect(accepted.status, OrderStatus.accepted);
+      expect(server.last.method, 'POST');
+      expect(server.last.path, '/v1/seller/orders/o1/accept');
+
+      await client.rejectOrder('o1', 'Boutique fermée');
+      expect(server.last.path, '/v1/seller/orders/o1/reject');
+      expect(server.last.body, {'reason': 'Boutique fermée'});
+
+      await client.startPreparingOrder('o1');
+      expect(server.last.path, '/v1/seller/orders/o1/preparing');
+
+      await client.markOrderReady('o1');
+      expect(server.last.path, '/v1/seller/orders/o1/ready');
+
+      await client.handOverOrder('o1', '4827');
+      expect(server.last.path, '/v1/seller/orders/o1/handover');
+      expect(server.last.body, {'code': '4827'});
+    });
+
+    test('remise : code faux et code bloqué traduits', () async {
+      server.onPattern(
+        'POST',
+        '/v1/seller/orders/([^/]+)/handover',
+        (_) => FakeResponse.error(
+          422,
+          'handover_code_invalid',
+          'Code incorrect. Il reste 3 essai(s).',
+        ),
+      );
+      await expectLater(
+        client.handOverOrder('o1', '0000'),
+        throwsA(
+          isA<ApiException>()
+              .having((e) => e.code, 'code', 'handover_code_invalid')
+              .having((e) => e.message, 'message', contains('3 essai')),
+        ),
+      );
+    });
+  });
+
   group('paiements', () {
     late FakeOrders orders;
     late FakePayments payments;

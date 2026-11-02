@@ -199,6 +199,87 @@ Map<String, dynamic> sessionBody({bool complete = false}) => {
   'user': userBody(complete: complete),
 };
 
+/// Commande vue par le marchand (schéma `SellerOrder`) : retrait de
+/// 2 × Pagne wax à 4 500 F et 1 × Savon noir à 1 500 F (stock non suivi),
+/// payée à [paidAt], à accepter avant [paidAt] + 15 min.
+Map<String, dynamic> sellerOrderBody({
+  String id = 'o1',
+  int number = 1042,
+  String shopId = 's1',
+  String status = 'awaiting_seller',
+  String fulfillment = 'pickup',
+  String buyerFirstName = 'Koffi',
+  DateTime? paidAt,
+  DateTime? updatedAt,
+  String cancelReason = '',
+  int handoverAttempts = 0,
+  List<Map<String, dynamic>>? items,
+}) {
+  final paid = (paidAt ?? DateTime.utc(2026, 11, 2, 14)).toUtc();
+  final lines =
+      items ??
+      [
+        orderItemBody('p1', 'Pagne wax', 4500, 2),
+        orderItemBody('p2', 'Savon noir', 1500, 1, stockMode: 'untracked'),
+      ];
+  final subtotal = lines.fold<int>(
+    0,
+    (n, l) => n + (l['line_total_xof'] as int),
+  );
+  final commission = subtotal * 5 ~/ 100;
+  return {
+    'id': id,
+    'number': number,
+    'reference': 'IV-${number.toString().padLeft(6, '0')}',
+    'shop_id': shopId,
+    'status': status,
+    'fulfillment': fulfillment,
+    'vehicle_type': null,
+    'parcel_size': 'small',
+    'buyer_first_name': buyerFirstName,
+    'subtotal_xof': subtotal,
+    'delivery_fee_xof': fulfillment == 'delivery' ? 1000 : 0,
+    'total_xof': subtotal + (fulfillment == 'delivery' ? 1000 : 0),
+    'commission_xof': commission,
+    'net_xof': subtotal - commission,
+    'delivery_address': null,
+    'cancel_reason': cancelReason,
+    'payment_deadline_at': paid.toIso8601String(),
+    'seller_deadline_at': paid
+        .add(const Duration(minutes: 15))
+        .toIso8601String(),
+    'paid_at': paid.toIso8601String(),
+    'accepted_at': null,
+    'ready_at': null,
+    'picked_up_at': null,
+    'completed_at': null,
+    'cancelled_at': null,
+    'refunded_at': null,
+    'created_at': paid.subtract(const Duration(minutes: 2)).toIso8601String(),
+    'updated_at': (updatedAt ?? paid).toUtc().toIso8601String(),
+    'handover_attempts': handoverAttempts,
+    'items': lines,
+    'events': <Map<String, dynamic>>[],
+  };
+}
+
+/// Ligne de commande (schéma `OrderItem`).
+Map<String, dynamic> orderItemBody(
+  String productId,
+  String name,
+  int unitPriceXof,
+  int quantity, {
+  String stockMode = 'tracked',
+}) => {
+  'product_id': productId,
+  'product_name': name,
+  'unit_price_xof': unitPriceXof,
+  'quantity': quantity,
+  'line_total_xof': unitPriceXof * quantity,
+  'parcel_size': 'small',
+  'stock_mode': stockMode,
+};
+
 /// Boutique type (schéma `Shop`).
 Map<String, dynamic> shopBody({
   String status = 'pending_review',

@@ -1005,6 +1005,7 @@ class OrderItem {
     required this.unitPriceXof,
     required this.quantity,
     required this.lineTotalXof,
+    this.stockMode,
   });
 
   factory OrderItem.fromJson(Map<String, dynamic> json) => OrderItem(
@@ -1013,6 +1014,10 @@ class OrderItem {
     unitPriceXof: json['unit_price_xof'] as int,
     quantity: json['quantity'] as int,
     lineTotalXof: json['line_total_xof'] as int,
+    stockMode: switch (json['stock_mode']) {
+      final String code when code.isNotEmpty => StockMode.parse(code),
+      _ => null,
+    },
   );
 
   final String productId;
@@ -1020,6 +1025,11 @@ class OrderItem {
   final int unitPriceXof;
   final int quantity;
   final int lineTotalXof;
+
+  /// Mode de stock du produit à la commande ; `null` si le serveur ne le
+  /// donne pas (récapitulatif). Non suivi : le marchand confirme la
+  /// disponibilité en acceptant.
+  final StockMode? stockMode;
 }
 
 /// Récapitulatif calculé par le serveur avant la commande (schéma
@@ -1169,6 +1179,98 @@ class BuyerOrder {
     }
     return null;
   }
+}
+
+/// Nombre d'essais de code de remise au-delà duquel le serveur le bloque.
+const maxHandoverAttempts = 5;
+
+/// Commande vue par le marchand (schéma `SellerOrder`) : jamais le numéro
+/// ni l'adresse de l'acheteur, seulement son prénom.
+class SellerOrder {
+  const SellerOrder({
+    required this.id,
+    required this.number,
+    required this.shopId,
+    required this.status,
+    required this.fulfillment,
+    required this.buyerFirstName,
+    required this.subtotalXof,
+    required this.commissionXof,
+    required this.netXof,
+    required this.cancelReason,
+    required this.sellerDeadlineAt,
+    required this.paidAt,
+    required this.completedAt,
+    required this.createdAt,
+    required this.updatedAt,
+    required this.handoverAttempts,
+    required this.items,
+  });
+
+  factory SellerOrder.fromJson(Map<String, dynamic> json) => SellerOrder(
+    id: json['id'] as String,
+    number: json['number'] as int,
+    shopId: json['shop_id'] as String,
+    status: OrderStatus.parse(json['status'] as String),
+    fulfillment: Fulfillment.parse(json['fulfillment'] as String),
+    buyerFirstName: json['buyer_first_name'] as String? ?? '',
+    subtotalXof: json['subtotal_xof'] as int,
+    commissionXof: json['commission_xof'] as int? ?? 0,
+    netXof: json['net_xof'] as int? ?? json['subtotal_xof'] as int,
+    cancelReason: json['cancel_reason'] as String? ?? '',
+    sellerDeadlineAt: _date(json['seller_deadline_at']),
+    paidAt: _date(json['paid_at']),
+    completedAt: _date(json['completed_at']),
+    createdAt: DateTime.parse(json['created_at'] as String),
+    updatedAt: DateTime.parse(json['updated_at'] as String),
+    handoverAttempts: json['handover_attempts'] as int? ?? 0,
+    items: [
+      for (final item in json['items'] as List? ?? const [])
+        OrderItem.fromJson(item as Map<String, dynamic>),
+    ],
+  );
+
+  final String id;
+
+  /// Numéro lisible (« #1042 »).
+  final int number;
+  final String shopId;
+  final OrderStatus status;
+  final Fulfillment fulfillment;
+  final String buyerFirstName;
+
+  /// Montant des produits.
+  final int subtotalXof;
+
+  /// Commission ivia sur les produits.
+  final int commissionXof;
+
+  /// Ce que reçoit le marchand : produits moins la commission.
+  final int netXof;
+
+  /// Motif d'annulation (refus, délai dépassé) ; vide sinon.
+  final String cancelReason;
+
+  /// Heure limite pour accepter ; passée, le serveur annule la commande.
+  final DateTime? sellerDeadlineAt;
+  final DateTime? paidAt;
+
+  /// Fin de la commande (retirée ou livrée).
+  final DateTime? completedAt;
+  final DateTime createdAt;
+
+  /// Dernier changement : une réponse plus ancienne que la version affichée
+  /// (arrivée en retard) ne la remplace pas.
+  final DateTime updatedAt;
+
+  /// Essais de code de remise déjà faits.
+  final int handoverAttempts;
+  final List<OrderItem> items;
+
+  int get articleCount => items.fold(0, (n, i) => n + i.quantity);
+
+  /// Code de remise bloqué (trop d'essais) : seul l'admin peut débloquer.
+  bool get isHandoverLocked => handoverAttempts >= maxHandoverAttempts;
 }
 
 /// Opérateur Mobile Money du payeur.
