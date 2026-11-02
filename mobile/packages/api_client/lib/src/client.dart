@@ -287,6 +287,54 @@ class IviaApiClient {
   /// Vide le panier.
   Future<void> clearCart() => _send('DELETE', '/v1/cart');
 
+  /// Récapitulatif de la commande du panier, sans rien enregistrer.
+  Future<OrderQuote> quoteOrder({
+    Fulfillment fulfillment = Fulfillment.pickup,
+  }) async => OrderQuote.fromJson(
+    await _send(
+      'POST',
+      '/v1/orders/quote',
+      data: {'fulfillment': fulfillment.code},
+    ),
+  );
+
+  /// Commande le panier : stock réservé, panier vidé, paiement attendu.
+  /// [clientRequestId] (voir [newRequestId]) rend l'appel idempotent : un
+  /// nouvel essai avec le même identifiant rend la même commande.
+  Future<BuyerOrder> createOrder({
+    required String clientRequestId,
+    Fulfillment fulfillment = Fulfillment.pickup,
+  }) async => BuyerOrder.fromJson(
+    await _send(
+      'POST',
+      '/v1/orders',
+      data: {
+        'fulfillment': fulfillment.code,
+        'client_request_id': clientRequestId,
+      },
+    ),
+  );
+
+  /// Commandes de l'acheteur, les plus récentes d'abord.
+  Future<Page<BuyerOrder>> myOrders({int offset = 0, int limit = 50}) async {
+    final json = await _send(
+      'GET',
+      '/v1/orders',
+      query: {'offset': '$offset', 'limit': '$limit'},
+    );
+    return Page(
+      items: [
+        for (final item in json['items'] as List)
+          BuyerOrder.fromJson(item as Map<String, dynamic>),
+      ],
+      nextOffset: json['next_offset'] as int?,
+    );
+  }
+
+  /// Suivi d'une commande de l'acheteur (404 `order_not_found` sinon).
+  Future<BuyerOrder> myOrder(String id) async =>
+      BuyerOrder.fromJson(await _send('GET', '/v1/orders/$id'));
+
   /// Dossier livreur de l'utilisateur ; `null` : aucun dossier déposé.
   Future<DriverDossier?> driverMe() async {
     try {

@@ -797,4 +797,159 @@ void main() {
       expect((await client.cart()).isEmpty, isTrue);
     });
   });
+
+  group('commandes', () {
+    late FakeSearch search;
+    late FakeCart cart;
+    late FakeOrders orders;
+    late Map<String, dynamic> afi;
+    late Map<String, dynamic> riz;
+    late Map<String, dynamic> huile;
+
+    Matcher apiError(String code) =>
+        throwsA(isA<ApiException>().having((e) => e.code, 'code', code));
+
+    setUp(() {
+      search = FakeSearch(server);
+      cart = FakeCart(search);
+      orders = FakeOrders(cart);
+      afi = search.shop('Chez Afi');
+      riz = search.product(afi, 'Riz parfumé 5 kg', stock: 5);
+      huile = search.product(
+        afi,
+        'Huile 1 L',
+        price: 1500,
+        stockMode: 'untracked',
+      );
+      cart
+        ..put(riz, 2)
+        ..put(huile, 1);
+    });
+
+    test('identifiant de requête : UUID v4, jamais deux fois le même', () {
+      final ids = {for (var i = 0; i < 100; i++) newRequestId()};
+      expect(ids, hasLength(100));
+      expect(
+        ids.first,
+        matches(
+          RegExp(
+            r'^[0-9a-f]{8}-[0-9a-f]{4}-4[0-9a-f]{3}-[89ab][0-9a-f]{3}-[0-9a-f]{12}$',
+          ),
+        ),
+      );
+    });
+
+    test('récapitulatif du retrait', () async {
+      final quote = await client.quoteOrder();
+      expect(server.last.body, {'fulfillment': 'pickup'});
+      expect(quote.shopId, afi['id']);
+      expect(quote.items.map((i) => (i.name, i.quantity, i.lineTotalXof)), [
+        ('Riz parfumé 5 kg', 2, 9000),
+        ('Huile 1 L', 1, 1500),
+      ]);
+      expect(quote.totalXof, 10500);
+      expect(quote.articleCount, 3);
+      expect(quote.paymentTimeout, const Duration(minutes: 15));
+    });
+
+    test(
+      'création : stock réservé, panier vidé, même requête rejouée',
+      () async {
+        final id = newRequestId();
+        final order = await client.createOrder(clientRequestId: id);
+        expect(server.last.body, {
+          'fulfillment': 'pickup',
+          'client_request_id': id,
+        });
+        expect(order.status, OrderStatus.pendingPayment);
+        expect(order.status.isActive, isTrue);
+        expect(order.number, 1042);
+        expect(order.totalXof, 10500);
+        expect(order.shop.name, 'Chez Afi');
+        expect(order.handoverCode, isNull);
+        expect(order.events.single.to, OrderStatus.pendingPayment);
+        expect(
+          order.paymentDeadlineAt.difference(order.createdAt),
+          const Duration(minutes: 15),
+        );
+        expect(riz['stock_quantity'], 3);
+        expect(cart.lines, isEmpty);
+
+        final again = await client.createOrder(clientRequestId: id);
+        expect(again.id, order.id);
+        expect(orders.orders, hasLength(1));
+        // Panier vide : une nouvelle requête est refusée.
+        await expectLater(
+          client.createOrder(clientRequestId: newRequestId()),
+          apiError('cart_empty'),
+        );
+      },
+    );
+
+    test('refus : boutique fermée, stock, produit retiré, profil', () async {
+      afi['accepting_orders'] = false;
+      await expectLater(client.quoteOrder(), apiError('shop_closed'));
+      afi['accepting_orders'] = true;
+      riz['stock_quantity'] = 1;
+      await expectLater(client.quoteOrder(), apiError('insufficient_stock'));
+      riz['stock_quantity'] = 5;
+      huile['is_active'] = false;
+      await expectLater(
+        client.createOrder(clientRequestId: newRequestId()),
+        apiError('product_unavailable'),
+      );
+      huile['is_active'] = true;
+      orders.profileComplete = false;
+      await expectLater(
+        client.createOrder(clientRequestId: newRequestId()),
+        apiError('profile_incomplete'),
+      );
+      expect(orders.orders, isEmpty);
+    });
+
+    test('liste, suivi, code selon le statut, historique', () async {
+      final old = orders.seed(afi, [(riz, 1)], status: 'completed');
+      final current = await client.createOrder(clientRequestId: newRequestId());
+      final page = await client.myOrders();
+      expect(server.last.query, {'offset': '0', 'limit': '50'});
+      expect(page.items.map((o) => o.id), [current.id, old['id']]);
+      expect(page.items.last.status, OrderStatus.completed);
+      expect(page.items.last.status.isActive, isFalse);
+      expect(page.items.last.handoverCode, isNull);
+
+      final placed = orders.orders.last;
+      orders.advance(placed, 'awaiting_seller');
+      var o = await client.myOrder(current.id);
+      expect(o.handoverCode, FakeOrders.handoverCode);
+      expect(o.reachedAt(OrderStatus.awaitingSeller), isNotNull);
+      expect(o.reachedAt(OrderStatus.readyForPickup), isNull);
+      orders.advance(placed, 'cancelled', reason: 'Refusée par la boutique');
+      o = await client.myOrder(current.id);
+      expect(o.status, OrderStatus.cancelled);
+      expect(o.cancelReason, 'Refusée par la boutique');
+      expect(o.handoverCode, isNull);
+      expect(o.events.map((e) => e.to), [
+        OrderStatus.pendingPayment,
+        OrderStatus.awaitingSeller,
+        OrderStatus.cancelled,
+      ]);
+
+      await expectLater(
+        client.myOrder('inconnue'),
+        apiError('order_not_found'),
+      );
+      // Commande d'un autre compte : introuvable.
+      client.token = 'jeton-kofi';
+      await expectLater(
+        client.myOrder(current.id),
+        apiError('order_not_found'),
+      );
+      expect((await client.myOrders()).items, isEmpty);
+    });
+
+    test('statut inconnu de cette version : en cours, sans planter', () {
+      expect(OrderStatus.parse('on_hold'), OrderStatus.unknown);
+      expect(OrderStatus.unknown.isActive, isTrue);
+    });
+  });
 }

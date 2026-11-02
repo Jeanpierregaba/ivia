@@ -873,3 +873,227 @@ class Cart {
   int quantityOf(String productId) =>
       items.where((i) => i.productId == productId).firstOrNull?.quantity ?? 0;
 }
+
+/// Mode de remise d'une commande.
+enum Fulfillment {
+  pickup('pickup'),
+  delivery('delivery');
+
+  const Fulfillment(this.code);
+
+  final String code;
+
+  static Fulfillment parse(String code) =>
+      values.firstWhere((f) => f.code == code, orElse: () => pickup);
+}
+
+/// Statut d'une commande (machine à états du module `orders`).
+enum OrderStatus {
+  pendingPayment('pending_payment'),
+  expired('expired'),
+  awaitingSeller('awaiting_seller'),
+  accepted('accepted'),
+  preparing('preparing'),
+  readyForPickup('ready_for_pickup'),
+  awaitingDriver('awaiting_driver'),
+  driverAssigned('driver_assigned'),
+  pickedUp('picked_up'),
+  delivered('delivered'),
+  deliveryFailed('delivery_failed'),
+  returnedToShop('returned_to_shop'),
+  completed('completed'),
+  cancelled('cancelled'),
+  refunded('refunded'),
+
+  /// Statut ajouté au serveur après cette version de l'app.
+  unknown('unknown');
+
+  const OrderStatus(this.code);
+
+  final String code;
+
+  static OrderStatus parse(String code) =>
+      values.firstWhere((s) => s.code == code, orElse: () => unknown);
+
+  /// Commande en cours : elle peut encore changer (sinon terminée).
+  bool get isActive => switch (this) {
+    pendingPayment ||
+    awaitingSeller ||
+    accepted ||
+    preparing ||
+    readyForPickup ||
+    awaitingDriver ||
+    driverAssigned ||
+    pickedUp ||
+    unknown => true,
+    _ => false,
+  };
+}
+
+/// Ligne d'une commande ou d'un récapitulatif, au prix de la commande.
+class OrderItem {
+  const OrderItem({
+    required this.productId,
+    required this.name,
+    required this.unitPriceXof,
+    required this.quantity,
+    required this.lineTotalXof,
+  });
+
+  factory OrderItem.fromJson(Map<String, dynamic> json) => OrderItem(
+    productId: json['product_id'] as String,
+    name: json['product_name'] as String,
+    unitPriceXof: json['unit_price_xof'] as int,
+    quantity: json['quantity'] as int,
+    lineTotalXof: json['line_total_xof'] as int,
+  );
+
+  final String productId;
+  final String name;
+  final int unitPriceXof;
+  final int quantity;
+  final int lineTotalXof;
+}
+
+/// Récapitulatif calculé par le serveur avant la commande (schéma
+/// `Quote`).
+class OrderQuote {
+  const OrderQuote({
+    required this.shopId,
+    required this.fulfillment,
+    required this.items,
+    required this.subtotalXof,
+    required this.deliveryFeeXof,
+    required this.totalXof,
+    required this.paymentTimeout,
+  });
+
+  factory OrderQuote.fromJson(Map<String, dynamic> json) => OrderQuote(
+    shopId: json['shop_id'] as String,
+    fulfillment: Fulfillment.parse(json['fulfillment'] as String),
+    items: [
+      for (final item in json['items'] as List? ?? const [])
+        OrderItem.fromJson(item as Map<String, dynamic>),
+    ],
+    subtotalXof: json['subtotal_xof'] as int,
+    deliveryFeeXof: json['delivery_fee_xof'] as int? ?? 0,
+    totalXof: json['total_xof'] as int,
+    paymentTimeout: Duration(
+      minutes: json['payment_timeout_minutes'] as int? ?? 15,
+    ),
+  );
+
+  final String shopId;
+  final Fulfillment fulfillment;
+  final List<OrderItem> items;
+  final int subtotalXof;
+  final int deliveryFeeXof;
+  final int totalXof;
+
+  /// Temps laissé pour payer : les produits sont réservés pendant ce délai.
+  final Duration paymentTimeout;
+
+  int get articleCount => items.fold(0, (n, i) => n + i.quantity);
+}
+
+/// Étape de l'historique d'une commande.
+class OrderEvent {
+  const OrderEvent({
+    required this.from,
+    required this.to,
+    required this.reason,
+    required this.at,
+  });
+
+  factory OrderEvent.fromJson(Map<String, dynamic> json) => OrderEvent(
+    from: switch (json['from_status']) {
+      final String code => OrderStatus.parse(code),
+      _ => null,
+    },
+    to: OrderStatus.parse(json['to_status'] as String),
+    reason: json['reason'] as String? ?? '',
+    at: DateTime.parse(json['created_at'] as String),
+  );
+
+  final OrderStatus? from;
+  final OrderStatus to;
+  final String reason;
+  final DateTime at;
+}
+
+/// Commande vue par l'acheteur (schéma `BuyerOrder`).
+class BuyerOrder {
+  const BuyerOrder({
+    required this.id,
+    required this.number,
+    required this.status,
+    required this.fulfillment,
+    required this.subtotalXof,
+    required this.deliveryFeeXof,
+    required this.totalXof,
+    required this.cancelReason,
+    required this.paymentDeadlineAt,
+    required this.createdAt,
+    required this.items,
+    required this.events,
+    required this.shop,
+    required this.handoverCode,
+  });
+
+  factory BuyerOrder.fromJson(Map<String, dynamic> json) => BuyerOrder(
+    id: json['id'] as String,
+    number: json['number'] as int,
+    status: OrderStatus.parse(json['status'] as String),
+    fulfillment: Fulfillment.parse(json['fulfillment'] as String),
+    subtotalXof: json['subtotal_xof'] as int,
+    deliveryFeeXof: json['delivery_fee_xof'] as int? ?? 0,
+    totalXof: json['total_xof'] as int,
+    cancelReason: json['cancel_reason'] as String? ?? '',
+    paymentDeadlineAt: DateTime.parse(json['payment_deadline_at'] as String),
+    createdAt: DateTime.parse(json['created_at'] as String),
+    items: [
+      for (final item in json['items'] as List? ?? const [])
+        OrderItem.fromJson(item as Map<String, dynamic>),
+    ],
+    events: [
+      for (final event in json['events'] as List? ?? const [])
+        OrderEvent.fromJson(event as Map<String, dynamic>),
+    ],
+    shop: PublicShop.fromJson(json['shop'] as Map<String, dynamic>),
+    handoverCode: json['handover_code'] as String?,
+  );
+
+  final String id;
+
+  /// Numéro lisible (« #1042 »).
+  final int number;
+  final OrderStatus status;
+  final Fulfillment fulfillment;
+  final int subtotalXof;
+  final int deliveryFeeXof;
+  final int totalXof;
+  final String cancelReason;
+
+  /// Heure limite de paiement ; passée, la commande expire.
+  final DateTime paymentDeadlineAt;
+  final DateTime createdAt;
+  final List<OrderItem> items;
+
+  /// Historique des statuts, du plus ancien au plus récent.
+  final List<OrderEvent> events;
+  final PublicShop shop;
+
+  /// Code de remise : donné par le serveur entre le paiement et la remise
+  /// seulement. Jamais gardé ni journalisé.
+  final String? handoverCode;
+
+  int get articleCount => items.fold(0, (n, i) => n + i.quantity);
+
+  /// Heure du dernier passage à [status] ; `null` s'il n'a pas eu lieu.
+  DateTime? reachedAt(OrderStatus status) {
+    for (final e in events.reversed) {
+      if (e.to == status) return e.at;
+    }
+    return null;
+  }
+}

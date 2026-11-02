@@ -6,5 +6,6 @@ library;
 export 'src/api_config.dart';
 export 'src/api_exception.dart';
 export 'src/client.dart';
+export 'src/ids.dart';
 export 'src/models.dart';
 export 'src/session_store.dart';

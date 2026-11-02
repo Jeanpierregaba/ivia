@@ -1199,3 +1199,417 @@ class FakeCart {
     });
   }
 }
+
+/// Commandes de l'acheteur en mémoire, branchées sur le panier d'un
+/// [FakeCart], fidèles au module `orders` du backend : récapitulatif
+/// (`cart_empty`, `shop_unavailable`, `shop_closed`, `product_unavailable`,
+/// `insufficient_stock`), création (profil complet exigé, stock suivi
+/// réservé, panier vidé, idempotence par `client_request_id`), liste (plus
+/// récentes d'abord, paginée), suivi (404 pour la commande d'un autre
+/// compte), code de remise donné seulement entre le paiement et la remise.
+///
+/// Un test fait avancer une commande avec [advance].
+class FakeOrders {
+  FakeOrders(this.cart) {
+    cart.search.server
+      ..on('POST', '/v1/orders/quote', _quote)
+      ..on('POST', '/v1/orders', _create)
+      ..on('GET', '/v1/orders', _list)
+      ..onPattern('GET', '/v1/orders/([^/]+)', _get);
+  }
+
+  static const handoverCode = '4827';
+
+  final FakeCart cart;
+
+  /// Commandes, de la plus ancienne à la plus récente.
+  final orders = <Map<String, dynamic>>[];
+
+  /// Prochaine erreur, une seule fois, pour la première requête dont
+  /// « MÉTHODE chemin » contient la clé.
+  final failures = <String, FakeResponse>{};
+
+  /// Attendu avant de répondre (réseau lent).
+  Future<void> Function(RecordedRequest request)? beforeRequest;
+
+  var profileComplete = true;
+  var paymentTimeoutMinutes = 15;
+
+  /// Heure du serveur.
+  DateTime Function() now = () => DateTime.now().toUtc();
+
+  var _number = 1041;
+
+  /// En-tête `Authorization` de l'acheteur de chaque commande.
+  final _buyerOf = <String, String>{};
+
+  FakeSearch get _search => cart.search;
+
+  FakeResponse? _failure(RecordedRequest r) {
+    for (final key in failures.keys) {
+      if ('${r.method} ${r.path}'.contains(key)) return failures.remove(key);
+    }
+    return null;
+  }
+
+  static FakeResponse _conflict(String code, String message) =>
+      FakeResponse.error(409, code, message);
+
+  /// Récapitulatif du panier, ou le refus du serveur.
+  (Map<String, dynamic>?, FakeResponse?) _quoteOf(Map<String, dynamic> input) {
+    final fulfillment = input['fulfillment'];
+    if (cart.lines.isEmpty) {
+      return (null, _conflict('cart_empty', 'Votre panier est vide.'));
+    }
+    if (fulfillment != 'pickup' && fulfillment != 'delivery') {
+      return (
+        null,
+        FakeResponse.error(
+          400,
+          'validation_failed',
+          'Certaines informations sont invalides.',
+          fields: {'fulfillment': 'Mode attendu : pickup ou delivery.'},
+        ),
+      );
+    }
+    final shop = _search.shops.where((s) => s['id'] == cart.shopId).firstOrNull;
+    if (shop == null) {
+      return (
+        null,
+        _conflict('shop_unavailable', "Cette boutique n'est plus disponible."),
+      );
+    }
+    if (shop['accepting_orders'] != true) {
+      return (
+        null,
+        _conflict(
+          'shop_closed',
+          'Cette boutique ne prend pas de commande pour le moment.',
+        ),
+      );
+    }
+    if (fulfillment == 'delivery') {
+      return (
+        null,
+        FakeResponse.error(
+          400,
+          'validation_failed',
+          'Certaines informations sont invalides.',
+          fields: {'address_id': 'Choisissez une adresse de livraison.'},
+        ),
+      );
+    }
+    final items = <Map<String, dynamic>>[];
+    var subtotal = 0;
+    for (final MapEntry(key: id, value: qty) in cart.lines.entries) {
+      final p = _search.products.firstWhere((p) => p['id'] == id);
+      if (p['is_active'] == false) {
+        return (
+          null,
+          _conflict(
+            'product_unavailable',
+            "Un produit de votre panier n'est plus disponible.",
+          ),
+        );
+      }
+      final stock = FakeCart._stock(p);
+      if (stock != null && stock < qty) {
+        return (
+          null,
+          _conflict(
+            'insufficient_stock',
+            'Stock insuffisant pour « ${p['name']} ».',
+          ),
+        );
+      }
+      final price = p['price_xof'] as int;
+      subtotal += price * qty;
+      items.add({
+        'product_id': id,
+        'product_name': p['name'],
+        'unit_price_xof': price,
+        'quantity': qty,
+        'line_total_xof': price * qty,
+        'parcel_size': p['parcel_size'],
+        'stock_mode': p['stock_mode'],
+      });
+    }
+    return (
+      {
+        'shop_id': shop['id'],
+        'fulfillment': fulfillment,
+        'items': items,
+        'subtotal_xof': subtotal,
+        'parcel_size': 'medium',
+        'vehicle_options': <Object>[],
+        'vehicle_type': null,
+        'delivery_distance_m': null,
+        'delivery_fee_xof': 0,
+        'total_xof': subtotal,
+        'payment_timeout_minutes': paymentTimeoutMinutes,
+      },
+      null,
+    );
+  }
+
+  Future<FakeResponse> _quote(RecordedRequest r) async {
+    if (beforeRequest case final wait?) await wait(r);
+    if (_failure(r) case final f?) return f;
+    final (quote, error) = _quoteOf(r.body! as Map<String, dynamic>);
+    return error ?? FakeResponse.json(200, quote);
+  }
+
+  /// Statuts où le serveur donne le code de remise.
+  static const _showsCode = {
+    'awaiting_seller',
+    'accepted',
+    'preparing',
+    'ready_for_pickup',
+    'awaiting_driver',
+    'driver_assigned',
+    'picked_up',
+  };
+
+  /// La commande telle que l'acheteur la voit.
+  Map<String, dynamic> view(Map<String, dynamic> order) => {
+    ...order,
+    'handover_code': _showsCode.contains(order['status']) ? handoverCode : null,
+    'shop': _search.shops.firstWhere((s) => s['id'] == order['shop_id']),
+  };
+
+  Future<FakeResponse> _create(RecordedRequest r) async {
+    if (beforeRequest case final wait?) await wait(r);
+    if (_failure(r) case final f?) return f;
+    final input = r.body! as Map<String, dynamic>;
+    final auth = r.headers['authorization'] ?? '';
+    final requestId = input['client_request_id'] as String?;
+    if (requestId != null) {
+      final same = orders
+          .where(
+            (o) =>
+                o['client_request_id'] == requestId &&
+                _buyerOf[o['id']] == auth,
+          )
+          .firstOrNull;
+      if (same != null) return FakeResponse.json(201, view(same));
+    }
+    if (!profileComplete) {
+      return _conflict(
+        'profile_incomplete',
+        'Complétez votre profil (prénom, téléphone, consentement) avant de '
+            'commander.',
+      );
+    }
+    final (quote, error) = _quoteOf(input);
+    if (error != null) return error;
+    // Stock suivi réservé.
+    for (final item in quote!['items'] as List) {
+      final p = _search.products.firstWhere(
+        (p) => p['id'] == item['product_id'],
+      );
+      if (p['stock_mode'] == 'tracked') {
+        p['stock_quantity'] =
+            (p['stock_quantity'] as int) - (item['quantity'] as int);
+      }
+    }
+    final created = now();
+    final number = ++_number;
+    final id =
+        'b0000000-0000-4000-8000-${number.toRadixString(16).padLeft(12, '0')}';
+    final order = <String, dynamic>{
+      'id': id,
+      'number': number,
+      'reference': 'IV-${number.toString().padLeft(6, '0')}',
+      'status': 'pending_payment',
+      'fulfillment': input['fulfillment'],
+      'vehicle_type': null,
+      'parcel_size': quote['parcel_size'],
+      'subtotal_xof': quote['subtotal_xof'],
+      'delivery_fee_xof': 0,
+      'total_xof': quote['total_xof'],
+      'delivery_address': null,
+      'cancel_reason': '',
+      'payment_deadline_at': created
+          .add(Duration(minutes: paymentTimeoutMinutes))
+          .toIso8601String(),
+      'seller_deadline_at': null,
+      'paid_at': null,
+      'accepted_at': null,
+      'ready_at': null,
+      'picked_up_at': null,
+      'completed_at': null,
+      'cancelled_at': null,
+      'refunded_at': null,
+      'created_at': created.toIso8601String(),
+      'updated_at': created.toIso8601String(),
+      'items': [
+        for (final item in quote['items'] as List)
+          {
+            for (final MapEntry(:key, :value)
+                in (item as Map<String, dynamic>).entries)
+              key: value,
+          },
+      ],
+      'events': <Map<String, dynamic>>[
+        {
+          'from_status': null,
+          'to_status': 'pending_payment',
+          'actor_type': 'buyer',
+          'reason': '',
+          'created_at': created.toIso8601String(),
+        },
+      ],
+      'shop_id': quote['shop_id'],
+      'client_request_id': requestId,
+    };
+    orders.add(order);
+    _buyerOf[id] = auth;
+    cart
+      ..shopId = null
+      ..lines.clear();
+    return FakeResponse.json(201, view(order));
+  }
+
+  /// Ajoute une commande déjà passée, au statut [status], sans passer par
+  /// l'API (elle appartient au premier compte qui lit les commandes).
+  Map<String, dynamic> seed(
+    Map<String, dynamic> shop,
+    List<(Map<String, dynamic>, int)> lines, {
+    String status = 'pending_payment',
+    DateTime? at,
+  }) {
+    final created = at ?? now();
+    final number = ++_number;
+    var total = 0;
+    final items = [
+      for (final (p, qty) in lines)
+        {
+          'product_id': p['id'],
+          'product_name': p['name'],
+          'unit_price_xof': p['price_xof'],
+          'quantity': qty,
+          'line_total_xof': (p['price_xof'] as int) * qty,
+          'parcel_size': p['parcel_size'],
+          'stock_mode': p['stock_mode'],
+        },
+    ];
+    for (final i in items) {
+      total += i['line_total_xof']! as int;
+    }
+    final order = <String, dynamic>{
+      'id':
+          'b0000000-0000-4000-8000-${number.toRadixString(16).padLeft(12, '0')}',
+      'number': number,
+      'reference': 'IV-${number.toString().padLeft(6, '0')}',
+      'status': 'pending_payment',
+      'fulfillment': 'pickup',
+      'vehicle_type': null,
+      'parcel_size': 'medium',
+      'subtotal_xof': total,
+      'delivery_fee_xof': 0,
+      'total_xof': total,
+      'delivery_address': null,
+      'cancel_reason': '',
+      'payment_deadline_at': created
+          .add(Duration(minutes: paymentTimeoutMinutes))
+          .toIso8601String(),
+      'created_at': created.toIso8601String(),
+      'updated_at': created.toIso8601String(),
+      'items': items,
+      'events': <Map<String, dynamic>>[
+        {
+          'from_status': null,
+          'to_status': 'pending_payment',
+          'actor_type': 'buyer',
+          'reason': '',
+          'created_at': created.toIso8601String(),
+        },
+      ],
+      'shop_id': shop['id'],
+      'client_request_id': null,
+    };
+    orders.add(order);
+    // Étapes ordinaires d'un retrait jusqu'à [status].
+    const path = [
+      'awaiting_seller',
+      'accepted',
+      'preparing',
+      'ready_for_pickup',
+      'completed',
+    ];
+    if (path.contains(status)) {
+      for (final step in path) {
+        advance(order, step, at: created.add(const Duration(minutes: 3)));
+        if (step == status) break;
+      }
+    } else if (status != 'pending_payment') {
+      advance(order, status, at: created.add(const Duration(minutes: 3)));
+    }
+    return order;
+  }
+
+  /// Fait passer [order] à [status] (historique compris), comme la machine
+  /// à états du serveur.
+  void advance(
+    Map<String, dynamic> order,
+    String status, {
+    String reason = '',
+    DateTime? at,
+  }) {
+    final when = (at ?? now()).toIso8601String();
+    (order['events'] as List).add({
+      'from_status': order['status'],
+      'to_status': status,
+      'actor_type': 'system',
+      'reason': reason,
+      'created_at': when,
+    });
+    order
+      ..['status'] = status
+      ..['updated_at'] = when;
+    if (status == 'cancelled') order['cancel_reason'] = reason;
+  }
+
+  bool _visible(Map<String, dynamic> order, RecordedRequest r) {
+    final auth = r.headers['authorization'] ?? '';
+    return _buyerOf.putIfAbsent(order['id'] as String, () => auth) == auth;
+  }
+
+  Future<FakeResponse> _list(RecordedRequest r) async {
+    if (beforeRequest case final wait?) await wait(r);
+    if (_failure(r) case final f?) return f;
+    final offset = int.parse(r.query['offset'] ?? '0');
+    final limit = int.parse(r.query['limit'] ?? '20');
+    if (limit < 1 || limit > 100) {
+      return FakeResponse.error(
+        400,
+        'validation_failed',
+        'Certaines informations sont invalides.',
+        fields: {'limit': 'Entre 1 et 100.'},
+      );
+    }
+    final mine = [
+      for (final o in orders.reversed)
+        if (_visible(o, r)) view(o),
+    ];
+    return FakeResponse.json(200, {
+      'items': mine.skip(offset).take(limit).toList(),
+      'next_offset': mine.length > offset + limit ? offset + limit : null,
+    });
+  }
+
+  Future<FakeResponse> _get(RecordedRequest r) async {
+    if (beforeRequest case final wait?) await wait(r);
+    if (_failure(r) case final f?) return f;
+    final id = r.path.split('/').last;
+    final order = orders.where((o) => o['id'] == id).firstOrNull;
+    if (order == null || !_visible(order, r)) {
+      return FakeResponse.error(
+        404,
+        'order_not_found',
+        'Commande introuvable.',
+      );
+    }
+    return FakeResponse.json(200, view(order));
+  }
+}
