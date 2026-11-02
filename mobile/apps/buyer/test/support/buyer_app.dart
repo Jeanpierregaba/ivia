@@ -33,7 +33,8 @@ class FakeLocation implements LocationService {
   }
 }
 
-/// App acheteur connectée (Awa, profil complet), recherche en mémoire.
+/// App acheteur connectée (Awa, profil complet), recherche et panier en
+/// mémoire.
 class BuyerHarness {
   BuyerHarness() {
     server = FakeApiServer()
@@ -44,10 +45,12 @@ class BuyerHarness {
       )
       ..on('POST', '/v1/auth/logout', (_) => FakeResponse.json(204, null));
     search = FakeSearch(server);
+    cart = FakeCart(search);
   }
 
   late final FakeApiServer server;
   late final FakeSearch search;
+  late final FakeCart cart;
   final location = FakeLocation();
 
   /// Avant chaque test : stockage vide, session ouverte.

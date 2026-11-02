@@ -1,7 +1,7 @@
 import 'package:flutter_riverpod/flutter_riverpod.dart';
 import 'package:ivia_api_client/ivia_api_client.dart';
-import 'package:ivia_app_core/ivia_app_core.dart';
 
+import '../../app/account.dart';
 import '../../app/buyer_area.dart';
 
 /// Onglet des résultats.
@@ -107,21 +107,11 @@ class SearchFilters {
 final searchFiltersProvider =
     NotifierProvider<SearchFiltersState, SearchFilters>(SearchFiltersState.new);
 
-/// Compte connecté : filtres et focus repartent de zéro quand il change
-/// (déconnexion, autre compte sur le même téléphone).
-String? _accountId(Ref ref) => ref.watch(
-  authControllerProvider.select(
-    (auth) => switch (auth) {
-      AuthSignedIn(:final user) || AuthNeedsProfile(:final user) => user.id,
-      _ => null,
-    },
-  ),
-);
-
 class SearchFiltersState extends Notifier<SearchFilters> {
   @override
   SearchFilters build() {
-    _accountId(ref);
+    // Filtres et focus repartent de zéro au changement de compte.
+    ref.watch(accountIdProvider);
     return const SearchFilters();
   }
 
@@ -160,7 +150,8 @@ final searchFocusRequestProvider = NotifierProvider<SearchFocusRequest, int>(
 class SearchFocusRequest extends Notifier<int> {
   @override
   int build() {
-    _accountId(ref);
+    // Filtres et focus repartent de zéro au changement de compte.
+    ref.watch(accountIdProvider);
     return 0;
   }
 

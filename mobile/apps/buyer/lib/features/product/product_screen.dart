@@ -7,7 +7,10 @@ import 'package:ivia_ui/ivia_ui.dart';
 
 import '../../app/buyer_area.dart';
 import '../../app/catalog_data.dart';
+import '../../app/cart.dart';
 import '../../app/router.dart';
+import '../cart/cart_actions.dart';
+import '../cart/cart_button.dart' show CartButton;
 import '../shop/shop_screen.dart' show UnavailableView;
 
 /// Fiche publique d'un produit, avec sa boutique.
@@ -26,7 +29,7 @@ String availabilityLabel(Product p) => switch (p.stockMode) {
 };
 
 /// Fiche produit : photos, prix, disponibilité, boutique, description,
-/// quantité et ajout au panier (annoncé pour la fonctionnalité 008).
+/// quantité et ajout au panier.
 class ProductScreen extends ConsumerStatefulWidget {
   const ProductScreen({super.key, required this.productId});
 
@@ -38,13 +41,22 @@ class ProductScreen extends ConsumerStatefulWidget {
 
 class _ProductScreenState extends ConsumerState<ProductScreen> {
   var _quantity = 1;
+  var _adding = false;
 
-  void _add() {
-    ScaffoldMessenger.of(context)
-      ..hideCurrentSnackBar()
-      ..showSnackBar(
-        const SnackBar(content: Text('Le panier arrive bientôt.')),
-      );
+  Future<void> _add(Product product, int quantity) async {
+    setState(() => _adding = true);
+    final added = await addToCart(
+      context,
+      ref,
+      productId: product.id,
+      name: product.name,
+      count: quantity,
+    );
+    if (!mounted) return;
+    setState(() {
+      _adding = false;
+      if (added) _quantity = 1;
+    });
   }
 
   @override
@@ -78,6 +90,9 @@ class _ProductScreenState extends ConsumerState<ProductScreen> {
     final categories = ref.watch(categoriesProvider).value ?? const [];
     final category = categoryName(categories, product.categoryId);
     final soldOut = !product.available;
+    final inCart = ref.watch(
+      cartViewProvider.select((c) => c.value?.cart.quantityOf(product.id) ?? 0),
+    );
     return CustomScrollView(
       slivers: [
         SliverToBoxAdapter(
@@ -94,6 +109,11 @@ class _ProductScreenState extends ConsumerState<ProductScreen> {
                   left: IviaSpacing.screen,
                   top: MediaQuery.paddingOf(context).top + IviaSpacing.sm,
                   child: IviaBackButton(onPressed: () => context.pop()),
+                ),
+                Positioned(
+                  right: IviaSpacing.screen,
+                  top: MediaQuery.paddingOf(context).top + IviaSpacing.sm,
+                  child: const CartButton(),
                 ),
               ],
             ),
@@ -124,6 +144,11 @@ class _ProductScreenState extends ConsumerState<ProductScreen> {
                   color: soldOut ? IviaColors.error : IviaColors.cobaltBlue,
                 ),
               ),
+              if (inCart > 0)
+                Text(
+                  'Déjà $inCart dans votre panier',
+                  style: textTheme.bodyMedium,
+                ),
               const SizedBox(height: IviaSpacing.lg),
               _ShopCard(shop: shop),
               if (product.description.isNotEmpty) ...[
@@ -158,9 +183,14 @@ class _ProductScreenState extends ConsumerState<ProductScreen> {
 
   Widget _bottomBar(Product product) {
     final soldOut = !product.available;
-    final max = product.stockMode == StockMode.tracked
-        ? (product.stockQuantity ?? 0).clamp(1, 1000000)
-        : 99;
+    // Ce qui reste à ajouter : stock (ou 99) moins ce qui est déjà au panier.
+    final inCart = ref.watch(
+      cartViewProvider.select((c) => c.value?.cart.quantityOf(product.id) ?? 0),
+    );
+    final cap = product.stockMode == StockMode.tracked
+        ? (product.stockQuantity ?? 0).clamp(0, cartMaxQuantity)
+        : cartMaxQuantity;
+    final max = (cap - inCart).clamp(1, cartMaxQuantity);
     final quantity = _quantity.clamp(1, max);
     return SafeArea(
       top: false,
@@ -186,7 +216,9 @@ class _ProductScreenState extends ConsumerState<ProductScreen> {
           ConstrainedBox(
             constraints: const BoxConstraints(minWidth: 200),
             child: FilledButton(
-              onPressed: soldOut ? null : _add,
+              onPressed: soldOut || _adding
+                  ? null
+                  : () => _add(product, quantity),
               child: Text(
                 soldOut
                     ? 'Épuisé'

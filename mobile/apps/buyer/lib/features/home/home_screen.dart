@@ -8,6 +8,7 @@ import 'package:ivia_ui/ivia_ui.dart';
 import '../../app/buyer_area.dart';
 import '../../app/catalog_data.dart';
 import '../../app/router.dart';
+import '../cart/cart_button.dart';
 import '../search/product_grid.dart';
 import '../search/search_state.dart';
 import 'area_sheet.dart';
@@ -91,7 +92,15 @@ class _HomeScreenState extends ConsumerState<HomeScreen> {
           physics: const AlwaysScrollableScrollPhysics(),
           padding: const EdgeInsets.symmetric(vertical: IviaSpacing.lg),
           children: [
-            _pad(_AreaButton(area: area)),
+            _pad(
+              Row(
+                children: [
+                  Expanded(child: _AreaButton(area: area)),
+                  const SizedBox(width: IviaSpacing.sm),
+                  const CartButton(),
+                ],
+              ),
+            ),
             const SizedBox(height: IviaSpacing.xl),
             _pad(
               Semantics(

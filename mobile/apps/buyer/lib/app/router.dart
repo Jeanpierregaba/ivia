@@ -3,6 +3,7 @@ import 'package:flutter_riverpod/flutter_riverpod.dart';
 import 'package:go_router/go_router.dart';
 import 'package:ivia_app_core/ivia_app_core.dart';
 
+import '../features/cart/cart_screen.dart';
 import '../features/home/home_screen.dart';
 import '../features/onboarding/onboarding_screen.dart';
 import '../features/orders/orders_placeholder_screen.dart';
@@ -34,6 +35,7 @@ abstract final class Routes {
   static const products = '/products';
   static String shop(String id) => '$shops/$id';
   static String product(String id) => '$products/$id';
+  static const cart = '/cart';
 }
 
 /// Écrans permis pour un état ; le premier est la destination par défaut.
@@ -56,6 +58,7 @@ String? redirectFor(
       Routes.profile,
       Routes.shops,
       Routes.products,
+      Routes.cart,
     ],
     AuthOffline() => const [Routes.offline],
   };
@@ -131,6 +134,11 @@ final routerProvider = Provider<GoRouter>((ref) {
         parentNavigatorKey: rootKey,
         builder: (context, state) =>
             ProductScreen(productId: state.pathParameters['id']!),
+      ),
+      GoRoute(
+        path: Routes.cart,
+        parentNavigatorKey: rootKey,
+        builder: (context, state) => const CartScreen(),
       ),
       GoRoute(
         path: Routes.offline,

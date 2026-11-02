@@ -1,10 +1,13 @@
 import 'package:flutter/material.dart';
+import 'package:flutter_riverpod/flutter_riverpod.dart';
 import 'package:go_router/go_router.dart';
 import 'package:ivia_api_client/ivia_api_client.dart';
 import 'package:ivia_app_core/ivia_app_core.dart';
 import 'package:ivia_ui/ivia_ui.dart';
 
+import '../../app/cart.dart';
 import '../../app/router.dart';
+import '../cart/cart_actions.dart';
 
 /// Une ou deux colonnes : une seule sur un écran étroit ou avec une police
 /// agrandie.
@@ -81,7 +84,10 @@ Widget _gridRow(
           if (c > 0) const SizedBox(width: IviaSpacing.md),
           Expanded(
             child: start + c < items.length
-                ? productCard(context, items[start + c])
+                ? ProductHitCard(
+                    key: ValueKey(items[start + c].id),
+                    hit: items[start + c],
+                  )
                 : const SizedBox(),
           ),
         ],
@@ -90,17 +96,33 @@ Widget _gridRow(
   );
 }
 
-/// Carte d'un produit trouvé ; un appui ouvre sa fiche.
-Widget productCard(BuildContext context, ProductHit hit) => IviaProductCard(
-  key: ValueKey(hit.id),
-  imageUrl: hit.imageUrl,
-  name: hit.name,
-  shopName: hit.shopName,
-  distance: switch (hit.distanceM) {
-    final m? => formatDistance(m),
-    null => null,
-  },
-  price: formatXof(hit.priceXof),
-  soldOut: !hit.inStock,
-  onTap: () => context.push(Routes.product(hit.id)),
-);
+/// Carte d'un produit trouvé : un appui ouvre sa fiche, « + » en ajoute un
+/// exemplaire au panier (pas de « + » sur un produit épuisé).
+class ProductHitCard extends ConsumerWidget {
+  const ProductHitCard({super.key, required this.hit});
+
+  final ProductHit hit;
+
+  @override
+  Widget build(BuildContext context, WidgetRef ref) {
+    final adding = ref.watch(
+      cartViewProvider.select((c) => c.value?.isSending(hit.id) ?? false),
+    );
+    return IviaProductCard(
+      imageUrl: hit.imageUrl,
+      name: hit.name,
+      shopName: hit.shopName,
+      distance: switch (hit.distanceM) {
+        final m? => formatDistance(m),
+        null => null,
+      },
+      price: formatXof(hit.priceXof),
+      soldOut: !hit.inStock,
+      onTap: () => context.push(Routes.product(hit.id)),
+      onAdd: hit.inStock
+          ? () => addToCart(context, ref, productId: hit.id, name: hit.name)
+          : null,
+      adding: adding,
+    );
+  }
+}

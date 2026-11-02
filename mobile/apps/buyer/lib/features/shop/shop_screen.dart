@@ -8,7 +8,10 @@ import 'package:ivia_app_core/ivia_app_core.dart';
 import 'package:ivia_ui/ivia_ui.dart';
 
 import '../../app/buyer_area.dart';
+import '../../app/cart.dart';
 import '../../app/router.dart';
+import '../cart/cart_actions.dart';
+import '../cart/cart_button.dart';
 import '../search/search_results.dart';
 import '../search/search_screen.dart' show searchDelay;
 
@@ -69,9 +72,12 @@ class _ShopScreenState extends ConsumerState<ShopScreen> {
                   padding: const EdgeInsets.all(IviaSpacing.screen),
                   sliver: SliverList.list(
                     children: [
-                      Align(
-                        alignment: Alignment.centerLeft,
-                        child: IviaBackButton(onPressed: () => context.pop()),
+                      Row(
+                        children: [
+                          IviaBackButton(onPressed: () => context.pop()),
+                          const Spacer(),
+                          const CartButton(),
+                        ],
                       ),
                       const SizedBox(height: IviaSpacing.lg),
                       _ShopHeader(shop: value),
@@ -101,6 +107,9 @@ class _ShopScreenState extends ConsumerState<ShopScreen> {
           _ => const Center(child: CircularProgressIndicator()),
         },
       ),
+      bottomNavigationBar: shop.hasValue
+          ? CartBar(shopId: widget.shopId)
+          : null,
     );
   }
 
@@ -266,7 +275,9 @@ class _ShopHeader extends ConsumerWidget {
   }
 }
 
-class _ProductRow extends StatelessWidget {
+/// Produit de la boutique : un appui ouvre sa fiche, « + » en ajoute un
+/// exemplaire au panier (chevron sur un produit épuisé).
+class _ProductRow extends ConsumerWidget {
   const _ProductRow({
     required this.hit,
     required this.first,
@@ -278,7 +289,7 @@ class _ProductRow extends StatelessWidget {
   final bool last;
 
   @override
-  Widget build(BuildContext context) {
+  Widget build(BuildContext context, WidgetRef ref) {
     final textTheme = Theme.of(context).textTheme;
     const corner = Radius.circular(IviaRadius.large);
     final radius = BorderRadius.vertical(
@@ -286,68 +297,96 @@ class _ProductRow extends StatelessWidget {
       bottom: last ? corner : Radius.zero,
     );
     final price = formatXof(hit.priceXof);
-    return Semantics(
-      button: true,
-      label: '${hit.name}, $price, ${hit.inStock ? 'en stock' : 'épuisé'}',
-      excludeSemantics: true,
-      onTap: () => context.push(Routes.product(hit.id)),
-      child: Material(
-        color: IviaColors.surface,
-        borderRadius: radius,
-        child: InkWell(
-          borderRadius: radius,
-          onTap: () => context.push(Routes.product(hit.id)),
-          child: Container(
-            decoration: BoxDecoration(
-              border: last
-                  ? null
-                  : const Border(bottom: BorderSide(color: IviaColors.border)),
-            ),
-            padding: const EdgeInsets.all(IviaSpacing.md),
-            child: Row(
-              children: [
-                SizedBox.square(
-                  dimension: 64,
-                  child: IviaNetworkImage(url: hit.imageUrl),
-                ),
-                const SizedBox(width: IviaSpacing.lg),
-                Expanded(
-                  child: Column(
-                    crossAxisAlignment: CrossAxisAlignment.start,
-                    children: [
-                      Text(
-                        hit.name,
-                        maxLines: 2,
-                        overflow: TextOverflow.ellipsis,
-                        style: textTheme.titleSmall?.copyWith(
-                          fontWeight: FontWeight.w700,
+    final adding = ref.watch(
+      cartViewProvider.select((c) => c.value?.isSending(hit.id) ?? false),
+    );
+    return Material(
+      color: IviaColors.surface,
+      borderRadius: radius,
+      clipBehavior: Clip.antiAlias,
+      child: Container(
+        decoration: BoxDecoration(
+          border: last
+              ? null
+              : const Border(bottom: BorderSide(color: IviaColors.border)),
+        ),
+        child: Row(
+          children: [
+            Expanded(
+              child: Semantics(
+                button: true,
+                label:
+                    '${hit.name}, $price, ${hit.inStock ? 'en stock' : 'épuisé'}',
+                excludeSemantics: true,
+                onTap: () => context.push(Routes.product(hit.id)),
+                child: InkWell(
+                  onTap: () => context.push(Routes.product(hit.id)),
+                  child: Padding(
+                    padding: const EdgeInsets.all(IviaSpacing.md),
+                    child: Row(
+                      children: [
+                        SizedBox.square(
+                          dimension: 64,
+                          child: IviaNetworkImage(url: hit.imageUrl),
                         ),
-                      ),
-                      Text(
-                        hit.inStock ? 'En stock' : 'Épuisé',
-                        style: textTheme.bodySmall?.copyWith(
-                          color: hit.inStock
-                              ? IviaColors.cobaltBlue
-                              : IviaColors.error,
-                          fontWeight: FontWeight.w700,
+                        const SizedBox(width: IviaSpacing.lg),
+                        Expanded(
+                          child: Column(
+                            crossAxisAlignment: CrossAxisAlignment.start,
+                            children: [
+                              Text(
+                                hit.name,
+                                maxLines: 2,
+                                overflow: TextOverflow.ellipsis,
+                                style: textTheme.titleSmall?.copyWith(
+                                  fontWeight: FontWeight.w700,
+                                ),
+                              ),
+                              Text(
+                                hit.inStock ? 'En stock' : 'Épuisé',
+                                style: textTheme.bodySmall?.copyWith(
+                                  color: hit.inStock
+                                      ? IviaColors.cobaltBlue
+                                      : IviaColors.error,
+                                  fontWeight: FontWeight.w700,
+                                ),
+                              ),
+                              Text(
+                                price,
+                                style: textTheme.titleMedium?.copyWith(
+                                  fontWeight: FontWeight.w700,
+                                ),
+                              ),
+                            ],
+                          ),
                         ),
-                      ),
-                      Text(
-                        price,
-                        style: textTheme.titleMedium?.copyWith(
-                          fontWeight: FontWeight.w700,
-                        ),
-                      ),
-                    ],
+                      ],
+                    ),
                   ),
                 ),
-                const Icon(
-                  Icons.chevron_right,
-                  color: IviaColors.textSecondary,
-                ),
-              ],
+              ),
             ),
-          ),
+            Padding(
+              padding: const EdgeInsets.only(right: IviaSpacing.sm),
+              child: hit.inStock
+                  ? IviaAddButton(
+                      label: 'Ajouter ${hit.name} au panier',
+                      busy: adding,
+                      onPressed: () => addToCart(
+                        context,
+                        ref,
+                        productId: hit.id,
+                        name: hit.name,
+                      ),
+                    )
+                  : const ExcludeSemantics(
+                      child: Icon(
+                        Icons.chevron_right,
+                        color: IviaColors.textSecondary,
+                      ),
+                    ),
+            ),
+          ],
         ),
       ),
     );

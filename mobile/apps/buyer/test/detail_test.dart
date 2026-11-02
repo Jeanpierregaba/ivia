@@ -139,8 +139,16 @@ void main() {
       await tester.pump();
       expect(textPlain('Ajouter · 9 000 F'), findsOneWidget);
       await tester.tap(find.byType(FilledButton));
-      await tester.pump();
-      expect(find.text('Le panier arrive bientôt.'), findsOneWidget);
+      await tester.pumpAndSettle();
+      expect(app.cart.quantityOf(riz), 2);
+      expect(
+        find.text('2 × Riz parfumé 5 kg ajoutés au panier'),
+        findsOneWidget,
+      );
+      expect(find.bySemanticsLabel('Panier, 2 articles'), findsOneWidget);
+      ScaffoldMessenger.of(tester.element(find.byType(ProductScreen)))
+          .removeCurrentSnackBar();
+      await tester.pumpAndSettle();
 
       await tester.tap(find.bySemanticsLabel(RegExp('^Boutique Chez Afi')));
       await tester.pumpAndSettle();
