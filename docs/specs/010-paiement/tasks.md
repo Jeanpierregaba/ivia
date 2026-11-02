@@ -17,7 +17,7 @@
 - [x] 5. Écran d'attente : texte, temps restant, relecture toutes les 3 s, succès, échec, délai
   dépassé ; tests
 - [x] 6. « Je n'ai rien reçu », « Annuler le paiement », simulation locale ; tests
-- [ ] 7. Docs : `DESIGN.md`, `AGENTS.md`, `TASKS.md`
+- [x] 7. Docs : `DESIGN.md`, `AGENTS.md`, `TASKS.md`
 
 **Vérifications**
 - [ ] Parcours réel sur le simulateur iPhone 17 Pro contre l'API locale (commande, paiement

@@ -237,8 +237,17 @@ Maquettes : à venir (lien Figma à ajouter ici). Les statuts affichés suivent
   d'action), carte « Retrait chez Chez Afi », récapitulatif du serveur (lignes, « Produits ·
   3 articles », « Total »), « Vos produits sont réservés 15 minutes » ; en bas « Payer 10 500 F ».
   En livraison (020) : adresse, véhicule, frais.
-- **Paiement** : Flooz ou T-Money, numéro, puis écran d'attente « Validez le paiement sur votre
-  téléphone » avec le temps restant ; succès confirmé seulement après réponse du serveur.
+- **Paiement** (au-dessus du suivi, après « Payer » de l'écran Commande ou du suivi) : « Montant à
+  payer » en grand, cartes **Flooz** / **T-Money** (bouton radio, bordure de la couleur d'action ;
+  initiale sur fond neutre, pas de logo d'opérateur), « Numéro Flooz » (`TogoPhoneField`,
+  pré-rempli avec le numéro du profil), « Paiement sécurisé… » en information (cadenas, pas de case
+  à cocher), en bas « Payer 10 500 F ».
+- **Attente** « Validez le paiement sur votre téléphone » : rond qui tourne, « Une demande Flooz de
+  10 500 F a été envoyée au +228 96 •• •• 78 » (numéro masqué du serveur), carte « Temps restant
+  14:32 » avec barre qui se vide (lue une fois en toutes lettres), « Je n'ai rien reçu » (feuille :
+  renvoyer, changer de numéro) et « Annuler le paiement » (confirmation). Succès confirmé
+  seulement par le serveur : le suivi s'ouvre avec le code de remise. Échec : croix sur fond
+  `primarySoft`, « Le paiement n'a pas abouti », raison du serveur, « Réessayer ».
 - **Suivi de commande** (« Commande #1042 ») : en-tête de l'étape en **Cornell** tant que la
   commande est en cours (texte blanc : Imperial n'atteint pas 4,5:1 sous le texte courant), vert
   une fois retirée, blanc pour une fin anormale ; « À payer avant 14:32 » et « Payer » en attente de
