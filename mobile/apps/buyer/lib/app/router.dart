@@ -1,6 +1,7 @@
 import 'package:flutter/widgets.dart';
 import 'package:flutter_riverpod/flutter_riverpod.dart';
 import 'package:go_router/go_router.dart';
+import 'package:ivia_api_client/ivia_api_client.dart';
 import 'package:ivia_app_core/ivia_app_core.dart';
 
 import '../features/cart/cart_screen.dart';
@@ -9,6 +10,8 @@ import '../features/home/home_screen.dart';
 import '../features/onboarding/onboarding_screen.dart';
 import '../features/orders/order_screen.dart';
 import '../features/orders/orders_screen.dart';
+import '../features/payment/payment_screen.dart';
+import '../features/payment/payment_wait_screen.dart';
 import '../features/product/product_screen.dart';
 import '../features/profile/profile_tab_screen.dart';
 import '../features/search/search_screen.dart';
@@ -40,6 +43,16 @@ abstract final class Routes {
   static const cart = '/cart';
   static const checkout = '/checkout';
   static String order(String id) => '$orders/$id';
+
+  /// Paiement d'une commande, au-dessus de son suivi.
+  static String pay(String orderId, {PaymentOperator? operator}) =>
+      '${order(orderId)}/pay'
+      '${operator == null ? '' : '?operator=${operator.code}'}';
+
+  /// Attente de la validation d'une demande, au-dessus du suivi : le retour
+  /// mène au suivi, pas à l'écran Paiement.
+  static String payWait(String orderId, String paymentId) =>
+      '${order(orderId)}/payments/$paymentId';
 }
 
 /// Écrans permis pour un état ; le premier est la destination par défaut.
@@ -135,6 +148,27 @@ final routerProvider = Provider<GoRouter>((ref) {
                         parentNavigatorKey: rootKey,
                         builder: (context, state) =>
                             OrderScreen(orderId: state.pathParameters['id']!),
+                        routes: [
+                          GoRoute(
+                            path: 'pay',
+                            parentNavigatorKey: rootKey,
+                            builder: (context, state) => PaymentScreen(
+                              orderId: state.pathParameters['id']!,
+                              operator: PaymentOperator.parse(
+                                state.uri.queryParameters['operator'] ?? '',
+                              ),
+                            ),
+                          ),
+                          GoRoute(
+                            path: 'payments/:paymentId',
+                            parentNavigatorKey: rootKey,
+                            builder: (context, state) => PaymentWaitScreen(
+                              orderId: state.pathParameters['id']!,
+                              paymentId: state.pathParameters['paymentId']!,
+                              phone: state.extra as String?,
+                            ),
+                          ),
+                        ],
                       ),
                   ],
                 ),

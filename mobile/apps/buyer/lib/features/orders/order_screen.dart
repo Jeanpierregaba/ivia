@@ -111,8 +111,33 @@ class _OrderScreenState extends ConsumerState<OrderScreen> {
     }
   }
 
-  void _pay() =>
-      showMessage(ScaffoldMessenger.of(context), 'Le paiement arrive bientôt.');
+  /// Ouverture du paiement en cours (lecture des demandes de la commande).
+  var _opening = false;
+
+  /// « Payer » : la demande en attente, s'il y en a une, est reprise (pas de
+  /// nouvelle demande) ; sinon l'écran Paiement s'ouvre.
+  Future<void> _pay() async {
+    if (_opening) return;
+    final messenger = ScaffoldMessenger.of(context);
+    final router = GoRouter.of(context);
+    setState(() => _opening = true);
+    try {
+      final payments = await ref
+          .read(apiClientProvider)
+          .orderPayments(widget.orderId);
+      final pending = payments.where((p) => p.status.isPending).firstOrNull;
+      if (!mounted) return;
+      router.go(
+        pending == null
+            ? Routes.pay(widget.orderId)
+            : Routes.payWait(widget.orderId, pending.id),
+      );
+    } on ApiException catch (e) {
+      showMessage(messenger, e.message);
+    } finally {
+      if (mounted) setState(() => _opening = false);
+    }
+  }
 
   @override
   Widget build(BuildContext context) {
@@ -161,7 +186,7 @@ class _OrderScreenState extends ConsumerState<OrderScreen> {
             ),
           ),
           const SizedBox(height: IviaSpacing.lg),
-          _Header(order: order, onPay: _pay),
+          _Header(order: order, onPay: _opening ? null : _pay),
           const SizedBox(height: IviaSpacing.lg),
           _ShopTile(shop: order.shop),
           const SizedBox(height: IviaSpacing.lg),
@@ -203,7 +228,7 @@ class _Header extends StatelessWidget {
   const _Header({required this.order, required this.onPay});
 
   final BuyerOrder order;
-  final VoidCallback onPay;
+  final VoidCallback? onPay;
 
   @override
   Widget build(BuildContext context) {

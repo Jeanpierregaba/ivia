@@ -7,6 +7,7 @@ import 'package:ivia_api_client/testing.dart';
 import 'package:ivia_app_core/ivia_app_core.dart';
 import 'package:ivia_buyer/app/buyer_area.dart';
 import 'package:ivia_buyer/app/identity.dart';
+import 'package:ivia_buyer/features/payment/payment_providers.dart';
 import 'package:ivia_buyer/main.dart';
 import 'package:shared_preferences/shared_preferences.dart';
 
@@ -33,8 +34,8 @@ class FakeLocation implements LocationService {
   }
 }
 
-/// App acheteur connectée (Awa, profil complet), recherche, panier et
-/// commandes en mémoire.
+/// App acheteur connectée (Awa, profil complet), recherche, panier,
+/// commandes et paiements en mémoire.
 class BuyerHarness {
   BuyerHarness() {
     server = FakeApiServer()
@@ -47,13 +48,18 @@ class BuyerHarness {
     search = FakeSearch(server);
     cart = FakeCart(search);
     orders = FakeOrders(cart);
+    payments = FakePayments(orders);
   }
 
   late final FakeApiServer server;
   late final FakeSearch search;
   late final FakeCart cart;
   late final FakeOrders orders;
+  late final FakePayments payments;
   final location = FakeLocation();
+
+  /// Boutons de simulation du paiement (`IVIA_DEV_PAYMENT`).
+  var devPayments = false;
 
   /// Avant chaque test : stockage vide, session ouverte.
   static Future<void> resetStorage({
@@ -78,6 +84,7 @@ class BuyerHarness {
           areaStoreProvider.overrideWithValue(area),
           locationServiceProvider.overrideWithValue(location),
           appIdentityProvider.overrideWithValue(buyerIdentity),
+          devPaymentsProvider.overrideWithValue(devPayments),
           apiClientProvider.overrideWithValue(
             IviaApiClient(
               config: ApiConfig(baseUrl: Uri.parse('http://api.test')),

@@ -10,6 +10,7 @@ import 'package:ivia_buyer/features/checkout/checkout_screen.dart';
 import 'package:ivia_buyer/features/orders/order_screen.dart';
 import 'package:ivia_buyer/features/orders/orders_providers.dart';
 import 'package:ivia_buyer/features/orders/orders_screen.dart';
+import 'package:ivia_buyer/features/payment/payment_screen.dart';
 import 'package:ivia_ui/ivia_ui.dart';
 
 import 'support/buyer_app.dart';
@@ -100,11 +101,17 @@ void main() {
       final body = creations().single.body! as Map<String, dynamic>;
       expect(body['fulfillment'], 'pickup');
       expect(body['client_request_id'], matches(RegExp(r'^[0-9a-f-]{36}$')));
+      // Le paiement s'ouvre au-dessus du suivi.
+      expect(find.byType(PaymentScreen), findsOneWidget);
+      expect(app.cart.lines, isEmpty);
+      expect(riz['stock_quantity'], 10);
+
+      // Retour : le suivi, commande toujours à payer.
+      await tester.tap(find.byTooltip('Retour'));
+      await tester.pumpAndSettle();
       expect(find.byType(OrderScreen), findsOneWidget);
       expect(find.text('Commande #1042'), findsOneWidget);
       expect(find.textContaining('À payer avant'), findsOneWidget);
-      expect(app.cart.lines, isEmpty);
-      expect(riz['stock_quantity'], 10);
 
       // Retour : l'onglet Commandes, avec la commande en cours.
       await tester.tap(find.byTooltip('Retour'));
@@ -125,7 +132,7 @@ void main() {
       expect(find.byType(CheckoutScreen), findsOneWidget);
       await tester.tap(find.byType(FilledButton).last);
       await tester.pumpAndSettle();
-      expect(find.byType(OrderScreen), findsOneWidget);
+      expect(find.byType(PaymentScreen), findsOneWidget);
       final ids = creations().map(
         (r) => (r.body! as Map<String, dynamic>)['client_request_id'],
       );
@@ -148,7 +155,7 @@ void main() {
       gate.complete();
       await tester.pumpAndSettle();
       expect(creations(), hasLength(1));
-      expect(find.byType(OrderScreen), findsOneWidget);
+      expect(find.byType(PaymentScreen), findsOneWidget);
     });
 
     testWidgets('refus à la commande : message, « Revenir au panier »', (
@@ -218,7 +225,7 @@ void main() {
       await tester.pumpAndSettle();
       await tester.tap(find.byType(FilledButton).last);
       await tester.pumpAndSettle();
-      expect(find.byType(OrderScreen), findsOneWidget);
+      expect(find.byType(PaymentScreen), findsOneWidget);
       expect(app.orders.orders, hasLength(1));
       expect(creations(), hasLength(2));
     });
@@ -235,7 +242,7 @@ void main() {
       await tester.tap(find.byType(FilledButton).last);
       await tester.pump(const Duration(seconds: 2));
       await tester.pumpAndSettle();
-      expect(find.byType(OrderScreen), findsOneWidget);
+      expect(find.byType(PaymentScreen), findsOneWidget);
       expect(creations(), hasLength(2));
       expect(app.orders.orders, hasLength(1));
     });
@@ -252,7 +259,7 @@ void main() {
       expect(find.byType(CheckoutScreen), findsOneWidget);
       gate.complete();
       await tester.pumpAndSettle();
-      expect(find.byType(OrderScreen), findsOneWidget);
+      expect(find.byType(PaymentScreen), findsOneWidget);
     });
 
     testWidgets('trop de commandes, profil incomplet : message du serveur', (
@@ -406,8 +413,8 @@ void main() {
       expect(textPlain('2 × Riz parfumé 5 kg'), findsOneWidget);
       expect(textPlain('10 500 F'), findsWidgets);
       await tester.tap(textPlain('Payer 10 500 F'));
-      await tester.pump();
-      expect(find.text('Le paiement arrive bientôt.'), findsOneWidget);
+      await tester.pumpAndSettle();
+      expect(find.byType(PaymentScreen), findsOneWidget);
     });
 
     testWidgets('prête à retirer : code de remise et adresse', (tester) async {

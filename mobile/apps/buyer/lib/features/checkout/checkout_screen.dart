@@ -105,15 +105,17 @@ class _CheckoutScreenState extends ConsumerState<CheckoutScreen> {
       if (_container.exists(myOrdersProvider)) {
         _container.read(myOrdersProvider.notifier).put(order);
       }
+      // Paiement au-dessus du suivi : le retour mène à la commande, qui
+      // reste à payer jusqu'à l'heure limite.
       if (mounted) {
-        router.go(Routes.order(order.id));
+        router.go(Routes.pay(order.id));
       } else {
         showMessage(
           messenger,
           'Commande #${order.number} passée.',
           action: SnackBarAction(
-            label: 'Voir',
-            onPressed: () => router.go(Routes.order(order.id)),
+            label: 'Payer',
+            onPressed: () => router.go(Routes.pay(order.id)),
           ),
         );
       }

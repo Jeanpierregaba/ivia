@@ -100,6 +100,9 @@ serveur). Jamais en release.
 - **Prestataire injoignable** (`payment_provider_unavailable`) : message du serveur, « Payer »
   reste disponible.
 - **Trop de demandes** (`rate_limited`) : message du serveur.
+- **Attente reprise depuis le suivi** : le téléphone ne connaît que le numéro masqué (il ne garde
+  pas le numéro complet) ; « Renvoyer la demande » annule alors la demande et ouvre l'écran
+  Paiement, opérateur déjà choisi.
 - **Annulation qui croise une validation** : le serveur répond que le paiement est déjà confirmé
   (`payment_not_cancellable`) ; l'app ouvre le suivi comme pour un succès.
 - **Retour pendant un envoi** (« Payer », annulation) : bloqué jusqu'à la réponse.

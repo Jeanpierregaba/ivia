@@ -8,15 +8,15 @@
   back-office régénérés ; tests verts
 
 **Fondations mobiles**
-- [ ] 3. `api_client` : modèle `Payment`, méthodes, `FakePayments` ; `app_core` : `maskedPhone`,
+- [x] 3. `api_client` : modèle `Payment`, méthodes, `FakePayments` ; `app_core` : `maskedPhone`,
   `countdown` ; tests
 
 **App acheteur**
-- [ ] 4. Écran Paiement : montant, opérateurs, numéro du profil, « Payer », erreurs ; routes ;
+- [x] 4. Écran Paiement : montant, opérateurs, numéro du profil, « Payer », erreurs ; routes ;
   « Payer » de l'écran Commande et du suivi y mènent ; tests
-- [ ] 5. Écran d'attente : texte, temps restant, relecture toutes les 3 s, succès, échec, délai
+- [x] 5. Écran d'attente : texte, temps restant, relecture toutes les 3 s, succès, échec, délai
   dépassé ; tests
-- [ ] 6. « Je n'ai rien reçu », « Annuler le paiement », simulation locale ; tests
+- [x] 6. « Je n'ai rien reçu », « Annuler le paiement », simulation locale ; tests
 - [ ] 7. Docs : `DESIGN.md`, `AGENTS.md`, `TASKS.md`
 
 **Vérifications**
