@@ -48,3 +48,12 @@ String formatTogoPhone(String input) {
 /// Mobile togolais : 8 chiffres commençant par 7 ou 9 (même règle que
 /// l'API, qui reste seule juge).
 bool isTogoMobile(String digits) => RegExp(r'^[79]\d{7}$').hasMatch(digits);
+
+/// Numéro masqué par le serveur (« +22896••••78 ») mis en forme comme un
+/// numéro saisi : « +228 96 •• •• 78 ». Rendu tel quel s'il n'a pas cette
+/// forme.
+String formatMaskedTogoPhone(String masked) {
+  if (!masked.startsWith('+228') || masked.length != 12) return masked;
+  final rest = masked.substring(4);
+  return '+228 ${[for (var i = 0; i < 8; i += 2) rest.substring(i, i + 2)].join(' ')}';
+}

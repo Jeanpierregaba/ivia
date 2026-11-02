@@ -107,6 +107,26 @@ String timeOfDay(DateTime date) {
       '${d.minute.toString().padLeft(2, '0')}';
 }
 
+/// Temps restant, minutes et secondes : « 14:32 », « 00:05 » ; « 00:00 »
+/// une fois écoulé.
+String countdown(Duration remaining) {
+  final seconds = remaining.isNegative ? 0 : remaining.inSeconds;
+  return '${(seconds ~/ 60).toString().padLeft(2, '0')}:'
+      '${(seconds % 60).toString().padLeft(2, '0')}';
+}
+
+/// Le même temps lu par le lecteur d'écran : « 14 minutes 32 secondes ».
+String countdownLabel(Duration remaining) {
+  final seconds = remaining.isNegative ? 0 : remaining.inSeconds;
+  final m = seconds ~/ 60;
+  final s = seconds % 60;
+  String unit(int n, String word) => '$n $word${n > 1 ? 's' : ''}';
+  if (m == 0) return unit(s, 'seconde');
+  return s == 0
+      ? unit(m, 'minute')
+      : '${unit(m, 'minute')} ${unit(s, 'seconde')}';
+}
+
 /// Distance affichée : « 350 m » sous 1 km (arrondie à 10 m), puis
 /// « 1,2 km » (une décimale, virgule française), « 12 km » à partir de 10 km.
 String formatDistance(int meters) {

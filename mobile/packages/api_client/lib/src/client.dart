@@ -335,6 +335,49 @@ class IviaApiClient {
   Future<BuyerOrder> myOrder(String id) async =>
       BuyerOrder.fromJson(await _send('GET', '/v1/orders/$id'));
 
+  /// Demande le paiement de la commande [orderId] : le payeur valide ensuite
+  /// sur son téléphone. S'il y a déjà une demande en attente, le serveur la
+  /// rend telle quelle (l'annuler d'abord pour changer de numéro).
+  Future<Payment> startPayment(
+    String orderId, {
+    required PaymentOperator operator,
+    required String phone,
+  }) async => Payment.fromJson(
+    await _send(
+      'POST',
+      '/v1/orders/$orderId/payments',
+      data: {'operator': operator.code, 'phone': phone},
+    ),
+  );
+
+  /// Paiements de la commande, les plus récents d'abord.
+  Future<List<Payment>> orderPayments(String orderId) async {
+    final json = await _send('GET', '/v1/orders/$orderId/payments');
+    return [
+      for (final item in json['items'] as List)
+        Payment.fromJson(item as Map<String, dynamic>),
+    ];
+  }
+
+  /// État d'un paiement de l'acheteur (404 `payment_not_found` sinon).
+  Future<Payment> payment(String id) async =>
+      Payment.fromJson(await _send('GET', '/v1/payments/$id'));
+
+  /// Abandonne une demande en attente (409 `payment_not_cancellable` si elle
+  /// a déjà abouti).
+  Future<Payment> cancelPayment(String id) async =>
+      Payment.fromJson(await _send('POST', '/v1/payments/$id/cancel'));
+
+  /// Fait aboutir ou échouer un paiement du faux prestataire, sur la route de
+  /// développement `POST /v1/dev/payments/{id}/simulate` (API locale ou de
+  /// test seulement).
+  Future<void> devSimulatePayment(String id, {required bool succeeded}) =>
+      _send(
+        'POST',
+        '/v1/dev/payments/$id/simulate',
+        data: {'outcome': succeeded ? 'succeeded' : 'failed'},
+      );
+
   /// Dossier livreur de l'utilisateur ; `null` : aucun dossier déposé.
   Future<DriverDossier?> driverMe() async {
     try {

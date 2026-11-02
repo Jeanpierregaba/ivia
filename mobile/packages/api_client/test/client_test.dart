@@ -969,4 +969,217 @@ void main() {
       expect(OrderStatus.unknown.isActive, isTrue);
     });
   });
+
+  group('paiements', () {
+    late FakeOrders orders;
+    late FakePayments payments;
+    late Map<String, dynamic> order;
+
+    Matcher apiError(String code) =>
+        throwsA(isA<ApiException>().having((e) => e.code, 'code', code));
+
+    setUp(() {
+      final search = FakeSearch(server);
+      orders = FakeOrders(FakeCart(search));
+      payments = FakePayments(orders);
+      final afi = search.shop('Chez Afi');
+      order = orders.seed(afi, [(search.product(afi, 'Riz parfumé 5 kg'), 2)])
+        ..['payment_deadline_at'] = DateTime.now()
+            .toUtc()
+            .add(const Duration(minutes: 10))
+            .toIso8601String();
+    });
+
+    test('statuts : tous lus, inconnu toléré', () {
+      for (final s in PaymentStatus.values.where((s) => s.code != 'unknown')) {
+        expect(PaymentStatus.parse(s.code), s);
+      }
+      expect(PaymentStatus.parse('on_hold'), PaymentStatus.unknown);
+      expect(PaymentStatus.pending.isPending, isTrue);
+      expect(PaymentStatus.refunded.isPaid, isTrue);
+      expect(PaymentStatus.failed.isPaid, isFalse);
+      expect(PaymentOperator.parse('tmoney'), PaymentOperator.tmoney);
+    });
+
+    test(
+      'demande : opérateur et numéro envoyés, numéro masqué rendu',
+      () async {
+        final p = await client.startPayment(
+          order['id'] as String,
+          operator: PaymentOperator.tmoney,
+          phone: '+22870123456',
+        );
+        expect(server.last.method, 'POST');
+        expect(server.last.path, '/v1/orders/${order['id']}/payments');
+        expect(server.last.body, {
+          'operator': 'tmoney',
+          'phone': '+22870123456',
+        });
+        expect(p.status, PaymentStatus.pending);
+        expect(p.operator, PaymentOperator.tmoney);
+        expect(p.phoneMasked, '+22870••••56');
+        expect(p.amountXof, order['total_xof']);
+        expect(p.orderId, order['id']);
+      },
+    );
+
+    test('une seule demande en attente : rendue telle quelle', () async {
+      final id = order['id'] as String;
+      final first = await client.startPayment(
+        id,
+        operator: PaymentOperator.flooz,
+        phone: '96451278',
+      );
+      final again = await client.startPayment(
+        id,
+        operator: PaymentOperator.tmoney,
+        phone: '70123456',
+      );
+      expect(again.id, first.id);
+      expect(again.operator, PaymentOperator.flooz);
+      expect((await client.orderPayments(id)).map((p) => p.id), [first.id]);
+    });
+
+    test('annulation : échec, idempotente, puis nouvelle demande', () async {
+      final id = order['id'] as String;
+      final first = await client.startPayment(
+        id,
+        operator: PaymentOperator.flooz,
+        phone: '96451278',
+      );
+      final cancelled = await client.cancelPayment(first.id);
+      expect(server.last.path, '/v1/payments/${first.id}/cancel');
+      expect(cancelled.status, PaymentStatus.failed);
+      expect(cancelled.failureReason, "Annulé par l'acheteur.");
+      expect(
+        (await client.cancelPayment(first.id)).status,
+        PaymentStatus.failed,
+      );
+      final second = await client.startPayment(
+        id,
+        operator: PaymentOperator.tmoney,
+        phone: '70123456',
+      );
+      expect(second.id, isNot(first.id));
+      expect((await client.orderPayments(id)).map((p) => p.id), [
+        second.id,
+        first.id,
+      ]);
+    });
+
+    test('simulation : la commande passe en attente de la boutique', () async {
+      final id = order['id'] as String;
+      final p = await client.startPayment(
+        id,
+        operator: PaymentOperator.flooz,
+        phone: '96451278',
+      );
+      await client.devSimulatePayment(p.id, succeeded: true);
+      expect(server.last.body, {'outcome': 'succeeded'});
+      expect((await client.payment(p.id)).status, PaymentStatus.succeeded);
+      final paid = await client.myOrder(id);
+      expect(paid.status, OrderStatus.awaitingSeller);
+      expect(paid.handoverCode, FakeOrders.handoverCode);
+      await expectLater(
+        client.cancelPayment(p.id),
+        apiError('payment_not_cancellable'),
+      );
+    });
+
+    test('refus du prestataire : raison donnée', () async {
+      final p = await client.startPayment(
+        order['id'] as String,
+        operator: PaymentOperator.flooz,
+        phone: '96451278',
+      );
+      await client.devSimulatePayment(p.id, succeeded: false);
+      final failed = await client.payment(p.id);
+      expect(failed.status, PaymentStatus.failed);
+      expect(failed.failureReason, 'Paiement refusé ou annulé.');
+    });
+
+    test('demande annulée validée malgré tout : appliquée', () async {
+      final p = await client.startPayment(
+        order['id'] as String,
+        operator: PaymentOperator.flooz,
+        phone: '96451278',
+      );
+      await client.cancelPayment(p.id);
+      payments.succeed(payments.payments.single);
+      expect((await client.payment(p.id)).status, PaymentStatus.succeeded);
+      expect(order['status'], 'awaiting_seller');
+    });
+
+    test('refus du serveur', () async {
+      final id = order['id'] as String;
+      await expectLater(
+        client.startPayment(id, operator: PaymentOperator.flooz, phone: '123'),
+        throwsA(
+          isA<ApiException>().having((e) => e.fields.keys, 'champs', ['phone']),
+        ),
+      );
+      payments.providerDown = true;
+      await expectLater(
+        client.startPayment(
+          id,
+          operator: PaymentOperator.flooz,
+          phone: '96451278',
+        ),
+        apiError('payment_provider_unavailable'),
+      );
+      payments
+        ..providerDown = false
+        ..rateLimited = true;
+      await expectLater(
+        client.startPayment(
+          id,
+          operator: PaymentOperator.flooz,
+          phone: '96451278',
+        ),
+        apiError('rate_limited'),
+      );
+      order['payment_deadline_at'] = DateTime.now()
+          .toUtc()
+          .subtract(const Duration(seconds: 1))
+          .toIso8601String();
+      await expectLater(
+        client.startPayment(
+          id,
+          operator: PaymentOperator.flooz,
+          phone: '96451278',
+        ),
+        apiError('order_expired'),
+      );
+      orders.advance(order, 'expired');
+      await expectLater(
+        client.startPayment(
+          id,
+          operator: PaymentOperator.flooz,
+          phone: '96451278',
+        ),
+        apiError('order_not_payable'),
+      );
+    });
+
+    test("paiement d'un autre compte : 404", () async {
+      final id = order['id'] as String;
+      final p = await client.startPayment(
+        id,
+        operator: PaymentOperator.flooz,
+        phone: '96451278',
+      );
+      client.token = 'jeton-kofi';
+      await expectLater(client.payment(p.id), apiError('payment_not_found'));
+      await expectLater(
+        client.cancelPayment(p.id),
+        apiError('payment_not_found'),
+      );
+      await expectLater(
+        client.devSimulatePayment(p.id, succeeded: true),
+        apiError('payment_not_found'),
+      );
+      await expectLater(client.orderPayments(id), apiError('order_not_found'));
+      expect(payments.payments.single['status'], 'pending');
+    });
+  });
 }

@@ -1103,3 +1103,89 @@ class BuyerOrder {
     return null;
   }
 }
+
+/// Opérateur Mobile Money du payeur.
+enum PaymentOperator {
+  flooz('flooz'),
+  tmoney('tmoney');
+
+  const PaymentOperator(this.code);
+
+  final String code;
+
+  static PaymentOperator parse(String code) =>
+      values.firstWhere((o) => o.code == code, orElse: () => flooz);
+}
+
+/// Statut d'un paiement (module `payments`). Seul le serveur le change, sur
+/// notification vérifiée du prestataire.
+enum PaymentStatus {
+  pending('pending'),
+  succeeded('succeeded'),
+  failed('failed'),
+  expired('expired'),
+  refundPending('refund_pending'),
+  refunded('refunded'),
+
+  /// Statut ajouté au serveur après cette version de l'app.
+  unknown('unknown');
+
+  const PaymentStatus(this.code);
+
+  final String code;
+
+  static PaymentStatus parse(String code) =>
+      values.firstWhere((s) => s.code == code, orElse: () => unknown);
+
+  /// La demande attend la validation du payeur sur son téléphone.
+  bool get isPending => this == pending;
+
+  /// L'argent a été reçu (même s'il a été remboursé depuis).
+  bool get isPaid => switch (this) {
+    succeeded || refundPending || refunded => true,
+    _ => false,
+  };
+}
+
+/// Paiement d'une commande (schéma `Payment`).
+class Payment {
+  const Payment({
+    required this.id,
+    required this.orderId,
+    required this.status,
+    required this.amountXof,
+    required this.operator,
+    required this.phoneMasked,
+    required this.failureReason,
+    required this.createdAt,
+    required this.updatedAt,
+  });
+
+  factory Payment.fromJson(Map<String, dynamic> json) => Payment(
+    id: json['id'] as String,
+    orderId: json['order_id'] as String,
+    status: PaymentStatus.parse(json['status'] as String),
+    amountXof: json['amount_xof'] as int,
+    operator: PaymentOperator.parse(json['operator'] as String),
+    phoneMasked: json['phone_masked'] as String? ?? '',
+    failureReason: json['failure_reason'] as String? ?? '',
+    createdAt: DateTime.parse(json['created_at'] as String),
+    updatedAt: DateTime.parse(json['updated_at'] as String),
+  );
+
+  final String id;
+  final String orderId;
+  final PaymentStatus status;
+  final int amountXof;
+  final PaymentOperator operator;
+
+  /// Numéro du payeur masqué par le serveur (« +22896••••78 »).
+  final String phoneMasked;
+
+  /// Raison d'un échec, en français (« Paiement refusé ou annulé. »).
+  final String failureReason;
+  final DateTime createdAt;
+
+  /// Dernier changement : une réponse plus ancienne est ignorée.
+  final DateTime updatedAt;
+}

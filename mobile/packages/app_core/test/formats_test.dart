@@ -113,4 +113,17 @@ void main() {
     expect(timeOfDay(DateTime.utc(2026, 11, 2, 23, 5)), '23:05');
     expect(timeOfDay(DateTime.parse('2026-11-02T14:32:10.5+01:00')), '13:32');
   });
+
+  test('temps restant : « 14:32 », jamais négatif, lu en toutes lettres', () {
+    expect(countdown(const Duration(minutes: 14, seconds: 32)), '14:32');
+    expect(countdown(const Duration(seconds: 5, milliseconds: 900)), '00:05');
+    expect(countdown(const Duration(seconds: -3)), '00:00');
+    expect(
+      countdownLabel(const Duration(minutes: 14, seconds: 32)),
+      '14 minutes 32 secondes',
+    );
+    expect(countdownLabel(const Duration(minutes: 1)), '1 minute');
+    expect(countdownLabel(const Duration(seconds: 1)), '1 seconde');
+    expect(countdownLabel(const Duration(seconds: -1)), '0 seconde');
+  });
 }

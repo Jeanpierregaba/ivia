@@ -1628,3 +1628,272 @@ class FakeOrders {
     return FakeResponse.json(200, view(order));
   }
 }
+
+/// Paiements fidèles au module `payments`, branchés sur [FakeOrders] :
+/// demande (commande à payer, numéro togolais, une seule demande en attente
+/// par commande, rendue telle quelle), état, liste par commande, annulation
+/// (`pending → failed`, idempotente, 409 si réussi), simulation du faux
+/// prestataire (réussite : la commande passe en attente de la boutique ;
+/// seconde réussite : doublon). Demande d'un autre compte : 404.
+///
+/// Un test fait aboutir une demande avec [succeed] ou [fail], comme le
+/// webhook du prestataire.
+class FakePayments {
+  FakePayments(this.orders) {
+    _server
+      ..onPattern('POST', '/v1/orders/([^/]+)/payments', _start)
+      ..onPattern('GET', '/v1/orders/([^/]+)/payments', _listForOrder)
+      ..onPattern('GET', '/v1/payments/([^/]+)', _get)
+      ..onPattern('POST', '/v1/payments/([^/]+)/cancel', _cancel)
+      ..onPattern('POST', '/v1/dev/payments/([^/]+)/simulate', _simulate);
+  }
+
+  final FakeOrders orders;
+
+  /// Paiements, du plus ancien au plus récent.
+  final payments = <Map<String, dynamic>>[];
+
+  /// Prochaine erreur, une seule fois, pour la première requête dont
+  /// « MÉTHODE chemin » contient la clé.
+  final failures = <String, FakeResponse>{};
+
+  /// Attendu avant de répondre (réseau lent).
+  Future<void> Function(RecordedRequest request)? beforeRequest;
+
+  /// Trop de demandes : `rate_limited` (nouvelle demande seulement).
+  var rateLimited = false;
+
+  /// Prestataire injoignable : `payment_provider_unavailable`.
+  var providerDown = false;
+
+  var _number = 0;
+
+  /// En-tête `Authorization` du payeur de chaque paiement.
+  final _buyerOf = <String, String>{};
+
+  FakeApiServer get _server => orders.cart.search.server;
+
+  FakeResponse? _failure(RecordedRequest r) {
+    for (final key in failures.keys) {
+      if ('${r.method} ${r.path}'.contains(key)) return failures.remove(key);
+    }
+    return null;
+  }
+
+  static String _segment(RecordedRequest r, int index) =>
+      r.path.split('/')[index];
+
+  static FakeResponse get _notFound =>
+      FakeResponse.error(404, 'payment_not_found', 'Paiement introuvable.');
+
+  static FakeResponse get _orderNotFound =>
+      FakeResponse.error(404, 'order_not_found', 'Commande introuvable.');
+
+  Map<String, dynamic>? _orderFor(RecordedRequest r) {
+    final id = _segment(r, 3);
+    final order = orders.orders.where((o) => o['id'] == id).firstOrNull;
+    return order != null && orders._visible(order, r) ? order : null;
+  }
+
+  Map<String, dynamic>? _paymentFor(RecordedRequest r, int index) {
+    final id = _segment(r, index);
+    final auth = r.headers['authorization'] ?? '';
+    return payments
+        .where((p) => p['id'] == id && _buyerOf[p['id']] == auth)
+        .firstOrNull;
+  }
+
+  /// Numéro togolais au format `+228XXXXXXXX`, comme
+  /// `validate.NormalizeTogoPhone` ; `null` s'il est invalide.
+  static String? _normalize(String input) {
+    var digits = input.replaceAll(RegExp(r'\D'), '');
+    if (digits.startsWith('00228')) {
+      digits = digits.substring(5);
+    } else if (digits.startsWith('228') && digits.length == 11) {
+      digits = digits.substring(3);
+    }
+    if (digits.length != 8 || !(digits[0] == '7' || digits[0] == '9')) {
+      return null;
+    }
+    return '+228$digits';
+  }
+
+  /// Comme `validate.MaskPhone`.
+  static String _mask(String phone) =>
+      '${phone.substring(0, 6)}••••${phone.substring(phone.length - 2)}';
+
+  Map<String, dynamic>? _pendingOf(String orderId) => payments
+      .where((p) => p['order_id'] == orderId && p['status'] == 'pending')
+      .firstOrNull;
+
+  Future<FakeResponse> _start(RecordedRequest r) async {
+    if (beforeRequest case final wait?) await wait(r);
+    if (_failure(r) case final f?) return f;
+    final input = r.body as Map<String, dynamic>? ?? const {};
+    final operator = input['operator'];
+    final phone = _normalize(input['phone'] as String? ?? '');
+    if ((operator != 'flooz' && operator != 'tmoney') || phone == null) {
+      return FakeResponse.error(
+        400,
+        'validation_failed',
+        'Certaines informations sont invalides.',
+        fields: {
+          if (operator != 'flooz' && operator != 'tmoney')
+            'operator': 'Opérateur attendu : flooz ou tmoney.',
+          if (phone == null) 'phone': 'Numéro Mobile Money togolais invalide.',
+        },
+      );
+    }
+    final order = _orderFor(r);
+    if (order == null) return _orderNotFound;
+    if (order['status'] != 'pending_payment') {
+      return FakeOrders._conflict(
+        'order_not_payable',
+        "Cette commande n'attend pas de paiement.",
+      );
+    }
+    final deadline = DateTime.parse(order['payment_deadline_at'] as String);
+    if (orders.now().isAfter(deadline)) {
+      return FakeOrders._conflict(
+        'order_expired',
+        'Le délai de paiement est dépassé.',
+      );
+    }
+    if (_pendingOf(order['id'] as String) case final pending?) {
+      return FakeResponse.json(201, pending);
+    }
+    if (rateLimited) {
+      return FakeResponse.error(
+        429,
+        'rate_limited',
+        'Trop de demandes de paiement. Réessayez plus tard.',
+      );
+    }
+    if (providerDown) {
+      return FakeResponse.error(
+        503,
+        'payment_provider_unavailable',
+        "Le paiement n'a pas pu être lancé. Réessayez dans un instant.",
+      );
+    }
+    final number = ++_number;
+    final at = orders.now().toIso8601String();
+    final payment = <String, dynamic>{
+      'id':
+          'c0000000-0000-4000-8000-${number.toRadixString(16).padLeft(12, '0')}',
+      'order_id': order['id'],
+      'status': 'pending',
+      'amount_xof': order['total_xof'],
+      'currency': 'XOF',
+      'operator': operator,
+      'phone_masked': _mask(phone),
+      'failure_reason': '',
+      'is_duplicate': false,
+      'created_at': at,
+      'updated_at': at,
+    };
+    payments.add(payment);
+    _buyerOf[payment['id'] as String] = r.headers['authorization'] ?? '';
+    return FakeResponse.json(201, {
+      ...payment,
+      'instructions':
+          'Paiement simulé : validez-le avec '
+          'POST /v1/dev/payments/{id}/simulate.',
+    });
+  }
+
+  Future<FakeResponse> _listForOrder(RecordedRequest r) async {
+    if (beforeRequest case final wait?) await wait(r);
+    if (_failure(r) case final f?) return f;
+    final order = _orderFor(r);
+    if (order == null) return _orderNotFound;
+    return FakeResponse.json(200, {
+      'items': [
+        for (final p in payments.reversed)
+          if (p['order_id'] == order['id']) p,
+      ],
+    });
+  }
+
+  Future<FakeResponse> _get(RecordedRequest r) async {
+    if (beforeRequest case final wait?) await wait(r);
+    if (_failure(r) case final f?) return f;
+    final payment = _paymentFor(r, 3);
+    return payment == null ? _notFound : FakeResponse.json(200, payment);
+  }
+
+  Future<FakeResponse> _cancel(RecordedRequest r) async {
+    if (beforeRequest case final wait?) await wait(r);
+    if (_failure(r) case final f?) return f;
+    final payment = _paymentFor(r, 3);
+    if (payment == null) return _notFound;
+    switch (payment['status']) {
+      case 'pending':
+        _set(payment, 'failed', "Annulé par l'acheteur.");
+      case 'failed' || 'expired':
+        break;
+      default:
+        return FakeOrders._conflict(
+          'payment_not_cancellable',
+          'Ce paiement est déjà confirmé : il ne peut plus être annulé.',
+        );
+    }
+    return FakeResponse.json(200, payment);
+  }
+
+  Future<FakeResponse> _simulate(RecordedRequest r) async {
+    if (beforeRequest case final wait?) await wait(r);
+    if (_failure(r) case final f?) return f;
+    final payment = _paymentFor(r, 4);
+    if (payment == null) return _notFound;
+    final outcome = (r.body as Map<String, dynamic>?)?['outcome'];
+    if (outcome == 'succeeded') {
+      succeed(payment);
+    } else if (outcome == 'failed') {
+      fail(payment);
+    } else {
+      return FakeResponse.error(
+        400,
+        'validation_failed',
+        'Certaines informations sont invalides.',
+        fields: {'outcome': 'Valeur attendue : succeeded ou failed.'},
+      );
+    }
+    return FakeResponse.json(200, {'status': 'webhook_sent'});
+  }
+
+  void _set(Map<String, dynamic> payment, String status, [String reason = '']) {
+    payment
+      ..['status'] = status
+      ..['failure_reason'] = reason
+      ..['updated_at'] = orders.now().toIso8601String();
+  }
+
+  /// Le prestataire confirme [payment] (webhook vérifié) : appliqué même
+  /// après une annulation ; la commande passe en attente de la boutique, ou
+  /// le paiement est marqué en double si elle était déjà payée.
+  void succeed(Map<String, dynamic> payment) {
+    if (!{'pending', 'failed', 'expired'}.contains(payment['status'])) return;
+    _set(payment, 'succeeded');
+    final order = orders.orders.firstWhere(
+      (o) => o['id'] == payment['order_id'],
+    );
+    if (order['status'] == 'pending_payment' || order['status'] == 'expired') {
+      orders.advance(
+        order,
+        'awaiting_seller',
+        reason: 'Paiement confirmé par le prestataire.',
+      );
+    } else {
+      payment['is_duplicate'] = true;
+    }
+  }
+
+  /// Le prestataire refuse [payment] (code faux, solde insuffisant…).
+  void fail(
+    Map<String, dynamic> payment, [
+    String reason = 'Paiement refusé ou annulé.',
+  ]) {
+    if (payment['status'] == 'pending') _set(payment, 'failed', reason);
+  }
+}

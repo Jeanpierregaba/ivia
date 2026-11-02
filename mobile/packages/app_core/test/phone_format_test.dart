@@ -29,4 +29,9 @@ void main() {
     expect(result.text, '90 52 34 56');
     expect(result.selection.baseOffset, 4);
   });
+
+  test('numéro masqué du serveur mis en forme', () {
+    expect(formatMaskedTogoPhone('+22896••••78'), '+228 96 •• •• 78');
+    expect(formatMaskedTogoPhone('••••'), '••••');
+  });
 }
