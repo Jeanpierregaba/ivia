@@ -1,5 +1,6 @@
 import 'package:flutter/material.dart';
 
+import 'brand.dart';
 import 'components.dart';
 import 'tokens.dart';
 
@@ -102,6 +103,8 @@ class IviaProductCard extends StatelessWidget {
     required this.onTap,
     this.distance,
     this.soldOut = false,
+    this.onAdd,
+    this.adding = false,
   });
 
   final String? imageUrl;
@@ -116,8 +119,34 @@ class IviaProductCard extends StatelessWidget {
   final bool soldOut;
   final VoidCallback onTap;
 
+  /// Ajout rapide au panier (« + » sur la photo) ; `null` : pas de bouton.
+  final VoidCallback? onAdd;
+
+  /// Ajout en cours : le « + » attend.
+  final bool adding;
+
   @override
   Widget build(BuildContext context) {
+    final card = _card(context);
+    final add = onAdd;
+    if (add == null) return card;
+    return Stack(
+      children: [
+        card,
+        Positioned(
+          top: IviaSpacing.xs,
+          right: IviaSpacing.xs,
+          child: IviaAddButton(
+            label: 'Ajouter $name au panier',
+            onPressed: add,
+            busy: adding,
+          ),
+        ),
+      ],
+    );
+  }
+
+  Widget _card(BuildContext context) {
     final textTheme = Theme.of(context).textTheme;
     final spoken = [
       name,
@@ -202,6 +231,70 @@ class IviaProductCard extends StatelessWidget {
                   ),
                 ),
               ],
+            ),
+          ),
+        ),
+      ),
+    );
+  }
+}
+
+/// « + » rond d'ajout rapide au panier : 36 dp visibles, 48 dp au doigt.
+class IviaAddButton extends StatelessWidget {
+  const IviaAddButton({
+    super.key,
+    required this.label,
+    required this.onPressed,
+    this.busy = false,
+  });
+
+  /// Lu par le lecteur d'écran (« Ajouter Riz parfumé au panier »).
+  final String label;
+  final VoidCallback? onPressed;
+
+  /// Envoi en cours : indicateur à la place du « + », appui ignoré.
+  final bool busy;
+
+  @override
+  Widget build(BuildContext context) {
+    final color = IviaAppBrand.of(context).action;
+    return Semantics(
+      button: true,
+      enabled: onPressed != null && !busy,
+      label: label,
+      excludeSemantics: true,
+      onTap: busy ? null : onPressed,
+      child: SizedBox.square(
+        dimension: 48,
+        child: Material(
+          type: MaterialType.transparency,
+          child: InkResponse(
+            onTap: busy ? null : onPressed,
+            radius: 24,
+            child: Center(
+              child: Container(
+                width: 36,
+                height: 36,
+                decoration: ShapeDecoration(
+                  color: onPressed == null ? IviaColors.textSecondary : color,
+                  shape: const CircleBorder(
+                    side: BorderSide(color: IviaColors.surface, width: 2),
+                  ),
+                ),
+                child: busy
+                    ? const Padding(
+                        padding: EdgeInsets.all(IviaSpacing.sm),
+                        child: CircularProgressIndicator(
+                          strokeWidth: 2,
+                          color: IviaColors.surface,
+                        ),
+                      )
+                    : const Icon(
+                        Icons.add,
+                        size: 22,
+                        color: IviaColors.surface,
+                      ),
+              ),
             ),
           ),
         ),

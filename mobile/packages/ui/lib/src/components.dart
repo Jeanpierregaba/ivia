@@ -51,6 +51,99 @@ class IviaBackButton extends StatelessWidget {
   }
 }
 
+/// Bouton rond et blanc des en-têtes, avec une pastille de nombre (le
+/// panier et ses articles). Pastille masquée à 0, « 99+ » au-delà.
+class IviaIconBadgeButton extends StatelessWidget {
+  const IviaIconBadgeButton({
+    super.key,
+    required this.icon,
+    required this.label,
+    required this.count,
+    required this.onPressed,
+    this.semanticLabel,
+  });
+
+  final IconData icon;
+
+  /// Info-bulle et nom lu (« Panier »).
+  final String label;
+  final int count;
+  final VoidCallback? onPressed;
+
+  /// Lu à la place de [label] (« Panier, 3 articles »).
+  final String? semanticLabel;
+
+  @override
+  Widget build(BuildContext context) {
+    final brand = IviaAppBrand.of(context);
+    return Semantics(
+      button: true,
+      enabled: onPressed != null,
+      label: semanticLabel ?? label,
+      excludeSemantics: true,
+      onTap: onPressed,
+      child: Tooltip(
+        message: label,
+        excludeFromSemantics: true,
+        child: SizedBox.square(
+          dimension: 48,
+          child: Stack(
+            clipBehavior: Clip.none,
+            children: [
+              Positioned.fill(
+                child: Material(
+                  color: IviaColors.surface,
+                  shape: const CircleBorder(),
+                  child: InkWell(
+                    customBorder: const CircleBorder(),
+                    onTap: onPressed,
+                    child: Icon(icon, color: IviaColors.text),
+                  ),
+                ),
+              ),
+              if (count > 0)
+                Positioned(
+                  top: -2,
+                  right: -2,
+                  child: IgnorePointer(
+                    // La pastille garde sa taille : le nombre est lu par
+                    // [semanticLabel].
+                    child: MediaQuery.withNoTextScaling(
+                      child: Container(
+                        constraints: const BoxConstraints(minWidth: 20),
+                        height: 20,
+                        padding: const EdgeInsets.symmetric(horizontal: 5),
+                        alignment: Alignment.center,
+                        decoration: ShapeDecoration(
+                          color: brand.action,
+                          shape: const StadiumBorder(
+                            side: BorderSide(
+                              color: IviaColors.surface,
+                              width: 2,
+                            ),
+                          ),
+                        ),
+                        child: Text(
+                          count > 99 ? '99+' : '$count',
+                          style: const TextStyle(
+                            color: IviaColors.surface,
+                            fontSize: 11,
+                            fontWeight: FontWeight.w700,
+                            height: 1,
+                          ),
+                        ),
+                      ),
+                    ),
+                  ),
+                ),
+            ],
+          ),
+        ),
+      ),
+    );
+  }
+}
+
 /// Libellé au-dessus d'un champ ; le lecteur d'écran les lit ensemble.
 class IviaFieldLabel extends StatelessWidget {
   const IviaFieldLabel({super.key, required this.label, required this.child});
