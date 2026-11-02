@@ -27,6 +27,8 @@ const (
 	ProductImage   Purpose = "product_image"
 	ShopLogo       Purpose = "shop_logo"
 	DriverDocument Purpose = "driver_document"
+	// MerchantDocument : pièce d'identité ou registre du commerce, vérifiés avant publication.
+	MerchantDocument Purpose = "merchant_document"
 )
 
 // Limites imposées à la signature (SECURITY.md).
@@ -44,13 +46,15 @@ type rule struct {
 
 var images = map[string]string{"image/jpeg": "jpg", "image/png": "png", "image/webp": "webp"}
 
+var documents = map[string]string{"image/jpeg": "jpg", "image/png": "png", "image/webp": "webp", "application/pdf": "pdf"}
+
 var rules = map[Purpose]rule{
 	ProductImage: {prefix: "products", vis: storage.Public, types: images, role: identity.RoleSeller},
 	// Le logo est envoyé à la création de la boutique, avant que l'utilisateur soit marchand.
-	ShopLogo: {prefix: "shops", vis: storage.Public, types: images},
-	DriverDocument: {prefix: "drivers", vis: storage.Private, types: map[string]string{
-		"image/jpeg": "jpg", "image/png": "png", "image/webp": "webp", "application/pdf": "pdf",
-	}},
+	ShopLogo:       {prefix: "shops", vis: storage.Public, types: images},
+	DriverDocument: {prefix: "drivers", vis: storage.Private, types: documents},
+	// Déposées après la création de la boutique, qui donne le rôle marchand.
+	MerchantDocument: {prefix: "merchants", vis: storage.Private, types: documents, role: identity.RoleSeller},
 }
 
 // Service signe les envois et vérifie les clés.
@@ -71,7 +75,7 @@ type Upload struct {
 func (s *Service) Sign(ctx context.Context, p identity.Principal, purpose Purpose, contentType string, size int64) (Upload, error) {
 	r, ok := rules[purpose]
 	v := validate.New()
-	v.Check(ok, "purpose", "Usage inconnu : product_image, shop_logo ou driver_document.")
+	v.Check(ok, "purpose", "Usage inconnu : product_image, shop_logo, driver_document ou merchant_document.")
 	if ok {
 		_, typeOK := r.types[contentType]
 		v.Check(typeOK, "content_type", "Type de fichier non accepté.")
@@ -110,7 +114,7 @@ func (s *Service) Check(ctx context.Context, purpose Purpose, userID uuid.UUID, 
 	return nil
 }
 
-// DeletePrivate supprime un document privé (fin de collaboration d'un livreur).
+// DeletePrivate supprime un document privé (fin de collaboration d'un livreur ou d'un marchand).
 func (s *Service) DeletePrivate(ctx context.Context, key string) error {
 	return s.store.Delete(ctx, storage.Private, key)
 }

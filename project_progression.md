@@ -1,6 +1,6 @@
 # Progression du projet ivia
 
-> Fichier tenu à jour à chaque étape. Dernière mise à jour : **2026-11-01**.
+> Fichier tenu à jour à chaque étape. Dernière mise à jour : **2026-11-02**.
 > Détail des tâches : [`TASKS.md`](TASKS.md) · journal des sessions : [`docs/SESSION-LOG.md`](docs/SESSION-LOG.md).
 
 ## En un coup d'œil
@@ -9,7 +9,7 @@
 | --------------------------- | :--------: | -------------------------------------------------------------------------- |
 | Backend (API Go)            |  **~95 %** | Complet pour le MVP ; manque le vrai prestataire de paiement (016)         |
 | Back-office web (Next.js)   |  **~70 %** | Écrans d'exploitation faits ; manquent relevés, export CSV, référentiels   |
-| Apps mobiles (Flutter)      |  **~25 %** | Splash/présentation, connexion acheteur et marchand, création de boutique  |
+| Apps mobiles (Flutter)      |  **~50 %** | Acheteur jusqu'à la commande en retrait, catalogue marchand, dossier livreur ; paiement et livraison à faire |
 | Infrastructure / mise en ligne | **~60 %** | Images Docker, Compose, Caddy, sauvegardes, CI prêts ; serveurs à louer |
 | Démarches hors code         |  **~10 %** | Société, agrégateur de paiement, Play Store, Meta, domaine                 |
 
@@ -17,7 +17,7 @@
 
 ## 1. Backend — fait
 
-Go 1.27, PostgreSQL 18 + PostGIS, tâches de fond River, 20 migrations, documentation interactive
+Go 1.27, PostgreSQL 18 + PostGIS, tâches de fond River, 22 migrations, documentation interactive
 (Swagger) sur `/docs`, contrat OpenAPI vérifié par les tests.
 
 **Comptes et connexion**
@@ -29,12 +29,13 @@ Go 1.27, PostgreSQL 18 + PostGIS, tâches de fond River, 20 migrations, document
 **Boutiques et catalogue**
 - Création de boutique par le marchand, catégories de boutique, quartiers, horaires, position GPS.
 - Validation par l'admin : publier, refuser (motif), suspendre, rétablir — une boutique non publiée est invisible.
+- **Validation du marchand sur pièces** : le marchand dépose sa pièce d'identité (obligatoire) et son registre du commerce (facultatif) dans le stockage privé ; l'admin ne peut publier aucune de ses boutiques sans la pièce d'identité. Pièces effacées à la suppression du compte.
 - Produits, photos (envoi direct vers le stockage par lien signé), catégories de produits.
 - Stock suivi ou non suivi, réservation du stock à la commande, rendu à l'annulation.
 - Recherche : texte, catégorie, prix, quartier, « autour de moi » (distance).
 
 **Commande et paiement**
-- Panier mono-boutique, commande en retrait ou en livraison, frais de livraison calculés (forfait + km, coefficient de distance).
+- Panier mono-boutique (raisons d'une ligne bloquée en texte et en code, stock restant), commande en retrait ou en livraison, frais de livraison calculés (forfait + km, coefficient de distance).
 - Machine à états de la commande avec historique horodaté (append-only).
 - Paiement Mobile Money (Flooz, T-Money) derrière une interface : faux prestataire en local avec webhooks signés (HMAC), revérification automatique, détection des doublons, expiration.
 - Marchand : accepter / refuser sous 15 min (sinon annulation et remboursement automatiques), préparation, remise par code à l'acheteur (5 essais, déblocage par l'admin).
@@ -60,7 +61,7 @@ Next.js 16, TypeScript strict, Tailwind 4, même langage visuel que les apps (lo
 
 - Connexion admin par code e-mail, session en cookie httpOnly, accès coupé dès que le rôle admin est retiré.
 - Tableau de bord : mosaïque « à traiter » (boutiques et livreurs à valider, remboursements, commandes sans livreur), commandes payées par jour, argent (volume, commission), indicateurs.
-- Boutiques : filtres par statut, publier / refuser / suspendre / rétablir avec confirmation et motif.
+- Boutiques : filtres par statut, colonne « Pièces », fiche boutique avec les pièces du marchand (lien temporaire), publier / refuser / suspendre / rétablir avec confirmation et motif ; « Publier » n'apparaît qu'une fois la pièce d'identité déposée.
 - Livreurs : liste filtrée, dossier complet (documents consultables par lien temporaire, documents manquants signalés), valider et activer / refuser / suspendre / rétablir.
 - Commandes : recherche par numéro, filtres, fiche (détail, frise d'historique, produits, paiements), actions : annuler, retirer le livreur, confirmer le retour, débloquer le code, rembourser.
 - Remboursements en attente, paramètres de la plateforme, journal des actions en français.
@@ -69,9 +70,11 @@ Next.js 16, TypeScript strict, Tailwind 4, même langage visuel que les apps (lo
 ## 3. Apps mobiles (`mobile/`, Flutter) — fait
 
 - Espace de travail à 3 apps (acheteur, marchand, livreur) + client API + bibliothèque d'interface commune.
-- Splash et présentation des 3 apps.
-- Connexion par code e-mail : acheteur et marchand.
-- Marchand : création de la boutique (en cours de relecture).
+- Splash et présentation des 3 apps ; connexion par code e-mail dans les 3 apps.
+- **Acheteur** : accueil (zone par position ou quartier, catégories, boutiques, nouveautés), recherche avec filtres et tri, fiches boutique et produit, panier (008), commande en retrait et suivi avec code de remise (009, en relecture).
+- **Marchand** : création de la boutique, écran « en cours de validation », catalogue (produits, photos, brouillons, retrait, stock) (005).
+- **Livreur** : dossier de candidature avec documents (018).
+- **Manque côté marchand** : écran de dépôt de la pièce d'identité, nécessaire pour que l'admin puisse publier la boutique (backend prêt).
 
 ## 4. Infrastructure — fait
 
@@ -96,10 +99,11 @@ Next.js 16, TypeScript strict, Tailwind 4, même langage visuel que les apps (lo
 - [ ] Tests navigateur (Playwright).
 
 **Apps mobiles**
-- [ ] Connexion livreur ; profil et adresses ; catalogue et photos ; stock ; recherche.
-- [ ] Panier, commande, écrans de paiement, suivi, notifications push.
-- [ ] App livreur : inscription et documents, disponibilité, propositions, mission.
-- [ ] Relevés dans l'app marchand ; publication Play Store.
+- [ ] Marchand : dépôt de la pièce d'identité et du RCCM (backend prêt depuis le 2026-11-02).
+- [ ] Acheteur : lire `issue_code` / `stock_left` du panier ; écrans de paiement Mobile Money ; commande en livraison ; notifications push.
+- [ ] Marchand : commandes reçues (accepter sous 15 min, préparation, remise par code), relevés.
+- [ ] Livreur : disponibilité et position, propositions (45 s), déroulé de mission.
+- [ ] Profil, adresses, suppression du compte ; publication Play Store.
 
 **Mise en ligne (017)**
 - [ ] Louer les VPS (production, staging), DNS, compte Sentry, remplir `infra/.env`, premier déploiement et test de restauration.

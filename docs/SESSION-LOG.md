@@ -14,6 +14,22 @@ Format :
 - Prochaine étape :
 -->
 
+### 2026-11-02 — Validation des marchands sur pièces, relecture des commits de Jean-Pierre
+- Fait : relecture des 52 commits de develop (005, 007, 008, 009, 018) ; migration 00021 et test du
+  panier conformes, suite backend verte. Nouveau : pièces du marchand (migration 00022
+  `merchant_documents`, usage d'envoi `merchant_document`, `GET`/`POST /v1/seller/documents`,
+  `merchant_documents` sur la boutique) ; publication refusée sans pièce d'identité
+  (`merchant_documents_missing`) ; pièces effacées à la suppression du compte ; test de bout en bout.
+  Back-office : fiche boutique (`/shops/[id]`) avec les pièces par lien temporaire, colonne
+  « Pièces » dans la liste, « Publier » masqué tant que la pièce manque. Panier : `issue_code` et
+  `stock_left` ajoutés pour que l'app acheteur ne lise plus le stock dans une phrase.
+- Pièges rencontrés : RAM saturée (6 Go) : l'éditeur de liens Go manque de mémoire avec `-p=2`,
+  utiliser `GOFLAGS=-p=1`.
+- Décisions : pièces rattachées au marchand (la personne), pas à la boutique : un marchand à
+  plusieurs boutiques ne dépose sa pièce qu'une fois.
+- Prochaine étape : écran de dépôt des pièces dans l'app marchand (Jean-Pierre) ; écrans
+  back-office restants ; 016 paiement, 017 VPS.
+
 ### 2026-11-01 — Back-office aux couleurs des apps, e-mails reçus en local
 - Fait : back-office refait dans le langage visuel des apps (logotypes, barre Berkeley, mosaïque
   « à traiter », fiches livreur et commande à en-tête bleu, frise d'historique, statuts de paiement

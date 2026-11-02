@@ -225,6 +225,7 @@ func newSeller(t *testing.T, stock int) sellerFixture {
 		"location": map[string]float64{"lat": lat, "lng": lng}, "category_id": shopCategory(t),
 	}), http.StatusCreated)
 	shopID := shop.str("id")
+	uploadMerchantDocument(t, tok, "id_card")
 	mustStatus(t, call(t, admin(t), "POST", "/v1/admin/shops/"+shopID+"/approve", map[string]any{}), http.StatusOK)
 	// Même jeton : le rôle seller, obtenu à la création de la boutique, est relu à chaque requête.
 	f := sellerFixture{token: tok, shopID: shopID, lat: lat, lng: lng}
@@ -274,9 +275,27 @@ func newDriver(t *testing.T, lat, lng float64, vehicle string) string {
 // uploadDriverDocument envoie un document du dossier par URL signée, comme l'app livreur.
 func uploadDriverDocument(t *testing.T, token, kind string) {
 	t.Helper()
+	key := uploadPrivatePDF(t, token, "driver_document")
+	mustStatus(t, call(t, token, "POST", "/v1/driver/application/documents", map[string]string{
+		"kind": kind, "object_key": key,
+	}), http.StatusCreated)
+}
+
+// uploadMerchantDocument envoie une pièce du marchand par URL signée, comme l'app marchand.
+func uploadMerchantDocument(t *testing.T, token, kind string) resp {
+	t.Helper()
+	key := uploadPrivatePDF(t, token, "merchant_document")
+	return mustStatus(t, call(t, token, "POST", "/v1/seller/documents", map[string]string{
+		"kind": kind, "object_key": key,
+	}), http.StatusCreated)
+}
+
+// uploadPrivatePDF demande une URL signée pour l'usage donné, y envoie un PDF et retourne la clé.
+func uploadPrivatePDF(t *testing.T, token, purpose string) string {
+	t.Helper()
 	content := []byte("%PDF-1.4 document de test")
 	up := mustStatus(t, call(t, token, "POST", "/v1/uploads", map[string]any{
-		"purpose": "driver_document", "content_type": "application/pdf", "size_bytes": len(content),
+		"purpose": purpose, "content_type": "application/pdf", "size_bytes": len(content),
 	}), http.StatusCreated)
 	signed := up.Body["upload"].(map[string]any)
 	req, _ := http.NewRequest(http.MethodPut, signed["url"].(string), bytes.NewReader(content))
@@ -286,9 +305,7 @@ func uploadDriverDocument(t *testing.T, token, kind string) {
 		t.Fatalf("envoi du document : %v %v", err, res)
 	}
 	res.Body.Close()
-	mustStatus(t, call(t, token, "POST", "/v1/driver/application/documents", map[string]string{
-		"kind": kind, "object_key": up.str("object_key"),
-	}), http.StatusCreated)
+	return up.str("object_key")
 }
 
 // order met un produit au panier et crée la commande.

@@ -1,4 +1,6 @@
-import { ActionForm } from "@/components/action-form";
+import { AlertTriangle, CheckCircle2 } from "lucide-react";
+import Link from "next/link";
+
 import {
   Avatar,
   EmptyState,
@@ -12,7 +14,7 @@ import {
 } from "@/components/ui";
 import { api, ApiError, type Schemas } from "@/lib/api";
 import { formatDateTime, formatPhone, SHOP_STATUS, statusOf } from "@/lib/format";
-import { reviewShop } from "./actions";
+import { missingMerchantDocuments, ShopActions } from "./shop-actions";
 
 export const metadata = { title: "Boutiques" };
 
@@ -52,14 +54,16 @@ export default async function ShopsPage({ searchParams }: Props) {
       {page.items.length === 0 ? (
         <EmptyState title="Rien à afficher" message="Aucune boutique dans cette liste pour le moment." />
       ) : (
-        <Table head={["Boutique", "Catégorie", "Contact", "Statut", "Créée le", "Actions"]}>
+        <Table head={["Boutique", "Catégorie", "Contact", "Pièces", "Statut", "Créée le", "Actions"]}>
           {page.items.map((s) => (
             <tr key={s.id}>
               <Td>
                 <div className="flex items-center gap-3">
                   <Avatar name={s.name} tone="imperial" />
                   <div className="min-w-0">
-                    <p className="font-semibold">{s.name}</p>
+                    <Link href={`/shops/${s.id}`} className="font-semibold text-secondary hover:underline">
+                      {s.name}
+                    </Link>
                     <p className="text-[13px] text-text-muted">
                       {s.address_text}
                       {s.neighborhood_name && ` · ${s.neighborhood_name}`}
@@ -72,6 +76,17 @@ export default async function ShopsPage({ searchParams }: Props) {
               </Td>
               <Td>{s.category_name || "—"}</Td>
               <Td>{formatPhone(s.phone)}</Td>
+              <Td>
+                {missingMerchantDocuments(s).length > 0 ? (
+                  <span className="inline-flex items-center gap-1.5 text-[13px] font-semibold text-warning">
+                    <AlertTriangle size={14} aria-hidden="true" /> Pièce d&apos;identité manquante
+                  </span>
+                ) : (
+                  <span className="inline-flex items-center gap-1.5 text-[13px] font-semibold text-success">
+                    <CheckCircle2 size={14} aria-hidden="true" /> {s.merchant_documents.length} déposée(s)
+                  </span>
+                )}
+              </Td>
               <Td>
                 <StatusBadge {...statusOf(SHOP_STATUS, s.status)} />
               </Td>
@@ -91,59 +106,5 @@ export default async function ShopsPage({ searchParams }: Props) {
         limit={LIMIT}
       />
     </>
-  );
-}
-
-function ShopActions({ shop }: { shop: Schemas["Shop"] }) {
-  const hidden = (decision: string) => ({ id: shop.id, decision });
-  return (
-    <div className="flex flex-wrap gap-2">
-      {(shop.status === "pending_review" || shop.status === "rejected") && (
-        <ActionForm
-          action={reviewShop}
-          label="Publier"
-          hidden={hidden("approve")}
-          confirm={{
-            title: `Publier « ${shop.name} » ?`,
-            body: "La boutique devient visible des acheteurs et peut vendre.",
-          }}
-        />
-      )}
-      {shop.status === "pending_review" && (
-        <ActionForm
-          action={reviewShop}
-          label="Refuser"
-          variant="outline"
-          hidden={hidden("reject")}
-          confirm={{ title: `Refuser « ${shop.name} » ?`, body: "Le motif est communiqué au marchand." }}
-          reason={{ label: "Motif du refus", required: true }}
-        />
-      )}
-      {shop.status === "published" && (
-        <ActionForm
-          action={reviewShop}
-          label="Suspendre"
-          variant="danger"
-          hidden={hidden("suspend")}
-          confirm={{
-            title: `Suspendre « ${shop.name} » ?`,
-            body: "La boutique disparaît des recherches et le marchand perd l'accès aux commandes dès maintenant.",
-          }}
-          reason={{ label: "Motif de la suspension", required: true }}
-        />
-      )}
-      {shop.status === "suspended" && (
-        <ActionForm
-          action={reviewShop}
-          label="Rétablir"
-          variant="outline"
-          hidden={hidden("reinstate")}
-          confirm={{
-            title: `Rétablir « ${shop.name} » ?`,
-            body: "La boutique redevient visible des acheteurs.",
-          }}
-        />
-      )}
-    </div>
   );
 }

@@ -45,7 +45,8 @@ place **et** vérifié.
       `dangerouslySetInnerHTML` sur une donnée utilisateur).
 - [ ] Uploads : URL signée à durée courte (5 min), type (`image/jpeg`, `image/png`, `image/webp`,
       PDF pour les documents) et taille max (5 Mo) imposés à la signature ; clé de fichier choisie
-      par le serveur ; documents des livreurs dans un bucket privé, lus par URL signée réservée aux admins.
+      par le serveur ; documents des livreurs et pièces des marchands dans un bucket privé, lus par URL
+      signée réservée aux admins.
 - [ ] Taille maximale du corps des requêtes limitée dans l'API.
 
 ## Abus
@@ -69,7 +70,8 @@ Cadre : loi togolaise n° 2019-014 relative à la protection des données à car
 - [ ] Données collectées limitées au nécessaire ; position du livreur collectée uniquement quand il
       est disponible ou en mission.
 - [ ] Durées de conservation définies : positions brutes des livreurs 30 jours, codes OTP et
-      sessions expirées purgés, documents des livreurs conservés pendant la collaboration.
+      sessions expirées purgés, documents des livreurs et pièces des marchands conservés pendant la
+      collaboration, effacés à la suppression du compte.
 - [ ] Suppression de compte depuis chaque app : données personnelles anonymisées, données
       financières conservées.
 - [ ] Données d'un acheteur visibles par un livreur uniquement pendant sa mission.

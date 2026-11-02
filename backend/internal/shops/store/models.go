@@ -10,6 +10,14 @@ import (
 	"github.com/google/uuid"
 )
 
+type MerchantDocument struct {
+	ID        uuid.UUID
+	OwnerID   uuid.UUID
+	Kind      string
+	ObjectKey string
+	CreatedAt time.Time
+}
+
 type ShopCategory struct {
 	ID        uuid.UUID
 	Name      string

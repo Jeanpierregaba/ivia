@@ -141,6 +141,18 @@ func (a *App) SeedDev(ctx context.Context) (SeedSummary, error) {
 		if err != nil {
 			return sum, fmt.Errorf("boutique : %w", err)
 		}
+		if a.LocalStore == nil {
+			return sum, errors.New("marchand de démonstration : STORAGE=local requis pour déposer ses pièces")
+		}
+		for _, kind := range shops.RequiredDocuments {
+			key := "merchants/" + seller.ID.String() + "/" + uuid.NewString() + ".pdf"
+			if err := a.LocalStore.Write(storage.Private, key, []byte("%PDF-1.4 document de démonstration")); err != nil {
+				return sum, fmt.Errorf("pièce de démonstration : %w", err)
+			}
+			if _, err := a.Shops.AddDocument(ctx, seller.ID, kind, key); err != nil {
+				return sum, fmt.Errorf("pièce de démonstration : %w", err)
+			}
+		}
 		if _, err := a.Shops.Review(ctx, adminID, shop.ID, "approve", ""); err != nil {
 			return sum, fmt.Errorf("validation de la boutique : %w", err)
 		}

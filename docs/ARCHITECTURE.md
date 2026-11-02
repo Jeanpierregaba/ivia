@@ -59,7 +59,7 @@ erDiagram
 | auth | `otp_codes`, `sessions` | Code et jeton stockés **hachés** ; tentatives limitées ; sessions révocables |
 | users | `users`, `user_roles`, `addresses`, `device_tokens` | `email` et `phone` uniques ; rôles cumulables ; `privacy_consent_at` daté par le serveur à la première acceptation de la politique de confidentialité. Profil complet = prénom, téléphone et consentement (requis pour commander ou postuler comme livreur) |
 | geo | `neighborhoods` | Quartiers de Lomé (nom, polygone optionnel) |
-| shops | `shops`, `shop_categories` | Statut `pending_review` → `published` / `suspended` ; position obligatoire ; catégorie de boutique obligatoire à la création (liste propre au module : le catalogue dépend déjà des boutiques) |
+| shops | `shops`, `shop_categories`, `merchant_documents` | Statut `pending_review` → `published` / `suspended`, publication refusée sans la pièce d'identité du marchand (pièces rattachées à la personne, compartiment privé) ; position obligatoire ; catégorie de boutique obligatoire à la création (liste propre au module : le catalogue dépend déjà des boutiques) |
 | catalog | `categories`, `products`, `product_images` | `parcel_size` (`small`/`medium`/`large`), `stock_mode` (`tracked`/`untracked`, figé à la création), colonne `tsvector` pour la recherche. État de publication : `is_active` porte la visibilité (lue par la recherche et le panier) ; `published_at` (dernière mise en vente, NULL = brouillon) et `withdrawn_at` (dernier retrait) distinguent brouillon, en vente et retiré, cohérence garantie par `products_publication_check` |
 | stock | `stock_levels`, `stock_movements` | Quantité disponible dans `stock_levels` (et non dans `products`, pour qu'aucun autre module n'écrive dans les tables du catalogue), `CHECK (quantity >= 0)` : survente impossible ; journal des mouvements en ajout seul, écrit dans la même transaction |
 | cart | `carts`, `cart_items` | Un panier par acheteur, lié à une seule boutique |
@@ -214,7 +214,9 @@ infra/                     docker-compose de production, Caddyfile, sauvegardes
   - Mobile : jeton dans le stockage sécurisé du téléphone. Back-office : jeton dans un cookie
     `httpOnly`, `Secure`, `SameSite=Lax`, jamais lisible par le JavaScript du navigateur.
 - **Rôles** dans `user_roles`. `buyer` est donné à l'inscription. `seller` est ajouté quand
-  l'utilisateur crée une boutique : elle reste invisible tant que l'admin ne l'a pas validée.
+  l'utilisateur crée une boutique : elle reste invisible tant que l'admin ne l'a pas validée, et
+  l'admin ne peut la publier qu'après avoir vérifié la pièce d'identité du marchand
+  (`POST /v1/seller/documents`, compartiment privé ; registre du commerce facultatif).
   `driver` et `admin` ne sont **attribués que par un admin**. Un candidat livreur dépose sa
   candidature et ses documents (compartiment privé) ; il n'obtient le rôle `driver`, donc l'accès
   aux missions, qu'après validation par un admin, refusée tant que la pièce d'identité et le

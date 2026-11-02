@@ -466,6 +466,7 @@ paths:
                     - product_image
                     - shop_logo
                     - driver_document
+                    - merchant_document
                 content_type:
                   type: string
                   enum:
@@ -1021,6 +1022,93 @@ paths:
                       "$ref": "#/components/schemas/ShopCategory"
                 required:
                   - items
+        default:
+          description: "Erreur (voir `code`)"
+          content:
+            application/json:
+              schema:
+                "$ref": "#/components/schemas/Error"
+  "/v1/seller/documents":
+    get:
+      summary: "Mes pièces de marchand"
+      description: "Pièces vérifiées par l'admin avant de publier une boutique (sans lien de lecture). `required` liste les types obligatoires : la pièce d'identité (id_card)."
+      tags:
+        - Marchand
+      operationId: getSellerDocuments
+      x-roles:
+        - seller
+      responses:
+        "200":
+          description: "Succès"
+          content:
+            application/json:
+              schema:
+                type: object
+                properties:
+                  items:
+                    type: array
+                    items:
+                      "$ref": "#/components/schemas/MerchantDocument"
+                  required:
+                    type: array
+                    description: "Types de pièces obligatoires avant la publication d'une boutique."
+                    items:
+                      type: string
+                required:
+                  - items
+                  - required
+        default:
+          description: "Erreur (voir `code`)"
+          content:
+            application/json:
+              schema:
+                "$ref": "#/components/schemas/Error"
+    post:
+      summary: "Déposer une pièce de marchand"
+      description: "Le fichier est d'abord envoyé par URL signée (POST /v1/uploads, purpose `merchant_document`, compartiment privé), puis rattaché ici. Les pièces valent pour toutes les boutiques du marchand. 10 pièces au plus (409 `too_many_documents`)."
+      tags:
+        - Marchand
+      operationId: postSellerDocuments
+      x-roles:
+        - seller
+      requestBody:
+        required: true
+        content:
+          application/json:
+            schema:
+              type: object
+              properties:
+                kind:
+                  type: string
+                  enum:
+                    - id_card
+                    - business_registration
+                    - other
+                object_key:
+                  type: string
+              required:
+                - kind
+                - object_key
+      responses:
+        "201":
+          description: "Succès : toutes les pièces du marchand"
+          content:
+            application/json:
+              schema:
+                type: object
+                properties:
+                  items:
+                    type: array
+                    items:
+                      "$ref": "#/components/schemas/MerchantDocument"
+                  required:
+                    type: array
+                    description: "Types de pièces obligatoires avant la publication d'une boutique."
+                    items:
+                      type: string
+                required:
+                  - items
+                  - required
         default:
           description: "Erreur (voir `code`)"
           content:
@@ -3481,6 +3569,7 @@ paths:
   "/v1/admin/shops/{id}/approve":
     post:
       summary: "Valider (publier) une boutique"
+      description: "Refusé tant que le marchand n'a pas déposé sa pièce d'identité (id_card) : 409 `merchant_documents_missing`. Journalisé et notifié au marchand."
       tags:
         - Admin
       operationId: postAdminShopsByIdApprove
@@ -5100,6 +5189,11 @@ components:
         updated_at:
           type: string
           format: date-time
+        merchant_documents:
+          type: array
+          description: "Pièces du marchand. Le lien de lecture n'est fourni qu'à l'ouverture de la boutique dans le back-office (GET /v1/admin/shops/{id})."
+          items:
+            "$ref": "#/components/schemas/MerchantDocument"
       required:
         - id
         - owner_id
@@ -5119,6 +5213,29 @@ components:
         - reviewed_at
         - created_at
         - updated_at
+        - merchant_documents
+    MerchantDocument:
+      type: object
+      properties:
+        id:
+          type: string
+          format: uuid
+        kind:
+          type: string
+          enum:
+            - id_card
+            - business_registration
+            - other
+        url:
+          type: string
+          description: "Lien temporaire, fourni aux admins seulement."
+        created_at:
+          type: string
+          format: date-time
+      required:
+        - id
+        - kind
+        - created_at
     ShopCategory:
       type: object
       properties:
@@ -5546,7 +5663,19 @@ components:
           type: string
         issue:
           type: string
-          description: "Vide si la ligne est commandable."
+          description: "Raison à afficher telle quelle ; vide si la ligne est commandable. Pour décider d'une action, lire `issue_code` et `stock_left`, jamais ce texte."
+        issue_code:
+          type: string
+          enum:
+            - ""
+            - unavailable
+            - insufficient_stock
+          description: "Raison sous forme de code : vide si la ligne est commandable."
+        stock_left:
+          type:
+            - integer
+            - "null"
+          description: "Stock restant quand `issue_code` vaut `insufficient_stock` (sinon null) : permet de proposer « Ajuster à N »."
       required:
         - product_id
         - name
@@ -5556,6 +5685,8 @@ components:
         - line_total_xof
         - parcel_size
         - issue
+        - issue_code
+        - stock_left
     Cart:
       type: object
       properties:

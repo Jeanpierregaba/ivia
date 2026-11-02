@@ -11,6 +11,8 @@ docs/specs/NNN-nom/tasks.md. Les petites tâches isolées (bug, retouche) peuven
 - [ ] 009 — Commande en retrait et suivi ([spec](docs/specs/009-commande-retrait/spec.md)) : implémenté et testé ; reste la relecture et le parcours sur le simulateur
 - [ ] 018 — Espace livreur : lancement, connexion, dossier de candidature ([spec](docs/specs/018-espace-livreur/spec.md)) : relu et corrigé ; appareil photo à vérifier sur un vrai téléphone
 - [ ] 004 — Espace marchand : lancement, connexion, création de la boutique ([spec](docs/specs/004-espace-marchand/spec.md)) : relu et corrigé ; reste les clés Google Maps (vérification de la carte)
+- [ ] 004 bis — **App marchand (Jean-Pierre)** : écran de dépôt de la pièce d'identité (et du RCCM, facultatif) après « Envoyer pour validation ». Backend et back-office faits (2026-11-02) : `POST /v1/uploads` (purpose `merchant_document`) puis `POST /v1/seller/documents` ; `GET /v1/seller/documents` donne les pièces et `required` ; `merchant_documents` sur la boutique. Sans pièce, l'admin ne peut pas publier (409 `merchant_documents_missing`) : le parcours marchand reste bloqué en attente tant que l'écran manque. Le faux serveur mobile doit suivre
+- [ ] 008 suite — **App acheteur (Jean-Pierre)** : lire `issue_code` et `stock_left` des lignes du panier (ajoutés le 2026-11-02) au lieu d'analyser le texte « Plus que N en stock. » (`CartItem.stockLeft`) ; le texte `issue` reste à afficher tel quel
 - [ ] 027 — Splash et présentation des 3 apps ([spec](docs/specs/027-splash-onboarding/spec.md)) : reste la vérification sur Android, la validation des textes et des couleurs par le designer
 
 Fin du squelette (étapes 8-9 du cadrage) :
@@ -81,9 +83,9 @@ version « retrait seulement » (voir `docs/PRD.md`).
 - [ ] Boutiques et livreurs pilotes pour les tests terrain
 
 ## Terminé
-- [x] 008 — Panier de l'acheteur ([spec](docs/specs/008-panier/spec.md), 2026-11-02) : panier d'une boutique gardé sur le serveur, ajout cumulé depuis la fiche produit, « + » des cartes et de la fiche boutique, « Vider le panier ? » pour une autre boutique, icône à pastille, barre « Voir le panier », écran Panier (quantités, retrait avec « Annuler », lignes en erreur, vidage) ; « Commander » annonce la 009 ; test backend des raisons à faire relire par Gedeon
+- [x] 008 — Panier de l'acheteur ([spec](docs/specs/008-panier/spec.md), 2026-11-02) : panier d'une boutique gardé sur le serveur, ajout cumulé depuis la fiche produit, « + » des cartes et de la fiche boutique, « Vider le panier ? » pour une autre boutique, icône à pastille, barre « Voir le panier », écran Panier (quantités, retrait avec « Annuler », lignes en erreur, vidage) ; « Commander » annonce la 009 ; test backend des raisons relu par Gedeon le 2026-11-02 (champs structurés `issue_code` et `stock_left` ajoutés, voir « En cours »)
 - [x] 007 — Accueil et recherche de l'acheteur ([spec](docs/specs/007-accueil-recherche-acheteur/spec.md), 2026-11-01) : barre du bas, zone (position approximative ou quartier), accueil, onglet Recherche avec filtres et tri, fiches boutique et produit ; position arrondie dans l'URL ([ADR 0010](docs/decisions/0010-position-arrondie-dans-les-recherches.md))
-- [x] 005 — Catalogue marchand ([spec](docs/specs/005-catalogue-marchand/spec.md), 2026-11-01) : barre du bas, catalogue par onglets avec recherche et compteurs serveur, création en deux étapes, aperçu, brouillons, modification, retrait et remise en vente, stock ; migration 00021 (états de publication) à faire relire par Gedeon dans la PR
+- [x] 005 — Catalogue marchand ([spec](docs/specs/005-catalogue-marchand/spec.md), 2026-11-01) : barre du bas, catalogue par onglets avec recherche et compteurs serveur, création en deux étapes, aperçu, brouillons, modification, retrait et remise en vente, stock ; migration 00021 (états de publication) relue par Gedeon le 2026-11-02 : conforme
 - [x] Back-office `admin/` (2026-11-01) : Next.js 16, TypeScript strict, Tailwind 4, pnpm ;
   connexion admin par code (cookie httpOnly), tableau de bord, boutiques, livreurs (dossier et
   activation), commandes (détail et actions admin), remboursements, paramètres, journal ; types

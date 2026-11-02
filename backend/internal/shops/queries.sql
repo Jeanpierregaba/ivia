@@ -91,3 +91,15 @@ SELECT id, name FROM shop_categories WHERE is_active ORDER BY position, name;
 
 -- name: ShopCategoryIsActive :one
 SELECT EXISTS (SELECT 1 FROM shop_categories WHERE id = $1 AND is_active);
+
+-- name: InsertMerchantDocument :one
+INSERT INTO merchant_documents (owner_id, kind, object_key) VALUES ($1, $2, $3) RETURNING *;
+
+-- name: ListMerchantDocuments :many
+SELECT * FROM merchant_documents WHERE owner_id = $1 ORDER BY created_at;
+
+-- name: CountMerchantDocuments :one
+SELECT count(*) FROM merchant_documents WHERE owner_id = $1;
+
+-- name: DeleteMerchantDocumentsOf :exec
+DELETE FROM merchant_documents WHERE owner_id = $1;

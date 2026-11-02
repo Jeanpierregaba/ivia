@@ -1,7 +1,8 @@
 // Package shops gère les boutiques : création par un utilisateur (qui devient marchand), validation,
 // refus et suspension par l'admin.
 //
-// Une boutique n'est visible des acheteurs qu'au statut « published ». Une boutique suspendue perd
+// Une boutique n'est visible des acheteurs qu'au statut « published », et l'admin ne peut la publier
+// qu'après avoir vérifié les pièces de son marchand (documents.go). Une boutique suspendue perd
 // l'accès aux actions marchand dès la requête suivante (RequireOwned vérifie le statut à chaque appel).
 package shops
 
@@ -58,6 +59,19 @@ type Shop struct {
 	ReviewedAt       *time.Time `json:"reviewed_at"`
 	CreatedAt        time.Time  `json:"created_at"`
 	UpdatedAt        time.Time  `json:"updated_at"`
+	// MerchantDocuments : pièces du marchand, renseignées pour le propriétaire et l'admin (WithDocuments).
+	MerchantDocuments []Document `json:"merchant_documents"`
+}
+
+// WithDocuments joint les pièces du marchand à la boutique ; withURLs ajoute les liens temporaires
+// de lecture (back-office uniquement).
+func (s *Service) WithDocuments(ctx context.Context, shop Shop, withURLs bool) (Shop, error) {
+	docs, err := s.Documents(ctx, shop.OwnerID, withURLs)
+	if err != nil {
+		return Shop{}, err
+	}
+	shop.MerchantDocuments = docs
+	return shop, nil
 }
 
 // PublicShop est ce que voit un acheteur.
@@ -372,6 +386,15 @@ func (s *Service) Review(ctx context.Context, adminID, shopID uuid.UUID, decisio
 		if err != nil {
 			return err
 		}
+		if decision == "approve" {
+			docs, err := s.Documents(ctx, before.OwnerID, false)
+			if err != nil {
+				return err
+			}
+			if err := requireDocuments(docs); err != nil {
+				return err
+			}
+		}
 		n, err := store.New(s.db.Conn(ctx)).SetShopStatus(ctx, store.SetShopStatusParams{
 			ID: shopID, NewStatus: string(t.to), Reason: reason, ReviewedBy: &adminID, FromStatuses: t.from,
 		})
@@ -402,13 +425,14 @@ func (s *Service) Review(ctx context.Context, adminID, shopID uuid.UUID, decisio
 	return out, err
 }
 
-// OnAccountDeleted suspend les boutiques d'un marchand qui supprime son compte (users.DeletionHook).
+// OnAccountDeleted suspend les boutiques d'un marchand qui supprime son compte et efface ses pièces
+// (users.DeletionHook).
 func (s *Service) OnAccountDeleted(ctx context.Context, userID uuid.UUID) error {
 	err := store.New(s.db.Conn(ctx)).SuspendShopsOfOwner(ctx, store.SuspendShopsOfOwnerParams{OwnerID: userID, Reason: "Compte du marchand supprimé."})
 	if err != nil {
 		return fmt.Errorf("suspension des boutiques : %w", err)
 	}
-	return nil
+	return s.deleteDocuments(ctx, userID)
 }
 
 func (s *Service) get(ctx context.Context, id uuid.UUID) (Shop, error) {
