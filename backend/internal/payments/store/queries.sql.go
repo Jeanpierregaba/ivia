@@ -445,6 +445,62 @@ func (q *Queries) LockPayment(ctx context.Context, id uuid.UUID) (Payment, error
 	return i, err
 }
 
+const paymentsToRecheck = `-- name: PaymentsToRecheck :many
+SELECT id, order_id, buyer_id, provider, reference, provider_ref, amount_xof, currency, operator, payer_phone, status, failure_reason, is_duplicate, succeeded_at, created_at, updated_at FROM payments
+WHERE created_at < now() - interval '2 minutes'
+  AND (status = 'pending'
+       OR (status = 'failed'
+           AND failure_reason = ANY($1::text[])
+           AND created_at > $2::timestamptz))
+ORDER BY created_at
+LIMIT 100
+`
+
+type PaymentsToRecheckParams struct {
+	ReopenableReasons []string
+	Since             time.Time
+}
+
+// Paiements à revérifier auprès du prestataire, créés il y a plus de 2 minutes : en attente, ou
+// abandonnés côté ivia (annulés par l'acheteur, prestataire injoignable) depuis `since`, car le
+// prestataire, qui n'en est pas prévenu, peut encore les faire aboutir.
+func (q *Queries) PaymentsToRecheck(ctx context.Context, arg PaymentsToRecheckParams) ([]Payment, error) {
+	rows, err := q.db.Query(ctx, paymentsToRecheck, arg.ReopenableReasons, arg.Since)
+	if err != nil {
+		return nil, err
+	}
+	defer rows.Close()
+	items := []Payment{}
+	for rows.Next() {
+		var i Payment
+		if err := rows.Scan(
+			&i.ID,
+			&i.OrderID,
+			&i.BuyerID,
+			&i.Provider,
+			&i.Reference,
+			&i.ProviderRef,
+			&i.AmountXof,
+			&i.Currency,
+			&i.Operator,
+			&i.PayerPhone,
+			&i.Status,
+			&i.FailureReason,
+			&i.IsDuplicate,
+			&i.SucceededAt,
+			&i.CreatedAt,
+			&i.UpdatedAt,
+		); err != nil {
+			return nil, err
+		}
+		items = append(items, i)
+	}
+	if err := rows.Err(); err != nil {
+		return nil, err
+	}
+	return items, nil
+}
+
 const pendingPaymentForOrder = `-- name: PendingPaymentForOrder :one
 SELECT id, order_id, buyer_id, provider, reference, provider_ref, amount_xof, currency, operator, payer_phone, status, failure_reason, is_duplicate, succeeded_at, created_at, updated_at FROM payments WHERE order_id = $1 AND status = 'pending'
 `
@@ -560,49 +616,4 @@ type SetProviderRefParams struct {
 func (q *Queries) SetProviderRef(ctx context.Context, arg SetProviderRefParams) error {
 	_, err := q.db.Exec(ctx, setProviderRef, arg.ID, arg.ProviderRef)
 	return err
-}
-
-const stalePendingPayments = `-- name: StalePendingPayments :many
-SELECT id, order_id, buyer_id, provider, reference, provider_ref, amount_xof, currency, operator, payer_phone, status, failure_reason, is_duplicate, succeeded_at, created_at, updated_at FROM payments
-WHERE status = 'pending' AND created_at < now() - interval '2 minutes'
-ORDER BY created_at
-LIMIT 100
-`
-
-// Paiements en attente depuis plus de 2 minutes : à revérifier auprès du prestataire.
-func (q *Queries) StalePendingPayments(ctx context.Context) ([]Payment, error) {
-	rows, err := q.db.Query(ctx, stalePendingPayments)
-	if err != nil {
-		return nil, err
-	}
-	defer rows.Close()
-	items := []Payment{}
-	for rows.Next() {
-		var i Payment
-		if err := rows.Scan(
-			&i.ID,
-			&i.OrderID,
-			&i.BuyerID,
-			&i.Provider,
-			&i.Reference,
-			&i.ProviderRef,
-			&i.AmountXof,
-			&i.Currency,
-			&i.Operator,
-			&i.PayerPhone,
-			&i.Status,
-			&i.FailureReason,
-			&i.IsDuplicate,
-			&i.SucceededAt,
-			&i.CreatedAt,
-			&i.UpdatedAt,
-		); err != nil {
-			return nil, err
-		}
-		items = append(items, i)
-	}
-	if err := rows.Err(); err != nil {
-		return nil, err
-	}
-	return items, nil
 }

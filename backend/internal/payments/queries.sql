@@ -45,10 +45,16 @@ WHERE (sqlc.narg(status)::text IS NULL OR status = sqlc.narg(status)::text)
 ORDER BY created_at DESC
 LIMIT sqlc.arg(lim) OFFSET sqlc.arg(off);
 
--- name: StalePendingPayments :many
--- Paiements en attente depuis plus de 2 minutes : à revérifier auprès du prestataire.
+-- name: PaymentsToRecheck :many
+-- Paiements à revérifier auprès du prestataire, créés il y a plus de 2 minutes : en attente, ou
+-- abandonnés côté ivia (annulés par l'acheteur, prestataire injoignable) depuis `since`, car le
+-- prestataire, qui n'en est pas prévenu, peut encore les faire aboutir.
 SELECT * FROM payments
-WHERE status = 'pending' AND created_at < now() - interval '2 minutes'
+WHERE created_at < now() - interval '2 minutes'
+  AND (status = 'pending'
+       OR (status = 'failed'
+           AND failure_reason = ANY(sqlc.arg(reopenable_reasons)::text[])
+           AND created_at > sqlc.arg(since)::timestamptz))
 ORDER BY created_at
 LIMIT 100;
 

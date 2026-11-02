@@ -307,10 +307,11 @@ func orderStatus(t *testing.T, token, orderID string) string {
 	return mustStatus(t, call(t, token, "GET", "/v1/orders/"+orderID, nil), http.StatusOK).str("status")
 }
 
-// pay lance le paiement et le fait aboutir par un webhook signé du faux prestataire.
+// pay lance le paiement et le fait aboutir par un webhook signé du faux prestataire. Un numéro
+// par paiement : les demandes vers un même numéro sont limitées.
 func pay(t *testing.T, b buyerFixture, orderID string) string {
 	t.Helper()
-	return payFrom(t, b, orderID, "90123456")
+	return payFrom(t, b, orderID, uniquePhone())
 }
 
 // payFrom paie depuis un numéro donné (un numéro finissant par 0000 fait échouer les remboursements).

@@ -18,6 +18,7 @@ import (
 	"errors"
 	"fmt"
 	"log/slog"
+	"slices"
 	"strings"
 	"time"
 
@@ -50,15 +51,22 @@ const (
 // pendingGiveUpAfter : un paiement encore en attente chez le prestataire après ce délai est expiré.
 const pendingGiveUpAfter = time.Hour
 
-// Demandes de paiement par acheteur : avec l'annulation, sans limite, on pourrait envoyer des
-// demandes en boucle vers le numéro d'un tiers.
+// Nouvelles demandes de paiement, par acheteur et par numéro payeur : avec l'annulation, sans
+// limite, on pourrait envoyer des demandes en boucle vers le numéro d'un tiers, depuis un ou
+// plusieurs comptes.
 const (
 	requestLimit       = 10
 	requestLimitWindow = time.Hour
 )
 
-// cancelledByBuyer est la raison d'échec d'une demande abandonnée par l'acheteur.
-const cancelledByBuyer = "Annulé par l'acheteur."
+// Raisons d'échec posées par ivia sans que le prestataire le sache : il peut encore faire aboutir
+// ces demandes, qui restent revérifiées pendant pendingGiveUpAfter.
+const (
+	cancelledByBuyer    = "Annulé par l'acheteur."
+	providerUnreachable = "Prestataire injoignable."
+)
+
+var reopenableReasons = []string{cancelledByBuyer, providerUnreachable}
 
 // Payment est la vue d'un paiement.
 type Payment struct {
@@ -122,8 +130,9 @@ type Service struct {
 	audit    *admin.Service
 	notify   *notifications.Service
 	logger   *slog.Logger
-	// requests limite les nouvelles demandes de paiement par acheteur.
+	// requests et phones limitent les nouvelles demandes de paiement, par acheteur et par numéro.
 	requests *ratelimit.Limiter
+	phones   *ratelimit.Limiter
 }
 
 // NewService crée le service.
@@ -131,6 +140,7 @@ func NewService(db *database.DB, enq jobs.Enqueuer, provider Provider, ord *orde
 	return &Service{
 		db: db, jobs: enq, provider: provider, orders: ord, audit: audit, notify: notify, logger: logger,
 		requests: ratelimit.New(requestLimit, requestLimitWindow),
+		phones:   ratelimit.New(requestLimit, requestLimitWindow),
 	}
 }
 
@@ -160,15 +170,25 @@ func (s *Service) Initiate(ctx context.Context, buyerID, orderID uuid.UUID, oper
 	} else if !database.IsNoRows(err) {
 		return Payment{}, fmt.Errorf("lecture du paiement en cours : %w", err)
 	}
-	// Seule une nouvelle demande compte : rendre la demande en attente n'envoie rien au payeur.
+	// Seule une demande envoyée au payeur compte : rendre la demande en attente n'envoie rien, et
+	// une demande qui n'atteint pas le prestataire est rendue (release).
 	if ok, retry := s.requests.Allow(buyerID.String()); !ok {
 		return Payment{}, apperr.TooManyRequests("rate_limited", "Trop de demandes de paiement. Réessayez plus tard.", retry)
+	}
+	if ok, retry := s.phones.Allow(normalized); !ok {
+		s.requests.Cancel(buyerID.String())
+		return Payment{}, apperr.TooManyRequests("rate_limited", "Trop de demandes de paiement vers ce numéro. Réessayez plus tard.", retry)
+	}
+	release := func() {
+		s.requests.Cancel(buyerID.String())
+		s.phones.Cancel(normalized)
 	}
 	row, err := q.CreatePayment(ctx, store.CreatePaymentParams{
 		OrderID: orderID, BuyerID: buyerID, Provider: s.provider.Name(), Reference: newReference("ivp"),
 		AmountXof: order.TotalXOF, Operator: string(operator), PayerPhone: normalized,
 	})
 	if database.IsUniqueViolation(err, "payments_one_pending_per_order") {
+		release() // une autre requête a créé la demande en même temps
 		cur, err := q.PendingPaymentForOrder(ctx, orderID)
 		if err != nil {
 			return Payment{}, fmt.Errorf("lecture du paiement en cours : %w", err)
@@ -176,6 +196,7 @@ func (s *Service) Initiate(ctx context.Context, buyerID, orderID uuid.UUID, oper
 		return toPayment(cur), nil
 	}
 	if err != nil {
+		release()
 		return Payment{}, fmt.Errorf("création du paiement : %w", err)
 	}
 
@@ -186,8 +207,9 @@ func (s *Service) Initiate(ctx context.Context, buyerID, orderID uuid.UUID, oper
 	})
 	if err != nil {
 		s.logger.Error("lancement du paiement impossible", "payment_id", row.ID, "err", err)
+		release()
 		_, _ = q.SetPaymentStatus(ctx, store.SetPaymentStatusParams{
-			ID: row.ID, NewStatus: string(StatusFailed), FailureReason: "Prestataire injoignable.", FromStatuses: []string{string(StatusPending)},
+			ID: row.ID, NewStatus: string(StatusFailed), FailureReason: providerUnreachable, FromStatuses: []string{string(StatusPending)},
 		})
 		return Payment{}, apperr.Unavailable("payment_provider_unavailable", "Le paiement n'a pas pu être lancé. Réessayez dans un instant.")
 	}
@@ -369,14 +391,18 @@ func (s *Service) applySuccess(ctx context.Context, paymentID uuid.UUID) error {
 	})
 }
 
-// Recheck revérifie auprès du prestataire les paiements restés en attente (tâche périodique).
+// Recheck revérifie auprès du prestataire les paiements restés en attente, et ceux abandonnés
+// côté ivia depuis moins de pendingGiveUpAfter (un webhook perdu n'est ainsi jamais ignoré).
+// Tâche périodique.
 func (s *Service) Recheck(ctx context.Context) error {
-	rows, err := store.New(s.db.Conn(ctx)).StalePendingPayments(ctx)
+	rows, err := store.New(s.db.Conn(ctx)).PaymentsToRecheck(ctx, store.PaymentsToRecheckParams{
+		ReopenableReasons: reopenableReasons, Since: time.Now().Add(-pendingGiveUpAfter),
+	})
 	if err != nil {
-		return fmt.Errorf("paiements en attente : %w", err)
+		return fmt.Errorf("paiements à revérifier : %w", err)
 	}
 	for _, p := range rows {
-		if err := s.recheckOne(ctx, p); err != nil {
+		if err := s.recheckOne(ctx, p, false); err != nil {
 			s.logger.Error("revérification impossible", "payment_id", p.ID, "err", err)
 		}
 	}
@@ -392,14 +418,26 @@ func (s *Service) VerifyNow(ctx context.Context, paymentID uuid.UUID) (AdminPaym
 	if err != nil {
 		return AdminPayment{}, fmt.Errorf("lecture du paiement : %w", err)
 	}
-	if err := s.recheckOne(ctx, p); err != nil {
+	// L'admin peut revérifier toute demande non aboutie : un paiement débité après une annulation
+	// ou une expiration est alors appliqué.
+	if err := s.recheckOne(ctx, p, true); err != nil {
 		return AdminPayment{}, err
 	}
 	return s.AdminGet(ctx, paymentID)
 }
 
-func (s *Service) recheckOne(ctx context.Context, p store.Payment) error {
-	if Status(p.Status) != StatusPending {
+// recheckOne demande au prestataire l'état d'une demande en attente ou, si reopened l'autorise,
+// d'une demande close côté ivia (failed, expired) : une réussite y est appliquée (applySuccess
+// part aussi de failed et expired). force : toute demande failed ou expired (admin) ; sinon
+// seulement celles abandonnées sans que le prestataire le sache.
+func (s *Service) recheckOne(ctx context.Context, p store.Payment, force bool) error {
+	switch Status(p.Status) {
+	case StatusPending:
+	case StatusFailed, StatusExpired:
+		if !force && !slices.Contains(reopenableReasons, p.FailureReason) {
+			return nil
+		}
+	default:
 		return nil
 	}
 	ev, err := s.provider.Status(ctx, p.Reference)
@@ -407,7 +445,7 @@ func (s *Service) recheckOne(ctx context.Context, p store.Payment) error {
 		return fmt.Errorf("statut chez le prestataire : %w", err)
 	}
 	if ev.Status == ProviderPending {
-		if time.Since(p.CreatedAt) > pendingGiveUpAfter {
+		if Status(p.Status) == StatusPending && time.Since(p.CreatedAt) > pendingGiveUpAfter {
 			_, err := store.New(s.db.Conn(ctx)).SetPaymentStatus(ctx, store.SetPaymentStatusParams{
 				ID: p.ID, NewStatus: string(StatusExpired), FailureReason: "Aucune confirmation du prestataire.",
 				FromStatuses: []string{string(StatusPending)},

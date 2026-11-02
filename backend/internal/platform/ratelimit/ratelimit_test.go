@@ -29,3 +29,17 @@ func TestLimiter(t *testing.T) {
 		t.Fatal("la limite doit se réinitialiser")
 	}
 }
+
+func TestLimiterCancel(t *testing.T) {
+	l := New(2, time.Minute)
+	l.Allow("k")
+	l.Allow("k")
+	l.Cancel("k")
+	if ok, _ := l.Allow("k"); !ok {
+		t.Fatal("un événement rendu doit libérer une place")
+	}
+	if ok, _ := l.Allow("k"); ok {
+		t.Fatal("la limite doit rester appliquée")
+	}
+	l.Cancel("inconnue") // sans effet
+}

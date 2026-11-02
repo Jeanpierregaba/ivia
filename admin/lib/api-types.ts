@@ -685,7 +685,7 @@ export interface paths {
         put?: never;
         /**
          * Payer par Mobile Money
-         * @description Lance le paiement chez le prestataire ; l'acheteur valide sur son téléphone. Le statut ne change que sur notification vérifiée du prestataire. S'il y a déjà une demande en attente pour la commande, elle est rendue telle quelle (l'annuler d'abord pour changer de numéro). 10 nouvelles demandes par heure et par acheteur (429 `rate_limited`).
+         * @description Lance le paiement chez le prestataire ; l'acheteur valide sur son téléphone. Le statut ne change que sur notification vérifiée du prestataire. S'il y a déjà une demande en attente pour la commande, elle est rendue telle quelle (l'annuler d'abord pour changer de numéro). 10 nouvelles demandes par heure par acheteur et par numéro payeur (429 `rate_limited`) ; une demande que le prestataire n'a pas reçue ne compte pas.
          */
         post: operations["postOrdersByIdPayments"];
         delete?: never;
@@ -722,7 +722,7 @@ export interface paths {
         put?: never;
         /**
          * Annuler une demande de paiement en attente
-         * @description L'acheteur abandonne sa demande en attente : elle passe en `failed` (« Annulé par l'acheteur. ») et une nouvelle demande devient possible. Le prestataire n'est pas prévenu : une validation tardive reste appliquée par webhook. Idempotent (une demande `failed` ou `expired` est rendue telle quelle) ; 409 `payment_not_cancellable` si le paiement est réussi ou remboursé. `POST /v1/orders/{id}/payments` est limité à 10 nouvelles demandes par heure et par acheteur (429 `rate_limited`).
+         * @description L'acheteur abandonne sa demande en attente : elle passe en `failed` (« Annulé par l'acheteur. ») et une nouvelle demande devient possible. Le prestataire n'est pas prévenu : une validation tardive reste appliquée par webhook. Idempotent (une demande `failed` ou `expired` est rendue telle quelle) ; 409 `payment_not_cancellable` si le paiement est réussi ou remboursé. `POST /v1/orders/{id}/payments` est limité à 10 nouvelles demandes par heure par acheteur et par numéro payeur (429 `rate_limited`) ; une demande que le prestataire n'a pas reçue ne compte pas.
          */
         post: operations["postPaymentsByIdCancel"];
         delete?: never;
@@ -1874,7 +1874,10 @@ export interface paths {
         };
         get?: never;
         put?: never;
-        /** Revérifier un paiement auprès du prestataire */
+        /**
+         * Revérifier un paiement auprès du prestataire
+         * @description Demande l'état du paiement au prestataire. Vaut aussi pour une demande `failed` ou `expired` (annulée par l'acheteur, prestataire injoignable, sans confirmation) : une réussite chez le prestataire y est appliquée.
+         */
         post: operations["postAdminPaymentsByIdVerify"];
         delete?: never;
         options?: never;
