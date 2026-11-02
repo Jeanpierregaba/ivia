@@ -126,3 +126,24 @@ export const AUDIT_ACTION: Record<string, string> = {
   "user.grant_admin": "Droits admin accordés",
   "user.revoke_admin": "Droits admin retirés",
 };
+
+/** « 2026-11-02 » → « 02/11/2026 » (dates sans heure de l'API). */
+export function frDate(iso: string | null | undefined): string {
+  if (!iso) return "—";
+  return iso.slice(0, 10).split("-").reverse().join("/");
+}
+
+/** Statuts d'un relevé marchand. */
+export const SETTLEMENT_STATUS: Record<string, { label: string; tone: Tone }> = {
+  preview: { label: "Aperçu", tone: "muted" },
+  open: { label: "À régler", tone: "warning" },
+  settled: { label: "Réglé", tone: "success" },
+};
+
+/** Rôles d'un compte. */
+export const ROLE_LABEL: Record<string, string> = {
+  buyer: "Acheteur",
+  seller: "Marchand",
+  driver: "Livreur",
+  admin: "Admin",
+};

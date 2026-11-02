@@ -2,13 +2,18 @@
 
 import {
   Banknote,
+  BookOpen,
   ClipboardList,
+  CreditCard,
   LayoutGrid,
   LogOut,
+  ReceiptText,
+  Route,
   ScrollText,
   Settings2,
   Store,
   Truck,
+  Users,
 } from "lucide-react";
 import Link from "next/link";
 import { usePathname } from "next/navigation";
@@ -21,10 +26,18 @@ const operations = [
   { href: "/shops", label: "Boutiques", icon: Store },
   { href: "/drivers", label: "Livreurs", icon: Truck },
   { href: "/orders", label: "Commandes", icon: ClipboardList },
+  { href: "/deliveries", label: "Livraisons", icon: Route },
+];
+
+const money = [
+  { href: "/payments", label: "Paiements", icon: CreditCard },
   { href: "/refunds", label: "Remboursements", icon: Banknote },
+  { href: "/settlements", label: "Relevés marchands", icon: ReceiptText },
 ];
 
 const platform = [
+  { href: "/users", label: "Comptes", icon: Users },
+  { href: "/referentials", label: "Référentiels", icon: BookOpen },
   { href: "/settings", label: "Paramètres", icon: Settings2 },
   { href: "/audit", label: "Journal des actions", icon: ScrollText },
 ];
@@ -43,7 +56,7 @@ export function Sidebar({ name, email }: { name: string; email: string }) {
         href={s.href}
         aria-current={on ? "page" : undefined}
         className={cx(
-          "flex h-11 items-center gap-3 rounded-full px-4 text-[15px] font-semibold transition-colors",
+          "flex h-10 shrink-0 items-center gap-3 rounded-full px-4 text-[15px] font-semibold transition-colors",
           on ? "bg-white text-tertiary" : "text-white/80 hover:bg-white/10 hover:text-white",
         )}
       >
@@ -55,19 +68,26 @@ export function Sidebar({ name, email }: { name: string; email: string }) {
 
   return (
     <aside className="sticky top-0 flex h-screen flex-col bg-tertiary px-4 pb-5 pt-7 text-white">
-      <div className="mb-9 flex items-center gap-3 px-3">
+      <div className="mb-7 flex items-center gap-3 px-3">
         <Logo color="white" height={30} />
         <span className="rounded-full bg-white/15 px-2.5 py-1 text-[12px] font-semibold uppercase tracking-[0.08em] text-white/85">
           Admin
         </span>
       </div>
 
-      <nav aria-label="Navigation principale" className="flex flex-1 flex-col gap-1">
+      <nav
+        aria-label="Navigation principale"
+        className="-mx-1 flex flex-1 flex-col gap-0.5 overflow-y-auto px-1"
+      >
         <p className="mb-1 px-4 text-[12px] font-semibold uppercase tracking-[0.08em] text-white/50">
           Opérations
         </p>
         {operations.map(item)}
-        <p className="mb-1 mt-6 px-4 text-[12px] font-semibold uppercase tracking-[0.08em] text-white/50">
+        <p className="mb-1 mt-5 px-4 text-[12px] font-semibold uppercase tracking-[0.08em] text-white/50">
+          Argent
+        </p>
+        {money.map(item)}
+        <p className="mb-1 mt-5 px-4 text-[12px] font-semibold uppercase tracking-[0.08em] text-white/50">
           Plateforme
         </p>
         {platform.map(item)}

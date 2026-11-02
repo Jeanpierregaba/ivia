@@ -96,3 +96,21 @@ export function failure(err: unknown): ActionResult {
   if (err instanceof ApiError) return { ok: false, message: err.message, fields: err.fields };
   throw err; // redirections Next.js et erreurs inattendues
 }
+
+/**
+ * Appel brut (fichier CSV) : même jeton et mêmes règles que api(), corps renvoyé tel quel.
+ * Réservé aux Route Handlers qui relaient un fichier au navigateur.
+ */
+export async function apiRaw(path: string, query: Record<string, string>): Promise<Response> {
+  const token = await sessionToken();
+  if (!token) redirect("/login");
+  const url = new URL(baseUrl() + path);
+  for (const [k, v] of Object.entries(query)) if (v) url.searchParams.set(k, v);
+  const res = await fetch(url, {
+    headers: { Authorization: `Bearer ${token}` },
+    cache: "no-store",
+    signal: AbortSignal.timeout(30_000),
+  });
+  if (res.status === 401) redirect("/logout");
+  return res;
+}

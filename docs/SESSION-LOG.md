@@ -14,6 +14,16 @@ Format :
 - Prochaine étape :
 -->
 
+### 2026-11-02 — Back-office complet
+- Fait : écrans paiements, relevés marchands (aperçu, création, réglé, suppression), livraisons par
+  livreur et export CSV (Route Handler qui relaie le fichier, jeton côté serveur), comptes et droits
+  admin, référentiels (catégories, quartiers) ; barre latérale en trois sections ; composants
+  `ServerForm`, `Field`, `fieldClass`, `apiRaw`. Vérifié contre l'API locale avec les données de
+  démonstration (pages, CSV).
+- Pièges rencontrés : 60 s imposées entre deux demandes de code pour le même e-mail (protection
+  anti-abus) : en attendre la fin pour rouvrir une session de test.
+- Prochaine étape : tests navigateur (Playwright), 016 paiement réel, 017 VPS.
+
 ### 2026-11-02 — Pièces du marchand dans l'app, panier structuré
 - Fait : app marchand, encart « Vos pièces » sur l'écran d'attente (pièce d'identité obligatoire,
   RCCM facultatif, envoi immédiat), étape « Pièce d'identité » ; `DocumentRow` déplacée dans

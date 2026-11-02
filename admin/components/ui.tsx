@@ -320,3 +320,26 @@ export function Avatar({
     </span>
   );
 }
+
+/** Champ de saisie (DESIGN.md) : contour 3:1 au repos, Imperial 2 px quand il est actif. */
+export const fieldClass =
+  "h-11 w-full rounded-field border border-border-input bg-surface px-4 text-[15px] outline-none focus:border-2 focus:border-primary focus:px-[15px]";
+
+/** Libellé au-dessus du champ, précision facultative en dessous. */
+export function Field({
+  label,
+  hint,
+  children,
+}: {
+  label: string;
+  hint?: string;
+  children: React.ReactNode;
+}) {
+  return (
+    <label className="block">
+      <span className="mb-1.5 block text-[13px] font-semibold text-text-secondary">{label}</span>
+      {children}
+      {hint && <span className="mt-1 block text-[12px] text-text-muted">{hint}</span>}
+    </label>
+  );
+}
