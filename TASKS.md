@@ -8,8 +8,6 @@ docs/specs/NNN-nom/tasks.md. Les petites tâches isolées (bug, retouche) peuven
 
 ## En cours
 
-- [ ] 010 — Paiement Mobile Money ([spec](docs/specs/010-paiement/spec.md)) : implémenté, testé, relu et corrigé ; reste le parcours sur le simulateur
-- [ ] 009 — Commande en retrait et suivi ([spec](docs/specs/009-commande-retrait/spec.md)) : implémenté, testé et relu ; reste le parcours sur le simulateur (fait avec celui de la 010)
 - [ ] 018 — Espace livreur : lancement, connexion, dossier de candidature ([spec](docs/specs/018-espace-livreur/spec.md)) : relu et corrigé ; appareil photo à vérifier sur un vrai téléphone
 - [ ] 004 — Espace marchand : lancement, connexion, création de la boutique ([spec](docs/specs/004-espace-marchand/spec.md)) : relu et corrigé ; reste les clés Google Maps (vérification de la carte)
 - [ ] 027 — Splash et présentation des 3 apps ([spec](docs/specs/027-splash-onboarding/spec.md)) : reste la vérification sur Android, la validation des textes et des couleurs par le designer
@@ -42,8 +40,8 @@ version « retrait seulement » (voir `docs/PRD.md`).
 
 ### Phase 2 — Commande et paiement (retrait en boutique)
 - [x] 008 — Panier mono-boutique : écrans acheteur faits (voir « Terminé »)
-- [ ] 009 — Commande en retrait et suivi
-- [ ] 010 — Écrans de paiement (attente de validation sur le téléphone, interrogation du statut) : en cours
+- [x] 009 — Commande en retrait et suivi : écrans acheteur faits (voir « Terminé »)
+- [x] 010 — Écrans de paiement (attente de validation sur le téléphone, interrogation du statut) : faits (voir « Terminé »)
 - [ ] 011 — Marchand : acceptation / refus sous 15 min, préparation, remise par code
 - [ ] 012 — Notifications push (`firebase_messaging`, enregistrement `PUT /v1/me/devices`) et liste ; dont la notification de validation promise par les écrans d'attente (boutique, dossier livreur)
 - [ ] 013 — Suivi de commande et annulation par l'acheteur
@@ -83,6 +81,8 @@ version « retrait seulement » (voir `docs/PRD.md`).
 - [ ] Boutiques et livreurs pilotes pour les tests terrain
 
 ## Terminé
+- [x] 010 — Paiement Mobile Money ([spec](docs/specs/010-paiement/spec.md), 2026-11-02) : écran Paiement (montant, Flooz / T-Money, numéro du profil), attente « Validez le paiement sur votre téléphone » (temps restant à l'heure du serveur, relecture toutes les 3 s, succès vers le suivi avec le code, échec et « Réessayer », « Je n'ai rien reçu », « Annuler le paiement »), simulation locale (`IVIA_DEV_PAYMENT`) ; backend : `POST /v1/payments/{id}/cancel`, limites par acheteur et par numéro, revérification des demandes annulées, à faire relire par Gedeon
+- [x] 009 — Commande en retrait et suivi ([spec](docs/specs/009-commande-retrait/spec.md), 2026-11-02) : écran Commande (retrait, récapitulatif du serveur, « Payer » idempotent), onglet Commandes (en cours / terminées, « Récemment »), suivi (en-tête par statut, code de remise, frise horodatée, relecture toutes les 20 s)
 - [x] 008 — Panier de l'acheteur ([spec](docs/specs/008-panier/spec.md), 2026-11-02) : panier d'une boutique gardé sur le serveur, ajout cumulé depuis la fiche produit, « + » des cartes et de la fiche boutique, « Vider le panier ? » pour une autre boutique, icône à pastille, barre « Voir le panier », écran Panier (quantités, retrait avec « Annuler », lignes en erreur, vidage) ; « Commander » annonce la 009 ; test backend des raisons à faire relire par Gedeon
 - [x] 007 — Accueil et recherche de l'acheteur ([spec](docs/specs/007-accueil-recherche-acheteur/spec.md), 2026-11-01) : barre du bas, zone (position approximative ou quartier), accueil, onglet Recherche avec filtres et tri, fiches boutique et produit ; position arrondie dans l'URL ([ADR 0010](docs/decisions/0010-position-arrondie-dans-les-recherches.md))
 - [x] 005 — Catalogue marchand ([spec](docs/specs/005-catalogue-marchand/spec.md), 2026-11-01) : barre du bas, catalogue par onglets avec recherche et compteurs serveur, création en deux étapes, aperçu, brouillons, modification, retrait et remise en vente, stock ; migration 00021 (états de publication) à faire relire par Gedeon dans la PR

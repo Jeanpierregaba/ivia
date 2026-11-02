@@ -58,28 +58,28 @@ serveur). Jamais en release.
 
 ## Critères d'acceptation
 
-- [ ] Étant donné l'écran Commande, quand l'acheteur appuie sur « Payer », alors la commande est
+- [x] Étant donné l'écran Commande, quand l'acheteur appuie sur « Payer », alors la commande est
       créée et l'écran Paiement s'ouvre avec son total, Flooz choisi et le numéro du profil ; le
       retour mène au suivi de la commande.
-- [ ] Étant donné l'écran Paiement, quand le numéro n'a pas 8 chiffres commençant par 7 ou 9,
+- [x] Étant donné l'écran Paiement, quand le numéro n'a pas 8 chiffres commençant par 7 ou 9,
       alors « Payer » affiche l'erreur sous le champ et n'envoie rien.
-- [ ] Étant donné un numéro valide, quand l'acheteur appuie sur « Payer », alors une seule demande
+- [x] Étant donné un numéro valide, quand l'acheteur appuie sur « Payer », alors une seule demande
       est envoyée (`POST /v1/orders/{id}/payments`, opérateur et numéro choisis) et l'écran
       d'attente affiche l'opérateur, le montant, le numéro masqué et le temps restant.
-- [ ] Étant donné l'écran d'attente, quand le serveur passe le paiement à « réussi », alors le
+- [x] Étant donné l'écran d'attente, quand le serveur passe le paiement à « réussi », alors le
       suivi s'ouvre en moins de 3 s avec le code de remise.
-- [ ] Étant donné l'écran d'attente, quand le serveur passe le paiement à « échoué », alors la
+- [x] Étant donné l'écran d'attente, quand le serveur passe le paiement à « échoué », alors la
       raison s'affiche avec « Réessayer », qui rouvre l'écran Paiement.
-- [ ] Étant donné une demande en attente, quand l'acheteur choisit « Annuler le paiement » puis
+- [x] Étant donné une demande en attente, quand l'acheteur choisit « Annuler le paiement » puis
       confirme, alors `POST /v1/payments/{id}/cancel` est appelé et le suivi s'affiche, commande
       toujours à payer.
-- [ ] Étant donné « Je n'ai rien reçu », quand l'acheteur choisit « Renvoyer la demande », alors
+- [x] Étant donné « Je n'ai rien reçu », quand l'acheteur choisit « Renvoyer la demande », alors
       la demande en cours est annulée et une nouvelle est envoyée avec le même opérateur et le
       même numéro.
-- [ ] Étant donné une commande dont une demande est en attente, quand l'acheteur appuie sur
+- [x] Étant donné une commande dont une demande est en attente, quand l'acheteur appuie sur
       « Payer » dans le suivi, alors l'écran d'attente de cette demande s'ouvre (pas de nouvelle
       demande).
-- [ ] Serveur : l'annulation d'une demande en attente la passe en échec et permet d'en lancer une
+- [x] Serveur : l'annulation d'une demande en attente la passe en échec et permet d'en lancer une
       autre ; annuler une demande réussie rend 409 `payment_not_cancellable` ; la demande d'un
       autre acheteur rend 404 ; une demande annulée puis validée par le prestataire fait avancer la
       commande ; au-delà de 10 demandes par heure, `rate_limited`.

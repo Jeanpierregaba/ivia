@@ -56,24 +56,24 @@ rafraîchissement par notification la 013 et la 012.
 
 ## Critères d'acceptation
 
-- [ ] Étant donné un panier commandable, quand l'acheteur ouvre « Commander », alors le
+- [x] Étant donné un panier commandable, quand l'acheteur ouvre « Commander », alors le
       récapitulatif du serveur (`POST /v1/orders/quote`, retrait) s'affiche avec le total, et
       « Livraison » est désactivée avec « Bientôt ».
-- [ ] Étant donné le récapitulatif, quand l'acheteur appuie sur « Payer », alors une seule
+- [x] Étant donné le récapitulatif, quand l'acheteur appuie sur « Payer », alors une seule
       commande est créée (`POST /v1/orders`, retrait, identifiant de requête unique réutilisé en
       cas de nouvel essai), le panier est vide et le suivi de la commande s'ouvre.
-- [ ] Étant donné un refus du serveur à la commande (stock, produit retiré, boutique fermée,
+- [x] Étant donné un refus du serveur à la commande (stock, produit retiré, boutique fermée,
       panier vide), alors son message s'affiche et « Revenir au panier » relit le panier.
-- [ ] Étant donné des commandes en cours et terminées, alors l'onglet Commandes les sépare, avec
+- [x] Étant donné des commandes en cours et terminées, alors l'onglet Commandes les sépare, avec
       le nombre en cours, le statut lisible et le total ; « Récemment » montre les 3 dernières
       terminées.
-- [ ] Étant donné une commande en attente de paiement, alors le suivi affiche l'heure limite et
+- [x] Étant donné une commande en attente de paiement, alors le suivi affiche l'heure limite et
       « Payer », sans code de remise.
-- [ ] Étant donné une commande payée non retirée, alors le suivi affiche le code de remise en 4
+- [x] Étant donné une commande payée non retirée, alors le suivi affiche le code de remise en 4
       cases, lu chiffre par chiffre par le lecteur d'écran.
-- [ ] Étant donné une commande en cours affichée, quand son statut change sur le serveur, alors
+- [x] Étant donné une commande en cours affichée, quand son statut change sur le serveur, alors
       le suivi le montre en moins de 20 s ; une commande terminée n'est plus relue.
-- [ ] Étant donné la frise, alors chaque étape passée a son heure, les étapes à venir sont en
+- [x] Étant donné la frise, alors chaque étape passée a son heure, les étapes à venir sont en
       gris, et une commande annulée affiche « Annulée » et sa raison.
 
 ## Cas limites et erreurs
