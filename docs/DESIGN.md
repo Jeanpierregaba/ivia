@@ -269,6 +269,14 @@ Maquettes : à venir (lien Figma à ajouter ici). Les statuts affichés suivent
   boutique, adresse, quartier, position (carte Google Maps ou aperçu, « Ma position »),
   consentement si le compte ne l'a pas donné ; puis « En cours de validation » (liste d'étapes,
   actualisation en tirant), refus ou suspension avec le motif.
+- **Pièces du marchand** ([spec 028](specs/028-pieces-marchand/spec.md), « Étape 2 sur 2 ») :
+  « Vérifions votre identité », ouvert après la création de la boutique si la pièce d'identité
+  manque ; lignes de document du dossier livreur (`DocumentPhotoRow`) : « Pièce d'identité »
+  (Obligatoire, face avec la photo) et « Registre du commerce (RCCM) » (Facultatif), états
+  Ajouter / Ajoutée / Envoyée, appareil photo ou galerie ; « Envoyer mes pièces ». Avec une police
+  agrandie, l'état passe sous le libellé. Sur « En cours de validation », étape « Pièce
+  d'identité » (À ajouter ou Envoyée) ; sans elle, « Ajouter ma pièce d'identité » en bouton
+  principal, « Préparer mes produits » en bouton secondaire.
 - **Commandes** : onglets Nouvelles / En cours / Terminées ; chaque nouvelle commande affiche le
   compte à rebours de 15 min.
 - **Détail de commande** : produits, mode de remise, Accepter / Refuser, puis « En préparation »,

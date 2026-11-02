@@ -12,7 +12,7 @@
   rattachement, nouvel essai), erreurs ; route ; ouvert après la création de la boutique ; tests
 - [x] 4. Écran « en cours de validation » : étape « Pièce d'identité », « Ajouter ma pièce
   d'identité », pièces relues avec la boutique ; tests
-- [ ] 5. Docs : `DESIGN.md`, `TASKS.md`
+- [x] 5. Docs : `DESIGN.md`, `TASKS.md`
 
 **Vérifications**
 - [ ] Parcours réel sur le simulateur iPhone 17 Pro contre l'API locale (boutique, pièces, puis
