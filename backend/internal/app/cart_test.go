@@ -8,7 +8,8 @@ import (
 // Les raisons d'une ligne de panier bloquée (`issue`) sont affichées telles quelles par l'app
 // acheteur, qui lit aussi le stock restant dans « Plus que N en stock. » pour proposer
 // « Ajuster à N » (mobile/packages/api_client, CartItem.stockLeft). Changer ces textes casse
-// l'app : ce test les fige.
+// l'app : ce test les fige. Les apps doivent lire `issue_code` et `stock_left` (vérifiés ici aussi)
+// plutôt que d'analyser le texte.
 func TestCartIssueTexts(t *testing.T) {
 	requireApp(t)
 	s := newSeller(t, 5)
@@ -30,8 +31,20 @@ func TestCartIssueTexts(t *testing.T) {
 	if got := issues(); got[0] != "Plus que 2 en stock." || got[1] != "" {
 		t.Fatalf("raisons après baisse du stock : %q", got)
 	}
+	items := mustStatus(t, call(t, b.token, "GET", "/v1/cart", nil), http.StatusOK).Body["items"].([]any)
+	low, ok := items[0].(map[string]any), items[1].(map[string]any)
+	if low["issue_code"] != "insufficient_stock" || low["stock_left"] != float64(2) {
+		t.Fatalf("raison structurée du stock insuffisant : %v %v", low["issue_code"], low["stock_left"])
+	}
+	if ok["issue_code"] != "" || ok["stock_left"] != nil {
+		t.Fatalf("ligne commandable : %v %v", ok["issue_code"], ok["stock_left"])
+	}
 	exec(t, "UPDATE products SET is_active = false, withdrawn_at = now() WHERE id = $1", s.untrackedID)
 	if got := issues(); got[1] != "Ce produit n'est plus disponible." {
 		t.Fatalf("raison d'un produit retiré : %q", got)
+	}
+	items = mustStatus(t, call(t, b.token, "GET", "/v1/cart", nil), http.StatusOK).Body["items"].([]any)
+	if code := items[1].(map[string]any)["issue_code"]; code != "unavailable" {
+		t.Fatalf("code d'un produit retiré : %v", code)
 	}
 }

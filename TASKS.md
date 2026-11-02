@@ -10,12 +10,14 @@ docs/specs/NNN-nom/tasks.md. Les petites tâches isolées (bug, retouche) peuven
 
 - [ ] 018 — Espace livreur : lancement, connexion, dossier de candidature ([spec](docs/specs/018-espace-livreur/spec.md)) : relu et corrigé ; appareil photo à vérifier sur un vrai téléphone
 - [ ] 004 — Espace marchand : lancement, connexion, création de la boutique ([spec](docs/specs/004-espace-marchand/spec.md)) : relu et corrigé ; reste les clés Google Maps (vérification de la carte)
+- [ ] 004 bis — **App marchand (Jean-Pierre)** : écran de dépôt de la pièce d'identité (et du RCCM, facultatif) après « Envoyer pour validation ». Backend et back-office faits (2026-11-02) : `POST /v1/uploads` (purpose `merchant_document`) puis `POST /v1/seller/documents` ; `GET /v1/seller/documents` donne les pièces et `required` ; `merchant_documents` sur la boutique. Sans pièce, l'admin ne peut pas publier (409 `merchant_documents_missing`) : le parcours marchand reste bloqué en attente tant que l'écran manque. Le faux serveur mobile doit suivre
+- [ ] 008 suite — **App acheteur (Jean-Pierre)** : lire `issue_code` et `stock_left` des lignes du panier (ajoutés le 2026-11-02) au lieu d'analyser le texte « Plus que N en stock. » (`CartItem.stockLeft`) ; le texte `issue` reste à afficher tel quel
 - [ ] 027 — Splash et présentation des 3 apps ([spec](docs/specs/027-splash-onboarding/spec.md)) : reste la vérification sur Android, la validation des textes et des couleurs par le designer
 
 Fin du squelette (étapes 8-9 du cadrage) :
 - [x] Mobile (frontend) — convertir `mobile/` en pub workspace : `apps/buyer`, `apps/seller`, `apps/driver`, `packages/api_client`, `packages/ui` (ADR 0002) ; mettre à jour les commandes Mobile d'`AGENTS.md` et le job `mobile` de la CI
 - [x] Back-office (frontend) — créer `admin/` avec Next.js 16, TypeScript, Tailwind, pnpm (ADR 0003) ; ajouter ses commandes à `AGENTS.md`, un job `admin` à la CI et `prettier` au hook de formatage
-- [ ] Outillage — gitleaks en CI
+- [x] Outillage — gitleaks en CI (job `secrets`, 2026-11-02) ; secrets de production en fichiers (`infra/init-secrets.sh`)
 
 ## À faire
 
@@ -34,7 +36,7 @@ version « retrait seulement » (voir `docs/PRD.md`).
 - [ ] **Backend** : clé d'idempotence à la création d'un produit (et des autres créations rejouables depuis les apps), pour qu'un nouvel essai après une coupure ne crée pas de doublon
 - [ ] **Backend** (pour Gedeon, fait en 010, à relire) : `POST /v1/payments/{id}/cancel` (demande en attente → `failed`, idempotente, 409 `payment_not_cancellable`) ; limite de 10 nouvelles demandes de paiement par heure par acheteur et par numéro dans `payments.Initiate` ; revérification d'une demande annulée pendant une heure (requête `PaymentsToRecheck`) et « Vérifier maintenant » sur une demande `failed` / `expired` ; à revoir avec le vrai prestataire (016) s'il permet d'annuler une demande
 - [ ] **Backend** (pour Gedeon, vu en 009) : filtre `status` (en cours / terminées) sur `GET /v1/orders` ; l'app sépare aujourd'hui les 50 dernières commandes, une commande en cours plus ancienne manquerait à « En cours »
-- [ ] **Backend** (pour Gedeon, vu en 008) : ajouter à `CartItem` le stock restant en chiffre (`available_quantity`, `null` si non suivi) ; l'app lit aujourd'hui le nombre dans le texte de `issue` (« Plus que 2 en stock. ») pour proposer « Ajuster à 2 »
+- [x] **Backend** (pour Gedeon, vu en 008, fait le 2026-11-02 : `issue_code` et `stock_left`) : ajouter à `CartItem` le stock restant en chiffre (`available_quantity`, `null` si non suivi) ; l'app lit aujourd'hui le nombre dans le texte de `issue` (« Plus que 2 en stock. ») pour proposer « Ajuster à 2 »
 - [ ] **Backend** (pour Gedeon, vu en 007) : recherche par préfixe du dernier mot (« pag » doit trouver « pagne » : la recherche part pendant la frappe ; aujourd'hui plein texte entier + trigramme) ; échapper `%` et `_` dans le `LIKE` de `SearchShops`
 - [x] 007 — Recherche : texte, catégorie, prix, quartier, « autour de moi » : écrans acheteur faits (voir « Terminé »)
 
@@ -83,9 +85,9 @@ version « retrait seulement » (voir `docs/PRD.md`).
 ## Terminé
 - [x] 010 — Paiement Mobile Money ([spec](docs/specs/010-paiement/spec.md), 2026-11-02) : écran Paiement (montant, Flooz / T-Money, numéro du profil), attente « Validez le paiement sur votre téléphone » (temps restant à l'heure du serveur, relecture toutes les 3 s, succès vers le suivi avec le code, échec et « Réessayer », « Je n'ai rien reçu », « Annuler le paiement »), simulation locale (`IVIA_DEV_PAYMENT`) ; backend : `POST /v1/payments/{id}/cancel`, limites par acheteur et par numéro, revérification des demandes annulées, à faire relire par Gedeon
 - [x] 009 — Commande en retrait et suivi ([spec](docs/specs/009-commande-retrait/spec.md), 2026-11-02) : écran Commande (retrait, récapitulatif du serveur, « Payer » idempotent), onglet Commandes (en cours / terminées, « Récemment »), suivi (en-tête par statut, code de remise, frise horodatée, relecture toutes les 20 s)
-- [x] 008 — Panier de l'acheteur ([spec](docs/specs/008-panier/spec.md), 2026-11-02) : panier d'une boutique gardé sur le serveur, ajout cumulé depuis la fiche produit, « + » des cartes et de la fiche boutique, « Vider le panier ? » pour une autre boutique, icône à pastille, barre « Voir le panier », écran Panier (quantités, retrait avec « Annuler », lignes en erreur, vidage) ; « Commander » annonce la 009 ; test backend des raisons à faire relire par Gedeon
+- [x] 008 — Panier de l'acheteur ([spec](docs/specs/008-panier/spec.md), 2026-11-02) : panier d'une boutique gardé sur le serveur, ajout cumulé depuis la fiche produit, « + » des cartes et de la fiche boutique, « Vider le panier ? » pour une autre boutique, icône à pastille, barre « Voir le panier », écran Panier (quantités, retrait avec « Annuler », lignes en erreur, vidage) ; « Commander » annonce la 009 ; test backend des raisons relu par Gedeon le 2026-11-02 (champs structurés `issue_code` et `stock_left` ajoutés, voir « En cours »)
 - [x] 007 — Accueil et recherche de l'acheteur ([spec](docs/specs/007-accueil-recherche-acheteur/spec.md), 2026-11-01) : barre du bas, zone (position approximative ou quartier), accueil, onglet Recherche avec filtres et tri, fiches boutique et produit ; position arrondie dans l'URL ([ADR 0010](docs/decisions/0010-position-arrondie-dans-les-recherches.md))
-- [x] 005 — Catalogue marchand ([spec](docs/specs/005-catalogue-marchand/spec.md), 2026-11-01) : barre du bas, catalogue par onglets avec recherche et compteurs serveur, création en deux étapes, aperçu, brouillons, modification, retrait et remise en vente, stock ; migration 00021 (états de publication) à faire relire par Gedeon dans la PR
+- [x] 005 — Catalogue marchand ([spec](docs/specs/005-catalogue-marchand/spec.md), 2026-11-01) : barre du bas, catalogue par onglets avec recherche et compteurs serveur, création en deux étapes, aperçu, brouillons, modification, retrait et remise en vente, stock ; migration 00021 (états de publication) relue par Gedeon le 2026-11-02 : conforme
 - [x] Back-office `admin/` (2026-11-01) : Next.js 16, TypeScript strict, Tailwind 4, pnpm ;
   connexion admin par code (cookie httpOnly), tableau de bord, boutiques, livreurs (dossier et
   activation), commandes (détail et actions admin), remboursements, paramètres, journal ; types

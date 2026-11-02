@@ -5,6 +5,7 @@ import (
 	"crypto/rand"
 	"errors"
 	"fmt"
+	"net/url"
 	"os"
 	"strconv"
 	"strings"
@@ -81,37 +82,51 @@ func Load(getenv func(string) string) (Config, error) {
 		return def
 	}
 
+	// Secrets : lus dans <NOM>_FILE (production) ou <NOM> (local), voir secrets.go.
+	env := strings.TrimSpace(getenv("APP_ENV"))
+	production := env == EnvProduction || env == EnvStaging
+	var errs []error
+	secrets := make(map[string]string, len(secretKeys))
+	unreadable := map[string]bool{} // déjà signalés : pas de second message « non définie »
+	for _, k := range secretKeys {
+		v, err := readSecret(getenv, k, production)
+		if err != nil {
+			errs = append(errs, err)
+			unreadable[k] = true
+		}
+		secrets[k] = v
+	}
+
 	c := Config{
 		// Pas de valeur par défaut : un déploiement qui oublie APP_ENV ne doit jamais démarrer en
 		// mode local (routes de simulation ouvertes, implémentations factices acceptées).
 		Env:                  get("APP_ENV", ""),
 		Port:                 get("PORT", "8080"),
-		DatabaseURL:          get("DATABASE_URL", ""),
+		DatabaseURL:          secrets["DATABASE_URL"],
 		LogLevel:             get("LOG_LEVEL", "info"),
 		OTPSender:            get("OTP_SENDER", "log"),
 		SMTPAddr:             get("SMTP_ADDR", "localhost:1025"),
 		SMTPFrom:             get("SMTP_FROM", "ivia <no-reply@ivia.local>"),
-		BrevoAPIKey:          get("BREVO_API_KEY", ""),
+		BrevoAPIKey:          secrets["BREVO_API_KEY"],
 		BrevoSenderMail:      get("BREVO_SENDER_EMAIL", ""),
 		BrevoSenderName:      get("BREVO_SENDER_NAME", "ivia"),
 		PaymentProvider:      get("PAYMENT_PROVIDER", "fake"),
-		PaymentWebhookSecret: get("PAYMENT_WEBHOOK_SECRET", ""),
+		PaymentWebhookSecret: secrets["PAYMENT_WEBHOOK_SECRET"],
 		PushSender:           get("PUSH_SENDER", "log"),
 		FCMCredentialsFile:   get("FCM_CREDENTIALS_FILE", ""),
 		Storage:              get("STORAGE", "local"),
 		LocalStorageDir:      get("LOCAL_STORAGE_DIR", "./var/uploads"),
 		R2AccountID:          get("R2_ACCOUNT_ID", ""),
-		R2AccessKeyID:        get("R2_ACCESS_KEY_ID", ""),
-		R2SecretAccessKey:    get("R2_SECRET_ACCESS_KEY", ""),
+		R2AccessKeyID:        secrets["R2_ACCESS_KEY_ID"],
+		R2SecretAccessKey:    secrets["R2_SECRET_ACCESS_KEY"],
 		R2PublicBucket:       get("R2_PUBLIC_BUCKET", ""),
 		R2PrivateBucket:      get("R2_PRIVATE_BUCKET", ""),
 		R2PublicBaseURL:      strings.TrimRight(get("R2_PUBLIC_BASE_URL", ""), "/"),
-		SentryDSN:            get("SENTRY_DSN", ""),
+		SentryDSN:            secrets["SENTRY_DSN"],
 		Version:              get("APP_VERSION", "dev"),
 	}
 	c.PublicBaseURL = strings.TrimRight(get("PUBLIC_BASE_URL", "http://localhost:"+c.Port), "/")
 
-	var errs []error
 	switch c.Env {
 	case EnvLocal, EnvTest, EnvStaging, EnvProduction:
 	case "":
@@ -119,7 +134,7 @@ func Load(getenv func(string) string) (Config, error) {
 	default:
 		errs = append(errs, fmt.Errorf("APP_ENV invalide : %q", c.Env))
 	}
-	if c.DatabaseURL == "" {
+	if c.DatabaseURL == "" && !unreadable["DATABASE_URL"] {
 		errs = append(errs, errors.New("DATABASE_URL non définie (voir .env.example)"))
 	}
 
@@ -134,16 +149,19 @@ func Load(getenv func(string) string) (Config, error) {
 		errs = append(errs, errors.New("SESSION_TTL invalide (durée Go, au moins 1h, ex. 1440h)"))
 	}
 
-	secret := getenv("AUTH_SECRET")
+	secret := secrets["AUTH_SECRET"]
 	switch {
-	case len(secret) >= 32:
-		c.AuthSecret = []byte(secret)
 	case secret == "" && !c.IsProduction():
 		// En local, un secret aléatoire suffit : les codes OTP en cours sont perdus au redémarrage.
 		c.AuthSecret = make([]byte, 32)
 		_, _ = rand.Read(c.AuthSecret)
-	default:
+	case len(secret) < 32:
 		errs = append(errs, errors.New("AUTH_SECRET doit faire au moins 32 caractères"))
+	default:
+		c.AuthSecret = []byte(secret)
+	}
+	if c.IsProduction() {
+		errs = append(errs, c.validateSecretStrength()...)
 	}
 
 	errs = append(errs, c.validateIntegrations()...)
@@ -181,8 +199,8 @@ func (c Config) validateIntegrations() []error {
 	default:
 		errs = append(errs, fmt.Errorf("PAYMENT_PROVIDER inconnu : %q (prestataire à choisir, ADR 0007)", c.PaymentProvider))
 	}
-	if c.IsProduction() && len(c.PaymentWebhookSecret) < 16 {
-		errs = append(errs, errors.New("PAYMENT_WEBHOOK_SECRET obligatoire hors local (16 caractères au moins)"))
+	if c.IsProduction() && c.PaymentWebhookSecret == "" {
+		errs = append(errs, errors.New("PAYMENT_WEBHOOK_SECRET obligatoire hors local"))
 	}
 
 	switch c.PushSender {
@@ -210,6 +228,34 @@ func (c Config) validateIntegrations() []error {
 		}
 	default:
 		errs = append(errs, fmt.Errorf("STORAGE inconnu : %q", c.Storage))
+	}
+	return errs
+}
+
+// validateSecretStrength refuse, hors local, les secrets courts, d'exemple ou peu aléatoires, et
+// une base de données sans mot de passe solide. Les messages ne citent jamais la valeur.
+func (c Config) validateSecretStrength() []error {
+	var errs []error
+	check := func(name, v string, minLen int) {
+		if v == "" {
+			return // l'absence est signalée par la validation de l'intégration concernée
+		}
+		if why := weakSecret(v, minLen); why != "" {
+			errs = append(errs, fmt.Errorf("%s trop faible : %s", name, why))
+		}
+	}
+	check("AUTH_SECRET", string(c.AuthSecret), 32)
+	check("PAYMENT_WEBHOOK_SECRET", c.PaymentWebhookSecret, 32)
+	check("R2_SECRET_ACCESS_KEY", c.R2SecretAccessKey, 32)
+	if c.DatabaseURL != "" {
+		u, err := url.Parse(c.DatabaseURL)
+		if err != nil {
+			errs = append(errs, errors.New("DATABASE_URL illisible"))
+		} else if pw, ok := u.User.Password(); !ok {
+			errs = append(errs, errors.New("DATABASE_URL sans mot de passe"))
+		} else if why := weakSecret(pw, 24); why != "" {
+			errs = append(errs, fmt.Errorf("mot de passe de DATABASE_URL trop faible : %s", why))
+		}
 	}
 	return errs
 }

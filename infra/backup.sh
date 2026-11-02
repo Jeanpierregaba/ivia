@@ -2,13 +2,15 @@
 # Sauvegarde nocturne de la base vers Cloudflare R2 (ADR 0008 : 30 jours conservés).
 # Lancée par cron sur le VPS, depuis infra/ :
 #   15 2 * * * cd /opt/ivia/infra && ./backup.sh >> /var/log/ivia-backup.log 2>&1
-# Prérequis : rclone configuré avec une destination « r2 » (voir README.md) et BACKUP_BUCKET dans .env.
+# Prérequis : rclone configuré avec une destination chiffrée (crypt) nommée « ivia-backup » au-dessus
+# de R2 (voir README.md) : la sauvegarde contient des données personnelles et ne part jamais en clair.
 set -eu
+umask 077 # fichier temporaire lisible par root seulement
 
 cd "$(dirname "$0")"
 # shellcheck disable=SC1091
 . ./.env
-: "${BACKUP_BUCKET:?BACKUP_BUCKET manquant dans .env}"
+: "${BACKUP_REMOTE:=ivia-backup}"
 
 stamp=$(date -u +%Y-%m-%dT%H%MZ)
 file="ivia-${stamp}.sql.gz"
@@ -25,9 +27,9 @@ if [ "$size" -lt 1024 ]; then
   exit 1
 fi
 
-rclone copyto "/tmp/${file}" "r2:${BACKUP_BUCKET}/postgres/${file}"
+rclone copyto "/tmp/${file}" "${BACKUP_REMOTE}:postgres/${file}"
 rm -f "/tmp/${file}"
 
 # Conservation : 30 jours.
-rclone delete --min-age 30d "r2:${BACKUP_BUCKET}/postgres/"
+rclone delete --min-age 30d "${BACKUP_REMOTE}:postgres/"
 echo "$(date -u) sauvegarde ${file} (${size} octets) envoyée"

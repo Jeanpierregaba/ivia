@@ -415,6 +415,30 @@ export interface paths {
         patch?: never;
         trace?: never;
     };
+    "/v1/seller/documents": {
+        parameters: {
+            query?: never;
+            header?: never;
+            path?: never;
+            cookie?: never;
+        };
+        /**
+         * Mes pièces de marchand
+         * @description Pièces vérifiées par l'admin avant de publier une boutique (sans lien de lecture). `required` liste les types obligatoires : la pièce d'identité (id_card).
+         */
+        get: operations["getSellerDocuments"];
+        put?: never;
+        /**
+         * Déposer une pièce de marchand
+         * @description Le fichier est d'abord envoyé par URL signée (POST /v1/uploads, purpose `merchant_document`, compartiment privé), puis rattaché ici. Les pièces valent pour toutes les boutiques du marchand. 10 pièces au plus (409 `too_many_documents`).
+         */
+        post: operations["postSellerDocuments"];
+        delete?: never;
+        options?: never;
+        head?: never;
+        patch?: never;
+        trace?: never;
+    };
     "/v1/seller/shops": {
         parameters: {
             query?: never;
@@ -1525,7 +1549,10 @@ export interface paths {
         };
         get?: never;
         put?: never;
-        /** Valider (publier) une boutique */
+        /**
+         * Valider (publier) une boutique
+         * @description Refusé tant que le marchand n'a pas déposé sa pièce d'identité (id_card) : 409 `merchant_documents_missing`. Journalisé et notifié au marchand.
+         */
         post: operations["postAdminShopsByIdApprove"];
         delete?: never;
         options?: never;
@@ -2188,6 +2215,18 @@ export interface components {
             created_at: string;
             /** Format: date-time */
             updated_at: string;
+            /** @description Pièces du marchand. Le lien de lecture n'est fourni qu'à l'ouverture de la boutique dans le back-office (GET /v1/admin/shops/{id}). */
+            merchant_documents: components["schemas"]["MerchantDocument"][];
+        };
+        MerchantDocument: {
+            /** Format: uuid */
+            id: string;
+            /** @enum {string} */
+            kind: "id_card" | "business_registration" | "other";
+            /** @description Lien temporaire, fourni aux admins seulement. */
+            url?: string;
+            /** Format: date-time */
+            created_at: string;
         };
         ShopCategory: {
             /** Format: uuid */
@@ -2382,8 +2421,15 @@ export interface components {
              */
             line_total_xof: number;
             parcel_size: string;
-            /** @description Vide si la ligne est commandable. */
+            /** @description Raison à afficher telle quelle ; vide si la ligne est commandable. Pour décider d'une action, lire `issue_code` et `stock_left`, jamais ce texte. */
             issue: string;
+            /**
+             * @description Raison sous forme de code : vide si la ligne est commandable.
+             * @enum {string}
+             */
+            issue_code: "" | "unavailable" | "insufficient_stock";
+            /** @description Stock restant quand `issue_code` vaut `insufficient_stock` (sinon null) : permet de proposer « Ajuster à N ». */
+            stock_left: number | null;
         };
         Cart: {
             shop: components["schemas"]["PublicShop"] | null;
@@ -3680,7 +3726,7 @@ export interface operations {
             content: {
                 "application/json": {
                     /** @enum {string} */
-                    purpose: "product_image" | "shop_logo" | "driver_document";
+                    purpose: "product_image" | "shop_logo" | "driver_document" | "merchant_document";
                     /** @enum {string} */
                     content_type: "image/jpeg" | "image/png" | "image/webp" | "application/pdf";
                     size_bytes: number;
@@ -4080,6 +4126,80 @@ export interface operations {
                 content: {
                     "application/json": {
                         items: components["schemas"]["ShopCategory"][];
+                    };
+                };
+            };
+            /** @description Erreur (voir `code`) */
+            default: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["Error"];
+                };
+            };
+        };
+    };
+    getSellerDocuments: {
+        parameters: {
+            query?: never;
+            header?: never;
+            path?: never;
+            cookie?: never;
+        };
+        requestBody?: never;
+        responses: {
+            /** @description Succès */
+            200: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": {
+                        items: components["schemas"]["MerchantDocument"][];
+                        /** @description Types de pièces obligatoires avant la publication d'une boutique. */
+                        required: string[];
+                    };
+                };
+            };
+            /** @description Erreur (voir `code`) */
+            default: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["Error"];
+                };
+            };
+        };
+    };
+    postSellerDocuments: {
+        parameters: {
+            query?: never;
+            header?: never;
+            path?: never;
+            cookie?: never;
+        };
+        requestBody: {
+            content: {
+                "application/json": {
+                    /** @enum {string} */
+                    kind: "id_card" | "business_registration" | "other";
+                    object_key: string;
+                };
+            };
+        };
+        responses: {
+            /** @description Succès : toutes les pièces du marchand */
+            201: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": {
+                        items: components["schemas"]["MerchantDocument"][];
+                        /** @description Types de pièces obligatoires avant la publication d'une boutique. */
+                        required: string[];
                     };
                 };
             };

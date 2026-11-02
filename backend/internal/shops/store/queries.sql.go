@@ -12,6 +12,17 @@ import (
 	"github.com/google/uuid"
 )
 
+const countMerchantDocuments = `-- name: CountMerchantDocuments :one
+SELECT count(*) FROM merchant_documents WHERE owner_id = $1
+`
+
+func (q *Queries) CountMerchantDocuments(ctx context.Context, ownerID uuid.UUID) (int64, error) {
+	row := q.db.QueryRow(ctx, countMerchantDocuments, ownerID)
+	var count int64
+	err := row.Scan(&count)
+	return count, err
+}
+
 const countShopsByOwner = `-- name: CountShopsByOwner :one
 SELECT count(*) FROM shops WHERE owner_id = $1
 `
@@ -85,6 +96,15 @@ func (q *Queries) CreateShopCategory(ctx context.Context, arg CreateShopCategory
 		&i.CreatedAt,
 	)
 	return i, err
+}
+
+const deleteMerchantDocumentsOf = `-- name: DeleteMerchantDocumentsOf :exec
+DELETE FROM merchant_documents WHERE owner_id = $1
+`
+
+func (q *Queries) DeleteMerchantDocumentsOf(ctx context.Context, ownerID uuid.UUID) error {
+	_, err := q.db.Exec(ctx, deleteMerchantDocumentsOf, ownerID)
+	return err
 }
 
 const getShop = `-- name: GetShop :one
@@ -164,6 +184,29 @@ func (q *Queries) GetShopCategory(ctx context.Context, id uuid.UUID) (ShopCatego
 	return i, err
 }
 
+const insertMerchantDocument = `-- name: InsertMerchantDocument :one
+INSERT INTO merchant_documents (owner_id, kind, object_key) VALUES ($1, $2, $3) RETURNING id, owner_id, kind, object_key, created_at
+`
+
+type InsertMerchantDocumentParams struct {
+	OwnerID   uuid.UUID
+	Kind      string
+	ObjectKey string
+}
+
+func (q *Queries) InsertMerchantDocument(ctx context.Context, arg InsertMerchantDocumentParams) (MerchantDocument, error) {
+	row := q.db.QueryRow(ctx, insertMerchantDocument, arg.OwnerID, arg.Kind, arg.ObjectKey)
+	var i MerchantDocument
+	err := row.Scan(
+		&i.ID,
+		&i.OwnerID,
+		&i.Kind,
+		&i.ObjectKey,
+		&i.CreatedAt,
+	)
+	return i, err
+}
+
 const listActiveShopCategories = `-- name: ListActiveShopCategories :many
 SELECT id, name FROM shop_categories WHERE is_active ORDER BY position, name
 `
@@ -211,6 +254,36 @@ func (q *Queries) ListAllShopCategories(ctx context.Context) ([]ShopCategory, er
 			&i.Name,
 			&i.Position,
 			&i.IsActive,
+			&i.CreatedAt,
+		); err != nil {
+			return nil, err
+		}
+		items = append(items, i)
+	}
+	if err := rows.Err(); err != nil {
+		return nil, err
+	}
+	return items, nil
+}
+
+const listMerchantDocuments = `-- name: ListMerchantDocuments :many
+SELECT id, owner_id, kind, object_key, created_at FROM merchant_documents WHERE owner_id = $1 ORDER BY created_at
+`
+
+func (q *Queries) ListMerchantDocuments(ctx context.Context, ownerID uuid.UUID) ([]MerchantDocument, error) {
+	rows, err := q.db.Query(ctx, listMerchantDocuments, ownerID)
+	if err != nil {
+		return nil, err
+	}
+	defer rows.Close()
+	items := []MerchantDocument{}
+	for rows.Next() {
+		var i MerchantDocument
+		if err := rows.Scan(
+			&i.ID,
+			&i.OwnerID,
+			&i.Kind,
+			&i.ObjectKey,
 			&i.CreatedAt,
 		); err != nil {
 			return nil, err

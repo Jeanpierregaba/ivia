@@ -24,6 +24,6 @@ export async function reviewShop(_: ActionResult | null, form: FormData): Promis
   } catch (err) {
     return failure(err);
   }
-  revalidatePath("/shops");
+  revalidatePath("/shops", "layout");
   return { ok: true, message: DONE[decision] };
 }

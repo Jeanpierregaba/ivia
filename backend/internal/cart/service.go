@@ -30,9 +30,19 @@ type Item struct {
 	Quantity     int32              `json:"quantity"`
 	LineTotalXOF int64              `json:"line_total_xof"`
 	ParcelSize   catalog.ParcelSize `json:"parcel_size"`
-	// Issue explique pourquoi la ligne empêche de commander (vide si tout va bien).
+	// Issue explique pourquoi la ligne empêche de commander (vide si tout va bien), à afficher tel quel.
 	Issue string `json:"issue"`
+	// IssueCode est la même raison pour les apps : "" , "unavailable" ou "insufficient_stock".
+	IssueCode string `json:"issue_code"`
+	// StockLeft : stock restant, renseigné quand IssueCode vaut "insufficient_stock".
+	StockLeft *int32 `json:"stock_left"`
 }
+
+// Codes des raisons d'une ligne bloquée.
+const (
+	IssueUnavailable       = "unavailable"
+	IssueInsufficientStock = "insufficient_stock"
+)
 
 // Cart est le panier de l'acheteur.
 type Cart struct {
@@ -108,9 +118,11 @@ func (s *Service) Get(ctx context.Context, buyerID uuid.UUID) (Cart, error) {
 		}
 		switch {
 		case !p.IsActive || out.Shop == nil:
-			it.Issue = "Ce produit n'est plus disponible."
+			it.Issue, it.IssueCode = "Ce produit n'est plus disponible.", IssueUnavailable
 		case p.StockQuantity != nil && *p.StockQuantity < r.Quantity:
-			it.Issue = fmt.Sprintf("Plus que %d en stock.", *p.StockQuantity)
+			it.Issue, it.IssueCode = fmt.Sprintf("Plus que %d en stock.", *p.StockQuantity), IssueInsufficientStock
+			left := *p.StockQuantity
+			it.StockLeft = &left
 		}
 		if it.Issue != "" {
 			out.Orderable = false

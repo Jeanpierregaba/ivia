@@ -77,6 +77,7 @@ export const DOCUMENT_KIND: Record<string, string> = {
   id_card: "Pièce d'identité",
   driving_license: "Permis de conduire",
   vehicle_registration: "Carte grise",
+  business_registration: "Registre du commerce (RCCM)",
   photo: "Photo",
   other: "Autre document",
 };
