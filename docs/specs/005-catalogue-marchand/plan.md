@@ -19,7 +19,7 @@
 ## Fichiers touchés
 
 **Backend** (`backend/`)
-- `db/migrations/00020_product_publication.sql` (créé) : colonnes, reprise des données
+- `db/migrations/00021_product_publication.sql` (créé) : colonnes, reprise des données
   existantes, contrainte de cohérence.
 - `internal/catalog/queries.sql`, `store/` (régénéré) :
   - `CreateProduct` reçoit `is_active` ;
@@ -92,7 +92,7 @@ produit), `TASKS.md`.
 
 ## Données
 
-Migration `00020_product_publication.sql`, non destructive.
+Migration `00021_product_publication.sql`, non destructive.
 
 ```sql
 ALTER TABLE products

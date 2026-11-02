@@ -11,7 +11,7 @@ Il est rempli par la skill /cadrage (ou à la main en suivant les commentaires).
 
 ## Statut du cadrage
 
-**FAIT (2026-10-30)** — backend MVP et squelette mobile (3 apps) en place ; reste le squelette back-office, voir `TASKS.md`.
+**FAIT (2026-10-30)** — backend MVP, squelette mobile (3 apps) et back-office en place, voir `TASKS.md`.
 
 
 > Tant que le statut est « NON FAIT » : si l'utilisateur demande de coder une fonctionnalité,
@@ -44,7 +44,8 @@ Détail et versions : `docs/ARCHITECTURE.md`.
   - `db/migrations/` — migrations goose · `api/openapi.yaml` — contrat de l'API
 - `mobile/` — pub workspace : `apps/buyer`, `apps/seller`, `apps/driver`, `packages/api_client`,
   `packages/app_core` (session, connexion, champs communs), `packages/ui`
-- `admin/` — back-office Next.js
+- `admin/` — back-office Next.js (`app/(admin)/` pages, `lib/api.ts` client serveur de l'API,
+  `lib/api-types.ts` généré, `components/`) : voir `admin/README.md`
 - `infra/` — déploiement (Compose de production, Caddy, sauvegardes)
 - `docker-compose.yml` — services locaux (PostGIS)
 
@@ -65,6 +66,14 @@ Backend (depuis `backend/`) — `APP_ENV=local` et `DATABASE_URL` doivent être 
 - Tests : `go test ./...` (contre PostGIS ; sans `DATABASE_URL`, les tests qui en ont besoin sont ignorés)
 - Sécurité : `go run golang.org/x/vuln/cmd/govulncheck@v1.9.0 ./...`
 - Build : `go build -o bin/api ./cmd/api`
+
+Back-office (depuis `admin/`, pnpm 10, Node 20.9+ ; Node 24 en CI) :
+- Installer : `pnpm install`
+- Démarrer en local : `API_BASE_URL=http://localhost:8080 pnpm dev` (http://localhost:3000 ; compte
+  `admin@ivia.local` créé par `seed-dev`)
+- Types de l'API : `pnpm gen:api` après toute modification d'`openapi.yaml` (fichier commité)
+- Lint : `pnpm format:check` et `pnpm lint` · Typecheck : `pnpm typecheck`
+- Tests : `pnpm test` · Build : `pnpm build`
 
 Mobile (pub workspace, depuis `mobile/` sauf mention) :
 - Installer : `flutter pub get` (un seul `pubspec.lock` pour tout le workspace)

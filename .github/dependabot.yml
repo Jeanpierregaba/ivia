@@ -17,3 +17,10 @@ updates:
     directory: /mobile
     schedule:
       interval: weekly
+  - package-ecosystem: npm
+    directory: /admin
+    schedule:
+      interval: weekly
+    groups:
+      next:
+        patterns: ["next", "react", "react-dom", "eslint-config-next", "@types/react*"]

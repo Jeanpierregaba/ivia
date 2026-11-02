@@ -17,7 +17,7 @@ SELECT t.id, t.shop_id, t.name, t.price_xof, t.parcel_size, t.shop_name, t.neigh
        coalesce(t.in_stock, false)::boolean AS in_stock,
        coalesce(t.distance_m, -1)::float8 AS distance_m
 FROM (
-  SELECT sp.id, sp.shop_id, sp.category_id, sp.category_parent_id, sp.name, sp.price_xof, sp.parcel_size, sp.search_vector, sp.created_at, sp.shop_name, sp.neighborhood_id, sp.location, sp.main_image_key, sp.in_stock,
+  SELECT sp.id, sp.shop_id, sp.category_id, sp.category_parent_id, sp.name, sp.price_xof, sp.parcel_size, sp.search_vector, sp.created_at, sp.shop_name, sp.neighborhood_id, sp.location, sp.main_image_key, sp.in_stock, sp.shop_category_id,
          CASE WHEN $1::float8 IS NULL THEN NULL
               ELSE ST_Distance(sp.location, ST_SetSRID(ST_MakePoint($2::float8, $1::float8), 4326)::geography)
          END::float8 AS distance_m,
@@ -32,21 +32,22 @@ FROM (
     AND ($4::uuid IS NULL
          OR sp.category_id = $4::uuid OR sp.category_parent_id = $4::uuid)
     AND ($5::uuid IS NULL OR sp.shop_id = $5::uuid)
-    AND ($6::bigint IS NULL OR sp.price_xof >= $6::bigint)
-    AND ($7::bigint IS NULL OR sp.price_xof <= $7::bigint)
-    AND ($8::uuid IS NULL OR sp.neighborhood_id = $8::uuid)
-    AND ($9::float8 IS NULL
-         OR ST_DWithin(sp.location, ST_SetSRID(ST_MakePoint($2::float8, $1::float8), 4326)::geography, $9::float8))
-    AND (NOT $10::boolean OR sp.in_stock)
+    AND ($6::uuid IS NULL OR sp.shop_category_id = $6::uuid)
+    AND ($7::bigint IS NULL OR sp.price_xof >= $7::bigint)
+    AND ($8::bigint IS NULL OR sp.price_xof <= $8::bigint)
+    AND ($9::uuid IS NULL OR sp.neighborhood_id = $9::uuid)
+    AND ($10::float8 IS NULL
+         OR ST_DWithin(sp.location, ST_SetSRID(ST_MakePoint($2::float8, $1::float8), 4326)::geography, $10::float8))
+    AND (NOT $11::boolean OR sp.in_stock)
 ) t
 ORDER BY
-  CASE WHEN $11::text = 'distance' THEN t.distance_m END ASC NULLS LAST,
-  CASE WHEN $11::text = 'price_asc' THEN t.price_xof END ASC,
-  CASE WHEN $11::text = 'price_desc' THEN t.price_xof END DESC,
+  CASE WHEN $12::text = 'distance' THEN t.distance_m END ASC NULLS LAST,
+  CASE WHEN $12::text = 'price_asc' THEN t.price_xof END ASC,
+  CASE WHEN $12::text = 'price_desc' THEN t.price_xof END DESC,
   t.score DESC,
   t.created_at DESC,
   t.id
-LIMIT $13 OFFSET $12
+LIMIT $14 OFFSET $13
 `
 
 type SearchProductsParams struct {
@@ -55,6 +56,7 @@ type SearchProductsParams struct {
 	Q              *string
 	CategoryID     *uuid.UUID
 	ShopID         *uuid.UUID
+	ShopCategoryID *uuid.UUID
 	MinPrice       *int64
 	MaxPrice       *int64
 	NeighborhoodID *uuid.UUID
@@ -87,6 +89,7 @@ func (q *Queries) SearchProducts(ctx context.Context, arg SearchProductsParams) 
 		arg.Q,
 		arg.CategoryID,
 		arg.ShopID,
+		arg.ShopCategoryID,
 		arg.MinPrice,
 		arg.MaxPrice,
 		arg.NeighborhoodID,
@@ -127,9 +130,10 @@ func (q *Queries) SearchProducts(ctx context.Context, arg SearchProductsParams) 
 
 const searchShops = `-- name: SearchShops :many
 SELECT t.id, t.name, t.description, t.neighborhood_id, t.logo_key, t.accepting_orders,
+       t.category_id, coalesce(t.category_name, '')::text AS category_name,
        coalesce(t.distance_m, -1)::float8 AS distance_m
 FROM (
-  SELECT ss.id, ss.name, ss.description, ss.neighborhood_id, ss.location, ss.logo_key, ss.accepting_orders, ss.created_at,
+  SELECT ss.id, ss.name, ss.description, ss.neighborhood_id, ss.location, ss.logo_key, ss.accepting_orders, ss.created_at, ss.category_id, ss.category_name,
          CASE WHEN $1::float8 IS NULL THEN NULL
               ELSE ST_Distance(ss.location, ST_SetSRID(ST_MakePoint($2::float8, $1::float8), 4326)::geography)
          END::float8 AS distance_m,
@@ -141,15 +145,16 @@ FROM (
          OR immutable_unaccent(lower(ss.name)) % immutable_unaccent(lower($3::text))
          OR immutable_unaccent(lower(ss.name)) LIKE '%' || immutable_unaccent(lower($3::text)) || '%')
     AND ($4::uuid IS NULL OR ss.neighborhood_id = $4::uuid)
-    AND ($5::float8 IS NULL
-         OR ST_DWithin(ss.location, ST_SetSRID(ST_MakePoint($2::float8, $1::float8), 4326)::geography, $5::float8))
+    AND ($5::uuid IS NULL OR ss.category_id = $5::uuid)
+    AND ($6::float8 IS NULL
+         OR ST_DWithin(ss.location, ST_SetSRID(ST_MakePoint($2::float8, $1::float8), 4326)::geography, $6::float8))
 ) t
 ORDER BY
-  CASE WHEN $6::text = 'distance' THEN t.distance_m END ASC NULLS LAST,
+  CASE WHEN $7::text = 'distance' THEN t.distance_m END ASC NULLS LAST,
   t.score DESC,
   t.created_at DESC,
   t.id
-LIMIT $8 OFFSET $7
+LIMIT $9 OFFSET $8
 `
 
 type SearchShopsParams struct {
@@ -157,6 +162,7 @@ type SearchShopsParams struct {
 	Lng            *float64
 	Q              *string
 	NeighborhoodID *uuid.UUID
+	ShopCategoryID *uuid.UUID
 	RadiusM        *float64
 	Sort           string
 	Off            int32
@@ -170,6 +176,8 @@ type SearchShopsRow struct {
 	NeighborhoodID  *uuid.UUID
 	LogoKey         *string
 	AcceptingOrders bool
+	CategoryID      *uuid.UUID
+	CategoryName    string
 	DistanceM       float64
 }
 
@@ -179,6 +187,7 @@ func (q *Queries) SearchShops(ctx context.Context, arg SearchShopsParams) ([]Sea
 		arg.Lng,
 		arg.Q,
 		arg.NeighborhoodID,
+		arg.ShopCategoryID,
 		arg.RadiusM,
 		arg.Sort,
 		arg.Off,
@@ -198,6 +207,8 @@ func (q *Queries) SearchShops(ctx context.Context, arg SearchShopsParams) ([]Sea
 			&i.NeighborhoodID,
 			&i.LogoKey,
 			&i.AcceptingOrders,
+			&i.CategoryID,
+			&i.CategoryName,
 			&i.DistanceM,
 		); err != nil {
 			return nil, err

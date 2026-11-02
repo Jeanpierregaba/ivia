@@ -11,6 +11,7 @@ import (
 	"ivia/backend/internal/catalog"
 	"ivia/backend/internal/delivery"
 	"ivia/backend/internal/geo"
+	"ivia/backend/internal/platform/storage"
 	"ivia/backend/internal/shops"
 	"ivia/backend/internal/users"
 )
@@ -182,6 +183,18 @@ func (a *App) SeedDev(ctx context.Context) (SeedSummary, error) {
 	if _, err := a.Delivery.Me(ctx, driver.ID); err != nil {
 		if _, err := a.Delivery.Apply(ctx, driver.ID, delivery.ApplicationInput{VehicleType: "motorbike", VehiclePlate: "TG-1234-AB"}); err != nil {
 			return sum, fmt.Errorf("candidature livreur : %w", err)
+		}
+		if a.LocalStore == nil {
+			return sum, errors.New("livreur de démonstration : STORAGE=local requis pour déposer ses documents")
+		}
+		for _, kind := range delivery.RequiredDocuments {
+			key := "drivers/" + driver.ID.String() + "/" + uuid.NewString() + ".pdf"
+			if err := a.LocalStore.Write(storage.Private, key, []byte("%PDF-1.4 document de démonstration")); err != nil {
+				return sum, fmt.Errorf("document de démonstration : %w", err)
+			}
+			if _, err := a.Delivery.AddDocument(ctx, driver.ID, kind, key); err != nil {
+				return sum, fmt.Errorf("document de démonstration : %w", err)
+			}
 		}
 		if _, err := a.Delivery.Review(ctx, adminID, driver.ID, "approve", ""); err != nil {
 			return sum, fmt.Errorf("validation du livreur : %w", err)

@@ -26,6 +26,7 @@ import (
 	"ivia/backend/internal/platform/config"
 	"ivia/backend/internal/platform/database"
 	"ivia/backend/internal/platform/docs"
+	"ivia/backend/internal/platform/errtrack"
 	"ivia/backend/internal/platform/httpapi"
 	"ivia/backend/internal/platform/jobs"
 	"ivia/backend/internal/platform/storage"
@@ -45,6 +46,8 @@ type App struct {
 	DB      *database.DB
 	Queue   *jobs.Queue
 	Handler http.Handler
+	// Errors remonte les erreurs inattendues (Sentry si SENTRY_DSN, sinon rien).
+	Errors errtrack.Reporter
 	// Routes enregistrées (« MÉTHODE /chemin »).
 	Routes []string
 
@@ -77,8 +80,15 @@ type Options struct {
 
 // New assemble l'application. Les migrations doivent avoir été appliquées.
 func New(cfg config.Config, logger *slog.Logger, pool *pgxpool.Pool, opts Options) (*App, error) {
-	a := &App{Config: cfg, Logger: logger, DB: database.New(pool)}
+	a := &App{Config: cfg, Logger: logger, DB: database.New(pool), Errors: errtrack.Nop{}}
 	enq := &jobs.Deferred{}
+	if cfg.SentryDSN != "" {
+		s, err := errtrack.NewSentry(cfg.SentryDSN, cfg.Env, cfg.Version)
+		if err != nil {
+			return nil, err
+		}
+		a.Errors = s
+	}
 
 	objectStore, err := a.buildStorage()
 	if err != nil {
@@ -135,7 +145,7 @@ func New(cfg config.Config, logger *slog.Logger, pool *pgxpool.Pool, opts Option
 	a.Orders.RegisterJobs(reg)
 	a.Payments.RegisterJobs(reg)
 	a.Delivery.RegisterJobs(reg)
-	if a.Queue, err = jobs.New(pool, reg, jobs.Options{RunWorkers: cfg.RunWorkers, PollInterval: opts.PollInterval, Logger: logger}); err != nil {
+	if a.Queue, err = jobs.New(pool, reg, jobs.Options{RunWorkers: cfg.RunWorkers, PollInterval: opts.PollInterval, Logger: logger, Reporter: a.Errors}); err != nil {
 		return nil, err
 	}
 	enq.Set(a.Queue)
@@ -147,6 +157,7 @@ func New(cfg config.Config, logger *slog.Logger, pool *pgxpool.Pool, opts Option
 func (a *App) routes() (http.Handler, []string) {
 	rt := httpapi.NewRouter(httpapi.Options{
 		Logger: a.Logger, DB: a.DB.Pool, Auth: a.Auth, TrustProxyHeaders: a.Config.TrustProxyHeaders,
+		Reporter: a.Errors,
 	})
 	auth.NewHandler(a.Auth).Register(rt)
 	users.NewHandler(a.Users).Register(rt)
@@ -214,6 +225,10 @@ func (a *App) buildOTPSender() (auth.OTPSender, error) {
 	case "log":
 		a.DevOTP = &auth.LogSender{Logger: a.Logger}
 		return a.DevOTP, nil
+	case "smtp":
+		// E-mail dans la boîte locale Mailpit, et code gardé pour POST /v1/dev/otp.
+		a.DevOTP = &auth.LogSender{Logger: a.Logger}
+		return auth.TeeSender{&auth.SMTPSender{Addr: a.Config.SMTPAddr, From: a.Config.SMTPFrom}, a.DevOTP}, nil
 	}
 	return nil, fmt.Errorf("envoi OTP inconnu : %s", a.Config.OTPSender)
 }
@@ -244,5 +259,10 @@ func (a *App) buildPaymentProvider() (payments.Provider, error) {
 // Start démarre les tâches de fond.
 func (a *App) Start(ctx context.Context) error { return a.Queue.Start(ctx) }
 
-// Stop arrête les tâches de fond en laissant finir celles en cours (dans la limite de ctx).
-func (a *App) Stop(ctx context.Context) error { return a.Queue.Stop(ctx) }
+// Stop arrête les tâches de fond en laissant finir celles en cours (dans la limite de ctx), puis
+// envoie les erreurs en attente.
+func (a *App) Stop(ctx context.Context) error {
+	err := a.Queue.Stop(ctx)
+	a.Errors.Flush(2 * time.Second)
+	return err
+}

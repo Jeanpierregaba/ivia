@@ -33,3 +33,10 @@ Thumbs.db
 backend/bin/
 # Fichiers envoyés en local (STORAGE=local)
 backend/var/
+
+# Secrets du serveur (compte de service Firebase…)
+infra/secrets/
+
+# Back-office
+admin/next-env.d.ts
+*.tsbuildinfo

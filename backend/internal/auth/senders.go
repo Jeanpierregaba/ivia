@@ -10,6 +10,7 @@ import (
 	"io"
 	"log/slog"
 	"net/http"
+	"strings"
 	"sync"
 	"time"
 )
@@ -104,10 +105,28 @@ func otpText(code string) string {
 		"Si vous n'avez pas demandé ce code, ignorez cet e-mail."
 }
 
+// otpHTML : e-mail aux couleurs d'ivia (docs/DESIGN.md). Mise en page en tableaux et styles en
+// ligne, seule forme lue correctement par les messageries (Gmail, Outlook, applis mobiles).
 func otpHTML(code string) string {
-	c := html.EscapeString(code)
-	return `<p>Bonjour,</p><p>Votre code de connexion ivia est :</p>` +
-		`<p style="font-size:28px;font-weight:bold;letter-spacing:6px">` + c + `</p>` +
-		`<p>Il est valable 10 minutes. Ne le communiquez à personne : l'équipe ivia ne vous le demandera jamais.</p>` +
-		`<p>Si vous n'avez pas demandé ce code, ignorez cet e-mail.</p>`
+	var digits strings.Builder
+	for _, d := range code {
+		digits.WriteString(`<td style="width:44px;height:56px;background:#F3F4F6;border-radius:14px;` +
+			`font-size:28px;font-weight:700;color:#0E2E54;text-align:center;font-family:Arial,sans-serif">` +
+			html.EscapeString(string(d)) + `</td><td style="width:8px"></td>`)
+	}
+	return `<!doctype html><html lang="fr"><body style="margin:0;background:#F3F4F6;font-family:Arial,Helvetica,sans-serif;color:#0A1A30">` +
+		`<table role="presentation" width="100%" cellpadding="0" cellspacing="0" style="background:#F3F4F6;padding:24px 12px"><tr><td align="center">` +
+		`<table role="presentation" width="100%" cellpadding="0" cellspacing="0" style="max-width:480px;background:#FFFFFF;border-radius:18px;overflow:hidden">` +
+		`<tr><td style="background:#0E2E54;padding:24px 28px;font-size:30px;font-weight:700;letter-spacing:-0.5px;color:#FFFFFF">ivia</td></tr>` +
+		`<tr><td style="padding:28px">` +
+		`<p style="margin:0 0 4px;font-size:12px;font-weight:700;letter-spacing:1px;color:#004DA8;text-transform:uppercase">Code de connexion</p>` +
+		`<p style="margin:0 0 20px;font-size:22px;line-height:28px;font-weight:700">Voici votre code <span style="color:#ED1C2F">ivia</span></p>` +
+		`<table role="presentation" cellpadding="0" cellspacing="0"><tr>` + digits.String() + `</tr></table>` +
+		`<p style="margin:20px 0 0;font-size:15px;line-height:22px;color:#3A4A60">Saisissez-le dans l'application. Il est valable <strong>10 minutes</strong>.</p>` +
+		`<p style="margin:16px 0 0;padding:12px 14px;background:#E5EEF8;border-radius:14px;font-size:13px;line-height:18px;color:#0E2E54">` +
+		`Ne communiquez ce code à personne : l'équipe ivia ne vous le demandera jamais.</p>` +
+		`<p style="margin:16px 0 0;font-size:13px;line-height:18px;color:#5A6A80">Vous n'avez pas demandé ce code ? Ignorez cet e-mail, votre compte reste protégé.</p>` +
+		`</td></tr></table>` +
+		`<p style="margin:16px 0 0;font-size:12px;color:#5A6A80">ivia · Lomé, Togo</p>` +
+		`</td></tr></table></body></html>`
 }

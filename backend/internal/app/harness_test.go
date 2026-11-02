@@ -7,6 +7,7 @@ import (
 	"fmt"
 	"io"
 	"log/slog"
+	"net"
 	"net/http"
 	"net/http/httptest"
 	"os"
@@ -30,10 +31,17 @@ var (
 // TestMain assemble l'application complète (tâches de fond comprises) sur une base dédiée.
 func TestMain(m *testing.M) {
 	os.Exit(testdb.Main(m, &testDB, func() (func(), error) {
+		// Le serveur de test écoute avant l'assemblage : les URL signées d'envoi de fichiers
+		// (stockage local) doivent pointer vers lui, pas vers une API lancée sur le poste.
+		ln, err := net.Listen("tcp", "127.0.0.1:0")
+		if err != nil {
+			return nil, err
+		}
 		cfg, err := config.Load(func(k string) string {
 			return map[string]string{
 				"APP_ENV":           "test",
 				"DATABASE_URL":      "unused",
+				"PUBLIC_BASE_URL":   "http://" + ln.Addr().String(),
 				"LOCAL_STORAGE_DIR": os.TempDir() + "/ivia-test-uploads",
 			}[k]
 		})
@@ -49,7 +57,9 @@ func TestMain(m *testing.M) {
 			return nil, err
 		}
 		testApp = a
-		server = httptest.NewServer(a.Handler)
+		server = httptest.NewUnstartedServer(a.Handler)
+		server.Listener = ln
+		server.Start()
 		return func() {
 			server.Close()
 			ctx, cancel := context.WithTimeout(context.Background(), 5*time.Second)
@@ -251,11 +261,34 @@ func newDriver(t *testing.T, lat, lng float64, vehicle string) string {
 	tok := login(t, uniqueEmail("driver"))
 	completeProfile(t, tok, "Yao")
 	mustStatus(t, call(t, tok, "PUT", "/v1/driver/application", map[string]string{"vehicle_type": vehicle, "vehicle_plate": "TG-0001"}), http.StatusOK)
+	for _, kind := range []string{"id_card", "driving_license"} {
+		uploadDriverDocument(t, tok, kind)
+	}
 	me := mustStatus(t, call(t, tok, "GET", "/v1/me", nil), http.StatusOK)
 	mustStatus(t, call(t, admin(t), "POST", "/v1/admin/drivers/"+me.str("id")+"/approve", map[string]any{}), http.StatusOK)
 	mustStatus(t, call(t, tok, "PUT", "/v1/driver/availability", map[string]bool{"online": true}), http.StatusOK)
 	mustStatus(t, call(t, tok, "POST", "/v1/driver/location", map[string]float64{"lat": lat, "lng": lng}), http.StatusNoContent)
 	return tok
+}
+
+// uploadDriverDocument envoie un document du dossier par URL signée, comme l'app livreur.
+func uploadDriverDocument(t *testing.T, token, kind string) {
+	t.Helper()
+	content := []byte("%PDF-1.4 document de test")
+	up := mustStatus(t, call(t, token, "POST", "/v1/uploads", map[string]any{
+		"purpose": "driver_document", "content_type": "application/pdf", "size_bytes": len(content),
+	}), http.StatusCreated)
+	signed := up.Body["upload"].(map[string]any)
+	req, _ := http.NewRequest(http.MethodPut, signed["url"].(string), bytes.NewReader(content))
+	req.Header.Set("Content-Type", "application/pdf")
+	res, err := http.DefaultClient.Do(req)
+	if err != nil || res.StatusCode != http.StatusOK {
+		t.Fatalf("envoi du document : %v %v", err, res)
+	}
+	res.Body.Close()
+	mustStatus(t, call(t, token, "POST", "/v1/driver/application/documents", map[string]string{
+		"kind": kind, "object_key": up.str("object_key"),
+	}), http.StatusCreated)
 }
 
 // order met un produit au panier et crée la commande.

@@ -14,6 +14,44 @@ Format :
 - Prochaine étape :
 -->
 
+### 2026-11-01 — Back-office aux couleurs des apps, e-mails reçus en local
+- Fait : back-office refait dans le langage visuel des apps (logotypes, barre Berkeley, mosaïque
+  « à traiter », fiches livreur et commande à en-tête bleu, frise d'historique, statuts de paiement
+  et actions du journal en français, connexion illustrée). Backend : envoi des codes par SMTP
+  (`OTP_SENDER=smtp`) vers Mailpit ajouté à `docker-compose.yml` (http://localhost:8025), e-mail du
+  code à la charte ; refusé en production. `project_progression.md` créé à la racine.
+- Pièges rencontrés : en local, aucun e-mail ne partait (code seulement dans les journaux) : c'est
+  voulu par les règles (pas d'envoi réel depuis le local), d'où Mailpit ; une vraie boîte exige Brevo.
+- Prochaine étape : écrans back-office restants (relevés, export CSV, catégories, quartiers,
+  paiements), choix du prestataire de paiement (016), VPS (017).
+
+### 2026-11-01 — Activation des livreurs et back-office Next.js
+- Fait : backend — validation d'un livreur refusée sans pièce d'identité ni permis ; correctif
+  (un dossier refusé ne pouvait pas être soumis de nouveau) ; test du parcours d'activation.
+  Back-office `admin/` créé (ADR 0003) : connexion admin par code, cookie httpOnly, pages tableau
+  de bord, boutiques, livreurs, commandes, remboursements, paramètres, journal ; vérifié contre
+  l'API locale (toutes les pages, redirections sans session et session invalide) ; image Docker
+  (utilisateur non privilégié), jobs CI `admin` et `admin-image`, Compose et Caddy de production,
+  Dependabot npm, Prettier dans le hook de formatage. Mode d'emploi : `admin/README.md`.
+- Pièges rencontrés : projet écrit à la main (pas de `create-next-app` ni de CLI shadcn, téléchargements
+  de code refusés) ; Next 16 : `cookies()`, `params` et `searchParams` asynchrones, cookies écrits
+  seulement en Server Action ou Route Handler ; un fichier `"use server"` n'exporte que des
+  fonctions asynchrones ; Tailwind 4 : `rounded-card` généré par `--radius-card` dans `@theme` ;
+  `openapi-typescript` exige TypeScript 5 ; Docker Desktop s'arrête parfois (relancer la base).
+- Prochaine étape : écrans back-office restants (relevés, export CSV, catégories, quartiers,
+  paiements), tests Playwright ; backend : prestataire de paiement (016), VPS (017).
+
+### 2026-10-31 — Compléments backend : catégories, Sentry, déploiement
+- Fait : audit du backend contre ARCHITECTURE et les specs 001, 004, 027 (ajouts backend du
+  développeur frontend relus : consentement, catégories de boutique) ; catégories de boutique
+  complètes (admin, fiche publique, recherche, migration 00020) ; Sentry (erreurs 500, paniques,
+  tâches de fond, sans donnée personnelle) ; Dockerfile (49 Mo, utilisateur non privilégié),
+  `infra/` validé (Caddy, Compose, ShellCheck) ; job CI de publication de l'image.
+- Pièges rencontrés : `openapi.yaml` désormais modifié à la main par les deux développeurs → plus
+  de régénération, éditions ciblées ; `RULES.md` interdit le push direct sur `develop` → pull request
+  depuis `gedeon` ; Git Bash réécrit les chemins passés à `docker run` (`MSYS_NO_PATHCONV=1`).
+- Prochaine étape : préparation des VPS (017) ; prestataire de paiement (016).
+
 ### 2026-10-30 — Corrections de la revue du backend
 - Fait : 4 points importants et 4 mineurs de la revue corrigés, chacun couvert par un test ;
   migration 00017 (effacement des adresses de livraison) ; route admin `confirm-return`.

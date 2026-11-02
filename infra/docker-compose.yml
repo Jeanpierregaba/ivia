@@ -1,0 +1,70 @@
+# Production (et staging) sur un VPS (ADR 0008). Depuis infra/ sur le serveur :
+#   docker compose pull && docker compose up -d
+# Les secrets sont dans infra/.env (droits 600, jamais commité) : voir infra/README.md.
+name: ivia
+
+services:
+  postgres:
+    image: postgis/postgis:18-3.6-alpine
+    restart: unless-stopped
+    environment:
+      POSTGRES_USER: ivia
+      POSTGRES_DB: ivia
+      POSTGRES_PASSWORD: ${POSTGRES_PASSWORD:?POSTGRES_PASSWORD obligatoire}
+    # Aucun port publié : la base n'est joignable que depuis le réseau Docker interne (SECURITY.md).
+    volumes:
+      - postgres-data:/var/lib/postgresql
+    healthcheck:
+      test: ["CMD-SHELL", "pg_isready -U ivia -d ivia"]
+      interval: 5s
+      timeout: 5s
+      retries: 20
+
+  api:
+    image: ghcr.io/${GHCR_OWNER:?GHCR_OWNER obligatoire}/ivia-api:${API_TAG:?API_TAG obligatoire (SHA du commit)}
+    restart: unless-stopped
+    depends_on:
+      postgres:
+        condition: service_healthy
+    env_file: .env
+    environment:
+      DATABASE_URL: postgres://ivia:${POSTGRES_PASSWORD}@postgres:5432/ivia?sslmode=disable
+      TRUST_PROXY_HEADERS: "true"
+      RUN_WORKERS: "true"
+    volumes:
+      # Compte de service Firebase (FCM_CREDENTIALS_FILE=/run/secrets/fcm.json), lecture seule.
+      - ./secrets:/run/secrets:ro
+    # Pas de port publié : Caddy est le seul point d'entrée.
+
+  admin:
+    image: ghcr.io/${GHCR_OWNER}/ivia-admin:${ADMIN_TAG:?ADMIN_TAG obligatoire (SHA du commit)}
+    restart: unless-stopped
+    depends_on:
+      - api
+    environment:
+      # Appels serveur à serveur sur le réseau interne : le jeton ne transite pas par Internet.
+      API_BASE_URL: http://api:8080
+    # Pas de port publié : Caddy est le seul point d'entrée.
+
+  caddy:
+    image: caddy:2.10-alpine
+    restart: unless-stopped
+    depends_on:
+      - api
+      - admin
+    ports:
+      - "80:80"
+      - "443:443"
+      - "443:443/udp"
+    environment:
+      API_DOMAIN: ${API_DOMAIN:?API_DOMAIN obligatoire}
+      ADMIN_DOMAIN: ${ADMIN_DOMAIN:?ADMIN_DOMAIN obligatoire}
+    volumes:
+      - ./Caddyfile:/etc/caddy/Caddyfile:ro
+      - caddy-data:/data
+      - caddy-config:/config
+
+volumes:
+  postgres-data:
+  caddy-data:
+  caddy-config:

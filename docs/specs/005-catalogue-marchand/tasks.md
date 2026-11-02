@@ -11,7 +11,7 @@
   - 404 sur la boutique d'autrui.
 
   Les lancer et vérifier qu'ils échouent.
-- [x] 2. Migration `00020`, requêtes sqlc, service et handler (`status`, `q`, `product-counts`),
+- [x] 2. Migration `00021` (renumérotée après la 00020 de Gedeon), requêtes sqlc, service et handler (`status`, `q`, `product-counts`),
   `openapi.yaml` ; tests de la tâche 1 au vert, `sqlc diff`, `go vet`, `gofmt`
 
 **Mobile : fondations**

@@ -778,6 +778,13 @@ paths:
           schema:
             type: string
             format: uuid
+        - name: shop_category_id
+          in: query
+          required: false
+          description: "Catégorie de boutique (GET /v1/shop-categories)."
+          schema:
+            type: string
+            format: uuid
         - name: min_price
           in: query
           required: false
@@ -888,6 +895,13 @@ paths:
         - name: neighborhood_id
           in: query
           required: false
+          schema:
+            type: string
+            format: uuid
+        - name: shop_category_id
+          in: query
+          required: false
+          description: "Catégorie de boutique (GET /v1/shop-categories)."
           schema:
             type: string
             format: uuid
@@ -2331,7 +2345,7 @@ paths:
       tags:
         - Livreur
       operationId: putDriverApplication
-      description: "Le rôle driver n'est donné qu'après validation par un admin."
+      description: "Le rôle driver n'est donné qu'après validation par un admin, sur un dossier contenant au moins la pièce d'identité et le permis de conduire (POST /v1/driver/application/documents). Un dossier refusé peut être corrigé puis soumis de nouveau : il repasse en attente de validation."
       x-roles:
         - any
       requestBody:
@@ -3282,6 +3296,95 @@ paths:
             application/json:
               schema:
                 "$ref": "#/components/schemas/Error"
+  "/v1/admin/shop-categories":
+    get:
+      summary: "Toutes les catégories de boutique (actives et désactivées)"
+      tags:
+        - Admin
+      operationId: getAdminShopCategories
+      x-roles:
+        - admin
+      responses:
+        "200":
+          description: "Succès"
+          content:
+            application/json:
+              schema:
+                type: object
+                properties:
+                  items:
+                    type: array
+                    items:
+                      "$ref": "#/components/schemas/AdminShopCategory"
+                required:
+                  - items
+        default:
+          description: "Erreur (voir `code`)"
+          content:
+            application/json:
+              schema:
+                "$ref": "#/components/schemas/Error"
+    post:
+      summary: "Ajouter une catégorie de boutique"
+      tags:
+        - Admin
+      operationId: postAdminShopCategories
+      x-roles:
+        - admin
+      requestBody:
+        required: true
+        content:
+          application/json:
+            schema:
+              "$ref": "#/components/schemas/ShopCategoryInput"
+      responses:
+        "201":
+          description: "Succès"
+          content:
+            application/json:
+              schema:
+                "$ref": "#/components/schemas/AdminShopCategory"
+        default:
+          description: "Erreur (voir `code`)"
+          content:
+            application/json:
+              schema:
+                "$ref": "#/components/schemas/Error"
+  "/v1/admin/shop-categories/{id}":
+    patch:
+      summary: "Modifier une catégorie de boutique"
+      description: "La désactiver la retire des choix proposés aux marchands ; les boutiques qui l'ont la gardent. Journalisé."
+      tags:
+        - Admin
+      operationId: patchAdminShopCategoriesById
+      parameters:
+        - name: id
+          in: path
+          required: true
+          schema:
+            type: string
+            format: uuid
+      x-roles:
+        - admin
+      requestBody:
+        required: true
+        content:
+          application/json:
+            schema:
+              "$ref": "#/components/schemas/ShopCategoryInput"
+      responses:
+        "200":
+          description: "Succès"
+          content:
+            application/json:
+              schema:
+                "$ref": "#/components/schemas/AdminShopCategory"
+        default:
+          description: "Erreur (voir `code`)"
+          content:
+            application/json:
+              schema:
+                "$ref": "#/components/schemas/Error"
   "/v1/admin/shops":
     get:
       summary: Boutiques
@@ -3606,6 +3709,7 @@ paths:
   "/v1/admin/drivers/{id}/approve":
     post:
       summary: "Valider un livreur (donne le rôle driver)"
+      description: "Active le compte : seul un livreur validé peut passer en ligne, envoyer sa position et recevoir des missions. Refusé tant que le dossier ne contient pas la pièce d'identité (id_card) et le permis de conduire (driving_license) : 409 `driver_documents_missing`. Journalisé."
       tags:
         - Admin
       operationId: postAdminDriversByIdApprove
@@ -4916,6 +5020,13 @@ components:
             - "null"
         accepting_orders:
           type: boolean
+        category_id:
+          type:
+            - string
+            - "null"
+          format: uuid
+        category_name:
+          type: string
       required:
         - id
         - name
@@ -4927,6 +5038,8 @@ components:
         - location
         - logo_url
         - accepting_orders
+        - category_id
+        - category_name
     Shop:
       type: object
       properties:
@@ -5016,6 +5129,37 @@ components:
           type: string
       required:
         - id
+        - name
+    AdminShopCategory:
+      type: object
+      properties:
+        id:
+          type: string
+          format: uuid
+        name:
+          type: string
+        position:
+          type: integer
+        is_active:
+          type: boolean
+      required:
+        - id
+        - name
+        - position
+        - is_active
+    ShopCategoryInput:
+      type: object
+      properties:
+        name:
+          type: string
+          maxLength: 60
+        position:
+          type: integer
+          minimum: 0
+          maximum: 10000
+        is_active:
+          type: boolean
+      required:
         - name
     ShopInput:
       type: object
@@ -5355,6 +5499,13 @@ components:
             - "null"
         accepting_orders:
           type: boolean
+        category_id:
+          type:
+            - string
+            - "null"
+          format: uuid
+        category_name:
+          type: string
         distance_m:
           type:
             - integer
@@ -5366,6 +5517,8 @@ components:
         - neighborhood_id
         - logo_url
         - accepting_orders
+        - category_id
+        - category_name
         - distance_m
     CartItem:
       type: object

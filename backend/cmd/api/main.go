@@ -63,7 +63,8 @@ func run(logger *slog.Logger) error {
 
 	errCh := make(chan error, 1)
 	go func() {
-		logger.Info("serveur démarré", "addr", srv.Addr, "env", cfg.Env, "workers", cfg.RunWorkers)
+		logger.Info("serveur démarré", "addr", srv.Addr, "env", cfg.Env, "version", cfg.Version,
+			"workers", cfg.RunWorkers, "sentry", cfg.SentryDSN != "")
 		if err := srv.ListenAndServe(); err != nil && !errors.Is(err, http.ErrServerClosed) {
 			errCh <- err
 		}

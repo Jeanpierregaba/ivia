@@ -6,12 +6,14 @@ import (
 	"context"
 	"fmt"
 	"log/slog"
+	"strconv"
 	"time"
 
 	"github.com/jackc/pgx/v5"
 	"github.com/jackc/pgx/v5/pgxpool"
 	"github.com/riverqueue/river"
 	"github.com/riverqueue/river/riverdriver/riverpgxv5"
+	"github.com/riverqueue/river/rivertype"
 
 	"ivia/backend/internal/platform/database"
 )
@@ -47,6 +49,33 @@ type Options struct {
 	// PollInterval : délai maximal avant de prendre une tâche planifiée (court dans les tests).
 	PollInterval time.Duration
 	Logger       *slog.Logger
+	// Reporter : remontée des échecs de tâches (Sentry) ; aucune si nil.
+	Reporter Reporter
+}
+
+// Reporter signale une erreur inattendue (implémenté par errtrack).
+type Reporter interface {
+	Report(ctx context.Context, err error, tags map[string]string)
+}
+
+// errorHandler transmet les échecs et paniques des tâches au Reporter. River réessaie ensuite
+// la tâche selon sa politique habituelle.
+type errorHandler struct {
+	reporter Reporter
+}
+
+func (h errorHandler) HandleError(ctx context.Context, job *rivertype.JobRow, err error) *river.ErrorHandlerResult {
+	h.reporter.Report(ctx, err, jobTags(job))
+	return nil
+}
+
+func (h errorHandler) HandlePanic(ctx context.Context, job *rivertype.JobRow, panicVal any, trace string) *river.ErrorHandlerResult {
+	h.reporter.Report(ctx, fmt.Errorf("panique dans la tâche : %v\n%s", panicVal, trace), jobTags(job))
+	return nil
+}
+
+func jobTags(job *rivertype.JobRow) map[string]string {
+	return map[string]string{"job_kind": job.Kind, "job_attempt": strconv.Itoa(job.Attempt)}
 }
 
 // Queue est le client River partagé par toute l'application.
@@ -62,6 +91,9 @@ func New(pool *pgxpool.Pool, reg *Registry, opts Options) (*Queue, error) {
 		MaxAttempts: 10,
 		Workers:     reg.Workers,
 		JobTimeout:  time.Minute,
+	}
+	if opts.Reporter != nil {
+		cfg.ErrorHandler = errorHandler{reporter: opts.Reporter}
 	}
 	if opts.RunWorkers {
 		cfg.Queues = map[string]river.QueueConfig{river.QueueDefault: {MaxWorkers: 20}}

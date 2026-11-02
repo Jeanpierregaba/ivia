@@ -197,7 +197,8 @@ mobile/                    Dart pub workspace
   packages/app_core        session, connexion par code, champs communs (spec 004), position du
                            téléphone (précise pour le marchand, approximative pour l'acheteur, spec 007)
   packages/ui              thème et composants partagés
-admin/                     back-office Next.js
+admin/                     back-office Next.js (app/(admin)/ pages, lib/api.ts client serveur,
+                           lib/api-types.ts généré depuis openapi.yaml) : admin/README.md
 infra/                     docker-compose de production, Caddyfile, sauvegardes
 ```
 
@@ -214,7 +215,10 @@ infra/                     docker-compose de production, Caddyfile, sauvegardes
     `httpOnly`, `Secure`, `SameSite=Lax`, jamais lisible par le JavaScript du navigateur.
 - **Rôles** dans `user_roles`. `buyer` est donné à l'inscription. `seller` est ajouté quand
   l'utilisateur crée une boutique : elle reste invisible tant que l'admin ne l'a pas validée.
-  `driver` et `admin` ne sont **attribués que par un admin**.
+  `driver` et `admin` ne sont **attribués que par un admin**. Un candidat livreur dépose sa
+  candidature et ses documents (compartiment privé) ; il n'obtient le rôle `driver`, donc l'accès
+  aux missions, qu'après validation par un admin, refusée tant que la pièce d'identité et le
+  permis de conduire manquent. Un dossier refusé peut être corrigé et soumis de nouveau.
 - **Contrôle d'accès dans le backend, à deux niveaux** :
   1. middleware de route : rôle requis (`requireRole("seller")`) ;
   2. service : propriété de la ressource (le marchand ne voit que les commandes de **ses** boutiques,
@@ -254,7 +258,7 @@ Chaque intégration est derrière une interface Go (`PaymentProvider`, `OTPSende
 | staging | Petit VPS séparé (mis en place à l'intégration du paiement) | Base séparée | Mode test du prestataire |
 | production | VPS Hetzner (UE) | Base de production, mot de passe + accès réseau interne uniquement | Comptes réels |
 
-- **Déploiement** : la CI construit les images Docker (API, back-office) à chaque fusion sur `main`
+- **Déploiement** (`infra/`, mode d'emploi dans `infra/README.md`) : la CI construit les images Docker (API, back-office) à chaque fusion sur `main`
   et les publie sur GitHub Container Registry ; le déploiement sur le VPS se fait par
   `docker compose pull && docker compose up -d`. Les migrations goose s'exécutent au démarrage de l'API.
 - **Retour arrière** : redéployer l'image précédente (tag = SHA du commit). Les migrations doivent

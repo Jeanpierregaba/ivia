@@ -34,6 +34,24 @@ type Options struct {
 	TrustProxyHeaders bool
 	// MaxBodyBytes : taille maximale du corps d'une requête (1 Mo par défaut).
 	MaxBodyBytes int64
+	// Reporter : remontée des erreurs inattendues (Sentry) ; aucune si nil.
+	Reporter ErrorReporter
+}
+
+// ErrorReporter signale une erreur inattendue (implémenté par errtrack).
+type ErrorReporter interface {
+	Report(ctx context.Context, err error, tags map[string]string)
+}
+
+func (rt *Router) report(r *http.Request, err error) {
+	if rt.opts.Reporter == nil {
+		return
+	}
+	rt.opts.Reporter.Report(r.Context(), err, map[string]string{
+		"request_id": RequestID(r.Context()),
+		// Motif de la route (ex. GET /v1/orders/{id}) : jamais l'URL réelle, qui peut contenir des données.
+		"route": r.Pattern,
+	})
 }
 
 // Router enregistre les routes des modules et applique les middlewares.
@@ -102,6 +120,9 @@ func (rt *Router) Raw(pattern string, h http.Handler) {
 func (rt *Router) wrap(h HandlerFunc) http.Handler {
 	return http.HandlerFunc(func(w http.ResponseWriter, r *http.Request) {
 		if err := h(w, r); err != nil {
+			if IsInternal(r, err) {
+				rt.report(r, err)
+			}
 			WriteError(w, r, rt.opts.Logger, err)
 		}
 	})

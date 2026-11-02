@@ -53,6 +53,8 @@ type ShopHit struct {
 	NeighborhoodID  *uuid.UUID `json:"neighborhood_id"`
 	LogoURL         *string    `json:"logo_url"`
 	AcceptingOrders bool       `json:"accepting_orders"`
+	CategoryID      *uuid.UUID `json:"category_id"`
+	CategoryName    string     `json:"category_name"`
 	DistanceM       *int64     `json:"distance_m"`
 }
 
@@ -74,6 +76,7 @@ type filters struct {
 	q                            *string
 	lat, lng, radius             *float64
 	neighborhood, category, shop *uuid.UUID
+	shopCategory                 *uuid.UUID
 	minPrice, maxPrice           *int64
 	inStockOnly                  bool
 	sort                         string
@@ -95,6 +98,7 @@ func parseFilters(r *http.Request, sorts ...string) (filters, error) {
 	f.neighborhood = q.UUID("neighborhood_id")
 	f.category = q.UUID("category_id")
 	f.shop = q.UUID("shop_id")
+	f.shopCategory = q.UUID("shop_category_id")
 	f.minPrice = q.Int64("min_price", 0, 100_000_000)
 	f.maxPrice = q.Int64("max_price", 0, 100_000_000)
 	f.inStockOnly = q.Enum("in_stock", "false", "true", "false") == "true"
@@ -120,7 +124,7 @@ func parseFilters(r *http.Request, sorts ...string) (filters, error) {
 
 func (s *Service) products(ctx context.Context, f filters) ([]ProductHit, error) {
 	rows, err := store.New(s.db.Conn(ctx)).SearchProducts(ctx, store.SearchProductsParams{
-		Q: f.q, Lat: f.lat, Lng: f.lng, RadiusM: f.radius, CategoryID: f.category, ShopID: f.shop,
+		Q: f.q, Lat: f.lat, Lng: f.lng, RadiusM: f.radius, CategoryID: f.category, ShopID: f.shop, ShopCategoryID: f.shopCategory,
 		MinPrice: f.minPrice, MaxPrice: f.maxPrice, NeighborhoodID: f.neighborhood,
 		InStockOnly: f.inStockOnly, Sort: f.sort, Lim: f.page.FetchLimit(), Off: int32(f.page.Offset),
 	})
@@ -143,7 +147,7 @@ func (s *Service) products(ctx context.Context, f filters) ([]ProductHit, error)
 
 func (s *Service) shops(ctx context.Context, f filters) ([]ShopHit, error) {
 	rows, err := store.New(s.db.Conn(ctx)).SearchShops(ctx, store.SearchShopsParams{
-		Q: f.q, Lat: f.lat, Lng: f.lng, RadiusM: f.radius, NeighborhoodID: f.neighborhood,
+		Q: f.q, Lat: f.lat, Lng: f.lng, RadiusM: f.radius, NeighborhoodID: f.neighborhood, ShopCategoryID: f.shopCategory,
 		Sort: f.sort, Lim: f.page.FetchLimit(), Off: int32(f.page.Offset),
 	})
 	if err != nil {
@@ -153,7 +157,8 @@ func (s *Service) shops(ctx context.Context, f filters) ([]ShopHit, error) {
 	for i, r := range rows {
 		out[i] = ShopHit{
 			ID: r.ID, Name: r.Name, Description: r.Description, NeighborhoodID: r.NeighborhoodID,
-			AcceptingOrders: r.AcceptingOrders, DistanceM: meters(r.DistanceM),
+			AcceptingOrders: r.AcceptingOrders, CategoryID: r.CategoryID, CategoryName: r.CategoryName,
+			DistanceM: meters(r.DistanceM),
 		}
 		if r.LogoKey != nil {
 			u := s.urls.PublicURL(*r.LogoKey)

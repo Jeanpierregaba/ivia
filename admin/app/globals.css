@@ -1,0 +1,42 @@
+@import "tailwindcss";
+
+/* Tokens de docs/DESIGN.md, nommés par rôle. Les composants n'écrivent jamais une couleur en dur. */
+@theme {
+  --font-sans: var(--font-parkinsans), ui-sans-serif, system-ui, sans-serif;
+
+  --color-primary: #ed1c2f;
+  --color-primary-strong: #aa0e1b;
+  --color-primary-soft: #fde8ea;
+  --color-secondary: #004da8;
+  --color-secondary-soft: #e5eef8;
+  --color-tertiary: #0e2e54;
+
+  --color-surface: #ffffff;
+  --color-background: #f3f4f6;
+  --color-background-alt: #f6f7f9;
+  --color-border: #e3e6eb;
+  --color-border-input: #7f8c9e;
+  --color-text: #0a1a30;
+  --color-text-secondary: #3a4a60;
+  --color-text-muted: #5a6a80;
+
+  --color-success: #1e7a4c;
+  --color-warning: #b45309;
+  --color-error: #aa0e1b;
+  --color-info: #004da8;
+
+  --radius-tile: 6px;
+  --radius-card: 14px;
+  --radius-field: 18px;
+}
+
+body {
+  background: var(--color-background);
+  color: var(--color-text);
+}
+
+/* Focus toujours visible (navigation au clavier, DESIGN.md « Accessibilité »). */
+:focus-visible {
+  outline: 2px solid var(--color-secondary);
+  outline-offset: 2px;
+}

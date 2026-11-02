@@ -10,6 +10,7 @@ import (
 	"context"
 	"fmt"
 	"log/slog"
+	"strings"
 	"time"
 
 	"github.com/google/uuid"
@@ -222,8 +223,16 @@ func (s *Service) Apply(ctx context.Context, userID uuid.UUID, in ApplicationInp
 	}
 	err = s.db.InTx(ctx, func(ctx context.Context) error {
 		q := store.New(s.db.Conn(ctx))
-		err := q.CreateDriver(ctx, store.CreateDriverParams{UserID: userID, VehicleType: in.VehicleType, VehiclePlate: in.VehiclePlate, VehicleDescription: in.VehicleDescription})
-		if database.IsUniqueViolation(err, "drivers_pkey") {
+		// Lecture d'abord : un INSERT en échec invaliderait la transaction (correction d'un dossier refusé).
+		cur, err := q.GetDriver(ctx, userID)
+		switch {
+		case database.IsNoRows(err):
+			if err := q.CreateDriver(ctx, store.CreateDriverParams{UserID: userID, VehicleType: in.VehicleType, VehiclePlate: in.VehiclePlate, VehicleDescription: in.VehicleDescription}); err != nil {
+				return fmt.Errorf("création de la candidature : %w", err)
+			}
+		case err != nil:
+			return fmt.Errorf("lecture de la candidature : %w", err)
+		default:
 			n, err := q.UpdateApplication(ctx, store.UpdateApplicationParams{UserID: userID, VehicleType: in.VehicleType, VehiclePlate: in.VehiclePlate, VehicleDescription: in.VehicleDescription})
 			if err != nil {
 				return fmt.Errorf("mise à jour de la candidature : %w", err)
@@ -231,12 +240,12 @@ func (s *Service) Apply(ctx context.Context, userID uuid.UUID, in ApplicationInp
 			if n == 0 {
 				return apperr.Conflict("application_locked", "Votre candidature a déjà été validée : contactez l'équipe ivia pour la modifier.")
 			}
-			return nil
+			if cur.ReviewStatus == ReviewPending {
+				return nil // simple correction d'un dossier déjà en attente : pas de nouvelle alerte
+			}
 		}
-		if err != nil {
-			return fmt.Errorf("création de la candidature : %w", err)
-		}
-		return s.notify.NotifyAdmins(ctx, "driver_application", "Nouvelle candidature de livreur",
+		// Nouvelle candidature, ou dossier refusé soumis de nouveau : à revoir par un admin.
+		return s.notify.NotifyAdmins(ctx, "driver_application", "Candidature de livreur à valider",
 			"Un livreur attend la validation de son dossier.", map[string]string{"driver_id": userID.String()})
 	})
 	if err != nil {
@@ -399,6 +408,9 @@ func (s *Service) Review(ctx context.Context, adminID, userID uuid.UUID, decisio
 		title, body := "", ""
 		switch decision {
 		case "approve":
+			if err := requireDocuments(before.Documents); err != nil {
+				return err
+			}
 			n, err = q.SetReview(ctx, store.SetReviewParams{UserID: userID, ReviewStatus: ReviewApproved, Note: reason, ReviewedBy: &adminID, FromStatuses: []string{ReviewPending, ReviewRejected}})
 			if err == nil && n > 0 {
 				err = s.users.GrantRole(ctx, userID, identity.RoleDriver, &adminID)
@@ -443,6 +455,30 @@ func (s *Service) Review(ctx context.Context, adminID, userID uuid.UUID, decisio
 		return AdminDriver{}, err
 	}
 	return s.AdminGet(ctx, userID, false)
+}
+
+// RequiredDocuments : pièces sans lesquelles un dossier de livreur ne peut pas être validé.
+var RequiredDocuments = []string{"id_card", "driving_license"}
+
+var documentLabels = map[string]string{"id_card": "pièce d'identité", "driving_license": "permis de conduire"}
+
+// requireDocuments refuse la validation d'un dossier incomplet : un compte livreur n'est activé
+// qu'après vérification par un admin de l'identité et du permis du candidat.
+func requireDocuments(docs []Document) error {
+	have := map[string]bool{}
+	for _, d := range docs {
+		have[d.Kind] = true
+	}
+	var missing []string
+	for _, k := range RequiredDocuments {
+		if !have[k] {
+			missing = append(missing, documentLabels[k])
+		}
+	}
+	if len(missing) > 0 {
+		return apperr.Conflict("driver_documents_missing", "Dossier incomplet : "+strings.Join(missing, ", ")+" manquant(s).")
+	}
+	return nil
 }
 
 // onSuspended coupe l'accès immédiatement : propositions annulées et mission non commencée

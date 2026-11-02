@@ -54,6 +54,27 @@ jobs:
       - name: Contrat OpenAPI valide
         run: npx --yes @redocly/cli@2 lint backend/api/openapi.yaml
 
+  admin:
+    runs-on: ubuntu-latest
+    defaults:
+      run:
+        working-directory: admin
+    steps:
+      - uses: actions/checkout@v7
+      - uses: actions/setup-node@v4
+        with:
+          node-version: 24
+      - run: npm install -g pnpm@10.34.9
+      - run: pnpm install --frozen-lockfile
+      - name: Types de l'API à jour avec openapi.yaml
+        run: pnpm gen:api && git diff --exit-code lib/api-types.ts
+      - run: pnpm format:check
+      - run: pnpm lint
+      - run: pnpm typecheck
+      - run: pnpm test
+      - run: pnpm build
+      - run: pnpm audit --prod --audit-level high
+
   mobile:
     runs-on: ubuntu-latest
     defaults:
@@ -72,3 +93,46 @@ jobs:
       # Chaque app et chaque paquet du workspace a ses propres tests.
       - name: flutter test
         run: for member in apps/* packages/*; do (cd "$member" && flutter test) || exit 1; done
+
+  # Image de l'API publiée sur GitHub Container Registry après chaque fusion sur main (ADR 0008).
+  # Étiquette = SHA du commit : c'est l'API_TAG déployé (voir infra/README.md).
+  api-image:
+    if: github.event_name == 'push' && github.ref == 'refs/heads/main'
+    needs: [backend, contract]
+    runs-on: ubuntu-latest
+    permissions:
+      contents: read
+      packages: write
+    steps:
+      - uses: actions/checkout@v7
+      - uses: docker/login-action@v3
+        with:
+          registry: ghcr.io
+          username: ${{ github.actor }}
+          password: ${{ secrets.GITHUB_TOKEN }}
+      - name: Construire et publier
+        run: |
+          image="ghcr.io/$(echo "${{ github.repository_owner }}" | tr '[:upper:]' '[:lower:]')/ivia-api"
+          docker build --build-arg APP_VERSION="${{ github.sha }}" -t "$image:${{ github.sha }}" backend
+          docker push "$image:${{ github.sha }}"
+
+  # Image du back-office, publiée comme celle de l'API (ADMIN_TAG = SHA du commit).
+  admin-image:
+    if: github.event_name == 'push' && github.ref == 'refs/heads/main'
+    needs: [admin]
+    runs-on: ubuntu-latest
+    permissions:
+      contents: read
+      packages: write
+    steps:
+      - uses: actions/checkout@v7
+      - uses: docker/login-action@v3
+        with:
+          registry: ghcr.io
+          username: ${{ github.actor }}
+          password: ${{ secrets.GITHUB_TOKEN }}
+      - name: Construire et publier
+        run: |
+          image="ghcr.io/$(echo "${{ github.repository_owner }}" | tr '[:upper:]' '[:lower:]')/ivia-admin"
+          docker build -t "$image:${{ github.sha }}" admin
+          docker push "$image:${{ github.sha }}"
