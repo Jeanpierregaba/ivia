@@ -8,7 +8,7 @@
 | Partie                      | Avancement | État                                                                       |
 | --------------------------- | :--------: | -------------------------------------------------------------------------- |
 | Backend (API Go)            |  **~95 %** | Complet pour le MVP ; manque le vrai prestataire de paiement (016)         |
-| Back-office web (Next.js)   |  **~70 %** | Écrans d'exploitation faits ; manquent relevés, export CSV, référentiels   |
+| Back-office web (Next.js)   |  **~95 %** | Tous les écrans du MVP faits ; restent les tests navigateur (Playwright)   |
 | Apps mobiles (Flutter)      |  **~50 %** | Acheteur jusqu'à la commande en retrait, catalogue marchand, dossier livreur ; paiement et livraison à faire |
 | Infrastructure / mise en ligne | **~60 %** | Images Docker, Compose, Caddy, sauvegardes, CI prêts ; serveurs à louer |
 | Démarches hors code         |  **~10 %** | Société, agrégateur de paiement, Play Store, Meta, domaine                 |
@@ -67,6 +67,11 @@ Next.js 16, TypeScript strict, Tailwind 4, même langage visuel que les apps (lo
 - Livreurs : liste filtrée, dossier complet (documents consultables par lien temporaire, documents manquants signalés), valider et activer / refuser / suspendre / rétablir.
 - Commandes : recherche par numéro, filtres, fiche (détail, frise d'historique, produits, paiements), actions : annuler, retirer le livreur, confirmer le retour, débloquer le code, rembourser.
 - Remboursements en attente, paramètres de la plateforme, journal des actions en français.
+- Paiements : filtres (en attente, doublons, échoués, remboursements), revérification auprès du prestataire, remboursement d'un paiement reçu en double.
+- Relevés marchands : aperçu par boutique et période, création, marquage « réglé » avec la référence du virement, suppression d'un relevé ouvert.
+- Livraisons par livreur sur une période, avec total et export CSV pour la paie.
+- Comptes : recherche, filtre par rôle, droits admin donnés ou retirés (journalisé).
+- Référentiels : catégories de produits (avec catégorie parente), catégories de boutique, quartiers ; ajout, modification, désactivation.
 - Pages d'erreur, chargement et 404 soignées ; image Docker, job CI.
 
 ## 3. Apps mobiles (`mobile/`, Flutter) — fait
@@ -74,9 +79,8 @@ Next.js 16, TypeScript strict, Tailwind 4, même langage visuel que les apps (lo
 - Espace de travail à 3 apps (acheteur, marchand, livreur) + client API + bibliothèque d'interface commune.
 - Splash et présentation des 3 apps ; connexion par code e-mail dans les 3 apps.
 - **Acheteur** : accueil (zone par position ou quartier, catégories, boutiques, nouveautés), recherche avec filtres et tri, fiches boutique et produit, panier (008), commande en retrait et suivi avec code de remise (009, en relecture).
-- **Marchand** : création de la boutique, écran « en cours de validation », catalogue (produits, photos, brouillons, retrait, stock) (005).
+- **Marchand** : création de la boutique, écran « en cours de validation » avec dépôt de la pièce d'identité et du RCCM, catalogue (produits, photos, brouillons, retrait, stock) (005).
 - **Livreur** : dossier de candidature avec documents (018).
-- **Manque côté marchand** : écran de dépôt de la pièce d'identité, nécessaire pour que l'admin puisse publier la boutique (backend prêt).
 
 ## 4. Infrastructure — fait
 
@@ -94,15 +98,10 @@ Next.js 16, TypeScript strict, Tailwind 4, même langage visuel que les apps (lo
 - [ ] OTP par WhatsApp puis SMS (après validation Meta).
 
 **Back-office**
-- [ ] Relevés marchands et marquage « réglé » (l'API est prête).
-- [ ] Export CSV des livraisons par livreur (l'API est prête).
-- [ ] Gestion des catégories (produits, boutiques), des quartiers et des comptes admin (l'API est prête).
-- [ ] Supervision des paiements (liste, revérification, doublons).
-- [ ] Tests navigateur (Playwright).
+- [ ] Tests navigateur (Playwright) des parcours admin.
 
 **Apps mobiles**
-- [ ] Marchand : dépôt de la pièce d'identité et du RCCM (backend prêt depuis le 2026-11-02).
-- [ ] Acheteur : lire `issue_code` / `stock_left` du panier ; écrans de paiement Mobile Money ; commande en livraison ; notifications push.
+- [ ] Acheteur : écrans de paiement Mobile Money ; commande en livraison ; notifications push.
 - [ ] Marchand : commandes reçues (accepter sous 15 min, préparation, remise par code), relevés.
 - [ ] Livreur : disponibilité et position, propositions (45 s), déroulé de mission.
 - [ ] Profil, adresses, suppression du compte ; publication Play Store.

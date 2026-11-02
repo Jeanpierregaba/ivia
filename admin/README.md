@@ -63,14 +63,20 @@ app/
   logout/route.ts         révocation de la session + effacement du cookie
   (admin)/layout.tsx      garde d'accès + barre latérale
   (admin)/page.tsx        tableau de bord (à traiter, indicateurs des 30 derniers jours)
-  (admin)/shops/          boutiques : publier, refuser, suspendre, rétablir
+  (admin)/shops/          boutiques : liste, fiche avec pièces du marchand, publier, refuser, suspendre, rétablir
   (admin)/drivers/        livreurs : liste, dossier (documents en lien temporaire), activation
   (admin)/orders/         commandes : liste, recherche par numéro, détail, actions admin
   (admin)/refunds/        file de remboursement
+  (admin)/deliveries/     livraisons par livreur sur une période ; export/route.ts relaie le CSV (paie)
+  (admin)/payments/       paiements : filtres, doublons, revérification, remboursement d'un doublon
+  (admin)/settlements/    relevés marchands : liste, nouveau (aperçu puis création), fiche, « réglé », suppression
+  (admin)/users/          comptes : recherche, rôles, donner ou retirer les droits admin
+  (admin)/referentials/   catégories de produits et de boutique, quartiers : ajout, modification, désactivation
   (admin)/settings/       commission, barème de livraison, délais
   (admin)/audit/          journal des actions admin
 components/ui.tsx         composants de base (esprit shadcn/ui, thémés par les tokens)
 components/action-form.tsx  bouton d'action + confirmation + motif (Server Action)
+components/server-form.tsx  formulaire libre vers une Server Action, message de l'API (succès, erreurs par champ)
 lib/api.ts                client de l'API côté serveur, erreurs ApiError (message français de l'API)
 lib/format.ts             FCFA, dates de Lomé, téléphone, libellés des statuts
 lib/api-types.ts          généré (pnpm gen:api)

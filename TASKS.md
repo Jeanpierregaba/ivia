@@ -46,8 +46,8 @@ version « retrait seulement » (voir `docs/PRD.md`).
 - [ ] 011 — Marchand : acceptation / refus sous 15 min, préparation, remise par code
 - [ ] 012 — Notifications push (`firebase_messaging`, enregistrement `PUT /v1/me/devices`) et liste ; dont la notification de validation promise par les écrans d'attente (boutique, dossier livreur)
 - [ ] 013 — Suivi de commande et annulation par l'acheteur
-- [ ] 014 — Back-office : supervision des paiements (liste, revérification, doublons) ; commandes, actions admin et file de remboursement : faites
-- [ ] 015 — Back-office : catégories de produits et de boutique, quartiers, comptes admin ; paramètres (commission, barème, délais) : faits
+- [x] 014 — Back-office : supervision des paiements (liste filtrée, doublons, revérification, remboursement d'un doublon), commandes, actions admin et file de remboursement (2026-11-02)
+- [x] 015 — Back-office : référentiels (catégories de produits et de boutique, quartiers), comptes et droits admin, paramètres (2026-11-02)
 - [ ] 016 — **Backend** : intégrer le vrai prestataire de paiement derrière `payments.Provider` (dépend de l'ADR 0007 accepté) ; tester ses webhooks réels en staging
 - [ ] 017 — **Infra** : louer et préparer les VPS de production et de staging, remplir `infra/.env`, DNS, compte Sentry, puis premier déploiement et premier test de restauration (mode d'emploi : `infra/README.md`). Image, Compose, Caddy, sauvegardes, Sentry et publication CI : faits. Vérifier que Caddy ne journalise pas les paramètres d'URL ([ADR 0010](docs/decisions/0010-position-arrondie-dans-les-recherches.md))
 
@@ -59,8 +59,8 @@ version « retrait seulement » (voir `docs/PRD.md`).
 - [ ] 022 — Déroulé de mission : itinéraire (app de cartes), récupération, code, échec et retour
 
 ### Phase 4 — Finances et lancement
-- [ ] 023 — Back-office : relevés marchands et marquage « réglé » ; relevés dans l'app marchand
-- [ ] 024 — Back-office : export des livraisons par livreur (CSV)
+- [ ] 023 — Relevés marchands : back-office fait (aperçu, création, « réglé » avec référence, suppression d'un relevé ouvert, 2026-11-02) ; reste les relevés dans l'app marchand
+- [x] 024 — Back-office : livraisons par livreur sur une période, total, export CSV pour la paie (2026-11-02)
 - [x] 025 — Back-office : indicateurs métier (`GET /v1/admin/metrics`), tableau de bord
 - [ ] 026 — Publication Play Store des 3 apps (fiches, politique de confidentialité, déclarations de localisation)
 
