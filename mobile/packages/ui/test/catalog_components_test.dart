@@ -230,6 +230,42 @@ void main() {
       expect(values.last, 999);
     });
 
+    testWidgets('sans saisie, corbeille au dernier exemplaire', (tester) async {
+      final semantics = tester.ensureSemantics();
+      final values = <int>[];
+      var value = 2;
+      await pump(
+        tester,
+        StatefulBuilder(
+          builder: (context, setState) => IviaQuantityStepper(
+            label: 'Quantité',
+            value: value,
+            max: 99,
+            editable: false,
+            removeLabel: 'Retirer du panier',
+            onChanged: (v) => setState(() {
+              value = v;
+              values.add(v);
+            }),
+          ),
+        ),
+      );
+      expect(find.byType(TextField), findsNothing);
+      expect(
+        tester.getSemantics(find.bySemanticsLabel('Quantité')),
+        isSemantics(label: 'Quantité', value: '2'),
+      );
+      expect(find.byIcon(Icons.delete_outline), findsNothing);
+      await tester.tap(find.byTooltip('Retirer 1'));
+      await tester.pump();
+      expect(find.text('1'), findsOneWidget);
+      expect(find.byIcon(Icons.delete_outline), findsOneWidget);
+      await tester.tap(find.byTooltip('Retirer du panier'));
+      await tester.pump();
+      expect(values, [1, 0]);
+      semantics.dispose();
+    });
+
     testWidgets('champ annoncé par son libellé', (tester) async {
       final semantics = tester.ensureSemantics();
       await stepper(tester, 3);

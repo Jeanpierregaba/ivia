@@ -105,6 +105,8 @@ class IviaQuantityStepper extends StatefulWidget {
     this.min = 0,
     this.max = 1000000,
     this.enabled = true,
+    this.editable = true,
+    this.removeLabel,
   });
 
   final int value;
@@ -116,6 +118,15 @@ class IviaQuantityStepper extends StatefulWidget {
   final int min;
   final int max;
   final bool enabled;
+
+  /// `false` : nombre affiché seulement, changé par « − » et « + » (une
+  /// ligne de panier, où un champ vidé pendant la saisie retirerait le
+  /// produit).
+  final bool editable;
+
+  /// Libellé du « − » quand il ramène à [min] (« Retirer du panier ») : il
+  /// prend alors une corbeille. `null` : « Retirer 1 » partout.
+  final String? removeLabel;
 
   @override
   State<IviaQuantityStepper> createState() => _IviaQuantityStepperState();
@@ -148,6 +159,8 @@ class _IviaQuantityStepperState extends State<IviaQuantityStepper> {
     final brand = IviaAppBrand.of(context);
     final textTheme = Theme.of(context).textTheme;
     final enabled = widget.enabled;
+    final removes =
+        widget.removeLabel != null && widget.value == widget.min + 1;
     return Container(
       padding: const EdgeInsets.all(IviaSpacing.xs),
       decoration: const ShapeDecoration(
@@ -158,45 +171,61 @@ class _IviaQuantityStepperState extends State<IviaQuantityStepper> {
         mainAxisSize: MainAxisSize.min,
         children: [
           IconButton.filled(
-            tooltip: 'Retirer 1',
+            tooltip: removes ? widget.removeLabel : 'Retirer 1',
             style: IconButton.styleFrom(
               backgroundColor: IviaColors.surface,
-              foregroundColor: IviaColors.text,
+              foregroundColor: removes ? IviaColors.error : IviaColors.text,
               disabledBackgroundColor: IviaColors.surface,
             ),
             onPressed: enabled && widget.value > widget.min
                 ? () => _set(widget.value - 1)
                 : null,
-            icon: const Icon(Icons.remove),
+            icon: Icon(removes ? Icons.delete_outline : Icons.remove),
           ),
-          SizedBox(
-            width: 72,
-            child: Semantics(
-              label: widget.label,
-              child: TextField(
-                controller: _controller,
-                enabled: enabled,
-                textAlign: TextAlign.center,
-                keyboardType: TextInputType.number,
-                inputFormatters: [
-                  FilteringTextInputFormatter.digitsOnly,
-                  LengthLimitingTextInputFormatter('${widget.max}'.length),
-                ],
-                style: textTheme.titleMedium,
-                decoration: InputDecoration(
-                  isDense: true,
-                  filled: false,
-                  border: InputBorder.none,
-                  enabledBorder: InputBorder.none,
-                  focusedBorder: InputBorder.none,
-                  disabledBorder: InputBorder.none,
-                  contentPadding: EdgeInsets.zero,
-                  hintText: '${widget.min}',
+          if (!widget.editable)
+            ConstrainedBox(
+              constraints: const BoxConstraints(minWidth: 40),
+              child: Semantics(
+                container: true,
+                label: widget.label,
+                value: '${widget.value}',
+                excludeSemantics: true,
+                child: Text(
+                  '${widget.value}',
+                  textAlign: TextAlign.center,
+                  style: textTheme.titleMedium,
                 ),
-                onChanged: (text) => _set(int.tryParse(text) ?? widget.min),
+              ),
+            )
+          else
+            SizedBox(
+              width: 72,
+              child: Semantics(
+                label: widget.label,
+                child: TextField(
+                  controller: _controller,
+                  enabled: enabled,
+                  textAlign: TextAlign.center,
+                  keyboardType: TextInputType.number,
+                  inputFormatters: [
+                    FilteringTextInputFormatter.digitsOnly,
+                    LengthLimitingTextInputFormatter('${widget.max}'.length),
+                  ],
+                  style: textTheme.titleMedium,
+                  decoration: InputDecoration(
+                    isDense: true,
+                    filled: false,
+                    border: InputBorder.none,
+                    enabledBorder: InputBorder.none,
+                    focusedBorder: InputBorder.none,
+                    disabledBorder: InputBorder.none,
+                    contentPadding: EdgeInsets.zero,
+                    hintText: '${widget.min}',
+                  ),
+                  onChanged: (text) => _set(int.tryParse(text) ?? widget.min),
+                ),
               ),
             ),
-          ),
           IconButton.filled(
             tooltip: 'Ajouter 1',
             style: IconButton.styleFrom(
