@@ -106,13 +106,19 @@ class IviaIconBadgeButton extends StatelessWidget {
                   top: -2,
                   right: -2,
                   child: IgnorePointer(
-                    // La pastille garde sa taille : le nombre est lu par
-                    // [semanticLabel].
-                    child: MediaQuery.withNoTextScaling(
+                    // La pastille suit la police jusqu'à 1,6 fois : lisible
+                    // sans recouvrir tout le bouton.
+                    child: MediaQuery.withClampedTextScaling(
+                      maxScaleFactor: 1.6,
                       child: Container(
-                        constraints: const BoxConstraints(minWidth: 20),
-                        height: 20,
-                        padding: const EdgeInsets.symmetric(horizontal: 5),
+                        constraints: const BoxConstraints(
+                          minWidth: 20,
+                          minHeight: 20,
+                        ),
+                        padding: const EdgeInsets.symmetric(
+                          horizontal: 5,
+                          vertical: 2,
+                        ),
                         alignment: Alignment.center,
                         decoration: ShapeDecoration(
                           color: brand.action,

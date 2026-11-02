@@ -37,20 +37,23 @@ class _CartScreenState extends ConsumerState<CartScreen> {
 
   CartController get _controller => ref.read(cartProvider.notifier);
 
+  ScaffoldMessengerState get _messenger => ScaffoldMessenger.of(context);
+
   Future<void> _refresh() async {
+    final messenger = _messenger;
     try {
       await _controller.refresh();
-    } on Exception {
-      if (mounted) {
-        showCartMessage(
-          context,
-          'Panier non actualisé. Vérifiez votre connexion.',
-        );
-      }
+    } catch (_) {
+      showCartMessage(
+        messenger,
+        'Panier non actualisé. Vérifiez votre connexion.',
+      );
     }
   }
 
   Future<void> _clear(Cart cart) async {
+    final controller = _controller;
+    final messenger = _messenger;
     final confirmed = await showClearCartSheet(
       context,
       shopName: cart.shop?.name,
@@ -58,34 +61,17 @@ class _CartScreenState extends ConsumerState<CartScreen> {
     );
     if (!confirmed) return;
     try {
-      await _controller.clear();
-    } on ApiException catch (e) {
-      if (mounted) showCartMessage(context, cartErrorMessage(e));
+      await controller.clear();
+    } catch (e) {
+      showCartMessage(messenger, cartErrorMessage(e));
     }
   }
 
-  /// Nouvelle quantité d'une ligne ; 0 la retire, avec « Annuler ».
-  Future<void> _change(CartItem item, int quantity, {int? undoTo}) async {
-    try {
-      await _controller.setQuantity(item.productId, quantity);
-    } on ApiException catch (e) {
-      if (mounted) showCartMessage(context, cartErrorMessage(e));
-      return;
-    }
-    if (!mounted || quantity != 0) return;
-    showCartMessage(
-      context,
-      '${item.name} retiré du panier',
-      action: undoTo == null
-          ? null
-          : SnackBarAction(
-              label: 'Annuler',
-              onPressed: () => _change(item, undoTo),
-            ),
-    );
-  }
+  void _change(CartItem item, int quantity, {int? undoTo}) => unawaited(
+    setCartLine(_controller, _messenger, item, quantity, undoTo: undoTo),
+  );
 
-  void _order() => showCartMessage(context, 'La commande arrive bientôt.');
+  void _order() => showCartMessage(_messenger, 'La commande arrive bientôt.');
 
   @override
   Widget build(BuildContext context) {
@@ -111,7 +97,7 @@ class _CartScreenState extends ConsumerState<CartScreen> {
                   const Spacer(),
                   if (cart != null && !cart.isEmpty)
                     TextButton(
-                      onPressed: () => _clear(cart),
+                      onPressed: value!.clearing ? null : () => _clear(cart),
                       child: const Text('Vider'),
                     ),
                 ],
@@ -200,10 +186,16 @@ class _CartScreenState extends ConsumerState<CartScreen> {
                     item: item,
                     quantity: state.quantityOf(item.productId),
                     last: i == items.length - 1,
+                    enabled: !state.clearing,
+                    // « Annuler » remet la quantité enregistrée avant le
+                    // retrait (la ligne revient en fin de liste : le serveur
+                    // range les lignes par date d'ajout).
                     onChanged: (q) => _change(
                       item,
                       q,
-                      undoTo: q == 0 ? state.quantityOf(item.productId) : null,
+                      undoTo: q == 0
+                          ? state.cart.quantityOf(item.productId).clamp(1, 99)
+                          : null,
                     ),
                     onRemove: () => _change(item, 0),
                     onAdjust: (q) => _change(item, q),
@@ -250,6 +242,34 @@ class _CartScreenState extends ConsumerState<CartScreen> {
       ),
     );
   }
+}
+
+/// Nouvelle quantité d'une ligne ; 0 la retire, avec « Annuler » qui remet
+/// [undoTo]. Hors de l'écran : « Annuler » marche encore après un retour.
+Future<void> setCartLine(
+  CartController controller,
+  ScaffoldMessengerState messenger,
+  CartItem item,
+  int quantity, {
+  int? undoTo,
+}) async {
+  try {
+    await controller.setQuantity(item.productId, quantity);
+  } catch (e) {
+    showCartMessage(messenger, cartErrorMessage(e));
+    return;
+  }
+  if (quantity != 0) return;
+  showCartMessage(
+    messenger,
+    '${item.name} retiré du panier',
+    action: undoTo == null
+        ? null
+        : SnackBarAction(
+            label: 'Annuler',
+            onPressed: () => setCartLine(controller, messenger, item, undoTo),
+          ),
+  );
 }
 
 /// Boutique du panier : ouvre sa fiche.
@@ -339,6 +359,7 @@ class _CartLine extends StatelessWidget {
     required this.item,
     required this.quantity,
     required this.last,
+    required this.enabled,
     required this.onChanged,
     required this.onRemove,
     required this.onAdjust,
@@ -347,6 +368,7 @@ class _CartLine extends StatelessWidget {
   final CartItem item;
   final int quantity;
   final bool last;
+  final bool enabled;
   final ValueChanged<int> onChanged;
   final VoidCallback onRemove;
   final ValueChanged<int> onAdjust;
@@ -402,13 +424,19 @@ class _CartLine extends StatelessWidget {
                     spacing: IviaSpacing.sm,
                     children: [
                       TextButton(
-                        onPressed: onRemove,
-                        child: const Text('Retirer'),
+                        onPressed: enabled ? onRemove : null,
+                        child: Text(
+                          'Retirer',
+                          semanticsLabel: 'Retirer ${item.name} du panier',
+                        ),
                       ),
                       if (canAdjust)
                         TextButton(
-                          onPressed: () => onAdjust(left),
-                          child: Text('Ajuster à $left'),
+                          onPressed: enabled ? () => onAdjust(left) : null,
+                          child: Text(
+                            'Ajuster à $left',
+                            semanticsLabel: 'Ajuster ${item.name} à $left',
+                          ),
                         ),
                     ],
                   ),
@@ -418,6 +446,9 @@ class _CartLine extends StatelessWidget {
                     value: quantity,
                     max: cartMaxQuantity,
                     editable: false,
+                    enabled: enabled,
+                    addLabel: 'Ajouter un ${item.name}',
+                    minusLabel: 'Retirer un ${item.name}',
                     removeLabel: 'Retirer ${item.name} du panier',
                     onChanged: onChanged,
                   ),
@@ -488,7 +519,9 @@ class _Summary extends StatelessWidget {
             ),
             const SizedBox(height: IviaSpacing.sm),
             FilledButton(
-              onPressed: cart.orderable && !sending ? onOrder : null,
+              onPressed: cart.orderable && !sending && !state.clearing
+                  ? onOrder
+                  : null,
               child: const Text('Commander'),
             ),
           ],

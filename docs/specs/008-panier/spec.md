@@ -30,7 +30,8 @@ produit, avec un badge : le **nombre d'articles** (somme des quantités). Un app
 panier.
 
 **3. Barre « Voir le panier »** en bas de la fiche boutique quand le panier contient des produits
-de cette boutique : « Voir le panier · 3 » et le sous-total.
+de cette boutique : « Voir le panier · 3 » (même nombre que l'icône) et le sous-total ; « À
+vérifier » à la place du sous-total si une ligne bloque (le sous-total ne la compte pas).
 
 **4. Écran Panier**
 - En-tête : retour, « Panier », « Vider » (confirmation « Vider le panier ? »).
@@ -77,7 +78,19 @@ de cette boutique : « Voir le panier · 3 » et le sous-total.
   stock. »), rien n'est ajouté.
 - **Produit devenu indisponible** (`product_unavailable`, 404) : « Ce produit n'est plus
   disponible. »
-- **Plus de 99 exemplaires** : le « + » s'arrête à la limite (stock suivi ou 99).
+- **Limite du stock ou de 99** : sur la fiche produit, la quantité s'arrête à ce qui reste
+  ajoutable ; tout déjà au panier ⇒ « Tout le stock est au panier » (ou « 99 au plus : déjà au
+  panier »), bouton désactivé. Sur l'écran Panier, le stock d'une ligne commandable n'est pas
+  connu de l'app : le refus du serveur (« Seulement 2 en stock. ») fait office de limite et la
+  quantité revient à la valeur enregistrée. « + » d'une carte à 99 : « 99 exemplaires au plus par
+  produit ».
+- **« Annuler » après un retrait** : remet la quantité enregistrée avant le retrait, même après
+  avoir quitté l'écran Panier ; la ligne revient en fin de liste (le serveur range les lignes par
+  date d'ajout).
+- **« Vider » pendant un envoi** : les envois en cours finissent d'abord, rien ne part ensuite, et
+  le panier ne se modifie pas pendant le vidage : le serveur ne recrée jamais le panier vidé.
+- **Messages avec action** (« Voir le panier », « Annuler ») : visibles 6 secondes, sauf avec une
+  aide à la navigation (lecteur d'écran), où ils restent jusqu'à l'action ou un glissement.
 - **Panier plein** (30 produits différents, `cart_full`) : message du serveur.
 - **Réseau coupé** pendant un changement de quantité : message, la quantité revient à la
   valeur enregistrée ; au chargement du panier : message et « Réessayer ».

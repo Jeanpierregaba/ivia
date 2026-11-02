@@ -43,7 +43,13 @@ class CartBar extends ConsumerWidget {
     if (cart == null || cart.isEmpty || cart.shop?.id != shopId) {
       return const SizedBox.shrink();
     }
+    // Même nombre que la pastille. Le sous-total ne compte pas les lignes
+    // qui bloquent : avec l'une d'elles, il ne correspondrait pas au nombre,
+    // la barre invite donc à vérifier le panier.
     final count = cart.articleCount;
+    final amount = cart.items.any((i) => i.hasIssue)
+        ? 'À vérifier'
+        : formatXof(cart.subtotalXof);
     return SafeArea(
       top: false,
       minimum: const EdgeInsets.fromLTRB(
@@ -54,9 +60,7 @@ class CartBar extends ConsumerWidget {
       ),
       child: Semantics(
         button: true,
-        label:
-            'Voir le panier, ${articlesLabel(count)}, '
-            '${formatXof(cart.subtotalXof)}',
+        label: 'Voir le panier, ${articlesLabel(count)}, $amount',
         excludeSemantics: true,
         onTap: () => context.push(Routes.cart),
         child: FilledButton(
@@ -67,7 +71,7 @@ class CartBar extends ConsumerWidget {
               const SizedBox(width: IviaSpacing.sm),
               Expanded(child: Text('Voir le panier · $count')),
               const SizedBox(width: IviaSpacing.sm),
-              Text(formatXof(cart.subtotalXof)),
+              Flexible(child: Text(amount, textAlign: TextAlign.end)),
             ],
           ),
         ),

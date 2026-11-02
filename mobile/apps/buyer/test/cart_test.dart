@@ -100,16 +100,93 @@ void main() {
       expect(find.byType(CartScreen), findsOneWidget);
     });
 
-    testWidgets('fiche produit : stock dépassé, message du serveur', (
+    testWidgets(
+      'fiche produit : stock baissé entre-temps, message du serveur',
+      (tester) async {
+        await open(tester, Routes.product(riz['id'] as String));
+        riz['stock_quantity'] = 1;
+        await tester.tap(find.byTooltip('Ajouter 1'));
+        await tester.pump();
+        await tester.tap(find.byType(FilledButton));
+        await tester.pumpAndSettle();
+        expect(find.text('Seulement 1 en stock.'), findsOneWidget);
+        expect(app.cart.quantityOf(riz), 0);
+        expect(find.bySemanticsLabel('Panier'), findsOneWidget);
+        // L'attente est levée : le bouton répond de nouveau.
+        final button = tester.widget<FilledButton>(find.byType(FilledButton));
+        expect(button.onPressed, isNotNull);
+      },
+    );
+
+    testWidgets('fiche produit : tout le stock, ou 99, déjà au panier', (
       tester,
     ) async {
-      app.cart.put(riz, 12);
+      app.cart
+        ..put(riz, 12)
+        ..put(huile, 99);
       await open(tester, Routes.product(riz['id'] as String));
-      await tester.tap(find.byType(FilledButton));
+      expect(find.text('Tout le stock est au panier'), findsOneWidget);
+      expect(find.byType(IviaQuantityStepper), findsNothing);
+      FilledButton button() =>
+          tester.widget<FilledButton>(find.byType(FilledButton));
+      expect(button().onPressed, isNull);
+
+      GoRouter.of(tester.element(find.byType(FilledButton)))
+          .push(Routes.product(huile['id'] as String));
       await tester.pumpAndSettle();
-      expect(find.text('Seulement 12 en stock.'), findsOneWidget);
-      expect(app.cart.quantityOf(riz), 12);
-      expect(find.bySemanticsLabel('Panier, 12 articles'), findsOneWidget);
+      expect(find.text('99 au plus : déjà au panier'), findsOneWidget);
+    });
+
+    testWidgets('fiche boutique : 99 déjà au panier, « + » refusé', (
+      tester,
+    ) async {
+      app.cart.put(huile, 99);
+      await open(tester, Routes.shop(afi['id'] as String));
+      await tester.tap(find.bySemanticsLabel('Ajouter Huile 1 L au panier'));
+      await tester.pumpAndSettle();
+      expect(find.textContaining('99 exemplaires au plus'), findsOneWidget);
+      expect(puts(), isEmpty);
+    });
+
+    testWidgets('« + » d’un produit retiré entre-temps : message', (
+      tester,
+    ) async {
+      await open(tester, Routes.shop(afi['id'] as String));
+      riz['is_active'] = false;
+      await tester.tap(
+        find.bySemanticsLabel('Ajouter Riz parfumé 5 kg au panier'),
+      );
+      await tester.pumpAndSettle();
+      expect(find.text('Ce produit n’est plus disponible.'), findsOneWidget);
+    });
+
+    testWidgets('message avec action : disparaît après quelques secondes', (
+      tester,
+    ) async {
+      await open(tester, Routes.shop(afi['id'] as String));
+      await tester.tap(find.bySemanticsLabel('Ajouter Huile 1 L au panier'));
+      await tester.pumpAndSettle();
+      expect(find.text('Huile 1 L ajouté au panier'), findsOneWidget);
+      await tester.pump(const Duration(seconds: 7));
+      await tester.pumpAndSettle();
+      expect(find.byType(SnackBar), findsNothing);
+    });
+
+    testWidgets('panier non chargé au lancement : l’ajout le relit', (
+      tester,
+    ) async {
+      app.cart
+        ..put(riz, 1)
+        ..failures['GET /v1/cart'] = FakeResponse.networkError();
+      await open(tester, Routes.shop(afi['id'] as String));
+      expect(find.bySemanticsLabel('Panier'), findsOneWidget);
+      await tester.tap(
+        find.bySemanticsLabel('Ajouter Riz parfumé 5 kg au panier'),
+      );
+      await tester.pumpAndSettle();
+      // Panier relu : 1 déjà au panier, 2 envoyé.
+      expect(puts().single['quantity'], 2);
+      expect(find.bySemanticsLabel('Panier, 2 articles'), findsOneWidget);
     });
 
     testWidgets('« + » d’une carte : autre boutique, annuler puis vider', (
@@ -208,7 +285,7 @@ void main() {
         findsOneWidget,
       );
 
-      await tester.tap(find.byTooltip('Ajouter 1').first);
+      await tester.tap(find.byTooltip('Ajouter un Riz parfumé 5 kg'));
       await tester.pumpAndSettle();
       expect(puts().last['quantity'], 3);
       expect(textPlain('15 000 F'), findsOneWidget);
@@ -321,7 +398,7 @@ void main() {
       app.cart.put(riz, 2);
       await open(tester, Routes.cart);
       app.cart.failures['PUT /v1/cart/items'] = FakeResponse.networkError();
-      await tester.tap(find.byTooltip('Ajouter 1'));
+      await tester.tap(find.byTooltip('Ajouter un Riz parfumé 5 kg'));
       await tester.pumpAndSettle();
       expect(find.textContaining('Pas de connexion internet'), findsOneWidget);
       expect(
@@ -360,7 +437,7 @@ void main() {
       app.cart.beforeRequest = (r) =>
           r.method == 'PUT' ? gate.future : Future.value();
       for (var i = 0; i < 3; i++) {
-        await tester.tap(find.byTooltip('Ajouter 1'));
+        await tester.tap(find.byTooltip('Ajouter un Riz parfumé 5 kg'));
         await tester.pump(const Duration(milliseconds: 50));
       }
       // Quantité voulue affichée pendant l'envoi.
@@ -382,6 +459,109 @@ void main() {
       expect(textPlain('18 000 F'), findsOneWidget);
     });
 
+    testWidgets('échec au milieu de la file : quantité enregistrée', (
+      tester,
+    ) async {
+      app.cart.put(riz, 1);
+      await open(tester, Routes.cart);
+      final gate = Completer<void>();
+      var sent = 0;
+      // Le premier envoi (2) attend puis passe, le suivant (4) est refusé.
+      app.cart.beforeRequest = (r) {
+        if (r.method != 'PUT') return Future.value();
+        if (++sent == 2) {
+          app.cart.failures['PUT /v1/cart/items'] = FakeResponse.error(
+            409,
+            'insufficient_stock',
+            'Seulement 3 en stock.',
+          );
+        }
+        return sent == 1 ? gate.future : Future.value();
+      };
+      for (var i = 0; i < 3; i++) {
+        await tester.tap(find.byTooltip('Ajouter un Riz parfumé 5 kg'));
+        await tester.pump(const Duration(milliseconds: 50));
+      }
+      gate.complete();
+      await tester.pumpAndSettle();
+      expect(puts().map((p) => p['quantity']), [2, 4]);
+      expect(find.text('Seulement 3 en stock.'), findsOneWidget);
+      expect(
+        tester
+            .getSemantics(find.bySemanticsLabel('Quantité de Riz parfumé 5 kg'))
+            .value,
+        '2',
+      );
+      final order = tester.widget<FilledButton>(
+        find.widgetWithText(FilledButton, 'Commander'),
+      );
+      expect(order.onPressed, isNotNull);
+    });
+
+    testWidgets('« Vider » pendant un envoi : rien ne recrée le panier', (
+      tester,
+    ) async {
+      app.cart.put(riz, 1);
+      await open(tester, Routes.cart);
+      final gate = Completer<void>();
+      app.cart.beforeRequest = (r) =>
+          r.method == 'PUT' ? gate.future : Future.value();
+      for (var i = 0; i < 2; i++) {
+        await tester.tap(find.byTooltip('Ajouter un Riz parfumé 5 kg'));
+        await tester.pump(const Duration(milliseconds: 50));
+      }
+      await tester.tap(find.text('Vider'));
+      await tester.pumpAndSettle();
+      await tester.tap(find.text('Vider le panier'));
+      await tester.pump(const Duration(milliseconds: 50));
+      // Pendant le vidage, le panier ne se modifie pas.
+      final vider = tester.widget<TextButton>(
+        find.widgetWithText(TextButton, 'Vider'),
+      );
+      expect(vider.onPressed, isNull);
+      gate.complete();
+      await tester.pumpAndSettle();
+      // Seul le premier envoi est parti, avant le vidage.
+      expect(puts().map((p) => p['quantity']), [2]);
+      expect(app.server.calls('DELETE', '/v1/cart'), hasLength(1));
+      expect(app.cart.lines, isEmpty);
+      expect(find.text('Votre panier est vide.'), findsOneWidget);
+    });
+
+    testWidgets('« Annuler » après avoir quitté le panier', (tester) async {
+      app.cart
+        ..put(riz, 3)
+        ..put(huile, 1);
+      await open(tester, Routes.cart);
+      await tester.tap(find.byTooltip('Retirer Huile 1 L du panier'));
+      await tester.pumpAndSettle();
+      expect(app.cart.quantityOf(huile), 0);
+      await tester.tap(find.byTooltip('Retour'));
+      await tester.pumpAndSettle();
+      expect(find.byType(CartScreen), findsNothing);
+      await tester.tap(find.text('Annuler'));
+      await tester.pumpAndSettle();
+      expect(tester.takeException(), isNull);
+      expect(app.cart.quantityOf(huile), 1);
+      expect(find.bySemanticsLabel('Panier, 4 articles'), findsOneWidget);
+    });
+
+    testWidgets('lignes en erreur : boutons lus avec le nom du produit', (
+      tester,
+    ) async {
+      app.cart.put(riz, 3);
+      riz['stock_quantity'] = 2;
+      await open(tester, Routes.cart);
+      expect(
+        find.bySemanticsLabel('Retirer Riz parfumé 5 kg du panier'),
+        findsOneWidget,
+      );
+      expect(
+        find.bySemanticsLabel('Ajuster Riz parfumé 5 kg à 2'),
+        findsOneWidget,
+      );
+    });
+
     testWidgets(
       'police à 200 % sur 320 dp : panier et barre sans débordement',
       (tester) async {
@@ -397,6 +577,8 @@ void main() {
         await tester.pumpAndSettle();
         expect(tester.takeException(), isNull);
         expect(find.text('Voir le panier · 4'), findsOneWidget);
+        // Une ligne bloque : pas de sous-total trompeur dans la barre.
+        expect(find.text('À vérifier'), findsOneWidget);
       },
     );
   });
@@ -404,6 +586,23 @@ void main() {
   testWidgets('autre compte : panier du compte connecté seulement', (
     tester,
   ) async {
+    const kofi = '9e8d7c6b-5a49-4382-a170-6b5c4d3e2f10';
+    app.server
+      ..on('POST', '/v1/auth/otp', (_) => FakeResponse.json(202, otpBody))
+      ..on(
+        'POST',
+        '/v1/auth/verify',
+        (_) => FakeResponse.json(200, {
+          'token': 'jeton-kofi',
+          'expires_at': '2026-12-30T08:00:00Z',
+          'is_new_user': false,
+          'user': {
+            ...userBody(complete: true, email: 'kofi@test.tg'),
+            'id': kofi,
+            'first_name': 'Kofi',
+          },
+        }),
+      );
     app.cart.put(riz, 2);
     await app.launch(tester);
     final container = app.container(tester);
@@ -415,5 +614,22 @@ void main() {
     expect(container.read(cartViewProvider).value, isNull);
     await container.read(cartProvider.future);
     expect(container.read(cartViewProvider).value!.cart.isEmpty, isTrue);
+
+    // Kofi se connecte sur le même téléphone : son panier, vide.
+    await tester.enterText(find.byType(TextField), 'kofi@test.tg');
+    await tapText(tester, 'Recevoir le code');
+    await tester.enterText(find.byType(TextField), '481902');
+    await tester.pump();
+    await tapText(tester, 'Vérifier le code');
+    await tester.pumpAndSettle();
+    expect(find.textContaining('Bonjour Kofi'), findsOneWidget);
+    expect(find.bySemanticsLabel('Panier'), findsOneWidget);
+    expect(container.read(cartViewProvider).value!.cart.isEmpty, isTrue);
+    expect(
+      app.server.calls('GET', '/v1/cart').last.headers['authorization'],
+      'Bearer jeton-kofi',
+    );
+    // Le panier d'Awa reste le sien.
+    expect(app.cart.quantityOf(riz), 2);
   });
 }

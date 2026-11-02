@@ -107,6 +107,8 @@ class IviaQuantityStepper extends StatefulWidget {
     this.enabled = true,
     this.editable = true,
     this.removeLabel,
+    this.addLabel = 'Ajouter 1',
+    this.minusLabel = 'Retirer 1',
   });
 
   final int value;
@@ -127,6 +129,11 @@ class IviaQuantityStepper extends StatefulWidget {
   /// Libellé du « − » quand il ramène à [min] (« Retirer du panier ») : il
   /// prend alors une corbeille. `null` : « Retirer 1 » partout.
   final String? removeLabel;
+
+  /// Libellés des boutons (« Ajouter un Riz parfumé » sur une ligne de
+  /// panier, pour les distinguer d'une ligne à l'autre).
+  final String addLabel;
+  final String minusLabel;
 
   @override
   State<IviaQuantityStepper> createState() => _IviaQuantityStepperState();
@@ -171,7 +178,7 @@ class _IviaQuantityStepperState extends State<IviaQuantityStepper> {
         mainAxisSize: MainAxisSize.min,
         children: [
           IconButton.filled(
-            tooltip: removes ? widget.removeLabel : 'Retirer 1',
+            tooltip: removes ? widget.removeLabel : widget.minusLabel,
             style: IconButton.styleFrom(
               backgroundColor: IviaColors.surface,
               foregroundColor: removes ? IviaColors.error : IviaColors.text,
@@ -227,7 +234,7 @@ class _IviaQuantityStepperState extends State<IviaQuantityStepper> {
               ),
             ),
           IconButton.filled(
-            tooltip: 'Ajouter 1',
+            tooltip: widget.addLabel,
             style: IconButton.styleFrom(
               backgroundColor: brand.action,
               foregroundColor: Colors.white,

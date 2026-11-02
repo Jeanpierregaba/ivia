@@ -776,6 +776,19 @@ void main() {
       expect(cart.quantityOf(riz), 0);
     });
 
+    test('un panier par compte, reconnu au jeton', () async {
+      client.token = 'jeton-awa';
+      await client.setCartItem(riz['id'] as String, 2);
+      client.token = 'jeton-kofi';
+      expect((await client.cart()).isEmpty, isTrue);
+      await client.setCartItem(pagne['id'] as String, 1);
+      expect(cart.linesOf('Bearer jeton-kofi'), {pagne['id']: 1});
+      // Le panier du premier compte n'a pas bougé.
+      expect(cart.lines, {riz['id']: 2});
+      client.token = 'jeton-awa';
+      expect((await client.cart()).items.single.name, 'Riz parfumé 5 kg');
+    });
+
     test('vider : DELETE, puis panier vide', () async {
       cart.put(riz, 1);
       await client.clearCart();

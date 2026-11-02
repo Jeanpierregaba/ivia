@@ -965,6 +965,11 @@ class FakeSearch {
 /// Un test retire un produit avec `p['is_active'] = false` et change le
 /// stock avec `p['stock_quantity'] = n` ; une boutique fermée aux commandes
 /// avec `s['accepting_orders'] = false`.
+///
+/// Un panier par compte, reconnu à l'en-tête `Authorization`, comme le
+/// serveur qui ne lit que le panier du jeton. [shopId], [lines] et [put]
+/// portent sur le premier compte qui appelle (celui du test) ; un autre
+/// jeton a son propre panier, vide au départ.
 class FakeCart {
   FakeCart(this.search) {
     search.server
@@ -983,6 +988,42 @@ class FakeCart {
 
   /// Quantités par produit, dans l'ordre d'ajout.
   final lines = <String, int>{};
+
+  /// En-tête `Authorization` du premier compte, propriétaire de [lines].
+  String? _owner;
+
+  /// Paniers des autres comptes : boutique et lignes.
+  final _others = <String, (String?, Map<String, int>)>{};
+
+  /// Lignes du compte qui envoie le jeton [authorization].
+  Map<String, int> linesOf(String authorization) =>
+      authorization == _owner ? lines : _others[authorization]?.$2 ?? {};
+
+  /// Sert [handle] avec le panier du compte de [r] à la place de celui du
+  /// premier compte, puis remet chacun à sa place.
+  Future<FakeResponse> _as(
+    RecordedRequest r,
+    FakeResponse Function() handle,
+  ) async {
+    final auth = r.headers['authorization'] ?? '';
+    _owner ??= auth;
+    if (auth == _owner) return handle();
+    final own = (shopId, {...lines});
+    final (otherShop, otherLines) = _others[auth] ?? (null, <String, int>{});
+    shopId = otherShop;
+    lines
+      ..clear()
+      ..addAll(otherLines);
+    try {
+      return handle();
+    } finally {
+      _others[auth] = (shopId, {...lines});
+      shopId = own.$1;
+      lines
+        ..clear()
+        ..addAll(own.$2);
+    }
+  }
 
   /// Prochaine erreur, une seule fois, pour la première requête dont
   /// « MÉTHODE chemin » contient la clé.
@@ -1068,12 +1109,16 @@ class FakeCart {
   Future<FakeResponse> _get(RecordedRequest r) async {
     if (beforeRequest case final wait?) await wait(r);
     if (_failure(r) case final f?) return f;
-    return FakeResponse.json(200, body());
+    return _as(r, () => FakeResponse.json(200, body()));
   }
 
   Future<FakeResponse> _set(RecordedRequest r) async {
     if (beforeRequest case final wait?) await wait(r);
     if (_failure(r) case final f?) return f;
+    return _as(r, () => _apply(r));
+  }
+
+  FakeResponse _apply(RecordedRequest r) {
     final input = r.body! as Map<String, dynamic>;
     final id = input['product_id'] as String;
     final qty = input['quantity'] as int;
@@ -1147,8 +1192,10 @@ class FakeCart {
   Future<FakeResponse> _clear(RecordedRequest r) async {
     if (beforeRequest case final wait?) await wait(r);
     if (_failure(r) case final f?) return f;
-    shopId = null;
-    lines.clear();
-    return FakeResponse.json(204, null);
+    return _as(r, () {
+      shopId = null;
+      lines.clear();
+      return FakeResponse.json(204, null);
+    });
   }
 }

@@ -209,7 +209,8 @@ Maquettes : à venir (lien Figma à ajouter ici). Les statuts affichés suivent
   pertinence ▾ ». Produits en grille de deux colonnes (une seule avec une police agrandie).
 - **Icône du panier** ([spec 008](specs/008-panier/spec.md)) : bouton rond blanc
   (`IviaIconBadgeButton`) en haut à droite de l'accueil, de la boutique et du produit, pastille
-  Imperial du nombre d'articles (somme des quantités, « 99+ » au-delà), lue « Panier, 3 articles ».
+  Imperial du nombre d'articles (somme des quantités, « 99+ » au-delà), lue « Panier, 3 articles » ;
+  elle suit la police jusqu'à 1,6 fois, pour rester dans le bouton.
 - **Ajout rapide** : « + » rond Imperial (`IviaAddButton`, 36 dp visibles, 48 au doigt) sur la photo
   des cartes produit et au bout des lignes de la boutique ; jamais sur un produit épuisé. Message
   « Riz parfumé 5 kg ajouté au panier » avec « Voir le panier ».

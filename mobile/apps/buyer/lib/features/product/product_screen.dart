@@ -45,18 +45,23 @@ class _ProductScreenState extends ConsumerState<ProductScreen> {
 
   Future<void> _add(Product product, int quantity) async {
     setState(() => _adding = true);
-    final added = await addToCart(
-      context,
-      ref,
-      productId: product.id,
-      name: product.name,
-      count: quantity,
-    );
-    if (!mounted) return;
-    setState(() {
-      _adding = false;
-      if (added) _quantity = 1;
-    });
+    var added = false;
+    try {
+      added = await addToCart(
+        context,
+        ref,
+        productId: product.id,
+        name: product.name,
+        count: quantity,
+      );
+    } finally {
+      if (mounted) {
+        setState(() {
+          _adding = false;
+          if (added) _quantity = 1;
+        });
+      }
+    }
   }
 
   @override
@@ -190,6 +195,8 @@ class _ProductScreenState extends ConsumerState<ProductScreen> {
     final cap = product.stockMode == StockMode.tracked
         ? (product.stockQuantity ?? 0).clamp(0, cartMaxQuantity)
         : cartMaxQuantity;
+    // Tout le stock (ou 99) déjà au panier : rien à ajouter.
+    final full = !soldOut && cap - inCart <= 0;
     final max = (cap - inCart).clamp(1, cartMaxQuantity);
     final quantity = _quantity.clamp(1, max);
     return SafeArea(
@@ -205,7 +212,7 @@ class _ProductScreenState extends ConsumerState<ProductScreen> {
         spacing: IviaSpacing.md,
         runSpacing: IviaSpacing.sm,
         children: [
-          if (!soldOut)
+          if (!soldOut && !full)
             IviaQuantityStepper(
               label: 'Quantité',
               value: quantity,
@@ -216,14 +223,16 @@ class _ProductScreenState extends ConsumerState<ProductScreen> {
           ConstrainedBox(
             constraints: const BoxConstraints(minWidth: 200),
             child: FilledButton(
-              onPressed: soldOut || _adding
+              onPressed: soldOut || full || _adding
                   ? null
                   : () => _add(product, quantity),
-              child: Text(
-                soldOut
-                    ? 'Épuisé'
-                    : 'Ajouter · ${formatXof(product.priceXof * quantity)}',
-              ),
+              child: Text(switch (()) {
+                _ when soldOut => 'Épuisé',
+                _ when full && cap < cartMaxQuantity =>
+                  'Tout le stock est au panier',
+                _ when full => '$cartMaxQuantity au plus : déjà au panier',
+                _ => 'Ajouter · ${formatXof(product.priceXof * quantity)}',
+              }),
             ),
           ),
         ],
