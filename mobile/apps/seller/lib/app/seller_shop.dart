@@ -37,6 +37,13 @@ class SellerShop extends AsyncNotifier<Shop?> {
   /// Boutique tout juste créée.
   void created(Shop shop) => state = AsyncData(shop);
 
+  /// Pièces du marchand rendues par le serveur après un dépôt.
+  void documentsSent(List<MerchantDocumentKind> documents) {
+    if (state.value case final shop?) {
+      state = AsyncData(shop.withDocuments(documents));
+    }
+  }
+
   /// Relit le statut (validation par l'admin) sans repasser par le splash.
   /// Échec (réseau) : l'écran en cours reste affiché ; renvoie `false`.
   Future<bool> refresh() async {

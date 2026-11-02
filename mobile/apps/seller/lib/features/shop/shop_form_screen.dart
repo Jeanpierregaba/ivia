@@ -2,10 +2,12 @@ import 'dart:typed_data';
 
 import 'package:flutter/material.dart';
 import 'package:flutter_riverpod/flutter_riverpod.dart';
+import 'package:go_router/go_router.dart';
 import 'package:ivia_api_client/ivia_api_client.dart';
 import 'package:ivia_app_core/ivia_app_core.dart';
 import 'package:ivia_ui/ivia_ui.dart';
 
+import '../../app/router.dart';
 import '../../app/seller_shop.dart';
 import 'shop_location_field.dart';
 import 'shop_logo_field.dart';
@@ -99,6 +101,7 @@ class _ShopFormScreenState extends ConsumerState<ShopFormScreen> {
     if (errors.isNotEmpty) return;
     setState(() => _busy = true);
     final client = ref.read(apiClientProvider);
+    final router = GoRouter.of(context);
     try {
       if (_needsConsent) {
         final user = await client.updateMe(acceptPrivacyPolicy: true);
@@ -120,8 +123,14 @@ class _ShopFormScreenState extends ConsumerState<ShopFormScreen> {
       // Profil gardé sur le téléphone avec le rôle seller, obtenu avec la
       // boutique : une relance hors ligne ne repropose pas le formulaire.
       await _rememberSellerRole(client);
-      // Boutique en attente : le routeur ouvre l'écran de validation.
+      // Boutique en attente : le routeur ouvre l'écran de validation, puis,
+      // sans pièce d'identité (marchand qui n'en a encore déposé aucune),
+      // l'écran des pièces au-dessus.
       ref.read(sellerShopProvider.notifier).created(shop);
+      final hasIdCard =
+          shop.merchantDocuments?.contains(MerchantDocumentKind.idCard) ??
+          false;
+      if (!hasIdCard) router.go(Routes.shopDocuments);
     } on ApiException catch (e) {
       if (!mounted) return;
       final fields = {

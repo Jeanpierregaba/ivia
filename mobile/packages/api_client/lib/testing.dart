@@ -648,7 +648,7 @@ class FakeMerchantDocuments {
     : kinds = [...documents] {
     server
       ..on('GET', '/v1/seller/documents', (_) => _list(200))
-      ..on('POST', '/v1/seller/documents', _add)
+      ..on('POST', '/v1/seller/documents', attach)
       ..on('POST', '/v1/uploads', _prepareUpload)
       ..onPattern('PUT', '/merchant_document/[^/]+', (r) {
         if (_failure(r) case final f?) return f;
@@ -710,7 +710,9 @@ class FakeMerchantDocuments {
     });
   }
 
-  FakeResponse _add(RecordedRequest r) {
+  /// Rattachement (`POST /v1/seller/documents`) : public pour qu'un test
+  /// l'enveloppe (réponse retardée, coupure).
+  FakeResponse attach(RecordedRequest r) {
     if (_failure(r) case final f?) return f;
     final body = r.body! as Map;
     final kind = body['kind'];

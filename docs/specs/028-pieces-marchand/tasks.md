@@ -8,7 +8,7 @@
 - [x] 2. `app_core` : `DocumentPhotoRow` (repris du livreur), l'app livreur l'utilise ; tests
 
 **App marchand**
-- [ ] 3. Écran « Vérifions votre identité » : lignes, choix des photos, envoi (URL signée,
+- [x] 3. Écran « Vérifions votre identité » : lignes, choix des photos, envoi (URL signée,
   rattachement, nouvel essai), erreurs ; route ; ouvert après la création de la boutique ; tests
 - [ ] 4. Écran « en cours de validation » : étape « Pièce d'identité », « Ajouter ma pièce
   d'identité », pièces relues avec la boutique ; tests

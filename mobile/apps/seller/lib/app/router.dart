@@ -14,6 +14,7 @@ import '../features/orders/orders_placeholder_screen.dart';
 import '../features/shell/seller_shell.dart';
 import '../features/onboarding/onboarding_screen.dart';
 import '../features/shop/shop_blocked_screen.dart';
+import '../features/shop/shop_documents_screen.dart';
 import '../features/shop/shop_form_screen.dart';
 import '../features/shop/shop_pending_screen.dart';
 import '../features/splash/loading_screen.dart';
@@ -27,6 +28,7 @@ abstract final class Routes {
   static const offline = '/offline';
   static const shopNew = '/shop/new';
   static const shopPending = '/shop/pending';
+  static const shopDocuments = '/shop/pending/documents';
   static const shopBlocked = '/shop/blocked';
   static const home = '/home';
   static const orders = '/orders';
@@ -128,6 +130,12 @@ final routerProvider = Provider<GoRouter>((ref) {
       GoRoute(
         path: Routes.shopPending,
         builder: (context, state) => const ShopPendingScreen(),
+        routes: [
+          GoRoute(
+            path: 'documents',
+            builder: (context, state) => const ShopDocumentsScreen(),
+          ),
+        ],
       ),
       GoRoute(
         path: Routes.shopBlocked,

@@ -91,7 +91,12 @@ void main() {
         (_) => FakeResponse.json(200, neighborhoodsBody),
       )
       ..on('PATCH', '/v1/me', (_) => FakeResponse.json(200, _user()))
-      ..on('POST', '/v1/shops', (_) => FakeResponse.json(201, shopBody()))
+      // Nouveau marchand : aucune pièce encore déposée.
+      ..on(
+        'POST',
+        '/v1/shops',
+        (_) => FakeResponse.json(201, shopBody(documents: [])),
+      )
       ..on(
         'POST',
         '/v1/uploads',
@@ -314,6 +319,12 @@ void main() {
         'neighborhood_id': '5f1e2d3c-4b5a-6978-8a9b-0c1d2e3f4a5b',
         'location': {'lat': 6.1375, 'lng': 1.2123},
       });
+      // Sans pièce d'identité : l'écran des pièces s'ouvre au-dessus de
+      // l'écran de validation.
+      expect(find.text('Vérifions votre identité'), findsOneWidget);
+      expect(find.text('Étape 2 sur 2'), findsOneWidget);
+      await tester.tap(find.byTooltip('Retour'));
+      await tester.pumpAndSettle();
       expect(
         find.text('Votre boutique est en cours de validation'),
         findsOneWidget,
@@ -626,6 +637,235 @@ void main() {
       await launchApp(tester);
       await login(tester);
       await tester.ensureVisible(find.text('Envoyer pour validation'));
+      await tester.pumpAndSettle();
+      expect(tester.takeException(), isNull);
+    });
+  });
+
+  group('pièces du marchand', () {
+    late FakeMerchantDocuments docs;
+
+    setUp(() async {
+      // Compte acheteur existant : la création ne demande pas d'accord.
+      await signedInWith(_user());
+      docs = FakeMerchantDocuments(server);
+    });
+
+    /// Crée la boutique : l'écran des pièces s'ouvre.
+    Future<void> createShop(WidgetTester tester) async {
+      await launchApp(tester);
+      await fillShopForm(tester);
+      await tapText(tester, 'Envoyer pour validation');
+      expect(find.text('Vérifions votre identité'), findsOneWidget);
+    }
+
+    Future<void> addPhoto(WidgetTester tester, String document) async {
+      await tapText(tester, document);
+      await tester.tap(find.text('Choisir une photo'));
+      await tester.pumpAndSettle();
+    }
+
+    Finder row(String label) => find.ancestor(
+      of: find.text(label),
+      matching: find.byType(DocumentPhotoRow),
+    );
+
+    testWidgets('pièce d\'identité obligatoire, RCCM facultatif', (
+      tester,
+    ) async {
+      await createShop(tester);
+      expect(
+        find.descendant(
+          of: row("Pièce d'identité"),
+          matching: find.text('Obligatoire'),
+        ),
+        findsOneWidget,
+      );
+      expect(
+        find.text(
+          "Carte d'identité, passeport ou carte d'électeur, face avec la photo",
+        ),
+        findsOneWidget,
+      );
+      expect(
+        find.descendant(
+          of: row('Registre du commerce (RCCM)'),
+          matching: find.text('Facultatif'),
+        ),
+        findsOneWidget,
+      );
+      expect(find.text('Ajouter'), findsNWidgets(2));
+    });
+
+    testWidgets('sans pièce d\'identité : message, rien d\'envoyé', (
+      tester,
+    ) async {
+      await createShop(tester);
+      await addPhoto(tester, 'Registre du commerce (RCCM)');
+      await tapText(tester, 'Envoyer mes pièces');
+      expect(find.text("Ajoutez votre pièce d'identité."), findsOneWidget);
+      expect(server.calls('POST', '/v1/uploads'), isEmpty);
+      expect(find.text('Vérifions votre identité'), findsOneWidget);
+
+      // Pièce ajoutée : message retiré.
+      await addPhoto(tester, "Pièce d'identité");
+      expect(find.text("Ajoutez votre pièce d'identité."), findsNothing);
+    });
+
+    testWidgets('envoi : URL signée privée, rattachement, écran en attente', (
+      tester,
+    ) async {
+      await createShop(tester);
+      await addPhoto(tester, "Pièce d'identité");
+      await addPhoto(tester, 'Registre du commerce (RCCM)');
+      expect(find.text('Ajoutée'), findsNWidgets(2));
+      await tapText(tester, 'Envoyer mes pièces');
+
+      final uploads = server.calls('POST', '/v1/uploads');
+      expect(uploads, hasLength(2));
+      for (final upload in uploads) {
+        expect(upload.body, {
+          'purpose': 'merchant_document',
+          'content_type': 'image/jpeg',
+          'size_bytes': picker.next!.length,
+        });
+      }
+      expect(docs.uploaded, hasLength(2));
+      expect(
+        server
+            .calls('POST', '/v1/seller/documents')
+            .map((r) => (r.body! as Map)['kind']),
+        ['id_card', 'business_registration'],
+      );
+      expect(docs.kinds, ['id_card', 'business_registration']);
+      expect(
+        find.text('Votre boutique est en cours de validation'),
+        findsOneWidget,
+      );
+      expect(find.text('Pièces envoyées.'), findsOneWidget);
+    });
+
+    testWidgets('réseau coupé : photos gardées, rien d\'envoyé deux fois', (
+      tester,
+    ) async {
+      await createShop(tester);
+      await addPhoto(tester, "Pièce d'identité");
+      await addPhoto(tester, 'Registre du commerce (RCCM)');
+      // La pièce d'identité passe, le RCCM est coupé au rattachement.
+      var attach = 0;
+      server.on('POST', '/v1/seller/documents', (r) {
+        if (++attach == 2) return FakeResponse.networkError();
+        return docs.attach(r);
+      });
+      await tapText(tester, 'Envoyer mes pièces');
+      expect(find.textContaining('Pas de connexion internet'), findsOneWidget);
+      expect(find.text('Vérifions votre identité'), findsOneWidget);
+      // Pièce d'identité rattachée : « Ajoutée » reste (photo gardée).
+      expect(find.text('Ajoutée'), findsNWidgets(2));
+
+      await tapText(tester, 'Envoyer mes pièces');
+      expect(server.calls('POST', '/v1/uploads'), hasLength(2));
+      expect(docs.kinds, ['id_card', 'business_registration']);
+      expect(
+        find.text('Votre boutique est en cours de validation'),
+        findsOneWidget,
+      );
+    });
+
+    testWidgets('envoi du fichier coupé : renvoyé au nouvel essai', (
+      tester,
+    ) async {
+      await createShop(tester);
+      await addPhoto(tester, "Pièce d'identité");
+      docs.failures['PUT /merchant_document'] = FakeResponse.networkError();
+      await tapText(tester, 'Envoyer mes pièces');
+      expect(find.textContaining('Pas de connexion internet'), findsOneWidget);
+      expect(docs.kinds, isEmpty);
+
+      await tapText(tester, 'Envoyer mes pièces');
+      expect(docs.kinds, ['id_card']);
+    });
+
+    testWidgets('trop de pièces : message du serveur', (tester) async {
+      docs.kinds.addAll(List.filled(10, 'other'));
+      await createShop(tester);
+      await addPhoto(tester, "Pièce d'identité");
+      await tapText(tester, 'Envoyer mes pièces');
+      expect(find.text('Nombre maximal de documents atteint.'), findsOneWidget);
+      expect(find.text('Vérifions votre identité'), findsOneWidget);
+    });
+
+    testWidgets(
+      'double appui : un seul envoi ; retour bloqué pendant l\'envoi',
+      (tester) async {
+        await createShop(tester);
+        await addPhoto(tester, "Pièce d'identité");
+        final reply = Completer<void>();
+        server.on('POST', '/v1/seller/documents', (r) async {
+          await reply.future;
+          return docs.attach(r);
+        });
+        final submit = find.text('Envoyer mes pièces');
+        await tester.ensureVisible(submit);
+        await tester.pumpAndSettle();
+        await tester.tap(submit);
+        await tester.pump();
+        await tester.tap(find.byType(FilledButton), warnIfMissed: false);
+        await tester.tap(find.byTooltip('Retour'), warnIfMissed: false);
+        await tester.pump();
+        expect(find.text('Vérifions votre identité'), findsOneWidget);
+        reply.complete();
+        await tester.pumpAndSettle();
+        expect(server.calls('POST', '/v1/uploads'), hasLength(1));
+        expect(server.calls('POST', '/v1/seller/documents'), hasLength(1));
+        expect(
+          find.text('Votre boutique est en cours de validation'),
+          findsOneWidget,
+        );
+      },
+    );
+
+    testWidgets('retour : écran en attente, rien d\'envoyé', (tester) async {
+      await createShop(tester);
+      await addPhoto(tester, "Pièce d'identité");
+      await tester.tap(find.byTooltip('Retour'));
+      await tester.pumpAndSettle();
+      expect(
+        find.text('Votre boutique est en cours de validation'),
+        findsOneWidget,
+      );
+      expect(server.calls('POST', '/v1/uploads'), isEmpty);
+    });
+
+    testWidgets('pièce d\'identité déjà déposée : écran en attente direct', (
+      tester,
+    ) async {
+      server.on(
+        'POST',
+        '/v1/shops',
+        (_) => FakeResponse.json(201, shopBody(documents: ['id_card'])),
+      );
+      await launchApp(tester);
+      await fillShopForm(tester);
+      await tapText(tester, 'Envoyer pour validation');
+      expect(
+        find.text('Votre boutique est en cours de validation'),
+        findsOneWidget,
+      );
+      expect(find.text('Vérifions votre identité'), findsNothing);
+    });
+
+    testWidgets('police à 200 % sur 320 dp : rien n\'est masqué', (
+      tester,
+    ) async {
+      await createShop(tester);
+      tester.view.physicalSize = const Size(320, 568);
+      tester.view.devicePixelRatio = 1;
+      tester.platformDispatcher.textScaleFactorTestValue = 2;
+      addTearDown(tester.view.reset);
+      addTearDown(tester.platformDispatcher.clearTextScaleFactorTestValue);
+      await tester.pumpAndSettle();
+      await tester.ensureVisible(find.text('Envoyer mes pièces'));
       await tester.pumpAndSettle();
       expect(tester.takeException(), isNull);
     });
