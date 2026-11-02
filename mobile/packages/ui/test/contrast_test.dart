@@ -39,6 +39,16 @@ void main() {
         IviaColors.secondarySoft,
       ),
       'Cornell sur surface': (IviaColors.primaryStrong, IviaColors.surface),
+      'success sur successSoft': (IviaColors.success, IviaColors.successSoft),
+      'warning sur warningSoft': (IviaColors.warning, IviaColors.warningSoft),
+      'Cobalt sur secondarySoft': (
+        IviaColors.cobaltBlue,
+        IviaColors.secondarySoft,
+      ),
+      'textSecondary sur background (pastille neutre)': (
+        IviaColors.textSecondary,
+        IviaColors.background,
+      ),
     };
     pairs.forEach((name, pair) {
       expect(

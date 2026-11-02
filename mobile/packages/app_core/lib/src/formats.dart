@@ -100,6 +100,13 @@ String onDate(DateTime date, {DateTime? now}) {
   return s == "aujourd'hui" || s == 'hier' ? s : 'le $s';
 }
 
+/// Heure à Lomé (UTC toute l'année) : « 09:52 ».
+String timeOfDay(DateTime date) {
+  final d = date.toUtc();
+  return '${d.hour.toString().padLeft(2, '0')}:'
+      '${d.minute.toString().padLeft(2, '0')}';
+}
+
 /// Distance affichée : « 350 m » sous 1 km (arrondie à 10 m), puis
 /// « 1,2 km » (une décimale, virgule française), « 12 km » à partir de 10 km.
 String formatDistance(int meters) {

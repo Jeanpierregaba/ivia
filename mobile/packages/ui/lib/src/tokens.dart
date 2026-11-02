@@ -21,6 +21,10 @@ abstract final class IviaColors {
   static const primarySoft = Color(0xFFFDE8EA);
   static const secondarySoft = Color(0xFFE5EEF8);
 
+  // Teintes pâles des états : fonds des pastilles de statut
+  static const successSoft = Color(0xFFEDF7F1);
+  static const warningSoft = Color(0xFFFEF5EC);
+
   // Neutres
   static const surface = Color(0xFFFFFFFF);
   static const background = Color(0xFFF3F4F6);

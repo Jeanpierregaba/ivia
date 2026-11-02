@@ -318,30 +318,50 @@ class IviaChoiceCard extends StatelessWidget {
 
 /// Ton d'une [IviaStatusPill].
 enum IviaPillTone {
-  /// Fond bleu pâle, texte Cobalt (ex. « En vente »).
+  /// Fond bleu pâle, texte Cobalt (ex. « En vente », « En préparation »).
   info,
 
-  /// Fond gris, texte secondaire (ex. une catégorie).
+  /// Fond gris, texte secondaire (ex. une catégorie, « Remboursée »).
   neutral,
+
+  /// Fond vert pâle (ex. « Prête à retirer », « Retirée »).
+  success,
+
+  /// Fond orangé pâle (ex. « En attente de paiement »).
+  warning,
+
+  /// Fond rouge pâle, texte Cornell (ex. « Annulée »).
+  error,
 }
 
-/// Pastille d'état ou d'étiquette, sur fond pâle.
+/// Pastille d'état ou d'étiquette, sur fond pâle ; [icon] la distingue
+/// sans compter sur la couleur (un statut de commande en a toujours une).
 class IviaStatusPill extends StatelessWidget {
   const IviaStatusPill({
     super.key,
     required this.label,
     this.tone = IviaPillTone.info,
+    this.icon,
   });
 
   final String label;
   final IviaPillTone tone;
+  final IconData? icon;
 
   @override
   Widget build(BuildContext context) {
     final (background, foreground) = switch (tone) {
       IviaPillTone.info => (IviaColors.secondarySoft, IviaColors.cobaltBlue),
       IviaPillTone.neutral => (IviaColors.background, IviaColors.textSecondary),
+      IviaPillTone.success => (IviaColors.successSoft, IviaColors.success),
+      IviaPillTone.warning => (IviaColors.warningSoft, IviaColors.warning),
+      IviaPillTone.error => (IviaColors.primarySoft, IviaColors.primaryStrong),
     };
+    final text = Text(
+      label,
+      style: Theme.of(context).textTheme.labelMedium
+          ?.copyWith(color: foreground),
+    );
     return Container(
       padding: const EdgeInsets.symmetric(
         horizontal: IviaSpacing.md,
@@ -351,11 +371,18 @@ class IviaStatusPill extends StatelessWidget {
         color: background,
         shape: const StadiumBorder(),
       ),
-      child: Text(
-        label,
-        style: Theme.of(context).textTheme.labelMedium
-            ?.copyWith(color: foreground),
-      ),
+      child: icon == null
+          ? text
+          : Row(
+              mainAxisSize: MainAxisSize.min,
+              children: [
+                ExcludeSemantics(
+                  child: Icon(icon, size: 16, color: foreground),
+                ),
+                const SizedBox(width: IviaSpacing.xs),
+                Flexible(child: text),
+              ],
+            ),
     );
   }
 }

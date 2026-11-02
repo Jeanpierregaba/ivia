@@ -248,4 +248,89 @@ void main() {
     await expectLater(tester, meetsGuideline(androidTapTargetGuideline));
     semantics.dispose();
   });
+
+  testWidgets('code de remise : 4 cases, lu chiffre par chiffre, une ligne', (
+    tester,
+  ) async {
+    final semantics = tester.ensureSemantics();
+    await pump(
+      tester,
+      const IviaHandoverCode(code: '4827'),
+      scale: 2,
+      width: 320,
+    );
+    expect(find.bySemanticsLabel('Code de remise : 4 8 2 7'), findsOneWidget);
+    for (final d in ['4', '8', '2', '7']) {
+      expect(find.text(d), findsOneWidget);
+    }
+    // Les 4 cases sur la même ligne.
+    final tops = {
+      for (final d in ['4', '8', '2', '7']) tester.getTopLeft(find.text(d)).dy,
+    };
+    expect(tops, hasLength(1));
+    expect(tester.takeException(), isNull);
+    semantics.dispose();
+  });
+
+  testWidgets('frise : étapes lues avec leur heure et leur état', (
+    tester,
+  ) async {
+    final semantics = tester.ensureSemantics();
+    await pump(
+      tester,
+      const IviaTimeline(
+        steps: [
+          IviaTimelineStep(
+            title: 'Paiement reçu',
+            subtitle: 'Flooz',
+            time: '09:52',
+            state: IviaStepState.done,
+          ),
+          IviaTimelineStep(
+            title: 'En préparation',
+            time: '09:55',
+            state: IviaStepState.current,
+          ),
+          IviaTimelineStep(
+            title: 'Prête à retirer',
+            state: IviaStepState.upcoming,
+          ),
+        ],
+      ),
+      scale: 2,
+      width: 320,
+    );
+    expect(
+      find.bySemanticsLabel('Paiement reçu, Flooz, 09:52, terminé'),
+      findsOneWidget,
+    );
+    expect(
+      find.bySemanticsLabel('En préparation, 09:55, en cours'),
+      findsOneWidget,
+    );
+    expect(find.bySemanticsLabel('Prête à retirer, à venir'), findsOneWidget);
+    final upcoming = tester.widget<Text>(find.text('Prête à retirer'));
+    expect(upcoming.style?.color, IviaColors.textMuted);
+    expect(tester.takeException(), isNull);
+    semantics.dispose();
+  });
+
+  testWidgets('pastille de statut : icône et tons', (tester) async {
+    await pump(
+      tester,
+      const Wrap(
+        children: [
+          IviaStatusPill(
+            label: 'Prête à retirer',
+            tone: IviaPillTone.success,
+            icon: Icons.check_circle_outline,
+          ),
+          IviaStatusPill(label: 'Annulée', tone: IviaPillTone.error),
+        ],
+      ),
+    );
+    expect(find.byIcon(Icons.check_circle_outline), findsOneWidget);
+    final text = tester.widget<Text>(find.text('Annulée'));
+    expect(text.style?.color, IviaColors.primaryStrong);
+  });
 }

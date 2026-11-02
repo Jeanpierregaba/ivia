@@ -12,6 +12,7 @@ export 'src/illustration.dart';
 export 'src/loading_splash.dart';
 export 'src/navigation.dart';
 export 'src/onboarding.dart';
+export 'src/order_views.dart';
 export 'src/segmented_tabs.dart';
 export 'src/step_list.dart';
 export 'src/theme.dart';

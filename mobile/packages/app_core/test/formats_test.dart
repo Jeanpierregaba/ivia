@@ -107,4 +107,10 @@ void main() {
       inInclusiveRange(330, 338),
     );
   });
+
+  test('heure à Lomé : « 09:52 », depuis une date UTC ou locale', () {
+    expect(timeOfDay(DateTime.utc(2026, 11, 2, 9, 52)), '09:52');
+    expect(timeOfDay(DateTime.utc(2026, 11, 2, 23, 5)), '23:05');
+    expect(timeOfDay(DateTime.parse('2026-11-02T14:32:10.5+01:00')), '13:32');
+  });
 }
