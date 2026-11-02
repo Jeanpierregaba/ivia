@@ -94,6 +94,9 @@ toujours une icône et un texte.
 Teintes pâles **(proposé)** : `primary-soft` `#FDE8EA` et `secondary-soft` `#E5EEF8`, fonds des
 éléments sélectionnés (puce de filtre, indicateur de la barre de navigation) avec texte foncé.
 Textes rouges : Cornell Red (boutons texte, onglet actif, libellé d'un champ actif).
+Pastilles de statut : `success-soft` `#EDF7F1` (texte `success`) et `warning-soft` `#FEF5EC`
+(texte `warning`), en plus des deux teintes ci-dessus (`error` sur `primary-soft`, `info` sur
+`secondary-soft`) ; contraste ≥ 4,5 vérifié par `contrast_test.dart`.
 
 ### Couleur de chaque app
 
@@ -229,12 +232,24 @@ Maquettes : à venir (lien Figma à ajouter ici). Les statuts affichés suivent
   seule boutique » ; en bas, sous-total et « Commander » (désactivé si une ligne bloque ou si la
   boutique ne prend plus de commandes). Vide : « Votre panier est vide. » et « Découvrir les
   produits ».
-- **Validation de commande** : retrait ou livraison ; en livraison : adresse, véhicule, frais ; total détaillé.
+- **Commande** ([spec 009](specs/009-commande-retrait/spec.md)) : deux cartes de mode (« Livraison »
+  désactivée avec « Bientôt » jusqu'à la 020, « Retrait » choisi, bordure de la couleur
+  d'action), carte « Retrait chez Chez Afi », récapitulatif du serveur (lignes, « Produits ·
+  3 articles », « Total »), « Vos produits sont réservés 15 minutes » ; en bas « Payer 10 500 F ».
+  En livraison (020) : adresse, véhicule, frais.
 - **Paiement** : Flooz ou T-Money, numéro, puis écran d'attente « Validez le paiement sur votre
   téléphone » avec le temps restant ; succès confirmé seulement après réponse du serveur.
-- **Suivi de commande** : frise des statuts horodatés, **code de remise** en très grand (4 chiffres
-  espacés), bouton d'annulation tant que la boutique n'a pas accepté.
-- **Mes commandes**, **Adresses** (texte + quartier + point sur la carte).
+- **Suivi de commande** (« Commande #1042 ») : en-tête de l'étape en **Cornell** tant que la
+  commande est en cours (texte blanc : Imperial n'atteint pas 4,5:1 sous le texte courant), vert
+  une fois retirée, blanc pour une fin anormale ; « À payer avant 14:32 » et « Payer » en attente de
+  paiement ; **code de remise** en très grand (`IviaHandoverCode` : 4 cases blanches, chiffres
+  Cornell, lu chiffre par chiffre) ; carte de la boutique ; frise (`IviaTimeline`) des statuts
+  horodatés, étapes à venir en gris ; articles et total. Annulation tant que la boutique n'a pas
+  accepté : 013.
+- **Commandes** (onglet) : onglets « En cours · 2 » / « Terminées » (`IviaSegmentedTabs`), lignes
+  (logo, boutique, « #1042 · Retrait · 3 articles » ou « #1018 · 24 oct. », total, pastille de
+  statut avec icône), « Récemment » sous les commandes en cours (3 dernières terminées).
+- **Adresses** (texte + quartier + point sur la carte) : 002.
 
 ### App marchand (couleur : Berkeley)
 - **Lancement** ([spec 004](specs/004-espace-marchand/spec.md)) : splash de chargement (tuile,
