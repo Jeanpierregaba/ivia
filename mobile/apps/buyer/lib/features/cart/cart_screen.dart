@@ -7,7 +7,6 @@ import 'package:ivia_api_client/ivia_api_client.dart';
 import 'package:ivia_app_core/ivia_app_core.dart';
 import 'package:ivia_ui/ivia_ui.dart';
 
-import '../../app/messages.dart';
 import '../../app/cart.dart';
 import '../../app/router.dart';
 import 'cart_actions.dart';

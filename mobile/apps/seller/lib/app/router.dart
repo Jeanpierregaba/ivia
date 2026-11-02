@@ -10,7 +10,9 @@ import '../features/catalog/product_edit_screen.dart';
 import '../features/catalog/product_editor_screen.dart';
 import '../features/catalog/product_published_screen.dart';
 import '../features/home/home_placeholder_screen.dart';
-import '../features/orders/orders_placeholder_screen.dart';
+import '../features/orders/order_labels.dart';
+import '../features/orders/order_screen.dart';
+import '../features/orders/orders_screen.dart';
 import '../features/shell/seller_shell.dart';
 import '../features/onboarding/onboarding_screen.dart';
 import '../features/shop/shop_blocked_screen.dart';
@@ -38,6 +40,10 @@ abstract final class Routes {
   static const productPublished = '/catalog/published';
   static String productDraft(String id) => '/catalog/draft/$id';
   static String productEdit(String id) => '/catalog/$id/edit';
+
+  /// Onglet Commandes ouvert sur [tab].
+  static String ordersTab(OrderTab tab) => '/orders?tab=${tab.code}';
+  static String order(String id) => '/orders/$id';
 }
 
 /// Écrans permis selon la session et la boutique ; le premier est la
@@ -156,7 +162,17 @@ final routerProvider = Provider<GoRouter>((ref) {
             routes: [
               GoRoute(
                 path: Routes.orders,
-                builder: (context, state) => const OrdersPlaceholderScreen(),
+                builder: (context, state) => OrdersScreen(
+                  tab: OrderTab.parse(state.uri.queryParameters['tab']),
+                ),
+                routes: [
+                  GoRoute(
+                    path: ':id',
+                    parentNavigatorKey: rootKey,
+                    builder: (context, state) =>
+                        OrderScreen(orderId: state.pathParameters['id']!),
+                  ),
+                ],
               ),
             ],
           ),

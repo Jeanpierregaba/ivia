@@ -40,11 +40,11 @@ void main() {
     );
     expect(
       IviaCountdown.format(const Duration(seconds: 59, milliseconds: 1)),
-      '1:00',
+      '01:00',
     );
-    expect(IviaCountdown.format(const Duration(milliseconds: 300)), '0:01');
-    expect(IviaCountdown.format(Duration.zero), '0:00');
-    expect(IviaCountdown.format(const Duration(seconds: -5)), '0:00');
+    expect(IviaCountdown.format(const Duration(milliseconds: 300)), '00:01');
+    expect(IviaCountdown.format(Duration.zero), '00:00');
+    expect(IviaCountdown.format(const Duration(seconds: -5)), '00:00');
   });
 
   testWidgets('défile chaque seconde, en warning puis error sous 3 min', (
@@ -60,10 +60,10 @@ void main() {
 
     clock = deadline.subtract(const Duration(minutes: 3, seconds: 1));
     await tester.pump(const Duration(seconds: 1));
-    expect(colorOf(tester, '3:01'), IviaColors.warning);
+    expect(colorOf(tester, '03:01'), IviaColors.warning);
     clock = deadline.subtract(const Duration(minutes: 2, seconds: 59));
     await tester.pump(const Duration(seconds: 1));
-    expect(colorOf(tester, '2:59'), IviaColors.error);
+    expect(colorOf(tester, '02:59'), IviaColors.error);
     expect(expired, 0);
   });
 
@@ -99,7 +99,7 @@ void main() {
     await tester.pump();
     expect(expired, 1);
     await pump(tester, at: deadline.add(const Duration(minutes: 1)));
-    expect(find.text('1:00'), findsOneWidget);
+    expect(find.text('01:00'), findsOneWidget);
     clock = deadline.add(const Duration(minutes: 1));
     await tester.pump(const Duration(seconds: 1));
     expect(expired, 2);

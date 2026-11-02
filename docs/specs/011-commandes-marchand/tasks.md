@@ -14,7 +14,7 @@
       verte.
 - [x] 5. App marchand : `sellerOrdersProvider` / `sellerOrderProvider`, relecture toutes les 30 s
       dans le cadre (premier plan seulement), pastille de l'onglet Commandes ; tests de relecture.
-- [ ] 6. App marchand : onglet Commandes (Nouvelles / En cours / Terminées, compteurs, comptes à
+- [x] 6. App marchand : onglet Commandes (Nouvelles / En cours / Terminées, compteurs, comptes à
       rebours, vides, tirer pour actualiser, « Afficher plus ») ; routes `/orders?tab=…`.
 - [ ] 7. App marchand : détail d'une commande (articles, stock non suivi, montants, statut,
       compte à rebours, relecture) et actions accepter / préparer / prête, avec les erreurs

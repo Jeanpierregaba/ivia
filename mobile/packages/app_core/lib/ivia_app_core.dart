@@ -18,6 +18,7 @@ export 'src/formats.dart';
 export 'src/legal_text.dart';
 export 'src/location.dart';
 export 'src/login_flow.dart';
+export 'src/messages.dart';
 export 'src/offline_screen.dart';
 export 'src/onboarding_store.dart';
 export 'src/order_labels.dart';

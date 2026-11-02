@@ -35,13 +35,13 @@ class IviaCountdown extends StatefulWidget {
   final Duration urgentBelow;
   final String expiredLabel;
 
-  /// « 12:40 » : minutes et secondes restantes (arrondies au-dessus, pour ne
-  /// jamais afficher 0:00 avant l'heure).
+  /// « 12:40 », « 04:05 » : minutes et secondes restantes (arrondies
+  /// au-dessus, pour ne jamais afficher 00:00 avant l'heure).
   static String format(Duration remaining) {
     final seconds = (remaining.inMilliseconds / 1000).ceil().clamp(0, 1 << 30);
     final m = seconds ~/ 60;
     final s = seconds % 60;
-    return '$m:${s.toString().padLeft(2, '0')}';
+    return '${m.toString().padLeft(2, '0')}:${s.toString().padLeft(2, '0')}';
   }
 
   @override

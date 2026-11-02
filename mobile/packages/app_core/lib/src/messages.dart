@@ -1,7 +1,7 @@
 import 'package:flutter/material.dart';
 
 /// Message en bas de l'écran. Avec une action, il disparaît quand même
-/// après quelques secondes (sinon il suivrait l'acheteur d'écran en écran),
+/// après quelques secondes (sinon il suivrait la personne d'écran en écran),
 /// sauf avec une aide à la navigation (lecteur d'écran, contrôle de
 /// sélection), qui laisse le temps d'y arriver.
 void showMessage(

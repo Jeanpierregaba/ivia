@@ -8,7 +8,6 @@ import 'package:ivia_app_core/ivia_app_core.dart';
 import 'package:ivia_ui/ivia_ui.dart';
 
 import '../../app/router.dart';
-import '../../app/messages.dart';
 import '../common/unavailable_view.dart';
 import 'order_labels.dart';
 import 'order_parts.dart';
