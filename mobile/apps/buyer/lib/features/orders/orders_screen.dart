@@ -7,7 +7,6 @@ import 'package:ivia_ui/ivia_ui.dart';
 
 import '../../app/router.dart';
 import '../../app/messages.dart';
-import 'order_labels.dart';
 import 'orders_providers.dart';
 
 /// Onglet Commandes : en cours (et « Récemment ») / terminées.

@@ -10,7 +10,6 @@ import 'package:ivia_ui/ivia_ui.dart';
 import '../../app/cart.dart';
 import '../../app/router.dart';
 import '../../app/messages.dart';
-import '../orders/order_labels.dart';
 import '../orders/order_parts.dart';
 import '../orders/orders_providers.dart';
 import '../shop/shop_screen.dart' show publicShopProvider;

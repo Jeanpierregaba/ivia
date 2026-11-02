@@ -10,7 +10,7 @@
       pagination, pannes) et ses tests.
 - [x] 3. `ui` : `IviaCountdown` et pastille `IviaNavItem.badge`, tests (défilement, ton,
       `onExpired`, « 9+ », lecteur d'écran).
-- [ ] 4. `app_core` : libellés de commande communs déplacés de l'app acheteur ; suite acheteur
+- [x] 4. `app_core` : libellés de commande communs déplacés de l'app acheteur ; suite acheteur
       verte.
 - [ ] 5. App marchand : `sellerOrdersProvider` / `sellerOrderProvider`, relecture toutes les 30 s
       dans le cadre (premier plan seulement), pastille de l'onglet Commandes ; tests de relecture.
