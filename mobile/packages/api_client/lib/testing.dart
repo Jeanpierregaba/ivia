@@ -827,6 +827,7 @@ class FakeSearch {
     final max = int.tryParse(q['max_price'] ?? '');
     final hits = <(Map<String, dynamic>, double?)>[];
     for (final p in products) {
+      if (p['is_active'] == false) continue;
       final s = _shopOf(p);
       final d = point == null ? null : distance(point, _loc(s));
       final category = p['category_id'] as String;
@@ -935,7 +936,7 @@ class FakeSearch {
     if (_failure(r) case final f?) return f;
     final id = r.path.split('/').last;
     final p = products.where((p) => p['id'] == id).firstOrNull;
-    if (p == null) {
+    if (p == null || p['is_active'] == false) {
       return FakeResponse.error(
         404,
         'product_not_found',
@@ -952,5 +953,202 @@ class FakeSearch {
     return s == null
         ? FakeResponse.error(404, 'shop_not_found', 'Boutique introuvable.')
         : FakeResponse.json(200, s);
+  }
+}
+
+/// Panier de l'acheteur en mémoire, branché sur les produits et boutiques
+/// d'une [FakeSearch], fidèle au module `cart` du backend : une seule
+/// boutique (`cart_shop_conflict`, sauf `replace_cart`), quantité totale de
+/// 0 à 99, stock vérifié, 30 lignes au plus, lignes dans l'ordre d'ajout,
+/// `issue` et `orderable` recalculés à chaque lecture.
+///
+/// Un test retire un produit avec `p['is_active'] = false` et change le
+/// stock avec `p['stock_quantity'] = n` ; une boutique fermée aux commandes
+/// avec `s['accepting_orders'] = false`.
+class FakeCart {
+  FakeCart(this.search) {
+    search.server
+      ..on('GET', '/v1/cart', _get)
+      ..on('PUT', '/v1/cart/items', _set)
+      ..on('DELETE', '/v1/cart', _clear);
+  }
+
+  static const maxLines = 30;
+  static const maxQuantity = 99;
+
+  final FakeSearch search;
+
+  /// Boutique du panier ; `null` : pas de panier.
+  String? shopId;
+
+  /// Quantités par produit, dans l'ordre d'ajout.
+  final lines = <String, int>{};
+
+  /// Prochaine erreur, une seule fois, pour la première requête dont
+  /// « MÉTHODE chemin » contient la clé.
+  final failures = <String, FakeResponse>{};
+
+  /// Attendu avant de répondre à une requête du panier (réseau lent).
+  Future<void> Function(RecordedRequest request)? beforeRequest;
+
+  /// Remplit le panier sans passer par l'API.
+  void put(Map<String, dynamic> product, int quantity) {
+    shopId = product['shop_id'] as String;
+    lines[product['id'] as String] = quantity;
+  }
+
+  int quantityOf(Map<String, dynamic> product) => lines[product['id']] ?? 0;
+
+  FakeResponse? _failure(RecordedRequest r) {
+    for (final key in failures.keys) {
+      if ('${r.method} ${r.path}'.contains(key)) return failures.remove(key);
+    }
+    return null;
+  }
+
+  Map<String, dynamic>? _product(String id) =>
+      search.products.where((p) => p['id'] == id).firstOrNull;
+
+  Map<String, dynamic>? _shop(String? id) =>
+      search.shops.where((s) => s['id'] == id).firstOrNull;
+
+  /// Stock suivi restant ; `null` si le stock n'est pas suivi.
+  static int? _stock(Map<String, dynamic> p) =>
+      p['stock_mode'] == 'tracked' ? (p['stock_quantity'] as int? ?? 0) : null;
+
+  /// Le panier tel que `GET /v1/cart` le renvoie.
+  Map<String, dynamic> body() {
+    if (shopId == null) {
+      return {
+        'shop': null,
+        'items': <Object>[],
+        'subtotal_xof': 0,
+        'orderable': false,
+      };
+    }
+    final shop = _shop(shopId);
+    var orderable = lines.isNotEmpty;
+    if (shop == null || shop['accepting_orders'] != true) orderable = false;
+    var subtotal = 0;
+    final items = <Map<String, dynamic>>[];
+    for (final MapEntry(key: id, value: qty) in lines.entries) {
+      final p = _product(id)!;
+      final price = p['price_xof'] as int;
+      final stock = _stock(p);
+      final images = p['images'] as List;
+      final issue = p['is_active'] == false || shop == null
+          ? "Ce produit n'est plus disponible."
+          : stock != null && stock < qty
+          ? 'Plus que $stock en stock.'
+          : '';
+      if (issue.isEmpty) {
+        subtotal += price * qty;
+      } else {
+        orderable = false;
+      }
+      items.add({
+        'product_id': id,
+        'name': p['name'],
+        'image_url': images.isEmpty ? null : images.first['url'],
+        'unit_price_xof': price,
+        'quantity': qty,
+        'line_total_xof': price * qty,
+        'parcel_size': p['parcel_size'],
+        'issue': issue,
+      });
+    }
+    return {
+      'shop': shop,
+      'items': items,
+      'subtotal_xof': subtotal,
+      'orderable': orderable,
+    };
+  }
+
+  Future<FakeResponse> _get(RecordedRequest r) async {
+    if (beforeRequest case final wait?) await wait(r);
+    if (_failure(r) case final f?) return f;
+    return FakeResponse.json(200, body());
+  }
+
+  Future<FakeResponse> _set(RecordedRequest r) async {
+    if (beforeRequest case final wait?) await wait(r);
+    if (_failure(r) case final f?) return f;
+    final input = r.body! as Map<String, dynamic>;
+    final id = input['product_id'] as String;
+    final qty = input['quantity'] as int;
+    final replace = input['replace_cart'] as bool? ?? false;
+    if (qty < 0 || qty > maxQuantity) {
+      return FakeResponse.error(
+        400,
+        'validation_failed',
+        'Certaines informations sont invalides.',
+        fields: {'quantity': 'Quantité entre 0 et 99.'},
+      );
+    }
+    if (qty == 0) {
+      lines.remove(id);
+      if (lines.isEmpty) shopId = null;
+      return FakeResponse.json(200, body());
+    }
+    final p = _product(id);
+    if (p == null || p['is_active'] == false || _shop(p['shop_id']) == null) {
+      return FakeResponse.error(
+        404,
+        'product_not_found',
+        'Produit introuvable.',
+      );
+    }
+    final stock = _stock(p);
+    if (stock == 0) {
+      return FakeResponse.error(
+        409,
+        'product_unavailable',
+        "Ce produit n'est plus disponible.",
+      );
+    }
+    if (stock != null && stock < qty) {
+      return FakeResponse.error(
+        409,
+        'insufficient_stock',
+        'Seulement $stock en stock.',
+      );
+    }
+    final shop = p['shop_id'] as String;
+    final before = (shopId, {...lines});
+    if (shopId != null && shopId != shop) {
+      if (!replace) {
+        return FakeResponse.error(
+          409,
+          'cart_shop_conflict',
+          "Votre panier contient des produits d'une autre boutique. "
+              'Videz-le pour ajouter celui-ci.',
+        );
+      }
+      lines.clear();
+    }
+    shopId = shop;
+    lines[id] = qty;
+    if (lines.length > maxLines) {
+      // Transaction annulée : le panier reste tel qu'il était.
+      shopId = before.$1;
+      lines
+        ..clear()
+        ..addAll(before.$2);
+      return FakeResponse.error(
+        409,
+        'cart_full',
+        'Votre panier contient trop de produits différents.',
+      );
+    }
+    return FakeResponse.json(200, body());
+  }
+
+  Future<FakeResponse> _clear(RecordedRequest r) async {
+    if (beforeRequest case final wait?) await wait(r);
+    if (_failure(r) case final f?) return f;
+    shopId = null;
+    lines.clear();
+    return FakeResponse.json(204, null);
   }
 }

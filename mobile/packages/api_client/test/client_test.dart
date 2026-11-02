@@ -626,4 +626,162 @@ void main() {
       },
     );
   });
+
+  group('panier', () {
+    late FakeSearch search;
+    late FakeCart cart;
+    late Map<String, dynamic> afi;
+    late Map<String, dynamic> wax;
+    late Map<String, dynamic> riz;
+    late Map<String, dynamic> huile;
+    late Map<String, dynamic> pagne;
+
+    Matcher apiError(String code, [String? message]) => throwsA(
+      isA<ApiException>()
+          .having((e) => e.code, 'code', code)
+          .having((e) => e.message, 'message', message ?? anything),
+    );
+
+    setUp(() {
+      search = FakeSearch(server);
+      cart = FakeCart(search);
+      afi = search.shop('Chez Afi');
+      wax = search.shop('Wax & Co', neighborhoodId: beId);
+      riz = search.product(afi, 'Riz parfumé 5 kg', stock: 3);
+      huile = search.product(
+        afi,
+        'Huile 1 L',
+        price: 1500,
+        stockMode: 'untracked',
+      );
+      pagne = search.product(wax, 'Pagne wax', price: 12000);
+    });
+
+    test('vide : pas de boutique, rien à commander', () async {
+      final c = await client.cart();
+      expect(server.last.method, 'GET');
+      expect(server.last.path, '/v1/cart');
+      expect(c.isEmpty, isTrue);
+      expect(c.shop, isNull);
+      expect(c.articleCount, 0);
+      expect(c.orderable, isFalse);
+    });
+
+    test('quantité totale envoyée, lignes dans l’ordre d’ajout', () async {
+      await client.setCartItem(riz['id'] as String, 2);
+      expect(server.last.method, 'PUT');
+      expect(server.last.path, '/v1/cart/items');
+      expect(server.last.body, {
+        'product_id': riz['id'],
+        'quantity': 2,
+        'replace_cart': false,
+      });
+      final c = await client.setCartItem(huile['id'] as String, 3);
+      expect(c.shop!.name, 'Chez Afi');
+      expect(c.items.map((i) => i.name), ['Riz parfumé 5 kg', 'Huile 1 L']);
+      expect(c.items.first.unitPriceXof, 4500);
+      expect(c.items.first.lineTotalXof, 9000);
+      expect(c.items.first.parcelSize, ParcelSize.medium);
+      expect(c.items.first.imageUrl, startsWith('https://cdn.test/'));
+      expect(c.subtotalXof, 9000 + 4500);
+      expect(c.articleCount, 5);
+      expect(c.quantityOf(riz['id'] as String), 2);
+      expect(c.quantityOf(pagne['id'] as String), 0);
+      expect(c.orderable, isTrue);
+
+      // Quantité 0 : la ligne est retirée ; plus de ligne : plus de panier.
+      await client.setCartItem(riz['id'] as String, 0);
+      final last = await client.setCartItem(huile['id'] as String, 0);
+      expect(last.isEmpty, isTrue);
+      expect(cart.shopId, isNull);
+    });
+
+    test('autre boutique : conflit, puis remplacement du panier', () async {
+      await client.setCartItem(riz['id'] as String, 1);
+      await expectLater(
+        client.setCartItem(pagne['id'] as String, 1),
+        apiError('cart_shop_conflict'),
+      );
+      expect(cart.quantityOf(riz), 1);
+      final c = await client.setCartItem(
+        pagne['id'] as String,
+        1,
+        replaceCart: true,
+      );
+      expect(server.last.body, containsPair('replace_cart', true));
+      expect(c.shop!.name, 'Wax & Co');
+      expect(c.items.map((i) => i.name), ['Pagne wax']);
+    });
+
+    test('stock, produit retiré, quantité hors limites', () async {
+      await expectLater(
+        client.setCartItem(riz['id'] as String, 4),
+        apiError('insufficient_stock', 'Seulement 3 en stock.'),
+      );
+      await expectLater(
+        client.setCartItem(riz['id'] as String, 100),
+        apiError('validation_failed'),
+      );
+      // Stock non suivi : seule la limite de 99 compte.
+      await client.setCartItem(huile['id'] as String, 99);
+      riz['stock_quantity'] = 0;
+      await expectLater(
+        client.setCartItem(riz['id'] as String, 1),
+        apiError('product_unavailable'),
+      );
+      riz['is_active'] = false;
+      await expectLater(
+        client.setCartItem(riz['id'] as String, 1),
+        apiError('product_not_found'),
+      );
+    });
+
+    test('lecture : lignes en erreur, boutique fermée, sous-total', () async {
+      cart
+        ..put(riz, 3)
+        ..put(huile, 2);
+      riz['stock_quantity'] = 2;
+      var c = await client.cart();
+      expect(c.items.first.issue, 'Plus que 2 en stock.');
+      expect(c.items.first.hasIssue, isTrue);
+      expect(c.items.first.stockLeft, 2);
+      expect(c.items.last.hasIssue, isFalse);
+      expect(c.items.last.stockLeft, isNull);
+      // Les lignes en erreur ne comptent pas dans le sous-total.
+      expect(c.subtotalXof, 3000);
+      expect(c.orderable, isFalse);
+
+      riz['stock_quantity'] = 12;
+      afi['accepting_orders'] = false;
+      c = await client.cart();
+      expect(c.items.every((i) => !i.hasIssue), isTrue);
+      expect(c.shop!.acceptingOrders, isFalse);
+      expect(c.orderable, isFalse);
+
+      huile['is_active'] = false;
+      c = await client.cart();
+      expect(c.items.last.issue, "Ce produit n'est plus disponible.");
+      expect(c.items.last.stockLeft, isNull);
+    });
+
+    test('30 produits différents au plus : le panier ne change pas', () async {
+      for (var i = 0; i < FakeCart.maxLines; i++) {
+        cart.put(search.product(afi, 'Produit $i'), 1);
+      }
+      await expectLater(
+        client.setCartItem(riz['id'] as String, 1),
+        apiError('cart_full'),
+      );
+      expect(cart.lines, hasLength(FakeCart.maxLines));
+      expect(cart.quantityOf(riz), 0);
+    });
+
+    test('vider : DELETE, puis panier vide', () async {
+      cart.put(riz, 1);
+      await client.clearCart();
+      expect(server.last.method, 'DELETE');
+      expect(server.last.path, '/v1/cart');
+      expect((await client.cart()).isEmpty, isTrue);
+    });
+  });
 }

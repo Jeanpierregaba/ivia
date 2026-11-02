@@ -262,6 +262,31 @@ class IviaApiClient {
   Future<PublicShop> publicShop(String id) async =>
       PublicShop.fromJson(await _send('GET', '/v1/shops/$id'));
 
+  /// Panier de l'acheteur, recalculé au prix et au stock du moment.
+  Future<Cart> cart() async => Cart.fromJson(await _send('GET', '/v1/cart'));
+
+  /// Fixe la quantité totale de [productId] dans le panier (0 : retirer).
+  /// Produit d'une autre boutique : 409 `cart_shop_conflict`, sauf avec
+  /// [replaceCart], qui vide d'abord le panier.
+  Future<Cart> setCartItem(
+    String productId,
+    int quantity, {
+    bool replaceCart = false,
+  }) async => Cart.fromJson(
+    await _send(
+      'PUT',
+      '/v1/cart/items',
+      data: {
+        'product_id': productId,
+        'quantity': quantity,
+        'replace_cart': replaceCart,
+      },
+    ),
+  );
+
+  /// Vide le panier.
+  Future<void> clearCart() => _send('DELETE', '/v1/cart');
+
   /// Dossier livreur de l'utilisateur ; `null` : aucun dossier déposé.
   Future<DriverDossier?> driverMe() async {
     try {

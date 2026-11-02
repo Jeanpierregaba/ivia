@@ -777,3 +777,99 @@ class PublicShop {
   /// La boutique accepte des commandes (sinon : « Commandes suspendues »).
   final bool acceptingOrders;
 }
+
+/// Ligne du panier, au prix et au stock du moment (schéma `CartItem`).
+class CartItem {
+  const CartItem({
+    required this.productId,
+    required this.name,
+    required this.imageUrl,
+    required this.unitPriceXof,
+    required this.quantity,
+    required this.lineTotalXof,
+    required this.parcelSize,
+    required this.issue,
+  });
+
+  factory CartItem.fromJson(Map<String, dynamic> json) => CartItem(
+    productId: json['product_id'] as String,
+    name: json['name'] as String,
+    imageUrl: json['image_url'] as String?,
+    unitPriceXof: json['unit_price_xof'] as int,
+    quantity: json['quantity'] as int,
+    lineTotalXof: json['line_total_xof'] as int,
+    parcelSize: ParcelSize.parse(json['parcel_size'] as String),
+    issue: json['issue'] as String? ?? '',
+  );
+
+  final String productId;
+  final String name;
+  final String? imageUrl;
+  final int unitPriceXof;
+  final int quantity;
+  final int lineTotalXof;
+  final ParcelSize parcelSize;
+
+  /// Pourquoi la ligne empêche de commander, en français ; vide si elle est
+  /// commandable.
+  final String issue;
+
+  bool get hasIssue => issue.isNotEmpty;
+
+  /// Stock restant annoncé par [issue] (« Plus que 2 en stock. ») ; `null`
+  /// si la ligne n'est pas limitée par le stock.
+  int? get stockLeft {
+    final m = RegExp(r'^Plus que (\d+) en stock').firstMatch(issue);
+    return m == null ? null : int.parse(m.group(1)!);
+  }
+}
+
+/// Panier de l'acheteur, d'une seule boutique (schéma `Cart`).
+class Cart {
+  const Cart({
+    required this.shop,
+    required this.items,
+    required this.subtotalXof,
+    required this.orderable,
+  });
+
+  factory Cart.fromJson(Map<String, dynamic> json) => Cart(
+    shop: switch (json['shop']) {
+      final Map<String, dynamic> shop => PublicShop.fromJson(shop),
+      _ => null,
+    },
+    items: [
+      for (final item in json['items'] as List? ?? const [])
+        CartItem.fromJson(item as Map<String, dynamic>),
+    ],
+    subtotalXof: json['subtotal_xof'] as int,
+    orderable: json['orderable'] as bool,
+  );
+
+  static const empty = Cart(
+    shop: null,
+    items: [],
+    subtotalXof: 0,
+    orderable: false,
+  );
+
+  /// Boutique du panier ; `null` si le panier est vide ou si la boutique
+  /// n'est plus publiée.
+  final PublicShop? shop;
+  final List<CartItem> items;
+
+  /// Somme des lignes commandables.
+  final int subtotalXof;
+
+  /// Toutes les lignes sont disponibles et la boutique accepte les commandes.
+  final bool orderable;
+
+  bool get isEmpty => items.isEmpty;
+
+  /// Nombre d'articles : somme des quantités (badge du panier).
+  int get articleCount => items.fold(0, (n, item) => n + item.quantity);
+
+  /// Quantité de [productId] dans le panier (0 s'il n'y est pas).
+  int quantityOf(String productId) =>
+      items.where((i) => i.productId == productId).firstOrNull?.quantity ?? 0;
+}
