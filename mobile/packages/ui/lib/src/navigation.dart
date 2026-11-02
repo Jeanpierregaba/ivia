@@ -5,12 +5,78 @@ import 'tokens.dart';
 
 /// Onglet de [IviaBottomNav].
 class IviaNavItem {
-  const IviaNavItem({required this.icon, required this.label});
+  const IviaNavItem({
+    required this.icon,
+    required this.label,
+    this.badge,
+    this.badgeLabel,
+  });
 
   final IconData icon;
 
   /// Affiché sur l'onglet actif, lu par le lecteur d'écran sur tous.
   final String label;
+
+  /// Nombre affiché en pastille sur l'icône (« 9+ » au-delà de 9) ; rien
+  /// si `null` ou 0.
+  final int? badge;
+
+  /// Lecture de la pastille (« 2 nouvelles ») ; le nombre seul par défaut.
+  final String? badgeLabel;
+
+  bool get hasBadge => (badge ?? 0) > 0;
+
+  /// Libellé lu par le lecteur d'écran : « Commandes, 2 nouvelles ».
+  String get semanticLabel =>
+      hasBadge ? '$label, ${badgeLabel ?? '$badge'}' : label;
+}
+
+/// Icône d'onglet avec sa pastille éventuelle.
+class _NavIcon extends StatelessWidget {
+  const _NavIcon({required this.item, required this.color});
+
+  final IviaNavItem item;
+  final Color color;
+
+  @override
+  Widget build(BuildContext context) {
+    final icon = Icon(item.icon, color: color);
+    if (!item.hasBadge) return icon;
+    final count = item.badge!;
+    return Stack(
+      clipBehavior: Clip.none,
+      children: [
+        icon,
+        Positioned(
+          top: -6,
+          right: -10,
+          child: Container(
+            constraints: const BoxConstraints(minWidth: 18, minHeight: 18),
+            padding: const EdgeInsets.symmetric(horizontal: 4),
+            decoration: const ShapeDecoration(
+              // Cornell : le blanc y atteint 4,5:1, pas sur Imperial.
+              color: IviaColors.error,
+              shape: StadiumBorder(
+                side: BorderSide(color: IviaColors.surface, width: 1.5),
+              ),
+            ),
+            alignment: Alignment.center,
+            child: Text(
+              count > 9 ? '9+' : '$count',
+              // Taille fixe : la pastille ne doit pas grossir avec la police.
+              textScaler: TextScaler.noScaling,
+              style: const TextStyle(
+                color: Colors.white,
+                fontSize: 11,
+                fontWeight: FontWeight.w700,
+                height: 1.2,
+              ),
+            ),
+          ),
+        ),
+      ],
+    );
+  }
 }
 
 /// Barre du bas en pilule blanche : l'onglet actif est une pilule pleine
@@ -56,7 +122,7 @@ class IviaBottomNav extends StatelessWidget {
                 child: Semantics(
                   button: true,
                   selected: i == currentIndex,
-                  label: item.label,
+                  label: item.semanticLabel,
                   excludeSemantics: true,
                   onTap: () => onSelected(i),
                   child: InkWell(
@@ -80,7 +146,7 @@ class IviaBottomNav extends StatelessWidget {
                                 child: Row(
                                   mainAxisAlignment: MainAxisAlignment.center,
                                   children: [
-                                    Icon(item.icon, color: Colors.white),
+                                    _NavIcon(item: item, color: Colors.white),
                                     const SizedBox(width: IviaSpacing.sm),
                                     Flexible(
                                       child: Text(
@@ -101,8 +167,8 @@ class IviaBottomNav extends StatelessWidget {
                           : SizedBox(
                               height: _height - 16,
                               child: Center(
-                                child: Icon(
-                                  item.icon,
+                                child: _NavIcon(
+                                  item: item,
                                   color: IviaColors.textMuted,
                                 ),
                               ),

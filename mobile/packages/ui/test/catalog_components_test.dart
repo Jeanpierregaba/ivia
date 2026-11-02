@@ -63,6 +63,46 @@ void main() {
     semantics.dispose();
   });
 
+  testWidgets('barre du bas : pastille sur l\'icône, lue avec l\'onglet', (
+    tester,
+  ) async {
+    final semantics = tester.ensureSemantics();
+    Future<void> show(int? badge, {int current = 0}) => pump(
+      tester,
+      IviaBottomNav(
+        items: [
+          nav[0],
+          IviaNavItem(
+            icon: Icons.receipt_long_outlined,
+            label: 'Commandes',
+            badge: badge,
+            badgeLabel: badge == 1 ? '1 nouvelle' : '$badge nouvelles',
+          ),
+        ],
+        currentIndex: current,
+        onSelected: (_) {},
+      ),
+    );
+    await show(2);
+    expect(find.text('2'), findsOneWidget);
+    expect(find.bySemanticsLabel('Commandes, 2 nouvelles'), findsOneWidget);
+
+    // Onglet actif : pastille aussi.
+    await show(1, current: 1);
+    expect(find.text('1'), findsOneWidget);
+    expect(find.bySemanticsLabel('Commandes, 1 nouvelle'), findsOneWidget);
+
+    await show(12);
+    expect(find.text('9+'), findsOneWidget);
+
+    for (final none in [0, null]) {
+      await show(none);
+      expect(find.text('0'), findsNothing);
+      expect(find.bySemanticsLabel('Commandes'), findsOneWidget);
+    }
+    semantics.dispose();
+  });
+
   testWidgets('barre du bas dans un Scaffold : hauteur de la barre seule', (
     tester,
   ) async {
