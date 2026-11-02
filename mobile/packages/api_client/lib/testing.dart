@@ -1588,10 +1588,15 @@ class FakeOrders {
         fields: {'limit': 'Entre 1 et 100.'},
       );
     }
-    final mine = [
-      for (final o in orders.reversed)
-        if (_visible(o, r)) view(o),
-    ];
+    // Comme le serveur : les plus récentes d'abord (`created_at`).
+    final mine =
+        [
+          for (final o in orders.reversed)
+            if (_visible(o, r)) view(o),
+        ]..sort(
+          (a, b) =>
+              (b['created_at'] as String).compareTo(a['created_at'] as String),
+        );
     return FakeResponse.json(200, {
       'items': mine.skip(offset).take(limit).toList(),
       'next_offset': mine.length > offset + limit ? offset + limit : null,

@@ -17,6 +17,7 @@ class IviaHandoverCode extends StatelessWidget {
       fontWeight: FontWeight.w800,
     );
     return Semantics(
+      container: true,
       label: 'Code de remise : ${code.split('').join(' ')}',
       excludeSemantics: true,
       child: Row(
@@ -104,6 +105,7 @@ class IviaTimeline extends StatelessWidget {
       step.state.spoken,
     ].join(', ');
     return Semantics(
+      container: true,
       label: spoken,
       excludeSemantics: true,
       child: IntrinsicHeight(

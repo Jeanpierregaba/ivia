@@ -71,7 +71,7 @@ class _CartScreenState extends ConsumerState<CartScreen> {
     setCartLine(_controller, _messenger, item, quantity, undoTo: undoTo),
   );
 
-  void _order() => showCartMessage(_messenger, 'La commande arrive bientôt.');
+  void _order() => context.push(Routes.checkout);
 
   @override
   Widget build(BuildContext context) {

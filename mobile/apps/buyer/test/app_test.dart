@@ -738,9 +738,14 @@ void main() {
     for (final label in ['Accueil', 'Recherche', 'Commandes', 'Profil']) {
       expect(find.bySemanticsLabel(label), findsOneWidget, reason: label);
     }
+    server.on(
+      'GET',
+      '/v1/orders',
+      (_) => FakeResponse.json(200, {'items': <Object>[], 'next_offset': null}),
+    );
     await tester.tap(find.byIcon(Icons.receipt_long_outlined));
     await tester.pumpAndSettle();
-    expect(find.textContaining('Bientôt disponible'), findsOneWidget);
+    expect(find.text('Aucune commande en cours.'), findsOneWidget);
     await tester.tap(find.byIcon(Icons.person_outline));
     await tester.pumpAndSettle();
     expect(find.text('Awa Mensah'), findsOneWidget);

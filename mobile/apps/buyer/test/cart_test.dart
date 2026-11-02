@@ -8,6 +8,7 @@ import 'package:ivia_api_client/testing.dart';
 import 'package:ivia_buyer/app/cart.dart';
 import 'package:ivia_buyer/app/router.dart';
 import 'package:ivia_buyer/features/cart/cart_screen.dart';
+import 'package:ivia_buyer/features/checkout/checkout_screen.dart';
 import 'package:ivia_buyer/features/search/search_screen.dart';
 import 'package:ivia_buyer/features/shop/shop_screen.dart';
 import 'package:ivia_ui/ivia_ui.dart';
@@ -302,8 +303,8 @@ void main() {
       expect(find.text('Huile 1 L'), findsOneWidget);
 
       await tester.tap(find.text('Commander'));
-      await tester.pump();
-      expect(find.text('La commande arrive bientôt.'), findsOneWidget);
+      await tester.pumpAndSettle();
+      expect(find.byType(CheckoutScreen), findsOneWidget);
     });
 
     testWidgets(

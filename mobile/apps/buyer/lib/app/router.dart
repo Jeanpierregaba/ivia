@@ -4,9 +4,11 @@ import 'package:go_router/go_router.dart';
 import 'package:ivia_app_core/ivia_app_core.dart';
 
 import '../features/cart/cart_screen.dart';
+import '../features/checkout/checkout_screen.dart';
 import '../features/home/home_screen.dart';
 import '../features/onboarding/onboarding_screen.dart';
-import '../features/orders/orders_placeholder_screen.dart';
+import '../features/orders/order_screen.dart';
+import '../features/orders/orders_screen.dart';
 import '../features/product/product_screen.dart';
 import '../features/profile/profile_tab_screen.dart';
 import '../features/search/search_screen.dart';
@@ -36,6 +38,8 @@ abstract final class Routes {
   static String shop(String id) => '$shops/$id';
   static String product(String id) => '$products/$id';
   static const cart = '/cart';
+  static const checkout = '/checkout';
+  static String order(String id) => '$orders/$id';
 }
 
 /// Écrans permis pour un état ; le premier est la destination par défaut.
@@ -59,6 +63,7 @@ String? redirectFor(
       Routes.shops,
       Routes.products,
       Routes.cart,
+      Routes.checkout,
     ],
     AuthOffline() => const [Routes.offline],
   };
@@ -113,12 +118,26 @@ final routerProvider = Provider<GoRouter>((ref) {
           for (final (path, screen) in [
             (Routes.home, const HomeScreen()),
             (Routes.search, const SearchScreen()),
-            (Routes.orders, const OrdersPlaceholderScreen()),
+            (Routes.orders, const OrdersScreen()),
             (Routes.profile, const ProfileTabScreen()),
           ])
             StatefulShellBranch(
               routes: [
-                GoRoute(path: path, builder: (context, state) => screen),
+                GoRoute(
+                  path: path,
+                  builder: (context, state) => screen,
+                  routes: [
+                    // Suivi au-dessus de la barre du bas ; « retour » revient
+                    // à l'onglet Commandes.
+                    if (path == Routes.orders)
+                      GoRoute(
+                        path: ':id',
+                        parentNavigatorKey: rootKey,
+                        builder: (context, state) =>
+                            OrderScreen(orderId: state.pathParameters['id']!),
+                      ),
+                  ],
+                ),
               ],
             ),
         ],
@@ -134,6 +153,11 @@ final routerProvider = Provider<GoRouter>((ref) {
         parentNavigatorKey: rootKey,
         builder: (context, state) =>
             ProductScreen(productId: state.pathParameters['id']!),
+      ),
+      GoRoute(
+        path: Routes.checkout,
+        parentNavigatorKey: rootKey,
+        builder: (context, state) => const CheckoutScreen(),
       ),
       GoRoute(
         path: Routes.cart,
