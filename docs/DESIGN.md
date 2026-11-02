@@ -197,7 +197,7 @@ Maquettes : à venir (lien Figma à ajouter ici). Les statuts affichés suivent
 
 ### App acheteur (couleur : Imperial)
 - **Barre du bas** ([spec 007](specs/007-accueil-recherche-acheteur/spec.md)) : Accueil ·
-  Recherche · Commandes · Profil, pilule Imperial pour l'onglet actif. Le panier sera une icône de
+  Recherche · Commandes · Profil, pilule Imperial pour l'onglet actif. Le panier est une icône de
   l'en-tête (008).
 - **Accueil** : « Près de · Tokoin ▾ » (position du téléphone ou quartier, feuille de choix),
   « Bonjour Awa, **que cherchez-vous ?** », champ factice qui ouvre l'onglet Recherche, puces de
@@ -207,12 +207,27 @@ Maquettes : à venir (lien Figma à ajouter ici). Les statuts affichés suivent
   pleines en Berkeley quand elles sont actives, flèche quand elles ouvrent un choix) pour la zone
   (« Autour de moi · 2 km » ou le quartier), la catégorie, le prix, « En stock » ; « Trier :
   pertinence ▾ ». Produits en grille de deux colonnes (une seule avec une police agrandie).
+- **Icône du panier** ([spec 008](specs/008-panier/spec.md)) : bouton rond blanc
+  (`IviaIconBadgeButton`) en haut à droite de l'accueil, de la boutique et du produit, pastille
+  Imperial du nombre d'articles (somme des quantités, « 99+ » au-delà), lue « Panier, 3 articles ».
+- **Ajout rapide** : « + » rond Imperial (`IviaAddButton`, 36 dp visibles, 48 au doigt) sur la photo
+  des cartes produit et au bout des lignes de la boutique ; jamais sur un produit épuisé. Message
+  « Riz parfumé 5 kg ajouté au panier » avec « Voir le panier ».
 - **Boutique** : carte d'en-tête (logo, nom, adresse, pastilles « Ouverte » et distance), recherche
-  dans la boutique, liste des produits (« En stock » en Cobalt, « Épuisé » en rouge).
+  dans la boutique, liste des produits (« En stock » en Cobalt, « Épuisé » en rouge) ; barre
+  « Voir le panier · 3 » et sous-total en bas quand le panier est de cette boutique.
 - **Produit** : photos défilantes en haut avec retour par-dessus, nom et prix, disponibilité,
   carte de la boutique, description, pastilles catégorie et « Colis moyen · moto », quantité et
-  « Ajouter · 4 500 F » en bas.
-- **Panier** : une seule boutique ; ajout d'un produit d'une autre boutique ⇒ feuille « Vider le panier ? ».
+  « Ajouter · 4 500 F » en bas (la quantité s'ajoute à celle du panier, « Déjà 2 dans votre
+  panier »).
+- **Panier** : une seule boutique ; ajout d'un produit d'une autre boutique ⇒ feuille « Vider le
+  panier ? » (« Vider et ajouter » en rouge, « Annuler »). Écran : retour et « Vider », titre, carte
+  de la boutique, lignes (photo, nom, prix, quantité sans saisie : « − » devient une corbeille au
+  dernier exemplaire et retire la ligne, avec « Annuler »), raison en rouge d'une ligne qui bloque
+  (« Plus que 2 en stock. », « Retirer », « Ajuster à 2 »), frais de livraison annoncés, note « une
+  seule boutique » ; en bas, sous-total et « Commander » (désactivé si une ligne bloque ou si la
+  boutique ne prend plus de commandes). Vide : « Votre panier est vide. » et « Découvrir les
+  produits ».
 - **Validation de commande** : retrait ou livraison ; en livraison : adresse, véhicule, frais ; total détaillé.
 - **Paiement** : Flooz ou T-Money, numéro, puis écran d'attente « Validez le paiement sur votre
   téléphone » avec le temps restant ; succès confirmé seulement après réponse du serveur.
