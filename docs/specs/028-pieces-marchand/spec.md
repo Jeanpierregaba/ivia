@@ -43,19 +43,19 @@ dossier livreur ([018](../018-espace-livreur/spec.md)), aux couleurs de l'app ma
 
 ## Critères d'acceptation
 
-- [ ] Étant donné « Créez votre boutique » rempli, quand le marchand envoie, alors la boutique est
+- [x] Étant donné « Créez votre boutique » rempli, quand le marchand envoie, alors la boutique est
       créée et « Vérifions votre identité » s'ouvre, avec la pièce d'identité obligatoire et le
       RCCM facultatif.
-- [ ] Étant donné l'écran des pièces sans pièce d'identité, quand le marchand appuie sur « Envoyer
+- [x] Étant donné l'écran des pièces sans pièce d'identité, quand le marchand appuie sur « Envoyer
       mes pièces », alors « Ajoutez votre pièce d'identité. » s'affiche et rien n'est envoyé.
-- [ ] Étant donné une photo de pièce d'identité choisie (et un RCCM facultatif), quand le marchand
+- [x] Étant donné une photo de pièce d'identité choisie (et un RCCM facultatif), quand le marchand
       envoie, alors chaque photo part sur son URL signée (`POST /v1/uploads`, `merchant_document`,
       `image/jpeg`), puis est rattachée (`POST /v1/seller/documents`, `id_card` ou
       `business_registration`), et l'écran « en cours de validation » montre la pièce envoyée.
-- [ ] Étant donné une boutique en attente sans pièce d'identité, à l'ouverture de l'app, alors
+- [x] Étant donné une boutique en attente sans pièce d'identité, à l'ouverture de l'app, alors
       l'écran « en cours de validation » montre « Pièce d'identité · À ajouter » et « Ajouter ma
       pièce d'identité ».
-- [ ] Étant donné une pièce d'identité déjà envoyée, alors l'étape est faite et l'écran des pièces
+- [x] Étant donné une pièce d'identité déjà envoyée, alors l'étape est faite et l'écran des pièces
       la montre « Envoyée ».
 
 ## Cas limites et erreurs

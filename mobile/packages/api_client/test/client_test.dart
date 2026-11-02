@@ -337,7 +337,7 @@ void main() {
       await expectLater(
         client.addMerchantDocument(
           MerchantDocumentKind.idCard,
-          'merchant_document/inconnu.jpg',
+          'merchants/u1/inconnu.jpg',
         ),
         throwsA(
           isA<ApiException>().having(

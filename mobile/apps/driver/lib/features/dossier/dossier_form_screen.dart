@@ -129,6 +129,7 @@ class _DossierFormScreenState extends ConsumerState<DossierFormScreen> {
     if (errors.isNotEmpty) return;
     setState(() => _busy = true);
     final client = ref.read(apiClientProvider);
+    DriverDocumentKind? transmitting;
     try {
       if (_needsProfile && !_profileSaved) {
         final user = await client.updateMe(
@@ -158,9 +159,11 @@ class _DossierFormScreenState extends ConsumerState<DossierFormScreen> {
       );
       for (final MapEntry(key: kind, value: key) in _uploadedKeys.entries) {
         if (_transmitted.contains(kind)) continue;
+        transmitting = kind;
         dossier = await client.addDriverDocument(kind, key);
         _transmitted.add(kind);
       }
+      transmitting = null;
       // Correction ouverte par-dessus un autre écran : on y revient d'abord,
       // puis le dossier mis à jour fait choisir l'écran par le routeur (dans
       // l'autre ordre, le rafraîchissement du routeur rouvrirait l'édition).
@@ -168,9 +171,17 @@ class _DossierFormScreenState extends ConsumerState<DossierFormScreen> {
       if (widget.correction && mounted && context.canPop()) context.pop();
       notifier.submitted(dossier);
     } on ApiException catch (e) {
+      // Fichier refusé à la transmission (non reçu, expiré) : il sera renvoyé
+      // au prochain essai, sinon la même clé serait refusée à chaque fois.
+      final keyError = e.fields['object_key'];
+      if (keyError != null && transmitting != null) {
+        _uploadedKeys.remove(transmitting);
+      }
       if (!mounted) return;
       setState(() {
-        if (e.code == 'phone_taken') {
+        if (keyError != null) {
+          _generalError = keyError;
+        } else if (e.code == 'phone_taken') {
           _errors = {'phone': e.message};
         } else if (e.fields.keys.any(_shownFields.contains)) {
           _errors = e.fields;

@@ -38,13 +38,19 @@ class _ReviewPendingViewState extends State<ReviewPendingView> {
   @override
   void initState() {
     super.initState();
-    _lifecycle = AppLifecycleListener(onResume: _refresh);
+    _lifecycle = AppLifecycleListener(onResume: _refreshIfShown);
   }
 
   @override
   void dispose() {
     _lifecycle.dispose();
     super.dispose();
+  }
+
+  /// Retour dans l'app : relecture seulement si l'écran est visible (pas
+  /// sous un autre écran, ex. l'appareil photo ouvert depuis les pièces).
+  void _refreshIfShown() {
+    if (ModalRoute.of(context)?.isCurrent ?? true) _refresh();
   }
 
   Future<void> _refresh() async {

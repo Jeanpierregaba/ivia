@@ -34,12 +34,20 @@ class SellerShop extends AsyncNotifier<Shop?> {
     return shops.isEmpty ? null : shops.first;
   }
 
+  /// Changements locaux (création, pièces) : une relecture partie avant
+  /// l'un d'eux n'écrase pas la boutique plus récente.
+  var _changes = 0;
+
   /// Boutique tout juste créée.
-  void created(Shop shop) => state = AsyncData(shop);
+  void created(Shop shop) {
+    _changes++;
+    state = AsyncData(shop);
+  }
 
   /// Pièces du marchand rendues par le serveur après un dépôt.
   void documentsSent(List<MerchantDocumentKind> documents) {
     if (state.value case final shop?) {
+      _changes++;
       state = AsyncData(shop.withDocuments(documents));
     }
   }
@@ -47,9 +55,10 @@ class SellerShop extends AsyncNotifier<Shop?> {
   /// Relit le statut (validation par l'admin) sans repasser par le splash.
   /// Échec (réseau) : l'écran en cours reste affiché ; renvoie `false`.
   Future<bool> refresh() async {
+    final changes = _changes;
     try {
       final shop = await _fetch();
-      if (ref.mounted) state = AsyncData(shop);
+      if (ref.mounted && changes == _changes) state = AsyncData(shop);
       return true;
     } on Exception {
       // Réseau, ou réponse inattendue.

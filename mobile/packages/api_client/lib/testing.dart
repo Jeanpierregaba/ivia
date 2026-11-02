@@ -642,7 +642,8 @@ class FakeCatalog {
 /// Pièces du marchand en mémoire, fidèles au backend : envoi par URL signée
 /// (`POST /v1/uploads`, `merchant_document`, compartiment privé), puis
 /// rattachement (`POST /v1/seller/documents`, 10 pièces au plus) ; la liste
-/// (`GET /v1/seller/documents`) et `required`.
+/// (`GET /v1/seller/documents`) et `required`. Prend la main sur
+/// `POST /v1/uploads` : seul l'usage `merchant_document` y est accepté.
 class FakeMerchantDocuments {
   FakeMerchantDocuments(this.server, {List<String> documents = const []})
     : kinds = [...documents] {
@@ -650,7 +651,7 @@ class FakeMerchantDocuments {
       ..on('GET', '/v1/seller/documents', (_) => _list(200))
       ..on('POST', '/v1/seller/documents', attach)
       ..on('POST', '/v1/uploads', _prepareUpload)
-      ..onPattern('PUT', '/merchant_document/[^/]+', (r) {
+      ..onPattern('PUT', '/merchants/[^/]+/[^/]+', (r) {
         if (_failure(r) case final f?) return f;
         uploaded.add(r.path.substring(1));
         return FakeResponse.json(200, '');
@@ -667,7 +668,7 @@ class FakeMerchantDocuments {
 
   /// Prochaine erreur à renvoyer, une seule fois, pour la première requête
   /// dont « MÉTHODE chemin » contient la clé (ex. `POST /v1/uploads`,
-  /// `PUT /merchant_document`, `POST /v1/seller/documents`).
+  /// `PUT /merchants`, `POST /v1/seller/documents`).
   final failures = <String, FakeResponse>{};
 
   var _prepared = 0;
@@ -698,7 +699,8 @@ class FakeMerchantDocuments {
         'Certaines informations sont invalides.',
       );
     }
-    final key = 'merchant_document/u${++_prepared}.jpg';
+    // Format du serveur : `merchants/<utilisateur>/<fichier>`.
+    final key = 'merchants/u1/d${++_prepared}.jpg';
     return FakeResponse.json(201, {
       'object_key': key,
       'upload': {
@@ -738,12 +740,20 @@ class FakeMerchantDocuments {
     // Comme `uploads.Check` : la clé doit venir d'une URL signée de ce
     // compte, pour cet usage.
     final key = body['object_key'];
-    if (key is! String || !uploaded.contains(key)) {
+    if (key is! String || !key.startsWith('merchants/u1/')) {
       return FakeResponse.error(
         400,
         'validation_failed',
         'Certaines informations sont invalides.',
-        fields: {'object_key': 'Fichier introuvable.'},
+        fields: {'object_key': 'Fichier invalide.'},
+      );
+    }
+    if (!uploaded.contains(key)) {
+      return FakeResponse.error(
+        400,
+        'validation_failed',
+        'Certaines informations sont invalides.',
+        fields: {'object_key': "Le fichier n'a pas été reçu. Renvoyez-le."},
       );
     }
     kinds.add(kind as String);

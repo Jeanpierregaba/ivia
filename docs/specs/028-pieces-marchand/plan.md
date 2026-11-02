@@ -36,7 +36,9 @@
 - `document_photo_row.dart` (déplacé de l'app livreur et rendu générique) ; constante
   `maxUploadBytes`.
 
-**`apps/driver`** : `document_row.dart` utilise `DocumentPhotoRow` (comportement inchangé).
+**`apps/driver`** : `document_row.dart` supprimé, `DocumentPhotoRow` utilisé directement ;
+`requiredDocuments` et `documentLabel` passent dans `dossier_labels.dart` (comportement inchangé).
+Un fichier refusé à la transmission (`object_key`) est renvoyé au nouvel essai, comme côté marchand.
 
 **`apps/seller`**
 - `app/seller_shop.dart` : `SellerShop.documentsSent(kinds)`.
@@ -69,7 +71,7 @@ Aucune (sélecteur de photo déjà dans `app_core`).
 
 ## Tests
 
-- `api_client` : modèles (types inconnus tolérés, `missing`), méthodes, faux serveur.
+- `api_client` : modèles (types inconnus tolérés, pièces absentes), méthodes, faux serveur.
 - `app_core` : `DocumentPhotoRow` (états, sémantique, photo trop lourde).
 - App marchand : création puis écran des pièces ; pièce obligatoire ; envoi (URL signée,
   rattachement, types) ; nouvel essai après coupure sans double envoi ; `too_many_documents` ;
@@ -79,3 +81,6 @@ Aucune (sélecteur de photo déjà dans `app_core`).
 ## Risques
 
 - Le déplacement de `DocumentRow` touche l'app livreur : couvert par ses tests existants.
+- L'écran en attente reste monté sous l'écran des pièces : il ne relit la boutique au retour dans
+  l'app que s'il est visible (l'appareil photo met l'app en pause), et une relecture partie avant
+  un dépôt n'écrase pas les pièces rendues par le serveur.

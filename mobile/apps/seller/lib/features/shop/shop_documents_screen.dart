@@ -65,6 +65,7 @@ class _ShopDocumentsScreenState extends ConsumerState<ShopDocumentsScreen> {
     final shop = ref.read(sellerShopProvider.notifier);
     final messenger = ScaffoldMessenger.of(context);
     final router = GoRouter.of(context);
+    MerchantDocumentKind? attaching;
     try {
       // 1. Fichiers vers le compartiment privé (une seule fois chacun).
       for (final MapEntry(key: kind, value: photo) in _photos.entries) {
@@ -80,6 +81,7 @@ class _ShopDocumentsScreenState extends ConsumerState<ShopDocumentsScreen> {
       // 2. Rattachement des pièces pas encore rattachées.
       for (final MapEntry(key: kind, value: key) in _uploadedKeys.entries) {
         if (_attached.contains(kind)) continue;
+        attaching = kind;
         final kinds = await client.addMerchantDocument(kind, key);
         _attached.add(kind);
         shop.documentsSent(kinds);
@@ -91,7 +93,13 @@ class _ShopDocumentsScreenState extends ConsumerState<ShopDocumentsScreen> {
       }
       router.go(Routes.shopPending);
     } on ApiException catch (e) {
-      if (mounted) setState(() => _error = e.message);
+      // Fichier refusé au rattachement (non reçu, expiré) : il sera renvoyé
+      // au prochain essai, sinon la même clé serait refusée à chaque fois.
+      final keyError = e.fields['object_key'];
+      if (keyError != null && attaching != null) {
+        _uploadedKeys.remove(attaching);
+      }
+      if (mounted) setState(() => _error = keyError ?? e.message);
     } on Exception {
       // Réponse inattendue : message général.
       if (mounted) {

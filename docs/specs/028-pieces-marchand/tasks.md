@@ -15,7 +15,9 @@
 - [x] 5. Docs : `DESIGN.md`, `TASKS.md`
 
 **Vérifications**
-- [ ] Parcours réel sur le simulateur iPhone 17 Pro contre l'API locale (boutique, pièces, puis
-  publication par l'admin dans le back-office)
-- [ ] Vérifier tous les critères d'acceptation de spec.md
-- [ ] Relecture par le sous-agent reviewer
+- [x] Parcours réel sur le simulateur iPhone 17 Pro contre l'API locale (boutique, pièces, puis
+  publication par l'admin) — 2026-11-02 : app pilotée de l'intérieur (pas de clic scripté
+  possible), pièces reçues par le serveur ; publication refusée sans pièce (409) puis acceptée,
+  par la route admin (back-office non cliqué)
+- [x] Vérifier tous les critères d'acceptation de spec.md
+- [x] Relecture par le sous-agent reviewer (corrigée : relecture au retour dans l'app, fichier refusé, tests)

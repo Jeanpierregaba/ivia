@@ -12,6 +12,7 @@ import 'package:ivia_app_core/ivia_app_core.dart';
 import 'package:ivia_seller/app/device_services.dart';
 import 'package:ivia_seller/app/identity.dart';
 import 'package:ivia_seller/app/router.dart';
+import 'package:ivia_seller/app/seller_shop.dart';
 import 'package:ivia_seller/features/onboarding/onboarding_screen.dart';
 import 'package:ivia_seller/main.dart';
 import 'package:ivia_ui/ivia_ui.dart';
@@ -784,7 +785,7 @@ void main() {
     ) async {
       await createShop(tester);
       await addPhoto(tester, "Pièce d'identité");
-      docs.failures['PUT /merchant_document'] = FakeResponse.networkError();
+      docs.failures['PUT /merchants'] = FakeResponse.networkError();
       await tapText(tester, 'Envoyer mes pièces');
       expect(find.textContaining('Pas de connexion internet'), findsOneWidget);
       expect(docs.kinds, isEmpty);
@@ -792,6 +793,79 @@ void main() {
       await tapText(tester, 'Envoyer mes pièces');
       expect(docs.kinds, ['id_card']);
     });
+
+    testWidgets('fichier refusé au rattachement : renvoyé au nouvel essai', (
+      tester,
+    ) async {
+      await createShop(tester);
+      await addPhoto(tester, "Pièce d'identité");
+      docs.failures['POST /v1/seller/documents'] = FakeResponse.error(
+        400,
+        'validation_failed',
+        'Certaines informations sont invalides.',
+        fields: {'object_key': "Le fichier n'a pas été reçu. Renvoyez-le."},
+      );
+      await tapText(tester, 'Envoyer mes pièces');
+      expect(
+        find.text("Le fichier n'a pas été reçu. Renvoyez-le."),
+        findsOneWidget,
+      );
+
+      await tapText(tester, 'Envoyer mes pièces');
+      final keys = server
+          .calls('POST', '/v1/seller/documents')
+          .map((r) => (r.body! as Map)['object_key'])
+          .toList();
+      expect(server.calls('POST', '/v1/uploads'), hasLength(2));
+      expect(keys, hasLength(2));
+      expect(keys.last, isNot(keys.first));
+      expect(docs.kinds, ['id_card']);
+    });
+
+    testWidgets('nouvelle photo après un échec : envoyée et rattachée', (
+      tester,
+    ) async {
+      await createShop(tester);
+      await addPhoto(tester, "Pièce d'identité");
+      docs.failures['POST /v1/seller/documents'] = FakeResponse.networkError();
+      await tapText(tester, 'Envoyer mes pièces');
+      expect(find.textContaining('Pas de connexion internet'), findsOneWidget);
+
+      picker.next = Uint8List.fromList([..._png, 0]);
+      await addPhoto(tester, "Pièce d'identité");
+      await tapText(tester, 'Envoyer mes pièces');
+      final uploads = server.calls('POST', '/v1/uploads');
+      expect(uploads, hasLength(2));
+      expect((uploads.last.body! as Map)['size_bytes'], _png.length + 1);
+      final attached = server.calls('POST', '/v1/seller/documents');
+      expect((attached.last.body! as Map)['object_key'], docs.uploaded.last);
+      expect(docs.kinds, ['id_card']);
+    });
+
+    testWidgets(
+      'retour dans l\'app sur l\'écran des pièces : pas de relecture',
+      (tester) async {
+        await createShop(tester);
+        server.on(
+          'GET',
+          '/v1/seller/shops',
+          (_) => FakeResponse.networkError(),
+        );
+        for (final state in const [
+          AppLifecycleState.inactive,
+          AppLifecycleState.hidden,
+          AppLifecycleState.paused,
+          AppLifecycleState.hidden,
+          AppLifecycleState.inactive,
+          AppLifecycleState.resumed,
+        ]) {
+          tester.binding.handleAppLifecycleStateChanged(state);
+        }
+        await tester.pumpAndSettle();
+        expect(server.calls('GET', '/v1/seller/shops'), isEmpty);
+        expect(find.textContaining('statut non actualisé'), findsNothing);
+      },
+    );
 
     testWidgets('trop de pièces : message du serveur', (tester) async {
       docs.kinds.addAll(List.filled(10, 'other'));
@@ -819,6 +893,7 @@ void main() {
         await tester.pump();
         await tester.tap(find.byType(FilledButton), warnIfMissed: false);
         await tester.tap(find.byTooltip('Retour'), warnIfMissed: false);
+        await tester.binding.handlePopRoute();
         await tester.pump();
         expect(find.text('Vérifions votre identité'), findsOneWidget);
         reply.complete();
@@ -994,15 +1069,41 @@ void main() {
       expect(find.text('Préparer mes produits'), findsOneWidget);
     });
 
-    testWidgets('publiée : écran des pièces jamais proposé', (tester) async {
-      await withShop('published', documents: []);
+    for (final status in ['published', 'rejected', 'suspended']) {
+      testWidgets('$status : écran des pièces jamais proposé', (tester) async {
+        await withShop(status, documents: []);
+        await launchApp(tester);
+        ProviderScope.containerOf(tester.element(find.byType(SellerApp)))
+            .read(routerProvider)
+            .go(Routes.shopDocuments);
+        await tester.pumpAndSettle();
+        expect(find.text('Vérifions votre identité'), findsNothing);
+        expect(find.text("Ajouter ma pièce d'identité"), findsNothing);
+      });
+    }
+
+    testWidgets('relecture partie avant un dépôt : pièces gardées', (
+      tester,
+    ) async {
+      await withShop('pending_review', documents: []);
       await launchApp(tester);
-      ProviderScope.containerOf(tester.element(find.byType(SellerApp)))
-          .read(routerProvider)
-          .go(Routes.shopDocuments);
+      final reply = Completer<FakeResponse>();
+      server.on('GET', '/v1/seller/shops', (_) => reply.future);
+      final shop = ProviderScope.containerOf(
+        tester.element(find.byType(SellerApp)),
+      ).read(sellerShopProvider.notifier);
+      bool? refreshed;
+      unawaited(shop.refresh().then((ok) => refreshed = ok));
+      shop.documentsSent([MerchantDocumentKind.idCard]);
+      reply.complete(
+        FakeResponse.json(200, {
+          'items': [shopBody(status: 'pending_review', documents: [])],
+        }),
+      );
       await tester.pumpAndSettle();
-      expect(find.text('Vérifions votre identité'), findsNothing);
-      expect(find.textContaining('Votre boutique est publiée'), findsOneWidget);
+      expect(refreshed, isTrue);
+      expect(find.text('Envoyée'), findsOneWidget);
+      expect(find.text("Ajouter ma pièce d'identité"), findsNothing);
     });
 
     testWidgets('sans pièce, police à 200 % sur 320 dp : deux boutons', (

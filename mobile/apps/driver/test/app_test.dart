@@ -408,6 +408,48 @@ void main() {
       ]);
     });
 
+    testWidgets('fichier refusé à la transmission : renvoyé au nouvel essai', (
+      tester,
+    ) async {
+      var failures = 1;
+      server.on('POST', '/v1/driver/application/documents', (request) {
+        final body = request.body! as Map<String, dynamic>;
+        if (body['kind'] == 'driving_license' && failures-- > 0) {
+          return FakeResponse.error(
+            400,
+            'validation_failed',
+            'Certaines informations sont invalides.',
+            fields: {'object_key': "Le fichier n'a pas été reçu. Renvoyez-le."},
+          );
+        }
+        documentsSent.add(body);
+        serverDocuments = [...serverDocuments, body['kind'] as String];
+        return FakeResponse.json(201, driverBody(documents: serverDocuments));
+      });
+      await launchApp(tester);
+      await login(tester);
+      await fillDossier(tester);
+      await tapText(tester, 'Envoyer mon dossier');
+      expect(
+        find.text("Le fichier n'a pas été reçu. Renvoyez-le."),
+        findsOneWidget,
+      );
+
+      await tapText(tester, 'Envoyer mon dossier');
+      expect(
+        find.text('Votre dossier est en cours de vérification'),
+        findsOneWidget,
+      );
+      // Seul le permis refusé est renvoyé, avec une nouvelle clé.
+      expect(server.calls('POST', '/v1/uploads'), hasLength(4));
+      expect(documentsSent.map((d) => d['kind']), [
+        'id_card',
+        'vehicle_registration',
+        'driving_license',
+      ]);
+      expect(documentsSent.last['object_key'], 'driver_document/u1/doc4.jpg');
+    });
+
     testWidgets('double appui : une seule candidature', (tester) async {
       final reply = Completer<FakeResponse>();
       server.on('PUT', '/v1/driver/application', (_) => reply.future);
