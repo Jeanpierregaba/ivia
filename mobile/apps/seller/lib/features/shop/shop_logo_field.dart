@@ -5,7 +5,6 @@ import 'package:flutter_riverpod/flutter_riverpod.dart';
 import 'package:ivia_app_core/ivia_app_core.dart';
 import 'package:ivia_ui/ivia_ui.dart';
 
-
 /// Logo de la boutique (facultatif) : carré pointillé, ou aperçu de la photo
 /// choisie avec « Retirer ».
 class ShopLogoField extends ConsumerStatefulWidget {

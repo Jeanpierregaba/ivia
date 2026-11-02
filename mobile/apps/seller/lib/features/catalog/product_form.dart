@@ -9,7 +9,6 @@ import 'catalog_labels.dart';
 /// Nombre maximal de photos d'un produit (la première est la principale).
 const maxPhotos = 5;
 
-
 /// Photo du formulaire : choisie sur le téléphone, ou déjà sur le serveur.
 class EditorPhoto {
   EditorPhoto.local(Uint8List this.bytes) : url = null;
