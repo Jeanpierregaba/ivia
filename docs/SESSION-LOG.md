@@ -14,6 +14,16 @@ Format :
 - Prochaine étape :
 -->
 
+### 2026-11-03 — Relecture du paiement (010)
+- Fait : relecture du backend de Jean-Pierre (annulation d'une demande, revérification des demandes
+  abandonnées, « Vérifier maintenant » admin) : conforme. Limite des demandes de paiement passée de
+  la mémoire du processus à un décompte dans `payments` (durable aux redémarrages, exacte) ;
+  migration 00023 (index acheteur et numéro) ; test de fenêtre glissante ; suite complète verte.
+- Décisions : une limite qui protège un tiers (demandes vers son téléphone) doit être durable ;
+  les limites par IP (anti-robot) restent en mémoire.
+- Prochaine étape : plus aucun point backend ouvert dans TASKS ; 016 (prestataire réel) attend le
+  choix de l'agrégateur.
+
 ### 2026-11-03 — Recherche pendant la frappe
 - Fait : produits trouvés par le début du dernier mot (`to_tsquery` « mot1 & mot2:* », construite
   par `search.prefixQuery` à partir des lettres et chiffres, rang ajouté à la pertinence) ; jokers

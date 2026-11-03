@@ -65,15 +65,6 @@ func (l *Limiter) Allow(key string) (bool, int) {
 	return true, 0
 }
 
-// Cancel rend un événement compté par Allow qui n'a finalement pas eu lieu (échec en aval).
-func (l *Limiter) Cancel(key string) {
-	l.mu.Lock()
-	defer l.mu.Unlock()
-	if b, ok := l.buckets[key]; ok && b.count > 0 {
-		b.count--
-	}
-}
-
 // gc supprime les clés inactives, au plus une fois par fenêtre.
 func (l *Limiter) gc(now time.Time) {
 	if now.Sub(l.lastGC) < l.window {

@@ -540,6 +540,59 @@ func (q *Queries) PendingPaymentsOlderThan(ctx context.Context, before time.Time
 	return count, err
 }
 
+const recentRequestsByBuyer = `-- name: RecentRequestsByBuyer :one
+SELECT count(*)::bigint AS n, coalesce(min(created_at), now())::timestamptz AS oldest
+FROM payments
+WHERE buyer_id = $1 AND created_at > $2::timestamptz
+  AND failure_reason <> $3::text
+`
+
+type RecentRequestsByBuyerParams struct {
+	BuyerID uuid.UUID
+	Since   time.Time
+	NotSent string
+}
+
+type RecentRequestsByBuyerRow struct {
+	N      int64
+	Oldest time.Time
+}
+
+// Demandes envoyées par un acheteur depuis `since` (sauf celles qui n'ont pas atteint le
+// prestataire) et la plus ancienne d'entre elles, pour le délai avant la prochaine.
+func (q *Queries) RecentRequestsByBuyer(ctx context.Context, arg RecentRequestsByBuyerParams) (RecentRequestsByBuyerRow, error) {
+	row := q.db.QueryRow(ctx, recentRequestsByBuyer, arg.BuyerID, arg.Since, arg.NotSent)
+	var i RecentRequestsByBuyerRow
+	err := row.Scan(&i.N, &i.Oldest)
+	return i, err
+}
+
+const recentRequestsToPhone = `-- name: RecentRequestsToPhone :one
+SELECT count(*)::bigint AS n, coalesce(min(created_at), now())::timestamptz AS oldest
+FROM payments
+WHERE payer_phone = $1 AND created_at > $2::timestamptz
+  AND failure_reason <> $3::text
+`
+
+type RecentRequestsToPhoneParams struct {
+	PayerPhone string
+	Since      time.Time
+	NotSent    string
+}
+
+type RecentRequestsToPhoneRow struct {
+	N      int64
+	Oldest time.Time
+}
+
+// Demandes envoyées vers un numéro payeur depuis `since`, tous comptes confondus.
+func (q *Queries) RecentRequestsToPhone(ctx context.Context, arg RecentRequestsToPhoneParams) (RecentRequestsToPhoneRow, error) {
+	row := q.db.QueryRow(ctx, recentRequestsToPhone, arg.PayerPhone, arg.Since, arg.NotSent)
+	var i RecentRequestsToPhoneRow
+	err := row.Scan(&i.N, &i.Oldest)
+	return i, err
+}
+
 const refundablePaymentForOrder = `-- name: RefundablePaymentForOrder :one
 SELECT id, order_id, buyer_id, provider, reference, provider_ref, amount_xof, currency, operator, payer_phone, status, failure_reason, is_duplicate, succeeded_at, created_at, updated_at FROM payments
 WHERE order_id = $1 AND status = 'succeeded' AND NOT is_duplicate

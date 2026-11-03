@@ -32,7 +32,6 @@ import (
 	"ivia/backend/internal/platform/apperr"
 	"ivia/backend/internal/platform/database"
 	"ivia/backend/internal/platform/jobs"
-	"ivia/backend/internal/platform/ratelimit"
 	"ivia/backend/internal/platform/validate"
 )
 
@@ -53,7 +52,8 @@ const pendingGiveUpAfter = time.Hour
 
 // Nouvelles demandes de paiement, par acheteur et par numéro payeur : avec l'annulation, sans
 // limite, on pourrait envoyer des demandes en boucle vers le numéro d'un tiers, depuis un ou
-// plusieurs comptes.
+// plusieurs comptes. Comptées dans la table payments (checkRequestLimits) : la limite survit aux
+// redémarrages et aux déploiements ; deux requêtes simultanées peuvent la dépasser d'une unité.
 const (
 	requestLimit       = 10
 	requestLimitWindow = time.Hour
@@ -130,18 +130,11 @@ type Service struct {
 	audit    *admin.Service
 	notify   *notifications.Service
 	logger   *slog.Logger
-	// requests et phones limitent les nouvelles demandes de paiement, par acheteur et par numéro.
-	requests *ratelimit.Limiter
-	phones   *ratelimit.Limiter
 }
 
 // NewService crée le service.
 func NewService(db *database.DB, enq jobs.Enqueuer, provider Provider, ord *orders.Service, audit *admin.Service, notify *notifications.Service, logger *slog.Logger) *Service {
-	return &Service{
-		db: db, jobs: enq, provider: provider, orders: ord, audit: audit, notify: notify, logger: logger,
-		requests: ratelimit.New(requestLimit, requestLimitWindow),
-		phones:   ratelimit.New(requestLimit, requestLimitWindow),
-	}
+	return &Service{db: db, jobs: enq, provider: provider, orders: ord, audit: audit, notify: notify, logger: logger}
 }
 
 // Provider retourne le prestataire configuré.
@@ -171,24 +164,16 @@ func (s *Service) Initiate(ctx context.Context, buyerID, orderID uuid.UUID, oper
 		return Payment{}, fmt.Errorf("lecture du paiement en cours : %w", err)
 	}
 	// Seule une demande envoyée au payeur compte : rendre la demande en attente n'envoie rien, et
-	// une demande qui n'atteint pas le prestataire est rendue (release).
-	if ok, retry := s.requests.Allow(buyerID.String()); !ok {
-		return Payment{}, apperr.TooManyRequests("rate_limited", "Trop de demandes de paiement. Réessayez plus tard.", retry)
-	}
-	if ok, retry := s.phones.Allow(normalized); !ok {
-		s.requests.Cancel(buyerID.String())
-		return Payment{}, apperr.TooManyRequests("rate_limited", "Trop de demandes de paiement vers ce numéro. Réessayez plus tard.", retry)
-	}
-	release := func() {
-		s.requests.Cancel(buyerID.String())
-		s.phones.Cancel(normalized)
+	// une demande qui n'a pas atteint le prestataire n'est pas comptée.
+	if err := s.checkRequestLimits(ctx, q, buyerID, normalized); err != nil {
+		return Payment{}, err
 	}
 	row, err := q.CreatePayment(ctx, store.CreatePaymentParams{
 		OrderID: orderID, BuyerID: buyerID, Provider: s.provider.Name(), Reference: newReference("ivp"),
 		AmountXof: order.TotalXOF, Operator: string(operator), PayerPhone: normalized,
 	})
 	if database.IsUniqueViolation(err, "payments_one_pending_per_order") {
-		release() // une autre requête a créé la demande en même temps
+		// Une autre requête a créé la demande en même temps.
 		cur, err := q.PendingPaymentForOrder(ctx, orderID)
 		if err != nil {
 			return Payment{}, fmt.Errorf("lecture du paiement en cours : %w", err)
@@ -196,7 +181,6 @@ func (s *Service) Initiate(ctx context.Context, buyerID, orderID uuid.UUID, oper
 		return toPayment(cur), nil
 	}
 	if err != nil {
-		release()
 		return Payment{}, fmt.Errorf("création du paiement : %w", err)
 	}
 
@@ -207,7 +191,6 @@ func (s *Service) Initiate(ctx context.Context, buyerID, orderID uuid.UUID, oper
 	})
 	if err != nil {
 		s.logger.Error("lancement du paiement impossible", "payment_id", row.ID, "err", err)
-		release()
 		_, _ = q.SetPaymentStatus(ctx, store.SetPaymentStatusParams{
 			ID: row.ID, NewStatus: string(StatusFailed), FailureReason: providerUnreachable, FromStatuses: []string{string(StatusPending)},
 		})
@@ -219,6 +202,31 @@ func (s *Service) Initiate(ctx context.Context, buyerID, orderID uuid.UUID, oper
 	p := toPayment(row)
 	p.Instructions = res.Instructions
 	return p, nil
+}
+
+// checkRequestLimits refuse une nouvelle demande au-delà de requestLimit par heure, par acheteur
+// puis par numéro payeur ; Retry-After indique quand la plus ancienne sort de la fenêtre.
+func (s *Service) checkRequestLimits(ctx context.Context, q *store.Queries, buyerID uuid.UUID, phone string) error {
+	now := time.Now()
+	since := now.Add(-requestLimitWindow)
+	retry := func(oldest time.Time) int {
+		return max(1, int(oldest.Add(requestLimitWindow).Sub(now).Seconds())+1)
+	}
+	byBuyer, err := q.RecentRequestsByBuyer(ctx, store.RecentRequestsByBuyerParams{BuyerID: buyerID, Since: since, NotSent: providerUnreachable})
+	if err != nil {
+		return fmt.Errorf("décompte des demandes de paiement : %w", err)
+	}
+	if byBuyer.N >= requestLimit {
+		return apperr.TooManyRequests("rate_limited", "Trop de demandes de paiement. Réessayez plus tard.", retry(byBuyer.Oldest))
+	}
+	toPhone, err := q.RecentRequestsToPhone(ctx, store.RecentRequestsToPhoneParams{PayerPhone: phone, Since: since, NotSent: providerUnreachable})
+	if err != nil {
+		return fmt.Errorf("décompte des demandes de paiement : %w", err)
+	}
+	if toPhone.N >= requestLimit {
+		return apperr.TooManyRequests("rate_limited", "Trop de demandes de paiement vers ce numéro. Réessayez plus tard.", retry(toPhone.Oldest))
+	}
+	return nil
 }
 
 // GetForBuyer retourne un paiement de l'acheteur.
