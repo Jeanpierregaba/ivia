@@ -19,7 +19,7 @@
 - [x] 7. App marchand : détail d'une commande (articles, stock non suivi, montants, statut,
       compte à rebours, relecture) et actions accepter / préparer / prête, avec les erreurs
       (réseau, `invalid_transition`, 404, `shop_suspended`, double appui, délai dépassé).
-- [ ] 8. App marchand : feuille de refus (motifs, « Autre » 200 caractères).
+- [x] 8. App marchand : feuille de refus (motifs, « Autre » 200 caractères).
 - [ ] 9. App marchand : écran « Code de remise » (essais restants, `handover_locked`, code jamais
       gardé).
 - [ ] 10. App marchand : Accueil (résumé nouvelles / en cours, vide, navigation).

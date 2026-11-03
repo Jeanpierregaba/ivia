@@ -432,6 +432,11 @@ void main() {
         find.text("Stock non suivi : vérifiez que vous l'avez."),
         findsOneWidget,
       );
+      await tester.scrollUntilVisible(
+        find.text('Vous recevez'),
+        200,
+        scrollable: find.byType(Scrollable).first,
+      );
       expect(textPlain('10 500 F'), findsOneWidget);
       expect(textPlain('− 525 F'), findsOneWidget);
       expect(find.text('Vous recevez'), findsOneWidget);
@@ -571,6 +576,14 @@ void main() {
         find.widgetWithText(FilledButton, 'Accepter la commande'),
       );
       expect(accept.onPressed, isNull);
+      expect(
+        tester
+            .widget<OutlinedButton>(
+              find.widgetWithText(OutlinedButton, 'Refuser'),
+            )
+            .onPressed,
+        isNull,
+      );
 
       // Annulée par le serveur : relue au passage suivant.
       shift = const Duration(minutes: 1);
@@ -633,6 +646,104 @@ void main() {
       await tapButton(tester, 'Accepter la commande');
       expect(find.textContaining('suspendue'), findsWidgets);
       expect(find.text('Commande #1042'), findsNothing);
+    });
+  });
+
+  group('refus', () {
+    Finder confirm() =>
+        find.widgetWithText(FilledButton, 'Refuser la commande');
+
+    Future<void> openSheet(WidgetTester tester) async {
+      await tester.tap(find.widgetWithText(OutlinedButton, 'Refuser'));
+      await tester.pumpAndSettle();
+    }
+
+    testWidgets('motif proposé : envoyé, commande annulée avec le motif', (
+      tester,
+    ) async {
+      final id = orders.add()['id'] as String;
+      await openOrder(tester, '#1042 · Koffi');
+      await openSheet(tester);
+      expect(find.text('Pourquoi refusez-vous ?'), findsOneWidget);
+      expect(
+        find.text("L'acheteur verra ce motif et sera remboursé."),
+        findsOneWidget,
+      );
+      expect(tester.widget<FilledButton>(confirm()).onPressed, isNull);
+
+      await tester.tap(find.text('Boutique fermée'));
+      await tester.pumpAndSettle();
+      await tester.tap(confirm());
+      await tester.pumpAndSettle();
+      expect(posts(id, 'reject').single.body, {'reason': 'Boutique fermée'});
+      expect(find.text('Annulée'), findsOneWidget);
+      expect(find.text('Boutique fermée'), findsOneWidget);
+      expect(find.byType(FilledButton), findsNothing);
+      expect(find.byType(IviaCountdown), findsNothing);
+    });
+
+    testWidgets('« Autre » : texte exigé, nettoyé, 200 caractères au plus', (
+      tester,
+    ) async {
+      final id = orders.add()['id'] as String;
+      await openOrder(tester, '#1042 · Koffi');
+      await openSheet(tester);
+      await tester.tap(find.text('Autre'));
+      await tester.pumpAndSettle();
+      expect(tester.widget<FilledButton>(confirm()).onPressed, isNull);
+
+      await tester.enterText(find.byType(TextField), '   ');
+      await tester.pump();
+      expect(tester.widget<FilledButton>(confirm()).onPressed, isNull);
+
+      await tester.enterText(find.byType(TextField), 'x' * 250);
+      await tester.pump();
+      await tester.enterText(find.byType(TextField), '  Client injoignable  ');
+      await tester.pump();
+      await tester.tap(confirm());
+      await tester.pumpAndSettle();
+      expect(posts(id, 'reject').single.body, {'reason': 'Client injoignable'});
+      expect(find.text('Client injoignable'), findsOneWidget);
+    });
+
+    testWidgets('« Autre » trop long : coupé à 200 caractères', (tester) async {
+      final id = orders.add()['id'] as String;
+      await openOrder(tester, '#1042 · Koffi');
+      await openSheet(tester);
+      await tester.tap(find.text('Autre'));
+      await tester.pumpAndSettle();
+      await tester.enterText(find.byType(TextField), 'x' * 250);
+      await tester.pump();
+      await tester.tap(confirm());
+      await tester.pumpAndSettle();
+      final reason = (posts(id, 'reject').single.body! as Map)['reason'];
+      expect(reason, 'x' * 200);
+    });
+
+    testWidgets('« Annuler » : rien n\'est envoyé', (tester) async {
+      final id = orders.add()['id'] as String;
+      await openOrder(tester, '#1042 · Koffi');
+      await openSheet(tester);
+      await tester.tap(find.text('Produit en rupture'));
+      await tester.tap(find.text('Annuler'));
+      await tester.pumpAndSettle();
+      expect(posts(id, 'reject'), isEmpty);
+      expect(find.text('Nouvelle'), findsOneWidget);
+    });
+
+    testWidgets('refus en échec réseau : message, commande inchangée', (
+      tester,
+    ) async {
+      orders.add();
+      await openOrder(tester, '#1042 · Koffi');
+      orders.failures['POST /v1/seller/orders'] = FakeResponse.networkError();
+      await openSheet(tester);
+      await tester.tap(find.text('Produit en rupture'));
+      await tester.pumpAndSettle();
+      await tester.tap(confirm());
+      await tester.pumpAndSettle();
+      expect(find.text('Pas de connexion. Réessayez.'), findsOneWidget);
+      expect(find.text('Nouvelle'), findsOneWidget);
     });
   });
 }

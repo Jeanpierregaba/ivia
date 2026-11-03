@@ -11,6 +11,7 @@ import '../../app/router.dart';
 import '../../app/seller_shop.dart';
 import 'order_labels.dart';
 import 'orders_providers.dart';
+import 'reject_sheet.dart';
 
 /// Message d'une commande disparue (autre boutique, lien ancien).
 const orderNotFoundMessage = 'Commande introuvable.';
@@ -145,6 +146,13 @@ class _OrderScreenState extends ConsumerState<OrderScreen> {
     }
   }
 
+  /// « Refuser » : motif choisi dans la feuille, puis refus envoyé.
+  Future<void> _reject(String id) async {
+    final reason = await showRejectSheet(context);
+    if (reason == null || !mounted) return;
+    await _run((c) => c.rejectOrder(id, reason));
+  }
+
   void _onExpired() {
     if (!mounted || _expired) return;
     setState(() => _expired = true);
@@ -259,6 +267,13 @@ class _OrderScreenState extends ConsumerState<OrderScreen> {
             _expired || _deadlinePassed(order)
                 ? null
                 : () => _run((c) => c.acceptOrder(id)),
+          ),
+          const SizedBox(height: IviaSpacing.sm),
+          OutlinedButton(
+            onPressed: _busy || _expired || _deadlinePassed(order)
+                ? null
+                : () => _reject(id),
+            child: const Text('Refuser'),
           ),
         ],
       ),
