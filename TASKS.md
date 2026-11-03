@@ -51,7 +51,7 @@ version « retrait seulement » (voir `docs/PRD.md`).
 - [x] 014 — Back-office : supervision des paiements (liste filtrée, doublons, revérification, remboursement d'un doublon), commandes, actions admin et file de remboursement (2026-11-02)
 - [x] 015 — Back-office : référentiels (catégories de produits et de boutique, quartiers), comptes et droits admin, paramètres (2026-11-02)
 - [ ] 016 — **Backend** : intégrer le vrai prestataire de paiement derrière `payments.Provider` (dépend de l'ADR 0007 accepté) ; tester ses webhooks réels en staging
-- [ ] 017 — **Infra** : louer et préparer les VPS de production et de staging, remplir `infra/.env`, DNS, compte Sentry, puis premier déploiement et premier test de restauration (mode d'emploi : `infra/README.md`). Image, Compose, Caddy, sauvegardes, Sentry et publication CI : faits. Vérifier que Caddy ne journalise pas les paramètres d'URL ([ADR 0010](docs/decisions/0010-position-arrondie-dans-les-recherches.md))
+- [ ] 017 — **Infra** : préparation faite (2026-11-03) : `infra/MISE-EN-LIGNE.md` (procédure du jour J), `bootstrap-server.sh` (durcissement du VPS, Docker), `preflight.sh` (vérifications sans afficher les secrets), `deploy.sh` (déploiement avec retour arrière automatique), images publiées aussi depuis `develop` (staging). Reste : louer le VPS, DNS, comptes R2 / Brevo / Firebase / Sentry, suivre la procédure ; production après 016
 
 ### Phase 3 — Livraison
 - [ ] 018 — Livreurs : inscription et envoi des documents (app livreur) ; validation du dossier dans le back-office : faite

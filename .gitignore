@@ -36,6 +36,7 @@ backend/var/
 
 # Secrets du serveur (compte de service Firebase…)
 infra/secrets/
+infra/deploy-history.log
 
 # Back-office
 admin/next-env.d.ts

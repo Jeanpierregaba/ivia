@@ -1,5 +1,8 @@
 # Déploiement (ADR 0008)
 
+> **Première mise en ligne : suivre [`MISE-EN-LIGNE.md`](MISE-EN-LIGNE.md)** (procédure pas à pas,
+> scripts `bootstrap-server.sh`, `preflight.sh`, `deploy.sh`). Ce fichier décrit le fonctionnement au quotidien.
+
 Un VPS par environnement (production, staging), Docker Compose, Caddy pour le HTTPS. L'image de
 l'API est construite par la CI à chaque fusion sur `main` et publiée sur GitHub Container Registry
 (`ghcr.io/<propriétaire>/ivia-api:<sha>`).
@@ -30,13 +33,11 @@ l'API est construite par la CI à chaque fusion sur `main` et publiée sur GitHu
 
 ```sh
 cd /opt/ivia && git pull
-cd infra
-# API_TAG et ADMIN_TAG = SHA du commit fusionné sur main (images publiées par la CI)
-sed -i "s/^API_TAG=.*/API_TAG=<sha>/; s/^ADMIN_TAG=.*/ADMIN_TAG=<sha>/" .env
-docker compose pull && docker compose up -d
-docker compose logs -f api        # « serveur démarré », version = <sha>
-curl -fsS https://$API_DOMAIN/ready
+cd infra && ./deploy.sh <sha>     # SHA fusionné sur main (production) ou develop (staging)
 ```
+
+`deploy.sh` télécharge les images publiées par la CI, démarre, vérifie `/ready` et `/login`, et
+remet la version précédente tout seul si la nouvelle ne répond pas (`deploy-history.log`).
 
 Les migrations s'appliquent au démarrage de l'API. Premier admin :
 `docker compose run --rm --entrypoint /usr/local/bin/manage api grant-admin <email>`.
