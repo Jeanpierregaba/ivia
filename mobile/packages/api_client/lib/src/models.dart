@@ -1110,6 +1110,7 @@ class BuyerOrder {
     required this.totalXof,
     required this.cancelReason,
     required this.paymentDeadlineAt,
+    this.paidAt,
     required this.createdAt,
     required this.updatedAt,
     required this.items,
@@ -1128,6 +1129,7 @@ class BuyerOrder {
     totalXof: json['total_xof'] as int,
     cancelReason: json['cancel_reason'] as String? ?? '',
     paymentDeadlineAt: DateTime.parse(json['payment_deadline_at'] as String),
+    paidAt: _date(json['paid_at']),
     createdAt: DateTime.parse(json['created_at'] as String),
     updatedAt: DateTime.parse(json['updated_at'] as String),
     items: [
@@ -1155,6 +1157,10 @@ class BuyerOrder {
 
   /// Heure limite de paiement ; passée, la commande expire.
   final DateTime paymentDeadlineAt;
+
+  /// Paiement confirmé par le serveur ; `null` : pas (encore) payée. Une
+  /// commande annulée et payée est remboursée intégralement.
+  final DateTime? paidAt;
   final DateTime createdAt;
 
   /// Dernier changement : une réponse plus ancienne que la version affichée

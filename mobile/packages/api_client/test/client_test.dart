@@ -1741,4 +1741,108 @@ void main() {
       },
     );
   });
+
+  group('annulation par l\'acheteur', () {
+    late FakeOrders orders;
+    late FakePayments payments;
+    late FakeSearch search;
+    late Map<String, dynamic> afi;
+    late Map<String, dynamic> riz;
+
+    Matcher apiError(String code) =>
+        throwsA(isA<ApiException>().having((e) => e.code, 'code', code));
+
+    setUp(() {
+      search = FakeSearch(server);
+      orders = FakeOrders(FakeCart(search));
+      payments = FakePayments(orders);
+      afi = search.shop('Chez Afi');
+      riz = search.product(afi, 'Riz', stock: 4);
+    });
+
+    test('avant paiement : annulée, stock rendu, pas payée', () async {
+      final order = orders.seed(afi, [(riz, 1)]);
+      final cancelled = await client.cancelOrder(order['id'] as String);
+      expect(server.last.method, 'POST');
+      expect(server.last.path, '/v1/orders/${order['id']}/cancel');
+      expect(cancelled.status, OrderStatus.cancelled);
+      expect(cancelled.cancelReason, "Annulée par l'acheteur.");
+      expect(cancelled.paidAt, isNull);
+      expect(riz['stock_quantity'], 5);
+    });
+
+    test(
+      'payée, en attente de la boutique : annulée, payée (remboursée)',
+      () async {
+        final order = orders.seed(afi, [(riz, 1)]);
+        orders.advance(order, 'awaiting_seller');
+        final cancelled = await client.cancelOrder(order['id'] as String);
+        expect(cancelled.status, OrderStatus.cancelled);
+        expect(cancelled.paidAt, isNotNull);
+      },
+    );
+
+    test('acceptée ou expirée : cannot_cancel, message du serveur', () async {
+      final accepted = orders.seed(afi, [(riz, 1)]);
+      orders
+        ..advance(accepted, 'awaiting_seller')
+        ..advance(accepted, 'accepted');
+      await expectLater(
+        client.cancelOrder(accepted['id'] as String),
+        apiError('cannot_cancel'),
+      );
+      final expired = orders.seed(afi, [(riz, 1)]);
+      orders.advance(expired, 'expired');
+      await expectLater(
+        client.cancelOrder(expired['id'] as String),
+        throwsA(
+          isA<ApiException>().having(
+            (e) => e.message,
+            'message',
+            contains('La boutique a déjà accepté'),
+          ),
+        ),
+      );
+    });
+
+    test('paiement abouti après l\'annulation : payée, à rembourser', () async {
+      final order = orders.seed(afi, [(riz, 1)])
+        ..['payment_deadline_at'] = DateTime.now()
+            .toUtc()
+            .add(const Duration(minutes: 10))
+            .toIso8601String();
+      await client.startPayment(
+        order['id'] as String,
+        operator: PaymentOperator.flooz,
+        phone: '96451278',
+      );
+      await client.cancelOrder(order['id'] as String);
+      payments.succeed(payments.payments.single);
+      final seen = await client.myOrder(order['id'] as String);
+      expect(seen.status, OrderStatus.cancelled);
+      expect(seen.paidAt, isNotNull);
+      expect(
+        seen.events.last.reason,
+        "Paiement reçu après l'annulation : à rembourser.",
+      );
+      expect(payments.payments.single['is_duplicate'], isFalse);
+    });
+
+    test('paiement réussi : paid_at posé', () async {
+      final order = orders.seed(afi, [(riz, 1)])
+        ..['payment_deadline_at'] = DateTime.now()
+            .toUtc()
+            .add(const Duration(minutes: 10))
+            .toIso8601String();
+      await client.startPayment(
+        order['id'] as String,
+        operator: PaymentOperator.flooz,
+        phone: '96451278',
+      );
+      payments.succeed(payments.payments.single);
+      final seen = await client.myOrder(order['id'] as String);
+      expect(seen.status, OrderStatus.awaitingSeller);
+      expect(seen.paidAt, isNotNull);
+    });
+  });
 }

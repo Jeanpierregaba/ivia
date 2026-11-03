@@ -1463,7 +1463,8 @@ class FakeOrders {
       ..on('POST', '/v1/orders/quote', _quote)
       ..on('POST', '/v1/orders', _create)
       ..on('GET', '/v1/orders', _list)
-      ..onPattern('GET', '/v1/orders/([^/]+)', _get);
+      ..onPattern('GET', '/v1/orders/([^/]+)', _get)
+      ..onPattern('POST', '/v1/orders/([^/]+)/cancel', _cancel);
   }
 
   static const handoverCode = '4827';
@@ -1826,6 +1827,8 @@ class FakeOrders {
       ..['status'] = status
       ..['updated_at'] = when;
     if (status == 'cancelled') order['cancel_reason'] = reason;
+    // Comme le serveur : payée au passage en attente de la boutique.
+    if (status == 'awaiting_seller') order['paid_at'] ??= when;
   }
 
   /// Rend (+1) ou reprend (-1) le stock suivi des articles de [order] ;
@@ -1897,6 +1900,36 @@ class FakeOrders {
         'Commande introuvable.',
       );
     }
+    return FakeResponse.json(200, view(order));
+  }
+
+  /// Annulation par l'acheteur, comme `CancelByBuyer` : permise avant le
+  /// paiement et en attente de la boutique (stock suivi rendu ; payée :
+  /// remboursement intégral dû) ; sinon 409 `cannot_cancel`, avec le
+  /// message du serveur, même pour une commande expirée.
+  Future<FakeResponse> _cancel(RecordedRequest r) async {
+    if (beforeRequest case final wait?) await wait(r);
+    if (_failure(r) case final f?) return f;
+    final parts = r.path.split('/');
+    final id = parts[parts.length - 2];
+    final order = orders.where((o) => o['id'] == id).firstOrNull;
+    if (order == null || !_visible(order, r)) {
+      return FakeResponse.error(
+        404,
+        'order_not_found',
+        'Commande introuvable.',
+      );
+    }
+    if (order['status'] != 'pending_payment' &&
+        order['status'] != 'awaiting_seller') {
+      return _conflict(
+        'cannot_cancel',
+        "La boutique a déjà accepté cette commande : contactez le support "
+            "pour l'annuler.",
+      );
+    }
+    _moveStock(order, 1);
+    advance(order, 'cancelled', reason: "Annulée par l'acheteur.");
     return FakeResponse.json(200, view(order));
   }
 }
@@ -2181,8 +2214,20 @@ class FakePayments {
           'cancelled',
           reason: 'Paiement reçu après expiration, stock épuisé.',
         );
-      case 'cancelled':
-        break;
+      // Comme `RecordLatePayment` : annulée avant d'être payée, elle entre
+      // dans la file de remboursement ; déjà payée : doublon.
+      case 'cancelled' when order['paid_at'] == null:
+        final at = orders.now().toIso8601String();
+        (order['events'] as List).add({
+          'from_status': 'cancelled',
+          'to_status': 'cancelled',
+          'actor_type': 'system',
+          'reason': "Paiement reçu après l'annulation : à rembourser.",
+          'created_at': at,
+        });
+        order
+          ..['paid_at'] = at
+          ..['updated_at'] = at;
       default:
         payment['is_duplicate'] = true;
     }
