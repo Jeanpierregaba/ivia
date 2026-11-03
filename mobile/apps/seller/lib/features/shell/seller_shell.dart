@@ -24,9 +24,10 @@ const ordersTabIndex = 1;
 /// Cadre des onglets : barre du bas pour une boutique publiée. En attente de
 /// validation, seul le catalogue est ouvert, sans barre.
 ///
-/// Boutique publiée : relit les commandes toutes les 30 s tant que l'app est
-/// au premier plan, et aussitôt au retour ; rien en arrière-plan. La
-/// pastille de l'onglet Commandes compte les nouvelles.
+/// Boutique publiée : relit les nouvelles commandes toutes les 30 s tant que
+/// l'app est au premier plan, la liste complète au retour et à l'ouverture
+/// de l'onglet Commandes ; rien en arrière-plan. La pastille de l'onglet
+/// Commandes compte les nouvelles.
 class SellerShell extends ConsumerStatefulWidget {
   const SellerShell({super.key, required this.shell});
 
@@ -62,7 +63,27 @@ class _SellerShellState extends ConsumerState<SellerShell> {
 
   void _start() {
     _timer?.cancel();
-    _timer = Timer.periodic(ordersRefreshInterval, (_) => _reload());
+    _timer = Timer.periodic(ordersRefreshInterval, (_) => _poll());
+  }
+
+  /// Relecture légère toutes les 30 s : les nouvelles commandes seulement.
+  void _poll() {
+    if (!mounted || !_published) return;
+    unawaited(
+      ref.read(sellerOrdersProvider.notifier).poll().catchError((_) {}),
+    );
+  }
+
+  /// Dernier onglet affiché : l'ouverture de l'onglet Commandes relit la
+  /// liste complète.
+  int? _lastIndex;
+
+  void _onTab(int index) {
+    final previous = _lastIndex;
+    _lastIndex = index;
+    if (previous != null && previous != index && index == ordersTabIndex) {
+      WidgetsBinding.instance.addPostFrameCallback((_) => _reload());
+    }
   }
 
   void _stop() {
@@ -70,8 +91,8 @@ class _SellerShellState extends ConsumerState<SellerShell> {
     _timer = null;
   }
 
-  /// Relecture automatique : erreur ignorée, les dernières données restent
-  /// (la suivante réessaiera).
+  /// Relecture complète (retour dans l'app, ouverture de l'onglet
+  /// Commandes) : erreur ignorée, les dernières données restent.
   void _reload() {
     if (!mounted || !_published) return;
     unawaited(
@@ -84,6 +105,7 @@ class _SellerShellState extends ConsumerState<SellerShell> {
 
   @override
   Widget build(BuildContext context) {
+    _onTab(widget.shell.currentIndex);
     final published = ref.watch(
       sellerShopProvider.select((s) => s.value?.status == ShopStatus.published),
     );

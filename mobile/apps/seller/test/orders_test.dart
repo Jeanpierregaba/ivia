@@ -174,6 +174,40 @@ void main() {
       expect(lists(), hasLength(3));
     });
 
+    testWidgets(
+      'toutes les 30 s : nouvelles seulement ; onglet ouvert : tout',
+      (tester) async {
+        final active = orders.add(status: 'accepted')['id'] as String;
+        await launch(tester);
+        await tester.pump(const Duration(seconds: 30));
+        await tester.pumpAndSettle();
+        expect(lists().last.query['status'], 'awaiting_seller');
+
+        // Commande en cours annulée par l'admin : vue à l'ouverture de
+        // l'onglet (liste complète).
+        orders.cancel(active, "Annulée par l'équipe ivia.");
+        await tester.tap(find.byIcon(Icons.receipt_long_outlined));
+        await tester.pumpAndSettle();
+        expect(lists().last.query.containsKey('status'), isFalse);
+        await tester.tap(find.textContaining('Terminées').first);
+        await tester.pumpAndSettle();
+        expect(find.text('Annulée'), findsOneWidget);
+      },
+    );
+
+    testWidgets('nouvelle disparue de la relecture : relue seule', (
+      tester,
+    ) async {
+      final id = orders.add()['id'] as String;
+      await launch(tester);
+      expect(find.text('1'), findsOneWidget);
+      orders.cancel(id, "Annulée par l'acheteur.");
+      await tester.pump(const Duration(seconds: 30));
+      await tester.pumpAndSettle();
+      expect(server.calls('GET', '/v1/seller/orders/$id'), hasLength(1));
+      expect(find.text('1'), findsNothing);
+    });
+
     testWidgets('relecture en échec : la pastille reste, sans message', (
       tester,
     ) async {
@@ -320,7 +354,11 @@ void main() {
 
     testWidgets('premier chargement en échec : « Réessayer »', (tester) async {
       orders.failures['GET /v1/seller/orders'] = FakeResponse.networkError();
-      await openOrders(tester);
+      await launch(tester);
+      // La relecture à l'ouverture de l'onglet échoue aussi.
+      orders.failures['GET /v1/seller/orders'] = FakeResponse.networkError();
+      await tester.tap(find.byIcon(Icons.receipt_long_outlined));
+      await tester.pumpAndSettle();
       expect(find.textContaining('Impossible de charger'), findsOneWidget);
       orders.add();
       await tester.tap(find.text('Réessayer'));

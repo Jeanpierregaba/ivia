@@ -27,5 +27,5 @@
       `docs/DESIGN.md` ; points backend dans `TASKS.md`.
 - [x] 12. Vérification sur le simulateur contre l'API locale (commande acheteur → traitée par le
       marchand jusqu'à « Retirée »).
-- [ ] Vérifier tous les critères d'acceptation de spec.md
-- [ ] Relecture par le sous-agent reviewer
+- [x] Vérifier tous les critères d'acceptation de spec.md
+- [x] Relecture par le sous-agent reviewer

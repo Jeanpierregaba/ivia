@@ -286,7 +286,8 @@ Maquettes : à venir (lien Figma à ajouter ici). Les statuts affichés suivent
   carte orangé pâle « 2 nouvelles commandes à accepter » avec « La première expire dans 05:40 »,
   carte blanche « 1 commande en cours » (un appui ouvre le bon onglet) ; sinon « Aucune commande à
   traiter. Les nouvelles commandes arrivent ici. » ; « Mes produits ».
-- **Commandes** : relues toutes les 30 s app ouverte, pastille sur l'onglet ; onglets
+- **Commandes** : nouvelles relues toutes les 30 s app ouverte (liste complète au retour et à
+  l'ouverture de l'onglet), pastille sur l'onglet ; onglets
   **Nouvelles / En cours / Terminées** avec leur nombre ; lignes dans une carte blanche
   (« #1042 · Koffi », « Retrait · 3 articles » ou « Aujourd'hui 14:05 » pour une terminée,
   montant des produits, pastille de statut, compte à rebours sur une nouvelle, la plus urgente en

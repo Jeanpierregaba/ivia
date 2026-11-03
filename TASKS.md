@@ -8,7 +8,6 @@ docs/specs/NNN-nom/tasks.md. Les petites tâches isolées (bug, retouche) peuven
 
 ## En cours
 
-- [ ] 011 — Commandes du marchand : acceptation, préparation, remise par code ([spec](docs/specs/011-commandes-marchand/spec.md)) : spec et plan validés, implémentation en cours
 - [ ] 018 — Espace livreur : lancement, connexion, dossier de candidature ([spec](docs/specs/018-espace-livreur/spec.md)) : relu et corrigé ; appareil photo à vérifier sur un vrai téléphone
 - [ ] 004 — Espace marchand : lancement, connexion, création de la boutique ([spec](docs/specs/004-espace-marchand/spec.md)) : relu et corrigé ; reste les clés Google Maps (vérification de la carte)
 - [ ] 027 — Splash et présentation des 3 apps ([spec](docs/specs/027-splash-onboarding/spec.md)) : reste la vérification sur Android, la validation des textes et des couleurs par le designer
@@ -45,7 +44,7 @@ version « retrait seulement » (voir `docs/PRD.md`).
 - [x] 008 — Panier mono-boutique : écrans acheteur faits (voir « Terminé »)
 - [x] 009 — Commande en retrait et suivi : écrans acheteur faits (voir « Terminé »)
 - [x] 010 — Écrans de paiement (attente de validation sur le téléphone, interrogation du statut) : faits (voir « Terminé »)
-- [ ] 011 — Marchand : acceptation / refus sous 15 min, préparation, remise par code : en cours ([spec](docs/specs/011-commandes-marchand/spec.md))
+- [x] 011 — Marchand : acceptation / refus sous 15 min, préparation, remise par code : écrans marchand faits (voir « Terminé »)
 - [ ] 012 — Notifications push (`firebase_messaging`, enregistrement `PUT /v1/me/devices`) et liste ; dont la notification de validation promise par les écrans d'attente (boutique, dossier livreur)
 - [ ] 013 — Suivi de commande et annulation par l'acheteur
 - [x] 014 — Back-office : supervision des paiements (liste filtrée, doublons, revérification, remboursement d'un doublon), commandes, actions admin et file de remboursement (2026-11-02)
@@ -84,6 +83,7 @@ version « retrait seulement » (voir `docs/PRD.md`).
 - [ ] Boutiques et livreurs pilotes pour les tests terrain
 
 ## Terminé
+- [x] 011 — Commandes du marchand ([spec](docs/specs/011-commandes-marchand/spec.md), 2026-11-03) : Accueil (nouvelles à accepter avec le temps restant, en cours) ; onglet Commandes (Nouvelles / En cours / Terminées, comptes à rebours, « Afficher plus ») ; détail (articles, stock non suivi, net « Vous recevez », accepter / refuser avec motif / préparer / prête) ; remise par le code de l'acheteur (essais restants, blocage au 5e) ; nouvelles relues toutes les 30 s app ouverte, pastille de l'onglet ; `IviaCountdown`, pastille d'onglet, libellés et `showMessage` communs ; vérifié sur simulateur contre l'API locale
 - [x] 008 suite — Panier de l'acheteur (2026-11-02) : `issue_code` et `stock_left` des lignes lus (`CartItem.issueCode`, `stockLeft`) au lieu d'analyser le texte de `issue`, affiché tel quel ; faux serveur mobile à jour
 - [x] 028 — Pièces du marchand ([spec](docs/specs/028-pieces-marchand/spec.md), 2026-11-02) : « Vérifions votre identité » après la création de la boutique (pièce d'identité obligatoire, RCCM facultatif, en photo, URL signée privée puis rattachement, nouvel essai sans doublon) ; étape « Pièce d'identité » et « Ajouter ma pièce d'identité » sur l'écran en attente ; ligne de document partagée avec le livreur (`DocumentPhotoRow` dans `app_core`) ; « 004 bis » demandé par Gedeon
 - [x] 010 — Paiement Mobile Money ([spec](docs/specs/010-paiement/spec.md), 2026-11-02) : écran Paiement (montant, Flooz / T-Money, numéro du profil), attente « Validez le paiement sur votre téléphone » (temps restant à l'heure du serveur, relecture toutes les 3 s, succès vers le suivi avec le code, échec et « Réessayer », « Je n'ai rien reçu », « Annuler le paiement »), simulation locale (`IVIA_DEV_PAYMENT`) ; backend : `POST /v1/payments/{id}/cancel`, limites par acheteur et par numéro, revérification des demandes annulées, à faire relire par Gedeon

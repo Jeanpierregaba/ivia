@@ -277,7 +277,7 @@ class OrderRow extends ConsumerWidget {
                       // serveur).
                       onExpired: () => ref
                           .read(sellerOrdersProvider.notifier)
-                          .refresh()
+                          .poll()
                           .catchError((Object _) {}),
                     ),
                 ],

@@ -52,9 +52,10 @@ String? _publishedShopId(AsyncValue<Shop?> shop) => switch (shop.value) {
   _ => null,
 };
 
-/// Commandes de la boutique publiée. Relues par le cadre des onglets
-/// (toutes les 30 s au premier plan), en tirant vers le bas, et mises à jour
-/// par chaque action.
+/// Commandes de la boutique publiée. Relues par le cadre des onglets :
+/// nouvelles seulement toutes les 30 s au premier plan ([poll]), liste
+/// complète au retour dans l'app et à l'ouverture de l'onglet Commandes
+/// ([refresh]) ; en tirant vers le bas ; mises à jour par chaque action.
 final sellerOrdersProvider =
     AsyncNotifierProvider<SellerOrdersController, SellerOrders>(
       SellerOrdersController.new,
@@ -128,6 +129,56 @@ class SellerOrdersController extends AsyncNotifier<SellerOrders> {
         nextOffset: older.isEmpty ? fresh.nextOffset : current.nextOffset,
       ),
     );
+  }
+
+  /// Relecture légère (toutes les 30 s) : les nouvelles commandes
+  /// seulement. Une nouvelle commande arrivée prend sa place dans la liste ;
+  /// une commande « nouvelle » absente de la réponse (acceptée ailleurs,
+  /// annulée, délai dépassé) est relue seule. La liste complète est relue
+  /// par [refresh] (ouverture de l'onglet, retour dans l'app, tirer vers le
+  /// bas).
+  Future<void> poll() async {
+    final shopId = _shopId;
+    if (shopId == null) return;
+    if (state.value == null) return refresh();
+    final page = await _guard(
+      () => _client.sellerOrders(
+        shopId: shopId,
+        status: OrderStatus.awaitingSeller,
+        limit: ordersPageSize,
+      ),
+    );
+    if (!ref.mounted || _shopId != shopId) return;
+    final current = state.value;
+    if (current == null) return;
+    final orders = [...current.orders];
+    for (final o in page.items) {
+      final i = orders.indexWhere((known) => known.id == o.id);
+      if (i >= 0) {
+        orders[i] = _newest(orders[i], o);
+      } else {
+        // Plus récentes d'abord, comme le serveur.
+        final at = orders.indexWhere((k) => k.createdAt.isBefore(o.createdAt));
+        orders.insert(at < 0 ? orders.length : at, o);
+      }
+    }
+    state = AsyncData(
+      SellerOrders(orders: orders, nextOffset: current.nextOffset),
+    );
+    final waiting = {for (final o in page.items) o.id};
+    final gone = [
+      for (final o in orders)
+        if (o.status == OrderStatus.awaitingSeller && !waiting.contains(o.id))
+          o.id,
+    ];
+    for (final id in gone) {
+      try {
+        replace(await _client.sellerOrder(id));
+      } on Exception {
+        // Relue au passage suivant.
+      }
+      if (!ref.mounted || _shopId != shopId) return;
+    }
   }
 
   /// Ajoute la page suivante (« Afficher plus »). La liste est relue à la
