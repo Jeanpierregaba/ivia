@@ -87,13 +87,23 @@ class _OrderScreenState extends ConsumerState<OrderScreen> {
 
   Future<void> _refresh() async {
     final messenger = ScaffoldMessenger.of(context);
+    final router = GoRouter.of(context);
     try {
       await _controller.refresh();
-    } catch (_) {
-      showMessage(
-        messenger,
-        'Commande non actualisée. Vérifiez votre connexion.',
-      );
+    } on ApiException catch (e) {
+      if (e.code == 'order_not_found') {
+        showMessage(messenger, orderNotFoundMessage);
+        router.go(Routes.orders);
+      } else {
+        showMessage(
+          messenger,
+          e.isNetwork
+              ? 'Commande non actualisée. Vérifiez votre connexion.'
+              : e.message,
+        );
+      }
+    } on Exception {
+      showMessage(messenger, 'Commande non actualisée. Réessayez.');
     }
   }
 
@@ -102,23 +112,29 @@ class _OrderScreenState extends ConsumerState<OrderScreen> {
   String? _error;
 
   /// Envoie une action ; la commande rendue remplace l'ancienne (détail et
-  /// liste). Refus du serveur : message au-dessus du bouton, et commande
-  /// relue pour montrer son vrai statut.
-  Future<bool> _run(
+  /// liste, même si l'écran a été quitté pendant la requête). Refus du
+  /// serveur : message au-dessus du bouton, et commande relue pour montrer
+  /// son vrai statut.
+  Future<void> _run(
     Future<SellerOrder> Function(IviaApiClient client) call,
   ) async {
-    if (_busy) return false;
+    if (_busy) return;
     final messenger = ScaffoldMessenger.of(context);
     final router = GoRouter.of(context);
+    // Lus avant l'envoi : utilisables même après la fermeture de l'écran.
+    final client = ref.read(apiClientProvider);
+    final list = ref.read(sellerOrdersProvider.notifier);
+    final shop = ref.read(sellerShopProvider.notifier);
+    final detail = _controller;
     setState(() {
       _busy = true;
       _error = null;
     });
     String? error;
     try {
-      final order = await call(ref.read(apiClientProvider));
-      if (mounted) _controller.set(order);
-      return true;
+      final order = await call(client);
+      list.replace(order);
+      if (mounted) detail.set(order);
     } on ApiException catch (e) {
       if (e.isNetwork) {
         error = 'Pas de connexion. Réessayez.';
@@ -128,15 +144,13 @@ class _OrderScreenState extends ConsumerState<OrderScreen> {
       } else {
         error = e.message;
         if (e.code == 'shop_suspended' || e.code == 'shop_not_found') {
-          unawaited(ref.read(sellerShopProvider.notifier).refresh());
+          unawaited(shop.refresh());
         } else {
           _reload();
         }
       }
-      return false;
     } on Exception {
       error = 'Une erreur est survenue. Réessayez.';
-      return false;
     } finally {
       if (mounted) {
         setState(() {

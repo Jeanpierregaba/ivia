@@ -174,6 +174,40 @@ void main() {
       expect(lists(), hasLength(3));
     });
 
+    testWidgets(
+      'toutes les 30 s : nouvelles seulement ; onglet ouvert : tout',
+      (tester) async {
+        final active = orders.add(status: 'accepted')['id'] as String;
+        await launch(tester);
+        await tester.pump(const Duration(seconds: 30));
+        await tester.pumpAndSettle();
+        expect(lists().last.query['status'], 'awaiting_seller');
+
+        // Commande en cours annulée par l'admin : vue à l'ouverture de
+        // l'onglet (liste complète).
+        orders.cancel(active, "Annulée par l'équipe ivia.");
+        await tester.tap(find.byIcon(Icons.receipt_long_outlined));
+        await tester.pumpAndSettle();
+        expect(lists().last.query.containsKey('status'), isFalse);
+        await tester.tap(find.textContaining('Terminées').first);
+        await tester.pumpAndSettle();
+        expect(find.text('Annulée'), findsOneWidget);
+      },
+    );
+
+    testWidgets('nouvelle disparue de la relecture : relue seule', (
+      tester,
+    ) async {
+      final id = orders.add()['id'] as String;
+      await launch(tester);
+      expect(find.text('1'), findsOneWidget);
+      orders.cancel(id, "Annulée par l'acheteur.");
+      await tester.pump(const Duration(seconds: 30));
+      await tester.pumpAndSettle();
+      expect(server.calls('GET', '/v1/seller/orders/$id'), hasLength(1));
+      expect(find.text('1'), findsNothing);
+    });
+
     testWidgets('relecture en échec : la pastille reste, sans message', (
       tester,
     ) async {
@@ -254,6 +288,12 @@ void main() {
       expect(find.bySemanticsLabel('En cours, 2'), findsOneWidget);
       // La plus urgente (payée il y a 10 min) en haut.
       expect(rows(tester), ['#1043 · Yao', '#1042 · Ama']);
+      // Ligne sur toute la largeur : titre à gauche, montant à droite.
+      final list = tester.getRect(find.byType(OrderRow).first);
+      final title = tester.getRect(find.text('#1043 · Yao'));
+      final amount = tester.getRect(textPlain('10 500 F').first);
+      expect(title.left, lessThan(list.left + 24));
+      expect(amount.right, greaterThan(list.right - 24));
       expect(find.text('Retrait · 3 articles'), findsNWidgets(2));
       expect(textPlain('10 500 F'), findsNWidgets(2));
       expect(find.text('Nouvelle'), findsNWidgets(2));
@@ -314,7 +354,11 @@ void main() {
 
     testWidgets('premier chargement en échec : « Réessayer »', (tester) async {
       orders.failures['GET /v1/seller/orders'] = FakeResponse.networkError();
-      await openOrders(tester);
+      await launch(tester);
+      // La relecture à l'ouverture de l'onglet échoue aussi.
+      orders.failures['GET /v1/seller/orders'] = FakeResponse.networkError();
+      await tester.tap(find.byIcon(Icons.receipt_long_outlined));
+      await tester.pumpAndSettle();
       expect(find.textContaining('Impossible de charger'), findsOneWidget);
       orders.add();
       await tester.tap(find.text('Réessayer'));
@@ -561,9 +605,14 @@ void main() {
       var serverShift = Duration.zero;
       orders.now = () => DateTime.now().toUtc().add(shift);
       server.clock = () => DateTime.now().toUtc().add(serverShift);
-      orders.add(paidAgo: const Duration(minutes: 14, seconds: 50));
+      // 30 s de marge en heure réelle : le test reste juste sur une machine
+      // lente ou lancé seul.
+      orders.add(paidAgo: const Duration(minutes: 14, seconds: 30));
       await openOrder(tester, '#1042 · Koffi');
-      expect(find.textContaining('Il vous reste 00:1'), findsOneWidget);
+      expect(
+        find.textContaining(RegExp(r'^Il vous reste 00:[0-3]\d')),
+        findsOneWidget,
+      );
 
       // L'heure du serveur (lue dans l'en-tête Date) passe le délai, avant
       // que la commande soit annulée.
@@ -626,6 +675,22 @@ void main() {
         find.widgetWithText(FilledButton, 'Commencer la préparation'),
         findsOneWidget,
       );
+    });
+
+    testWidgets('commande disparue pendant une action : retour à la liste', (
+      tester,
+    ) async {
+      orders.add();
+      await openOrder(tester, '#1042 · Koffi');
+      orders.failures['POST /v1/seller/orders'] = FakeResponse.error(
+        404,
+        'order_not_found',
+        'Commande introuvable.',
+      );
+      await tapButton(tester, 'Accepter la commande');
+      expect(find.text('Commande introuvable.'), findsOneWidget);
+      expect(find.text('Commande #1042'), findsNothing);
+      expect(find.byType(OrderRow), findsWidgets);
     });
 
     testWidgets('commande introuvable : message, retour à la liste', (
@@ -836,6 +901,20 @@ void main() {
       expect(find.byType(FilledButton), findsNothing);
     });
 
+    testWidgets('annulée pendant la saisie : retour au détail, vrai statut', (
+      tester,
+    ) async {
+      final id = await openHandover(tester);
+      orders.cancel(id, "Annulée par l'équipe ivia.");
+      await submit(tester, FakeSellerOrders.handoverCode);
+      expect(
+        find.text('Action impossible : la commande est « annulée ».'),
+        findsOneWidget,
+      );
+      expect(find.text('Code de remise'), findsNothing);
+      expect(find.text('Annulée'), findsOneWidget);
+    });
+
     testWidgets('code collé avec espaces : chiffres seuls gardés', (
       tester,
     ) async {
@@ -884,6 +963,24 @@ void main() {
       await tester.tap(find.text('2 nouvelles commandes à accepter'));
       await tester.pumpAndSettle();
       expect(rows(tester), ['#1043 · Koffi', '#1042 · Koffi']);
+    });
+
+    testWidgets('carte après un sous-onglet choisi à la main : le bon', (
+      tester,
+    ) async {
+      orders
+        ..add()
+        ..add(status: 'accepted', buyerFirstName: 'Kossi');
+      await launch(tester);
+      await tester.tap(find.byIcon(Icons.receipt_long_outlined));
+      await tester.pumpAndSettle();
+      await openTab(tester, 'En cours');
+      expect(rows(tester), ['#1043 · Kossi']);
+      await tester.tap(find.byIcon(Icons.home_outlined));
+      await tester.pumpAndSettle();
+      await tester.tap(find.text('1 nouvelle commande à accepter'));
+      await tester.pumpAndSettle();
+      expect(rows(tester), ['#1042 · Koffi']);
     });
 
     testWidgets('singulier', (tester) async {

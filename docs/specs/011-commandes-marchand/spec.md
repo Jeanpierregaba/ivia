@@ -20,8 +20,10 @@ livreur et le retour d'un colis non livré (021, 022), les relevés (023).
 ## Comportement attendu
 
 **1. Arrivée des commandes**
-- Tant que l'app est ouverte au premier plan (boutique publiée), les commandes sont relues
-  **toutes les 30 s**, et aussitôt au retour dans l'app. Rien n'est relu en arrière-plan.
+- Tant que l'app est ouverte au premier plan (boutique publiée), les **nouvelles commandes**
+  sont relues **toutes les 30 s** (une commande nouvelle qui n'y figure plus est relue seule) ;
+  la liste complète est relue au retour dans l'app, à l'ouverture de l'onglet Commandes et en
+  tirant vers le bas. Rien n'est relu en arrière-plan.
 - L'onglet **Commandes** de la barre du bas porte une **pastille** avec le nombre de nouvelles
   commandes (à accepter) ; rien quand il n'y en a pas. Le lecteur d'écran lit « Commandes,
   2 nouvelles ».
@@ -93,34 +95,34 @@ livreur et le retour d'un colis non livré (021, 022), les relevés (023).
 
 ## Critères d'acceptation
 
-- [ ] Étant donné l'app ouverte sur n'importe quel onglet, quand une commande payée arrive, alors
+- [x] Étant donné l'app ouverte sur n'importe quel onglet, quand une commande payée arrive, alors
       elle apparaît au plus tard 30 s après dans « Nouvelles » et la pastille de l'onglet
       Commandes passe à 1 ; app en arrière-plan, aucune requête ; au retour, relue aussitôt.
-- [ ] Étant donné 2 nouvelles commandes et 1 en cours, l'Accueil affiche « 2 nouvelles commandes à
+- [x] Étant donné 2 nouvelles commandes et 1 en cours, l'Accueil affiche « 2 nouvelles commandes à
       accepter » avec le temps restant de la plus urgente et « 1 commande en cours » ; un appui
       ouvre l'onglet Commandes sur le bon sous-onglet. Sans commande : « Aucune commande à
       traiter. »
-- [ ] L'onglet Commandes répartit les commandes : Nouvelles (`awaiting_seller`, plus anciennes
+- [x] L'onglet Commandes répartit les commandes : Nouvelles (`awaiting_seller`, plus anciennes
       d'abord), En cours (acceptée à « en cours de livraison »), Terminées (le reste) ; nombres sur
       les onglets ; textes vides.
-- [ ] Une nouvelle commande affiche un compte à rebours jusqu'à `seller_deadline_at` (liste et
+- [x] Une nouvelle commande affiche un compte à rebours jusqu'à `seller_deadline_at` (liste et
       détail), en `error` sous 3 min ; à 0 : « Délai dépassé », plus d'acceptation possible, et la
       commande est relue.
-- [ ] « Accepter la commande » envoie `POST /v1/seller/orders/{id}/accept` une seule fois (double
+- [x] « Accepter la commande » envoie `POST /v1/seller/orders/{id}/accept` une seule fois (double
       appui) ; la commande passe dans « En cours » avec « Commencer la préparation ».
-- [ ] « Commencer la préparation » puis « Commande prête » envoient `preparing` puis `ready` ; une
+- [x] « Commencer la préparation » puis « Commande prête » envoient `preparing` puis `ready` ; une
       commande en retrait finit « Prête à retirer » avec « Saisir le code de l'acheteur » ; une
       commande à livrer finit « Recherche d'un livreur » sans action.
-- [ ] Refus : motif obligatoire (« Autre » exige un texte de 1 à 200 caractères) ; le motif choisi
+- [x] Refus : motif obligatoire (« Autre » exige un texte de 1 à 200 caractères) ; le motif choisi
       est envoyé dans `reason` ; la commande passe en « Annulée » avec ce motif.
-- [ ] Remise : code de 4 chiffres envoyé à `handover` ; juste ⇒ « Retirée » ; faux ⇒ message du
+- [x] Remise : code de 4 chiffres envoyé à `handover` ; juste ⇒ « Retirée » ; faux ⇒ message du
       serveur avec les essais restants, cases vidées ; `handover_locked` ⇒ saisie fermée et
       message ; un détail avec `handover_attempts` à 5 n'offre plus la saisie.
-- [ ] Le détail montre articles, mention « Vérifiez que vous l'avez » sur un produit à stock non
+- [x] Le détail montre articles, mention « Vérifiez que vous l'avez » sur un produit à stock non
       suivi, produits, commission et « Vous recevez » (net) ; jamais de numéro ni d'adresse.
-- [ ] Une action refusée parce que la commande a changé (`invalid_transition`, ou 404) affiche le
+- [x] Une action refusée parce que la commande a changé (`invalid_transition`, ou 404) affiche le
       message du serveur et relit la commande : l'écran montre son vrai statut.
-- [ ] Police à 200 % sur 320 dp : listes, détail, feuille de refus et saisie du code sans
+- [x] Police à 200 % sur 320 dp : listes, détail, feuille de refus et saisie du code sans
       débordement ; lecteur d'écran : statut et compte à rebours lus en texte.
 
 ## Cas limites et erreurs
@@ -162,6 +164,7 @@ livreur et le retour d'un colis non livré (021, 022), les relevés (023).
 
 ## Questions ouvertes
 
-Aucune (tranchées le 2026-11-02 : relecture toutes les 30 s avec pastille ; étapes communes aux
+Aucune (tranchées le 2026-11-02 : relecture toutes les 30 s avec pastille, allégée le 2026-11-03
+aux nouvelles commandes après relecture ; étapes communes aux
 deux modes, rien après « prête » pour la livraison ; refus avec motifs proposés + « Autre » ;
 Accueil avec résumé simple).

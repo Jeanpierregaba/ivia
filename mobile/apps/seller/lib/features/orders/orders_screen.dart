@@ -23,14 +23,14 @@ class OrdersScreen extends ConsumerStatefulWidget {
 }
 
 class _OrdersScreenState extends ConsumerState<OrdersScreen> {
-  late var _tab = widget.tab;
   var _loadingMore = false;
-  var _loadMoreFailed = false;
 
-  @override
-  void didUpdateWidget(OrdersScreen oldWidget) {
-    super.didUpdateWidget(oldWidget);
-    if (oldWidget.tab != widget.tab) _tab = widget.tab;
+  /// Onglet affiché : celui de l'URL, seule source (l'Accueil y mène, un
+  /// appui sur un onglet la change).
+  OrderTab get _tab => widget.tab;
+
+  void _select(OrderTab tab) {
+    if (tab != _tab) context.go(Routes.ordersTab(tab));
   }
 
   Future<void> _refresh() async {
@@ -47,14 +47,16 @@ class _OrdersScreenState extends ConsumerState<OrdersScreen> {
 
   Future<void> _loadMore() async {
     if (_loadingMore) return;
-    setState(() {
-      _loadingMore = true;
-      _loadMoreFailed = false;
-    });
+    final messenger = ScaffoldMessenger.of(context);
+    final orders = ref.read(sellerOrdersProvider.notifier);
+    setState(() => _loadingMore = true);
     try {
-      await ref.read(sellerOrdersProvider.notifier).loadMore();
+      await orders.loadMore();
     } catch (_) {
-      if (mounted) setState(() => _loadMoreFailed = true);
+      showMessage(
+        messenger,
+        'Commandes non chargées. Vérifiez votre connexion.',
+      );
     } finally {
       if (mounted) setState(() => _loadingMore = false);
     }
@@ -92,7 +94,7 @@ class _OrdersScreenState extends ConsumerState<OrdersScreen> {
                   ),
               ],
               selected: _tab.index,
-              onSelected: (i) => setState(() => _tab = OrderTab.values[i]),
+              onSelected: (i) => _select(OrderTab.values[i]),
             ),
             const SizedBox(height: IviaSpacing.lg),
             ...switch (value) {
@@ -138,7 +140,7 @@ class _OrdersScreenState extends ConsumerState<OrdersScreen> {
             padding: EdgeInsets.all(IviaSpacing.lg),
             child: Center(child: CircularProgressIndicator()),
           )
-        else if (more || _loadMoreFailed)
+        else if (more)
           Center(
             child: TextButton(
               onPressed: _loadMore,
@@ -161,6 +163,8 @@ class _OrderList extends StatelessWidget {
     borderRadius: BorderRadius.circular(IviaRadius.large),
     clipBehavior: Clip.antiAlias,
     child: Column(
+      // Lignes sur toute la largeur (montant à droite).
+      crossAxisAlignment: CrossAxisAlignment.stretch,
       children: [
         for (final (i, order) in orders.indexed) ...[
           if (i > 0) const Divider(height: 1),
@@ -188,11 +192,15 @@ class OrderRow extends ConsumerWidget {
         ? '#${order.number}'
         : '#${order.number} · ${order.buyerFirstName}';
     final finishedAt = order.completedAt ?? order.updatedAt;
-    final detail = done
-        ? '${_capitalized(shortDate(finishedAt, now: client.now()))} '
-              '${timeOfDay(finishedAt)}'
-        : '${fulfillmentLabel(order.fulfillment)} · '
-              '${articles(order.articleCount)}';
+    final day = shortDate(finishedAt, now: client.now());
+    // Aujourd'hui et hier : avec l'heure ; plus ancien : la date seule.
+    final when = day == "aujourd'hui" || day == 'hier'
+        ? '${_capitalized(day)} ${timeOfDay(finishedAt)}'
+        : day;
+    final kind =
+        '${fulfillmentLabel(order.fulfillment)} · '
+        '${articles(order.articleCount)}';
+    final detail = done ? '$kind · $when' : kind;
     final amount = formatXof(order.subtotalXof);
     final label = sellerStatusLabel(order.status);
     final deadline = order.status == OrderStatus.awaitingSeller
@@ -201,9 +209,13 @@ class OrderRow extends ConsumerWidget {
     void open() => context.push(Routes.order(order.id));
     return Semantics(
       button: true,
-      label:
-          'Commande ${order.number}, ${order.buyerFirstName}, $detail, '
-          '$amount, $label',
+      label: [
+        'Commande ${order.number}',
+        if (order.buyerFirstName.isNotEmpty) order.buyerFirstName,
+        detail,
+        amount,
+        label,
+      ].join(', '),
       onTap: open,
       child: InkWell(
         onTap: open,
@@ -215,23 +227,27 @@ class OrderRow extends ConsumerWidget {
               // Montant à droite du titre, ou dessous s'il manque de place
               // (police agrandie).
               ExcludeSemantics(
-                child: Wrap(
-                  alignment: WrapAlignment.spaceBetween,
-                  spacing: IviaSpacing.sm,
-                  children: [
-                    Text(
-                      title,
-                      style: textTheme.titleMedium?.copyWith(
-                        fontWeight: FontWeight.w700,
+                // Sans largeur imposée, spaceBetween n'écarterait rien.
+                child: SizedBox(
+                  width: double.infinity,
+                  child: Wrap(
+                    alignment: WrapAlignment.spaceBetween,
+                    spacing: IviaSpacing.sm,
+                    children: [
+                      Text(
+                        title,
+                        style: textTheme.titleMedium?.copyWith(
+                          fontWeight: FontWeight.w700,
+                        ),
                       ),
-                    ),
-                    Text(
-                      amount,
-                      style: textTheme.titleMedium?.copyWith(
-                        fontWeight: FontWeight.w700,
+                      Text(
+                        amount,
+                        style: textTheme.titleMedium?.copyWith(
+                          fontWeight: FontWeight.w700,
+                        ),
                       ),
-                    ),
-                  ],
+                    ],
+                  ),
                 ),
               ),
               const SizedBox(height: IviaSpacing.xs),
@@ -261,7 +277,7 @@ class OrderRow extends ConsumerWidget {
                       // serveur).
                       onExpired: () => ref
                           .read(sellerOrdersProvider.notifier)
-                          .refresh()
+                          .poll()
                           .catchError((Object _) {}),
                     ),
                 ],

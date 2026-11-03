@@ -22,10 +22,16 @@
   Une nouvelle commande ne vit que 15 min : elle est toujours parmi les 100 dernières. Une
   commande en cours plus ancienne que les 100 dernières manquerait : limite notée pour le
   backend (filtre par groupe de statuts), comme pour l'acheteur en 009.
-- **Relecture toutes les 30 s** : portée par le cadre des onglets (`SellerShell`, boutique
-  publiée) avec un `Timer.periodic` et un `AppLifecycleListener` (arrêt à `onHide`, relecture
-  immédiate puis reprise à `onShow`). Le cadre reste monté sur tous les onglets et sous le
-  détail : une seule source pour la pastille, l'Accueil et la liste. Erreur pendant une relecture
+- **Relecture** : portée par le cadre des onglets (`SellerShell`, boutique publiée), qui reste
+  monté sur tous les onglets et sous le détail : une seule source pour la pastille, l'Accueil et
+  la liste.
+  - toutes les 30 s (`Timer.periodic`), relecture légère `poll()` :
+    `GET /v1/seller/orders?status=awaiting_seller` ; une nouvelle commande prend sa place dans la
+    liste, une commande « nouvelle » absente de la réponse est relue seule (`GET …/{id}`) ;
+  - liste complète `refresh()` au retour dans l'app (`AppLifecycleListener.onShow`), à
+    l'ouverture de l'onglet Commandes et en tirant vers le bas ; arrêt à `onHide`.
+  Allégée après relecture (2026-11-03) : relire 100 commandes complètes toutes les 30 s coûtait
+  ~400 requêtes SQL au serveur et quelques Mo par heure en 3G. Erreur pendant une relecture
   automatique : dernières données gardées, sans message.
 - **Détail** : `sellerOrderProvider(id)` (famille) lit `GET …/{id}`, relu toutes les 30 s tant
   que le détail est au premier plan, et au retour dans l'app. Chaque action remplace la commande
@@ -43,8 +49,9 @@
   l'app acheteur à `packages/app_core` (`order_labels.dart`) ; chaque app garde son
   `statusLabel` (côté marchand : « Nouvelle », « Acceptée », « Retirée », « Annulée » ; le reste
   comme DESIGN).
-- **Actions** : `SellerOrderActions` (dans l'app) appelle le client, met à jour les providers et
-  traduit les erreurs :
+- **Actions** : dans l'écran du détail (`_run`) et de la remise (`_submit`) ; les fournisseurs
+  sont lus avant l'envoi, pour que le résultat soit reporté dans la liste même si l'écran est
+  quitté pendant la requête. Erreurs affichées au-dessus du bouton :
   - réseau : « Pas de connexion. Réessayez. », rien ne change ;
   - `invalid_transition`, `order_not_found` : message du serveur, commande relue (404 : retour à
     la liste avec « Commande introuvable. ») ;
@@ -91,14 +98,13 @@
 - `lib/features/orders/` (remplace `orders_placeholder_screen.dart`, supprimé) :
   - `order_labels.dart` : `statusLabel` marchand, groupes Nouvelles / En cours / Terminées ;
   - `orders_providers.dart` : `sellerOrdersProvider`, `sellerOrderProvider(id)` ;
-  - `order_actions.dart` : `SellerOrderActions` et messages d'erreur ;
   - `orders_screen.dart` : onglets, lignes, vides, tirer pour actualiser, « Afficher plus » ;
   - `order_screen.dart` : détail, actions selon le statut, relecture ;
   - `reject_sheet.dart` : motifs ;
   - `handover_screen.dart` : saisie du code.
 - `lib/features/home/home_screen.dart` (remplace `home_placeholder_screen.dart`) : cartes
   « nouvelles » et « en cours ».
-- `lib/features/shell/seller_shell.dart` : relecture toutes les 30 s, pastille.
+- `lib/features/shell/seller_shell.dart` : relecture légère toutes les 30 s, complète au retour et à l'ouverture de l'onglet, pastille.
 - `lib/app/router.dart` : `/orders?tab=new|active|done`, `/orders/:id`,
   `/orders/:id/handover`.
 - `test/app_test.dart` (ou `test/orders_test.dart`) : parcours et cas limites.
@@ -131,7 +137,7 @@ Aucune nouvelle bibliothèque (Riverpod, go_router, dio déjà présents ; `Radi
 - Aucune donnée de l'acheteur au-delà du prénom (le serveur n'envoie ni numéro ni adresse).
 - Motif de refus : texte nettoyé par le serveur (`validate.Clean`), limité à 200 caractères dans
   l'app (pas de limite serveur : point backend).
-- Relecture toutes les 30 s seulement au premier plan : pas de trafic en arrière-plan.
+- Relecture seulement au premier plan : pas de trafic en arrière-plan.
 
 ## Tests
 

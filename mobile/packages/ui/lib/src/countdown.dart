@@ -81,6 +81,10 @@ class _IviaCountdownState extends State<IviaCountdown> {
 
   void _checkExpired() {
     if (!mounted || _expiredNotified || _remaining > Duration.zero) return;
+    // App en arrière-plan (les minuteries tournent encore sur Android) :
+    // rappel différé au retour au premier plan, à la seconde suivante.
+    final state = WidgetsBinding.instance.lifecycleState;
+    if (state != null && state != AppLifecycleState.resumed) return;
     _expiredNotified = true;
     widget.onExpired?.call();
   }
