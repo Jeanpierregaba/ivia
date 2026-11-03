@@ -66,7 +66,7 @@ void main() {
     await SessionStore().save('jeton-secret', User.fromJson(seller()));
   });
 
-  Future<void> launch(WidgetTester tester) async {
+  Future<void> launch(WidgetTester tester, {bool settle = true}) async {
     final store = await OnboardingStore.open();
     await tester.pumpWidget(
       ProviderScope(
@@ -92,7 +92,7 @@ void main() {
         child: const SellerApp(),
       ),
     );
-    await tester.pumpAndSettle();
+    if (settle) await tester.pumpAndSettle();
   }
 
   Iterable<RecordedRequest> lists() => server.calls('GET', '/v1/seller/orders');
@@ -328,11 +328,15 @@ void main() {
       // Au-delà de 50 Ko, dio décode la réponse dans un isolat, qui ne
       // tourne pas dans le temps simulé du test : on lui laisse du temps réel.
       Future<void> settle() async {
-        for (var i = 0; i < 3; i++) {
+        for (var i = 0; i < 20; i++) {
           await tester.runAsync(
-            () => Future<void>.delayed(const Duration(milliseconds: 200)),
+            () => Future<void>.delayed(const Duration(milliseconds: 100)),
           );
-          await tester.pump();
+          await tester.pump(const Duration(milliseconds: 100));
+          if (find.byType(CircularProgressIndicator).evaluate().isEmpty &&
+              i >= 2) {
+            break;
+          }
         }
         await tester.pumpAndSettle();
       }
@@ -340,7 +344,7 @@ void main() {
       for (var i = 0; i < 103; i++) {
         orders.add(status: 'completed');
       }
-      await launch(tester);
+      await launch(tester, settle: false);
       await settle();
       await tester.tap(find.byIcon(Icons.receipt_long_outlined));
       await settle();
@@ -849,6 +853,72 @@ void main() {
       expect(find.text('Pas de connexion. Réessayez.'), findsOneWidget);
       expect(tester.widget<TextField>(codeField()).controller!.text, isEmpty);
       expect(orders.byId(id)['handover_attempts'], 0);
+    });
+  });
+
+  group('Accueil', () {
+    testWidgets('résumé : nouvelles (plus urgente), en cours ; navigation', (
+      tester,
+    ) async {
+      orders
+        ..add(paidAgo: const Duration(minutes: 3))
+        ..add(paidAgo: const Duration(minutes: 9))
+        ..add(status: 'accepted');
+      await launch(tester);
+      expect(find.text('Chez Afi'), findsOneWidget);
+      expect(find.text('2 nouvelles commandes à accepter'), findsOneWidget);
+      // Payée il y a 9 min : 6 min restantes.
+      expect(
+        find.textContaining(RegExp(r'^La première expire dans 0[56]:\d\d$')),
+        findsOneWidget,
+      );
+      expect(find.text('1 commande en cours'), findsOneWidget);
+
+      await tester.tap(find.text('1 commande en cours'));
+      await tester.pumpAndSettle();
+      expect(find.text('Acceptée'), findsOneWidget);
+      expect(rows(tester), ['#1044 · Koffi']);
+
+      await tester.tap(find.byIcon(Icons.home_outlined));
+      await tester.pumpAndSettle();
+      await tester.tap(find.text('2 nouvelles commandes à accepter'));
+      await tester.pumpAndSettle();
+      expect(rows(tester), ['#1043 · Koffi', '#1042 · Koffi']);
+    });
+
+    testWidgets('singulier', (tester) async {
+      orders
+        ..add()
+        ..add(status: 'preparing')
+        ..add(status: 'ready_for_pickup');
+      await launch(tester);
+      expect(find.text('1 nouvelle commande à accepter'), findsOneWidget);
+      expect(find.textContaining('Elle expire dans '), findsOneWidget);
+      expect(find.text('2 commandes en cours'), findsOneWidget);
+    });
+
+    testWidgets('rien à traiter (terminées seulement)', (tester) async {
+      orders.add(status: 'completed');
+      await launch(tester);
+      expect(
+        find.text(
+          'Aucune commande à traiter. Les nouvelles commandes arrivent ici.',
+        ),
+        findsOneWidget,
+      );
+      expect(find.textContaining('à accepter'), findsNothing);
+      await tester.tap(find.text('Mes produits'));
+      await tester.pumpAndSettle();
+      expect(find.text('Catalogue'), findsWidgets);
+    });
+
+    testWidgets('mis à jour par la relecture toutes les 30 s', (tester) async {
+      await launch(tester);
+      expect(find.textContaining('Aucune commande à traiter'), findsOneWidget);
+      orders.add();
+      await tester.pump(const Duration(seconds: 30));
+      await tester.pumpAndSettle();
+      expect(find.text('1 nouvelle commande à accepter'), findsOneWidget);
     });
   });
 }

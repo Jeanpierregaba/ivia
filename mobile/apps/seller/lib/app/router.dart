@@ -9,7 +9,7 @@ import '../features/catalog/catalog_screen.dart';
 import '../features/catalog/product_edit_screen.dart';
 import '../features/catalog/product_editor_screen.dart';
 import '../features/catalog/product_published_screen.dart';
-import '../features/home/home_placeholder_screen.dart';
+import '../features/home/home_screen.dart';
 import '../features/orders/handover_screen.dart';
 import '../features/orders/order_labels.dart';
 import '../features/orders/order_screen.dart';
@@ -156,7 +156,7 @@ final routerProvider = Provider<GoRouter>((ref) {
             routes: [
               GoRoute(
                 path: Routes.home,
-                builder: (context, state) => const HomePlaceholderScreen(),
+                builder: (context, state) => const HomeScreen(),
               ),
             ],
           ),

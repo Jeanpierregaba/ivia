@@ -1139,7 +1139,7 @@ void main() {
       );
       await tester.fling(find.text('Compte créé'), const Offset(0, 400), 1000);
       await tester.pumpAndSettle();
-      expect(find.textContaining('Votre boutique est publiée'), findsOneWidget);
+      expect(find.text('Mes produits'), findsOneWidget);
     });
 
     testWidgets('« Préparer mes produits » : catalogue sans barre, retour', (
@@ -1207,7 +1207,7 @@ void main() {
         }),
       );
       await tapText(tester, 'Réessayer');
-      expect(find.textContaining('Votre boutique est publiée'), findsOneWidget);
+      expect(find.text('Mes produits'), findsOneWidget);
     });
   });
 }

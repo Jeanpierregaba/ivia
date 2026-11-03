@@ -29,8 +29,8 @@ livreur et le retour d'un colis non livré (021, 022), les relevés (023).
 **2. Accueil** (onglet Accueil, remplace l'écran provisoire)
 - Logo, nom de la boutique.
 - Carte **« 2 nouvelles commandes à accepter »** avec le temps restant de la plus urgente
-  (« La première expire dans 12 min ») ; un appui ouvre l'onglet Commandes sur « Nouvelles ».
-  Une seule : « 1 nouvelle commande à accepter ».
+  (« La première expire dans 12:40 », lu « 13 min ») ; un appui ouvre l'onglet Commandes sur
+  « Nouvelles ». Une seule : « 1 nouvelle commande à accepter », « Elle expire dans 12:40 ».
 - Carte **« 3 commandes en cours »** (acceptées, en préparation, prêtes) ; un appui ouvre
   « En cours ».
 - Rien à faire : « Aucune commande à traiter. Les nouvelles commandes arrivent ici. »
