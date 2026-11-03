@@ -4,6 +4,18 @@ Points à vérifier, adaptés à la stack (API Go, PostgreSQL, apps Flutter, bac
 `/audit-securite` les passe en revue sur le code réel. Une case n'est cochée que lorsque c'est en
 place **et** vérifié.
 
+## Comptes et connexion (ADR 0011)
+- [x] Mot de passe haché en Argon2id (19 Mio, 2 passes, format PHC), jamais en clair ni journalisé ;
+      10 à 128 caractères, mots de passe courants et proches de l'e-mail refusés.
+- [x] Même erreur et même durée de réponse que le compte existe ou non ; verrou de 15 min après
+      10 échecs ; « mot de passe oublié » déconnecte tous les appareils.
+- [x] Codes à usage unique liés à leur usage (création, réinitialisation, double vérification) :
+      HMAC, 10 min, 5 essais, 1 par minute et par usage, 10 par jour.
+- [x] Google : jeton vérifié par le serveur (signature RS256 de Google, émetteur, application,
+      expiration, e-mail vérifié).
+- [x] Back-office : double vérification par code exigée sur toutes les routes admin ; session
+      admin limitée à 8 h.
+
 ## Secrets et configuration
 - [x] Aucun secret dans le code ni dans l'historique git : job `secrets` (gitleaks, historique
       complet) dans la CI, exceptions limitées aux faux secrets de test (`.gitleaks.toml`).

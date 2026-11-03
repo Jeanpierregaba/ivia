@@ -111,7 +111,7 @@ func New(cfg config.Config, logger *slog.Logger, pool *pgxpool.Pool, opts Option
 	a.Admin = admin.NewService(db)
 	a.Geo = geo.NewService(db, a.Admin)
 	a.Users = users.NewService(db, a.Geo, a.Admin)
-	a.Auth = auth.NewService(db, a.Users, otpSender, logger, auth.Options{Secret: cfg.AuthSecret, SessionTTL: cfg.SessionTTL})
+	a.Auth = auth.NewService(db, a.Users, otpSender, logger, auth.Options{Secret: cfg.AuthSecret, SessionTTL: cfg.SessionTTL, GoogleClientIDs: cfg.GoogleClientIDs})
 	a.Uploads = uploads.NewService(objectStore)
 	a.Notifications = notifications.NewService(db, enq, a.Users, push, logger)
 	a.Shops = shops.NewService(db, a.Geo, a.Users, a.Uploads, a.Admin, a.Notifications)

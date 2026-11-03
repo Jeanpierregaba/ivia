@@ -111,6 +111,18 @@ func (s *Service) FindOrCreateByEmail(ctx context.Context, email string) (User, 
 	return out, created, err
 }
 
+// FindByEmail retourne le compte actif lié à l'e-mail (normalisé), sans le créer.
+func (s *Service) FindByEmail(ctx context.Context, email string) (User, error) {
+	row, err := store.New(s.db.Conn(ctx)).GetUserByEmail(ctx, &email)
+	if database.IsNoRows(err) {
+		return User{}, errUserNotFound
+	}
+	if err != nil {
+		return User{}, fmt.Errorf("lecture du compte : %w", err)
+	}
+	return s.withRoles(ctx, row)
+}
+
 // Get retourne le profil d'un utilisateur actif.
 func (s *Service) Get(ctx context.Context, id uuid.UUID) (User, error) {
 	row, err := store.New(s.db.Conn(ctx)).GetUser(ctx, id)

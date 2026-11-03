@@ -56,7 +56,8 @@ paths:
       tags:
         - Connexion
       operationId: postAuthOtp
-      description: "Même réponse que le compte existe ou non. 1 code par minute et 10 par jour par destinataire (429 `otp_rate_limited`, `otp_daily_limit`). Seul le canal `email` est ouvert au lancement."
+      deprecated: true
+      description: "Ancienne connexion par code (ADR 0006), remplacée par le mot de passe (ADR 0011) : gardée le temps que les apps migrent. Même réponse que le compte existe ou non. 1 code par minute et 10 par jour par destinataire (429 `otp_rate_limited`, `otp_daily_limit`). Seul le canal `email` est ouvert au lancement."
       security: []
       requestBody:
         required: true
@@ -94,7 +95,8 @@ paths:
       tags:
         - Connexion
       operationId: postAuthVerify
-      description: "Crée le compte (rôle buyer) à la première connexion. Erreurs : `otp_invalid`, `otp_expired`, `otp_too_many_attempts` (5 essais)."
+      deprecated: true
+      description: "Ancienne connexion par code (ADR 0006), remplacée par le mot de passe (ADR 0011). N'ouvre jamais le back-office (pas de double vérification). Crée le compte (rôle buyer) à la première connexion. Erreurs : `otp_invalid`, `otp_expired`, `otp_too_many_attempts` (5 essais)."
       security: []
       requestBody:
         required: true
@@ -123,6 +125,358 @@ paths:
             application/json:
               schema:
                 "$ref": "#/components/schemas/Session"
+        default:
+          description: "Erreur (voir `code`)"
+          content:
+            application/json:
+              schema:
+                "$ref": "#/components/schemas/Error"
+  "/v1/auth/providers":
+    get:
+      summary: "Modes de connexion disponibles"
+      tags:
+        - Connexion
+      operationId: getAuthProviders
+      description: "`google` vaut false tant que les identifiants OAuth ne sont pas configurés (GOOGLE_CLIENT_IDS) : l'app masque alors le bouton."
+      security: []
+      responses:
+        "200":
+          description: "Succès"
+          content:
+            application/json:
+              schema:
+                "$ref": "#/components/schemas/AuthProviders"
+        default:
+          description: "Erreur (voir `code`)"
+          content:
+            application/json:
+              schema:
+                "$ref": "#/components/schemas/Error"
+  "/v1/auth/signup/code":
+    post:
+      summary: "Création de compte : envoyer le code"
+      tags:
+        - Connexion
+      operationId: postAuthSignupCode
+      description: "Envoie un code à 6 chiffres à l'adresse. Même réponse que le compte existe ou non. 1 code par minute et par usage, 10 par jour par adresse (429)."
+      security: []
+      requestBody:
+        required: true
+        content:
+          application/json:
+            schema:
+              type: object
+              properties:
+                email:
+                  type: string
+                  format: email
+              required:
+                - email
+      responses:
+        "202":
+          description: "Succès"
+          content:
+            application/json:
+              schema:
+                "$ref": "#/components/schemas/OTPRequested"
+        default:
+          description: "Erreur (voir `code`)"
+          content:
+            application/json:
+              schema:
+                "$ref": "#/components/schemas/Error"
+  "/v1/auth/signup":
+    post:
+      summary: "Création de compte : code et mot de passe"
+      tags:
+        - Connexion
+      operationId: postAuthSignup
+      description: "Vérifie le code (5 essais, 10 min) puis enregistre le mot de passe (10 à 128 caractères, pas un mot de passe courant ni l'e-mail) et ouvre une session. Un compte de l'ancienne connexion par code reçoit ici son mot de passe ; un compte qui en a déjà un : 409 `account_exists`."
+      security: []
+      requestBody:
+        required: true
+        content:
+          application/json:
+            schema:
+              type: object
+              properties:
+                email:
+                  type: string
+                  format: email
+                code:
+                  type: string
+                  pattern: "^[0-9]{6}$"
+                password:
+                  type: string
+                  minLength: 10
+                  maxLength: 128
+              required:
+                - email
+                - code
+                - password
+      responses:
+        "201":
+          description: "Succès"
+          content:
+            application/json:
+              schema:
+                "$ref": "#/components/schemas/Session"
+        default:
+          description: "Erreur (voir `code`)"
+          content:
+            application/json:
+              schema:
+                "$ref": "#/components/schemas/Error"
+  "/v1/auth/login":
+    post:
+      summary: "Connexion par mot de passe"
+      tags:
+        - Connexion
+      operationId: postAuthLogin
+      description: "Même erreur `invalid_credentials` que le compte existe ou non. Après 10 échecs, compte bloqué 15 min (429 `account_locked`, débloqué par « mot de passe oublié »). Pour le back-office, la session doit ensuite passer la double vérification (/v1/auth/mfa/code puis /v1/auth/mfa/verify)."
+      security: []
+      requestBody:
+        required: true
+        content:
+          application/json:
+            schema:
+              type: object
+              properties:
+                email:
+                  type: string
+                  format: email
+                password:
+                  type: string
+                  maxLength: 512
+              required:
+                - email
+                - password
+      responses:
+        "200":
+          description: "Succès"
+          content:
+            application/json:
+              schema:
+                "$ref": "#/components/schemas/Session"
+        default:
+          description: "Erreur (voir `code`)"
+          content:
+            application/json:
+              schema:
+                "$ref": "#/components/schemas/Error"
+  "/v1/auth/password/forgot":
+    post:
+      summary: "Mot de passe oublié : envoyer le code"
+      tags:
+        - Connexion
+      operationId: postAuthPasswordForgot
+      description: "Envoie un code si le compte existe ; même réponse sinon."
+      security: []
+      requestBody:
+        required: true
+        content:
+          application/json:
+            schema:
+              type: object
+              properties:
+                email:
+                  type: string
+                  format: email
+              required:
+                - email
+      responses:
+        "202":
+          description: "Succès"
+          content:
+            application/json:
+              schema:
+                "$ref": "#/components/schemas/OTPRequested"
+        default:
+          description: "Erreur (voir `code`)"
+          content:
+            application/json:
+              schema:
+                "$ref": "#/components/schemas/Error"
+  "/v1/auth/password/reset":
+    post:
+      summary: "Mot de passe oublié : code et nouveau mot de passe"
+      tags:
+        - Connexion
+      operationId: postAuthPasswordReset
+      description: "Vérifie le code, change le mot de passe, débloque le compte, déconnecte tous les appareils et ouvre une nouvelle session."
+      security: []
+      requestBody:
+        required: true
+        content:
+          application/json:
+            schema:
+              type: object
+              properties:
+                email:
+                  type: string
+                  format: email
+                code:
+                  type: string
+                  pattern: "^[0-9]{6}$"
+                password:
+                  type: string
+                  minLength: 10
+                  maxLength: 128
+              required:
+                - email
+                - code
+                - password
+      responses:
+        "200":
+          description: "Succès"
+          content:
+            application/json:
+              schema:
+                "$ref": "#/components/schemas/Session"
+        default:
+          description: "Erreur (voir `code`)"
+          content:
+            application/json:
+              schema:
+                "$ref": "#/components/schemas/Error"
+  "/v1/auth/google":
+    post:
+      summary: "Connexion avec Google"
+      tags:
+        - Connexion
+      operationId: postAuthGoogle
+      description: "Jeton d'identité Google (Sign in with Google) vérifié par le serveur : signature RS256 de Google, émetteur, application (GOOGLE_CLIENT_IDS), expiration, e-mail vérifié. Compte rattaché au compte Google, sinon au compte de même e-mail, sinon créé. `google_disabled` sans configuration, `google_token_invalid` sinon."
+      security: []
+      requestBody:
+        required: true
+        content:
+          application/json:
+            schema:
+              type: object
+              properties:
+                id_token:
+                  type: string
+                  maxLength: 8192
+              required:
+                - id_token
+      responses:
+        "200":
+          description: "Succès"
+          content:
+            application/json:
+              schema:
+                "$ref": "#/components/schemas/Session"
+        default:
+          description: "Erreur (voir `code`)"
+          content:
+            application/json:
+              schema:
+                "$ref": "#/components/schemas/Error"
+  "/v1/auth/session":
+    get:
+      summary: "État de la session courante"
+      tags:
+        - Connexion
+      operationId: getAuthSession
+      description: "Double vérification passée (`mfa_verified`), mot de passe défini, expiration."
+      x-roles:
+        - any
+      responses:
+        "200":
+          description: "Succès"
+          content:
+            application/json:
+              schema:
+                "$ref": "#/components/schemas/SessionInfo"
+        default:
+          description: "Erreur (voir `code`)"
+          content:
+            application/json:
+              schema:
+                "$ref": "#/components/schemas/Error"
+  "/v1/auth/mfa/code":
+    post:
+      summary: "Double vérification : envoyer le code"
+      tags:
+        - Connexion
+      operationId: postAuthMfaCode
+      description: "Envoie un code à l'e-mail du compte connecté. Exigé pour le back-office : sans session vérifiée, les routes admin répondent 403 `mfa_required`."
+      x-roles:
+        - any
+      responses:
+        "202":
+          description: "Succès"
+          content:
+            application/json:
+              schema:
+                "$ref": "#/components/schemas/OTPRequested"
+        default:
+          description: "Erreur (voir `code`)"
+          content:
+            application/json:
+              schema:
+                "$ref": "#/components/schemas/Error"
+  "/v1/auth/mfa/verify":
+    post:
+      summary: "Double vérification : vérifier le code"
+      tags:
+        - Connexion
+      operationId: postAuthMfaVerify
+      description: "Marque la session comme vérifiée ; elle expire alors au plus 8 h plus tard, sans prolongation."
+      x-roles:
+        - any
+      requestBody:
+        required: true
+        content:
+          application/json:
+            schema:
+              type: object
+              properties:
+                code:
+                  type: string
+                  pattern: "^[0-9]{6}$"
+              required:
+                - code
+      responses:
+        "200":
+          description: "Succès"
+          content:
+            application/json:
+              schema:
+                "$ref": "#/components/schemas/SessionInfo"
+        default:
+          description: "Erreur (voir `code`)"
+          content:
+            application/json:
+              schema:
+                "$ref": "#/components/schemas/Error"
+  "/v1/me/password":
+    post:
+      summary: "Changer de mot de passe"
+      tags:
+        - Connexion
+      operationId: postMePassword
+      description: "Mot de passe actuel exigé s'il en existe un (un compte créé avec Google peut en définir un). Les autres appareils sont déconnectés."
+      x-roles:
+        - any
+      requestBody:
+        required: true
+        content:
+          application/json:
+            schema:
+              type: object
+              properties:
+                current_password:
+                  type: string
+                new_password:
+                  type: string
+                  minLength: 10
+                  maxLength: 128
+              required:
+                - new_password
+      responses:
+        "204":
+          description: "Effectué"
         default:
           description: "Erreur (voir `code`)"
           content:
@@ -5023,6 +5377,30 @@ components:
         - channel
         - expires_in_seconds
         - resend_after_seconds
+    AuthProviders:
+      type: object
+      properties:
+        password:
+          type: boolean
+        google:
+          type: boolean
+      required:
+        - password
+        - google
+    SessionInfo:
+      type: object
+      properties:
+        mfa_verified:
+          type: boolean
+        has_password:
+          type: boolean
+        expires_at:
+          type: string
+          format: date-time
+      required:
+        - mfa_verified
+        - has_password
+        - expires_at
     Session:
       type: object
       properties:

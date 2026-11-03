@@ -24,11 +24,12 @@ type SMTPSender struct {
 }
 
 // Send implémente OTPSender (canal e-mail uniquement).
-func (s *SMTPSender) Send(ctx context.Context, channel Channel, recipient, code string) error {
-	if channel != ChannelEmail {
-		return fmt.Errorf("smtp : canal non pris en charge : %s", channel)
+func (s *SMTPSender) Send(ctx context.Context, m OTPMessage) error {
+	if m.Channel != ChannelEmail {
+		return fmt.Errorf("smtp : canal non pris en charge : %s", m.Channel)
 	}
-	msg, err := buildOTPMessage(s.From, recipient, code)
+	recipient := m.Recipient
+	msg, err := buildOTPMessage(s.From, recipient, copyFor(m.Purpose), m.Code)
 	if err != nil {
 		return err
 	}
@@ -46,7 +47,7 @@ func (s *SMTPSender) Send(ctx context.Context, channel Channel, recipient, code 
 }
 
 // buildOTPMessage construit un e-mail MIME en deux versions (texte et HTML), sujet encodé en UTF-8.
-func buildOTPMessage(from, to, code string) ([]byte, error) {
+func buildOTPMessage(from, to string, c mailCopy, code string) ([]byte, error) {
 	b := make([]byte, 12)
 	_, _ = rand.Read(b)
 	boundary := "ivia-" + hex.EncodeToString(b)
@@ -55,15 +56,15 @@ func buildOTPMessage(from, to, code string) ([]byte, error) {
 	header := func(k, v string) { fmt.Fprintf(&buf, "%s: %s\r\n", k, v) }
 	header("From", from)
 	header("To", to)
-	header("Subject", mime.QEncoding.Encode("utf-8", "Votre code de connexion ivia : "+code))
+	header("Subject", mime.QEncoding.Encode("utf-8", c.subject+code))
 	header("Date", time.Now().UTC().Format(time.RFC1123Z))
 	header("MIME-Version", "1.0")
 	header("Content-Type", `multipart/alternative; boundary="`+boundary+`"`)
 	buf.WriteString("\r\n")
 
 	for _, part := range []struct{ contentType, body string }{
-		{"text/plain; charset=utf-8", otpText(code)},
-		{"text/html; charset=utf-8", otpHTML(code)},
+		{"text/plain; charset=utf-8", otpText(c, code)},
+		{"text/html; charset=utf-8", otpHTML(c, code)},
 	} {
 		fmt.Fprintf(&buf, "--%s\r\nContent-Type: %s\r\nContent-Transfer-Encoding: quoted-printable\r\n\r\n", boundary, part.contentType)
 		w := quotedprintable.NewWriter(&buf)
@@ -92,9 +93,9 @@ func addressOf(from string) string {
 type TeeSender []OTPSender
 
 // Send implémente OTPSender : tous les envois doivent réussir.
-func (t TeeSender) Send(ctx context.Context, channel Channel, recipient, code string) error {
+func (t TeeSender) Send(ctx context.Context, m OTPMessage) error {
 	for _, s := range t {
-		if err := s.Send(ctx, channel, recipient, code); err != nil {
+		if err := s.Send(ctx, m); err != nil {
 			return err
 		}
 	}

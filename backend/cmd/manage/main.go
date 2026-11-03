@@ -84,6 +84,7 @@ func run(args []string) error {
 		fmt.Println("  marchand :", s.SellerEmail, "— boutique", s.ShopID)
 		fmt.Println("  acheteur :", s.BuyerEmail)
 		fmt.Println("  livreur  :", s.DriverEmail)
+		fmt.Println("  mot de passe des quatre comptes :", s.Password, "(local uniquement)")
 		return nil
 	default:
 		return errors.New(usage)

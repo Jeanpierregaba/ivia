@@ -1,8 +1,10 @@
-// Package auth gère la connexion sans mot de passe par code à usage unique (OTP) et les sessions
-// opaques (ADR 0006).
+// Package auth gère les comptes et les sessions opaques (ADR 0011, qui remplace l'ADR 0006) :
+// création de compte avec un code reçu par e-mail puis un mot de passe, connexion par mot de passe
+// ou par Google, mot de passe oublié, double vérification par code pour les admins.
 //
-// Le code n'est jamais stocké en clair : seul son HMAC (clé AUTH_SECRET, liée au canal et au
-// destinataire) l'est. Le jeton de session est 32 octets aléatoires ; seul son SHA-256 est stocké.
+// Le code n'est jamais stocké en clair : seul son HMAC (clé AUTH_SECRET, liée au canal, à l'usage
+// et au destinataire) l'est. Le mot de passe est haché en Argon2id (password.go). Le jeton de
+// session est 32 octets aléatoires ; seul son SHA-256 est stocké.
 package auth
 
 import (
@@ -45,14 +47,35 @@ const (
 	ChannelSMS      Channel = "sms"
 )
 
+// Purpose est l'usage d'un code : il fixe le texte de l'e-mail et n'est valable que pour cet usage.
+type Purpose string
+
+const (
+	// PurposeLogin : ancienne connexion par code (ADR 0006), gardée le temps que les apps migrent.
+	PurposeLogin  Purpose = "login"
+	PurposeSignup Purpose = "signup"
+	PurposeReset  Purpose = "reset"
+	PurposeMFA    Purpose = "mfa"
+)
+
+// OTPMessage est un code à envoyer.
+type OTPMessage struct {
+	Channel   Channel
+	Recipient string
+	Code      string
+	Purpose   Purpose
+}
+
 // OTPSender envoie un code par un canal (e-mail au lancement, WhatsApp et SMS ensuite).
 type OTPSender interface {
-	Send(ctx context.Context, channel Channel, recipient, code string) error
+	Send(ctx context.Context, m OTPMessage) error
 }
 
 // UserDirectory est ce dont auth a besoin du module users.
 type UserDirectory interface {
 	FindOrCreateByEmail(ctx context.Context, email string) (users.User, bool, error)
+	FindByEmail(ctx context.Context, email string) (users.User, error)
+	Get(ctx context.Context, id uuid.UUID) (users.User, error)
 	Roles(ctx context.Context, id uuid.UUID) ([]identity.Role, error)
 }
 
@@ -63,6 +86,9 @@ type Options struct {
 	// Plafonds par adresse IP, volontairement hauts (IP partagées par les opérateurs mobiles).
 	RequestsPerIPPerHour int
 	VerifiesPerIPPerHour int
+	// GoogleClientIDs : identifiants OAuth acceptés comme audience des jetons Google (Android, iOS,
+	// web). Vide : connexion Google désactivée.
+	GoogleClientIDs []string
 }
 
 // Service gère codes et sessions.
@@ -74,7 +100,10 @@ type Service struct {
 	opts     Options
 	reqByIP  *ratelimit.Limiter
 	verByIP  *ratelimit.Limiter
+	loginIP  *ratelimit.Limiter
 	channels map[Channel]bool
+	hasher   *passwordHasher
+	google   *googleVerifier
 }
 
 // NewService crée le service. Seul le canal e-mail est ouvert au lancement.
@@ -91,7 +120,10 @@ func NewService(db *database.DB, userDir UserDirectory, sender OTPSender, logger
 		db: db, users: userDir, sender: sender, logger: logger, opts: opts,
 		reqByIP:  ratelimit.New(opts.RequestsPerIPPerHour, time.Hour),
 		verByIP:  ratelimit.New(opts.VerifiesPerIPPerHour, time.Hour),
+		loginIP:  ratelimit.New(opts.VerifiesPerIPPerHour, time.Hour),
 		channels: map[Channel]bool{ChannelEmail: true},
+		hasher:   newPasswordHasher(),
+		google:   newGoogleVerifier(opts.GoogleClientIDs),
 	}
 }
 
@@ -130,12 +162,19 @@ func (s *Service) normalize(channel Channel, recipient string) (string, error) {
 	}
 }
 
-// RequestOTP génère et envoie un code. La réponse ne dit jamais si un compte existe.
+// RequestOTP génère et envoie un code de connexion (ancienne connexion par code, en retrait).
+// La réponse ne dit jamais si un compte existe.
 func (s *Service) RequestOTP(ctx context.Context, channel Channel, recipient, ip string) (OTPRequested, error) {
 	recipient, err := s.normalize(channel, recipient)
 	if err != nil {
 		return OTPRequested{}, err
 	}
+	return s.sendCode(ctx, channel, recipient, PurposeLogin, ip)
+}
+
+// sendCode génère, enregistre et envoie un code pour un usage. recipient est déjà normalisé.
+// Les limites (1 code par minute, 10 par jour) valent par destinataire, tous usages confondus.
+func (s *Service) sendCode(ctx context.Context, channel Channel, recipient string, purpose Purpose, ip string) (OTPRequested, error) {
 	if ok, retry := s.reqByIP.Allow(ip); !ok {
 		return OTPRequested{}, apperr.TooManyRequests("rate_limited", "Trop de demandes depuis votre réseau. Réessayez plus tard.", retry)
 	}
@@ -150,7 +189,8 @@ func (s *Service) RequestOTP(ctx context.Context, channel Channel, recipient, ip
 			return fmt.Errorf("verrou du destinataire : %w", err)
 		}
 		now := time.Now()
-		lastMinute, err := q.CountRecentOTP(ctx, store.CountRecentOTPParams{Channel: string(channel), Recipient: recipient, Since: now.Add(-time.Minute)})
+		purposeStr := string(purpose)
+		lastMinute, err := q.CountRecentOTP(ctx, store.CountRecentOTPParams{Channel: string(channel), Recipient: recipient, Since: now.Add(-time.Minute), Purpose: &purposeStr})
 		if err != nil {
 			return fmt.Errorf("limite par minute : %w", err)
 		}
@@ -164,12 +204,12 @@ func (s *Service) RequestOTP(ctx context.Context, channel Channel, recipient, ip
 		if lastDay >= OTPPerDay {
 			return apperr.TooManyRequests("otp_daily_limit", "Nombre maximal de codes atteint pour aujourd'hui. Réessayez demain.", 3600)
 		}
-		if err := q.InvalidateOTPs(ctx, store.InvalidateOTPsParams{Channel: string(channel), Recipient: recipient}); err != nil {
+		if err := q.InvalidateOTPs(ctx, store.InvalidateOTPsParams{Channel: string(channel), Recipient: recipient, Purpose: string(purpose)}); err != nil {
 			return fmt.Errorf("annulation des anciens codes : %w", err)
 		}
 		_, err = q.CreateOTP(ctx, store.CreateOTPParams{
-			Channel: string(channel), Recipient: recipient,
-			CodeHash: s.hashCode(channel, recipient, code), ExpiresAt: now.Add(OTPTTL),
+			Channel: string(channel), Recipient: recipient, Purpose: string(purpose),
+			CodeHash: s.hashCode(channel, purpose, recipient, code), ExpiresAt: now.Add(OTPTTL),
 		})
 		if err != nil {
 			return fmt.Errorf("enregistrement du code : %w", err)
@@ -182,8 +222,8 @@ func (s *Service) RequestOTP(ctx context.Context, channel Channel, recipient, ip
 
 	sendCtx, cancel := context.WithTimeout(ctx, 15*time.Second)
 	defer cancel()
-	if err := s.sender.Send(sendCtx, channel, recipient, code); err != nil {
-		s.logger.Error("envoi du code impossible", "channel", channel, "err", err)
+	if err := s.sender.Send(sendCtx, OTPMessage{Channel: channel, Recipient: recipient, Code: code, Purpose: purpose}); err != nil {
+		s.logger.Error("envoi du code impossible", "channel", channel, "purpose", purpose, "err", err)
 		return OTPRequested{}, apperr.Unavailable("otp_send_failed", "Le code n'a pas pu être envoyé. Réessayez dans un instant.")
 	}
 	return OTPRequested{Channel: channel, ExpiresInSeconds: int(OTPTTL.Seconds()), ResendAfterSeconds: 60}, nil
@@ -195,53 +235,22 @@ var (
 	errOTPAttempts = apperr.Unauthorized("otp_too_many_attempts", "Trop d'essais. Demandez un nouveau code.")
 )
 
-// Verify vérifie le code et ouvre une session. Le compte acheteur est créé à la première connexion.
+// Verify vérifie un code de connexion (ancienne connexion par code, en retrait) et ouvre une
+// session. Le compte acheteur est créé à la première connexion.
 func (s *Service) Verify(ctx context.Context, channel Channel, recipient, code, userAgent, ip string) (Session, error) {
 	recipient, err := s.normalize(channel, recipient)
 	if err != nil {
 		return Session{}, err
 	}
-	if ok, retry := s.verByIP.Allow(ip); !ok {
-		return Session{}, apperr.TooManyRequests("rate_limited", "Trop de tentatives depuis votre réseau. Réessayez plus tard.", retry)
-	}
-	if len(code) != 6 {
-		return Session{}, errOTPInvalid
-	}
-
-	q := store.New(s.db.Pool)
-	otp, err := q.LatestActiveOTP(ctx, store.LatestActiveOTPParams{Channel: string(channel), Recipient: recipient})
-	if database.IsNoRows(err) {
-		return Session{}, errOTPInvalid
-	}
+	otpID, err := s.checkCode(ctx, channel, recipient, PurposeLogin, code, ip)
 	if err != nil {
-		return Session{}, fmt.Errorf("lecture du code : %w", err)
-	}
-	if time.Now().After(otp.ExpiresAt) {
-		return Session{}, errOTPExpired
-	}
-	// L'essai est compté avant la comparaison : impossible de dépasser 5 essais en parallèle.
-	attempts, err := q.IncrementOTPAttempts(ctx, store.IncrementOTPAttemptsParams{ID: otp.ID, MaxAttempts: OTPMaxAttempts})
-	if database.IsNoRows(err) {
-		return Session{}, errOTPAttempts
-	}
-	if err != nil {
-		return Session{}, fmt.Errorf("comptage des essais : %w", err)
-	}
-	if !hmac.Equal(otp.CodeHash, s.hashCode(channel, recipient, code)) {
-		if attempts >= OTPMaxAttempts {
-			return Session{}, errOTPAttempts
-		}
-		return Session{}, errOTPInvalid
+		return Session{}, err
 	}
 
 	var out Session
 	err = s.db.InTx(ctx, func(ctx context.Context) error {
-		n, err := store.New(s.db.Conn(ctx)).ConsumeOTP(ctx, otp.ID)
-		if err != nil {
-			return fmt.Errorf("consommation du code : %w", err)
-		}
-		if n == 0 {
-			return errOTPInvalid // déjà utilisé par une requête simultanée
+		if err := s.consumeCode(ctx, otpID); err != nil {
+			return err
 		}
 		// Seul l'e-mail est ouvert (normalize refuse les autres canaux) ; l'identifiant est l'e-mail.
 		user, created, err := s.users.FindOrCreateByEmail(ctx, recipient)
@@ -256,6 +265,55 @@ func (s *Service) Verify(ctx context.Context, channel Channel, recipient, code, 
 		return nil
 	})
 	return out, err
+}
+
+// checkCode vérifie le dernier code actif d'un destinataire pour un usage et retourne son
+// identifiant, à consommer (consumeCode) dans la transaction qui l'utilise. L'essai est compté
+// avant la comparaison : impossible de dépasser 5 essais, même en parallèle.
+func (s *Service) checkCode(ctx context.Context, channel Channel, recipient string, purpose Purpose, code, ip string) (uuid.UUID, error) {
+	if ok, retry := s.verByIP.Allow(ip); !ok {
+		return uuid.Nil, apperr.TooManyRequests("rate_limited", "Trop de tentatives depuis votre réseau. Réessayez plus tard.", retry)
+	}
+	if len(code) != 6 {
+		return uuid.Nil, errOTPInvalid
+	}
+	q := store.New(s.db.Pool)
+	otp, err := q.LatestActiveOTP(ctx, store.LatestActiveOTPParams{Channel: string(channel), Recipient: recipient, Purpose: string(purpose)})
+	if database.IsNoRows(err) {
+		return uuid.Nil, errOTPInvalid
+	}
+	if err != nil {
+		return uuid.Nil, fmt.Errorf("lecture du code : %w", err)
+	}
+	if time.Now().After(otp.ExpiresAt) {
+		return uuid.Nil, errOTPExpired
+	}
+	attempts, err := q.IncrementOTPAttempts(ctx, store.IncrementOTPAttemptsParams{ID: otp.ID, MaxAttempts: OTPMaxAttempts})
+	if database.IsNoRows(err) {
+		return uuid.Nil, errOTPAttempts
+	}
+	if err != nil {
+		return uuid.Nil, fmt.Errorf("comptage des essais : %w", err)
+	}
+	if !hmac.Equal(otp.CodeHash, s.hashCode(channel, purpose, recipient, code)) {
+		if attempts >= OTPMaxAttempts {
+			return uuid.Nil, errOTPAttempts
+		}
+		return uuid.Nil, errOTPInvalid
+	}
+	return otp.ID, nil
+}
+
+// consumeCode marque un code comme utilisé : seule la première requête qui le consomme réussit.
+func (s *Service) consumeCode(ctx context.Context, otpID uuid.UUID) error {
+	n, err := store.New(s.db.Conn(ctx)).ConsumeOTP(ctx, otpID)
+	if err != nil {
+		return fmt.Errorf("consommation du code : %w", err)
+	}
+	if n == 0 {
+		return errOTPInvalid // déjà utilisé par une requête simultanée
+	}
+	return nil
 }
 
 func (s *Service) createSession(ctx context.Context, userID uuid.UUID, userAgent string) (string, time.Time, error) {
@@ -305,7 +363,7 @@ func (s *Service) Authenticate(ctx context.Context, token string) (identity.Prin
 			s.logger.Warn("prolongation de session impossible", "err", err)
 		}
 	}
-	return identity.Principal{UserID: sess.UserID, SessionID: sess.ID, Roles: roles}, nil
+	return identity.Principal{UserID: sess.UserID, SessionID: sess.ID, Roles: roles, MFA: sess.MfaVerifiedAt != nil}, nil
 }
 
 // Logout révoque la session courante.
@@ -324,8 +382,16 @@ func (s *Service) LogoutAll(ctx context.Context, userID uuid.UUID) error {
 	return nil
 }
 
-// OnAccountDeleted révoque toutes les sessions du compte supprimé (users.DeletionHook).
+// OnAccountDeleted révoque toutes les sessions du compte supprimé et efface son mot de passe et
+// ses comptes Google rattachés (users.DeletionHook).
 func (s *Service) OnAccountDeleted(ctx context.Context, userID uuid.UUID) error {
+	q := store.New(s.db.Conn(ctx))
+	if err := q.DeletePassword(ctx, userID); err != nil {
+		return fmt.Errorf("suppression du mot de passe : %w", err)
+	}
+	if err := q.DeleteIdentitiesOf(ctx, userID); err != nil {
+		return fmt.Errorf("suppression des comptes rattachés : %w", err)
+	}
 	return s.LogoutAll(ctx, userID)
 }
 
@@ -341,9 +407,9 @@ func (s *Service) Purge(ctx context.Context) error {
 	return nil
 }
 
-func (s *Service) hashCode(channel Channel, recipient, code string) []byte {
+func (s *Service) hashCode(channel Channel, purpose Purpose, recipient, code string) []byte {
 	h := hmac.New(sha256.New, s.opts.Secret)
-	h.Write([]byte(string(channel) + "\x00" + recipient + "\x00" + code))
+	h.Write([]byte(string(channel) + "\x00" + string(purpose) + "\x00" + recipient + "\x00" + code))
 	return h.Sum(nil)
 }
 

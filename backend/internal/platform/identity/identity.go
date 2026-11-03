@@ -32,6 +32,9 @@ type Principal struct {
 	UserID    uuid.UUID
 	SessionID uuid.UUID
 	Roles     []Role
+	// MFA : session vérifiée par un code reçu par e-mail (double vérification, ADR 0011). Exigée
+	// pour les routes réservées aux admins.
+	MFA bool
 }
 
 // HasRole indique si l'utilisateur possède au moins un des rôles.
