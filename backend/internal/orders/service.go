@@ -302,8 +302,10 @@ func (s *Service) GetForBuyer(ctx context.Context, buyerID, id uuid.UUID) (Buyer
 }
 
 // ListForBuyer retourne les commandes de l'acheteur, les plus récentes d'abord.
-func (s *Service) ListForBuyer(ctx context.Context, buyerID uuid.UUID, limit, offset int32) ([]BuyerOrder, error) {
-	ids, err := store.New(s.db.Conn(ctx)).ListBuyerOrders(ctx, store.ListBuyerOrdersParams{BuyerID: buyerID, Lim: limit, Off: offset})
+func (s *Service) ListForBuyer(ctx context.Context, buyerID uuid.UUID, group string, limit, offset int32) ([]BuyerOrder, error) {
+	ids, err := store.New(s.db.Conn(ctx)).ListBuyerOrders(ctx, store.ListBuyerOrdersParams{
+		BuyerID: buyerID, Statuses: groupStatuses(BuyerGroups, group), Lim: limit, Off: offset,
+	})
 	if err != nil {
 		return nil, fmt.Errorf("liste des commandes : %w", err)
 	}
@@ -351,7 +353,7 @@ func (s *Service) GetForSeller(ctx context.Context, sellerID, id uuid.UUID) (Sel
 }
 
 // ListForSeller retourne les commandes payées des boutiques du marchand (ou d'une seule).
-func (s *Service) ListForSeller(ctx context.Context, sellerID uuid.UUID, shopID *uuid.UUID, status Status, limit, offset int32) ([]SellerOrder, error) {
+func (s *Service) ListForSeller(ctx context.Context, sellerID uuid.UUID, shopID *uuid.UUID, status Status, group string, limit, offset int32) ([]SellerOrder, error) {
 	var shopIDs []uuid.UUID
 	if shopID != nil {
 		if _, err := s.shops.RequireOwned(ctx, sellerID, *shopID); err != nil {
@@ -369,7 +371,7 @@ func (s *Service) ListForSeller(ctx context.Context, sellerID uuid.UUID, shopID 
 		v := string(status)
 		st = &v
 	}
-	ids, err := store.New(s.db.Conn(ctx)).ListShopOrders(ctx, store.ListShopOrdersParams{ShopIds: shopIDs, Status: st, Lim: limit, Off: offset})
+	ids, err := store.New(s.db.Conn(ctx)).ListShopOrders(ctx, store.ListShopOrdersParams{ShopIds: shopIDs, Status: st, Statuses: groupStatuses(SellerGroups, group), Lim: limit, Off: offset})
 	if err != nil {
 		return nil, fmt.Errorf("liste des commandes : %w", err)
 	}

@@ -629,7 +629,10 @@ export interface paths {
             path?: never;
             cookie?: never;
         };
-        /** Mes commandes */
+        /**
+         * Mes commandes
+         * @description Plus récentes d'abord. `group` donne un onglet entier de l'app : `active` (en attente de paiement jusqu'à « en route ») ou `done` (remises, livrées, annulées, expirées, remboursées…).
+         */
         get: operations["getOrders"];
         put?: never;
         /**
@@ -858,7 +861,10 @@ export interface paths {
         };
         get?: never;
         put?: never;
-        /** Accepter (et confirmer la disponibilité) */
+        /**
+         * Accepter (et confirmer la disponibilité)
+         * @description Avant la fin du délai de réponse (`seller_deadline_at`) : après, 409 `seller_deadline_passed` et la commande est annulée sur-le-champ (acheteur remboursé), sans attendre la tâche de fond.
+         */
         post: operations["postSellerOrdersByIdAccept"];
         delete?: never;
         options?: never;
@@ -875,7 +881,10 @@ export interface paths {
         };
         get?: never;
         put?: never;
-        /** Refuser */
+        /**
+         * Refuser
+         * @description Motif facultatif, 200 caractères au plus (communiqué à l'acheteur). Avant la fin du délai de réponse : après, 409 `seller_deadline_passed` (commande annulée sur-le-champ).
+         */
         post: operations["postSellerOrdersByIdReject"];
         delete?: never;
         options?: never;
@@ -4689,6 +4698,7 @@ export interface operations {
     getOrders: {
         parameters: {
             query?: {
+                group?: "active" | "done";
                 limit?: number;
                 offset?: number;
             };
@@ -5103,6 +5113,8 @@ export interface operations {
             query?: {
                 shop_id?: string;
                 status?: "pending_payment" | "expired" | "awaiting_seller" | "accepted" | "preparing" | "ready_for_pickup" | "awaiting_driver" | "driver_assigned" | "picked_up" | "delivered" | "delivery_failed" | "returned_to_shop" | "completed" | "cancelled" | "refunded";
+                /** @description Onglet de l'app marchand : `new` (à accepter), `active` (acceptées jusqu'à « en route »), `done` (remises, livrées, échouées, revenues, annulées, remboursées). */
+                group?: "new" | "active" | "done";
                 limit?: number;
                 offset?: number;
             };
@@ -5208,7 +5220,9 @@ export interface operations {
         };
         requestBody: {
             content: {
-                "application/json": components["schemas"]["Reason"];
+                "application/json": {
+                    reason?: string;
+                };
             };
         };
         responses: {

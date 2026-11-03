@@ -405,18 +405,26 @@ func (q *Queries) InsertItem(ctx context.Context, arg InsertItemParams) error {
 const listBuyerOrders = `-- name: ListBuyerOrders :many
 SELECT o.id FROM orders o
 WHERE o.buyer_id = $1
+  -- Groupe d'onglet (en cours, terminées) : liste de statuts, NULL pour toutes.
+  AND ($2::text[] IS NULL OR o.status = ANY($2::text[]))
 ORDER BY o.created_at DESC
-LIMIT $3 OFFSET $2
+LIMIT $4 OFFSET $3
 `
 
 type ListBuyerOrdersParams struct {
-	BuyerID uuid.UUID
-	Off     int32
-	Lim     int32
+	BuyerID  uuid.UUID
+	Statuses []string
+	Off      int32
+	Lim      int32
 }
 
 func (q *Queries) ListBuyerOrders(ctx context.Context, arg ListBuyerOrdersParams) ([]uuid.UUID, error) {
-	rows, err := q.db.Query(ctx, listBuyerOrders, arg.BuyerID, arg.Off, arg.Lim)
+	rows, err := q.db.Query(ctx, listBuyerOrders,
+		arg.BuyerID,
+		arg.Statuses,
+		arg.Off,
+		arg.Lim,
+	)
 	if err != nil {
 		return nil, err
 	}
@@ -508,21 +516,25 @@ WHERE o.shop_id = ANY($1::uuid[])
   -- Le marchand ne voit que les commandes payées.
   AND o.paid_at IS NOT NULL
   AND ($2::text IS NULL OR o.status = $2::text)
+  -- Groupe d'onglet (nouvelles, en cours, terminées) : liste de statuts, NULL pour toutes.
+  AND ($3::text[] IS NULL OR o.status = ANY($3::text[]))
 ORDER BY o.created_at DESC
-LIMIT $4 OFFSET $3
+LIMIT $5 OFFSET $4
 `
 
 type ListShopOrdersParams struct {
-	ShopIds []uuid.UUID
-	Status  *string
-	Off     int32
-	Lim     int32
+	ShopIds  []uuid.UUID
+	Status   *string
+	Statuses []string
+	Off      int32
+	Lim      int32
 }
 
 func (q *Queries) ListShopOrders(ctx context.Context, arg ListShopOrdersParams) ([]uuid.UUID, error) {
 	rows, err := q.db.Query(ctx, listShopOrders,
 		arg.ShopIds,
 		arg.Status,
+		arg.Statuses,
 		arg.Off,
 		arg.Lim,
 	)
