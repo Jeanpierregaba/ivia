@@ -286,6 +286,39 @@ func (q *Queries) DriverDocumentKeysIn(ctx context.Context, keys []string) ([]st
 	return items, nil
 }
 
+const driverOverview = `-- name: DriverOverview :one
+SELECT
+  count(*) FILTER (WHERE review_status = 'approved' AND suspended_at IS NULL AND availability = 'available')::bigint AS available,
+  count(*) FILTER (WHERE review_status = 'approved' AND suspended_at IS NULL AND availability = 'busy')::bigint AS busy,
+  count(*) FILTER (WHERE review_status = 'approved' AND suspended_at IS NULL AND availability = 'offline')::bigint AS offline,
+  count(*) FILTER (WHERE suspended_at IS NOT NULL)::bigint AS suspended,
+  count(*) FILTER (WHERE review_status = 'pending_review' AND suspended_at IS NULL)::bigint AS pending_review
+FROM drivers
+`
+
+type DriverOverviewRow struct {
+	Available     int64
+	Busy          int64
+	Offline       int64
+	Suspended     int64
+	PendingReview int64
+}
+
+// Livreurs maintenant (tableau de bord) : validés et non suspendus par disponibilité, suspendus,
+// dossiers à valider.
+func (q *Queries) DriverOverview(ctx context.Context) (DriverOverviewRow, error) {
+	row := q.db.QueryRow(ctx, driverOverview)
+	var i DriverOverviewRow
+	err := row.Scan(
+		&i.Available,
+		&i.Busy,
+		&i.Offline,
+		&i.Suspended,
+		&i.PendingReview,
+	)
+	return i, err
+}
+
 const expireOffer = `-- name: ExpireOffer :execrows
 UPDATE delivery_offers SET status = 'expired', responded_at = now()
 WHERE id = $1 AND status = 'pending' AND expires_at <= now()

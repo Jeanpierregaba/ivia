@@ -469,3 +469,16 @@ func (s *Service) fromRow(ctx context.Context, r store.GetShopRow) (Shop, error)
 	}
 	return shop, nil
 }
+
+// PendingOverview retourne le nombre de boutiques à valider et la date de la plus ancienne (nil
+// s'il n'y en a pas).
+func (s *Service) PendingOverview(ctx context.Context) (int64, *time.Time, error) {
+	r, err := store.New(s.db.Conn(ctx)).PendingShopsOverview(ctx)
+	if err != nil {
+		return 0, nil, fmt.Errorf("boutiques à valider : %w", err)
+	}
+	if r.N == 0 {
+		return 0, nil, nil
+	}
+	return r.N, &r.Oldest, nil
+}

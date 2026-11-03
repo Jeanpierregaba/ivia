@@ -49,7 +49,8 @@ export interface paths {
         put?: never;
         /**
          * Envoyer un code de connexion
-         * @description Même réponse que le compte existe ou non. 1 code par minute et 10 par jour par destinataire (429 `otp_rate_limited`, `otp_daily_limit`). Seul le canal `email` est ouvert au lancement.
+         * @deprecated
+         * @description Ancienne connexion par code (ADR 0006), remplacée par le mot de passe (ADR 0011) : gardée le temps que les apps migrent. Même réponse que le compte existe ou non. 1 code par minute et 10 par jour par destinataire (429 `otp_rate_limited`, `otp_daily_limit`). Seul le canal `email` est ouvert au lancement.
          */
         post: operations["postAuthOtp"];
         delete?: never;
@@ -69,9 +70,230 @@ export interface paths {
         put?: never;
         /**
          * Vérifier le code et ouvrir une session
-         * @description Crée le compte (rôle buyer) à la première connexion. Erreurs : `otp_invalid`, `otp_expired`, `otp_too_many_attempts` (5 essais).
+         * @deprecated
+         * @description Ancienne connexion par code (ADR 0006), remplacée par le mot de passe (ADR 0011). N'ouvre jamais le back-office (pas de double vérification). Crée le compte (rôle buyer) à la première connexion. Erreurs : `otp_invalid`, `otp_expired`, `otp_too_many_attempts` (5 essais).
          */
         post: operations["postAuthVerify"];
+        delete?: never;
+        options?: never;
+        head?: never;
+        patch?: never;
+        trace?: never;
+    };
+    "/v1/auth/providers": {
+        parameters: {
+            query?: never;
+            header?: never;
+            path?: never;
+            cookie?: never;
+        };
+        /**
+         * Modes de connexion disponibles
+         * @description `google` vaut false tant que les identifiants OAuth ne sont pas configurés (GOOGLE_CLIENT_IDS) : l'app masque alors le bouton.
+         */
+        get: operations["getAuthProviders"];
+        put?: never;
+        post?: never;
+        delete?: never;
+        options?: never;
+        head?: never;
+        patch?: never;
+        trace?: never;
+    };
+    "/v1/auth/signup/code": {
+        parameters: {
+            query?: never;
+            header?: never;
+            path?: never;
+            cookie?: never;
+        };
+        get?: never;
+        put?: never;
+        /**
+         * Création de compte : envoyer le code
+         * @description Envoie un code à 6 chiffres à l'adresse. Même réponse que le compte existe ou non. 1 code par minute et par usage, 10 par jour par adresse (429).
+         */
+        post: operations["postAuthSignupCode"];
+        delete?: never;
+        options?: never;
+        head?: never;
+        patch?: never;
+        trace?: never;
+    };
+    "/v1/auth/signup": {
+        parameters: {
+            query?: never;
+            header?: never;
+            path?: never;
+            cookie?: never;
+        };
+        get?: never;
+        put?: never;
+        /**
+         * Création de compte : code et mot de passe
+         * @description Vérifie le code (5 essais, 10 min) puis enregistre le mot de passe (10 à 128 caractères, pas un mot de passe courant ni l'e-mail) et ouvre une session. Un compte de l'ancienne connexion par code reçoit ici son mot de passe ; un compte qui en a déjà un : 409 `account_exists`.
+         */
+        post: operations["postAuthSignup"];
+        delete?: never;
+        options?: never;
+        head?: never;
+        patch?: never;
+        trace?: never;
+    };
+    "/v1/auth/login": {
+        parameters: {
+            query?: never;
+            header?: never;
+            path?: never;
+            cookie?: never;
+        };
+        get?: never;
+        put?: never;
+        /**
+         * Connexion par mot de passe
+         * @description Même erreur `invalid_credentials` que le compte existe ou non. Après 10 échecs, compte bloqué 15 min (429 `account_locked`, débloqué par « mot de passe oublié »). Pour le back-office, la session doit ensuite passer la double vérification (/v1/auth/mfa/code puis /v1/auth/mfa/verify).
+         */
+        post: operations["postAuthLogin"];
+        delete?: never;
+        options?: never;
+        head?: never;
+        patch?: never;
+        trace?: never;
+    };
+    "/v1/auth/password/forgot": {
+        parameters: {
+            query?: never;
+            header?: never;
+            path?: never;
+            cookie?: never;
+        };
+        get?: never;
+        put?: never;
+        /**
+         * Mot de passe oublié : envoyer le code
+         * @description Envoie un code si le compte existe ; même réponse sinon.
+         */
+        post: operations["postAuthPasswordForgot"];
+        delete?: never;
+        options?: never;
+        head?: never;
+        patch?: never;
+        trace?: never;
+    };
+    "/v1/auth/password/reset": {
+        parameters: {
+            query?: never;
+            header?: never;
+            path?: never;
+            cookie?: never;
+        };
+        get?: never;
+        put?: never;
+        /**
+         * Mot de passe oublié : code et nouveau mot de passe
+         * @description Vérifie le code, change le mot de passe, débloque le compte, déconnecte tous les appareils et ouvre une nouvelle session.
+         */
+        post: operations["postAuthPasswordReset"];
+        delete?: never;
+        options?: never;
+        head?: never;
+        patch?: never;
+        trace?: never;
+    };
+    "/v1/auth/google": {
+        parameters: {
+            query?: never;
+            header?: never;
+            path?: never;
+            cookie?: never;
+        };
+        get?: never;
+        put?: never;
+        /**
+         * Connexion avec Google
+         * @description Jeton d'identité Google (Sign in with Google) vérifié par le serveur : signature RS256 de Google, émetteur, application (GOOGLE_CLIENT_IDS), expiration, e-mail vérifié. Compte rattaché au compte Google, sinon au compte de même e-mail, sinon créé. `google_disabled` sans configuration, `google_token_invalid` sinon.
+         */
+        post: operations["postAuthGoogle"];
+        delete?: never;
+        options?: never;
+        head?: never;
+        patch?: never;
+        trace?: never;
+    };
+    "/v1/auth/session": {
+        parameters: {
+            query?: never;
+            header?: never;
+            path?: never;
+            cookie?: never;
+        };
+        /**
+         * État de la session courante
+         * @description Double vérification passée (`mfa_verified`), mot de passe défini, expiration.
+         */
+        get: operations["getAuthSession"];
+        put?: never;
+        post?: never;
+        delete?: never;
+        options?: never;
+        head?: never;
+        patch?: never;
+        trace?: never;
+    };
+    "/v1/auth/mfa/code": {
+        parameters: {
+            query?: never;
+            header?: never;
+            path?: never;
+            cookie?: never;
+        };
+        get?: never;
+        put?: never;
+        /**
+         * Double vérification : envoyer le code
+         * @description Envoie un code à l'e-mail du compte connecté. Exigé pour le back-office : sans session vérifiée, les routes admin répondent 403 `mfa_required`.
+         */
+        post: operations["postAuthMfaCode"];
+        delete?: never;
+        options?: never;
+        head?: never;
+        patch?: never;
+        trace?: never;
+    };
+    "/v1/auth/mfa/verify": {
+        parameters: {
+            query?: never;
+            header?: never;
+            path?: never;
+            cookie?: never;
+        };
+        get?: never;
+        put?: never;
+        /**
+         * Double vérification : vérifier le code
+         * @description Marque la session comme vérifiée ; elle expire alors au plus 8 h plus tard, sans prolongation.
+         */
+        post: operations["postAuthMfaVerify"];
+        delete?: never;
+        options?: never;
+        head?: never;
+        patch?: never;
+        trace?: never;
+    };
+    "/v1/me/password": {
+        parameters: {
+            query?: never;
+            header?: never;
+            path?: never;
+            cookie?: never;
+        };
+        get?: never;
+        put?: never;
+        /**
+         * Changer de mot de passe
+         * @description Mot de passe actuel exigé s'il en existe un (un compte créé avec Google peut en définir un). Les autres appareils sont déconnectés.
+         */
+        post: operations["postMePassword"];
         delete?: never;
         options?: never;
         head?: never;
@@ -2065,6 +2287,26 @@ export interface paths {
         patch?: never;
         trace?: never;
     };
+    "/v1/admin/overview": {
+        parameters: {
+            query?: never;
+            header?: never;
+            path?: never;
+            cookie?: never;
+        };
+        /**
+         * Vue d'ensemble du tableau de bord
+         * @description Tout le tableau de bord en un appel (maquette B03) : à traiter, indicateurs de la période (comparés à la période précédente ; pour « today », au même jour la semaine précédente), taux sur 30 jours, commandes payées des 14 derniers jours par mode, livreurs, paiements de la période, commandes en cours (puces et lignes du groupe), journal, pastilles de la barre latérale. Prévu pour être relu toutes les 30 s.
+         */
+        get: operations["getAdminOverview"];
+        put?: never;
+        post?: never;
+        delete?: never;
+        options?: never;
+        head?: never;
+        patch?: never;
+        trace?: never;
+    };
     "/v1/admin/metrics": {
         parameters: {
             query?: never;
@@ -2133,6 +2375,16 @@ export interface components {
             channel: "email" | "whatsapp" | "sms";
             expires_in_seconds: number;
             resend_after_seconds: number;
+        };
+        AuthProviders: {
+            password: boolean;
+            google: boolean;
+        };
+        SessionInfo: {
+            mfa_verified: boolean;
+            has_password: boolean;
+            /** Format: date-time */
+            expires_at: string;
         };
         Session: {
             /** @description Jeton opaque à envoyer en `Authorization: Bearer`. */
@@ -3158,6 +3410,152 @@ export interface components {
             /** Format: date-time */
             created_at: string;
         };
+        OverviewOrderRef: {
+            /** Format: uuid */
+            id: string;
+            /** Format: int64 */
+            number: number;
+            reference: string;
+            /** @description Livreurs sollicités sans succès (commande sans livreur). */
+            offers_count: number;
+        };
+        OverviewTodo: {
+            /** Format: int64 */
+            refunds: number;
+            /** Format: int64 */
+            refunds_xof: number;
+            /** Format: int64 */
+            shops: number;
+            /** Format: date-time */
+            shops_oldest: string | null;
+            /** Format: int64 */
+            drivers: number;
+            /** Format: int64 */
+            handover_locked: number;
+            handover_locked_order: components["schemas"]["OverviewOrderRef"] | null;
+            /** Format: int64 */
+            unassigned: number;
+            unassigned_order: components["schemas"]["OverviewOrderRef"] | null;
+        };
+        OverviewKPIs: {
+            /** Format: int64 */
+            paid_orders: number;
+            /** Format: int64 */
+            paid_orders_prev: number;
+            /** Format: int64 */
+            gmv_xof: number;
+            /** Format: int64 */
+            commission_xof: number;
+            /** @description Sur 30 jours. */
+            cancellation_rate_pct: number;
+            /** @description Sur 30 jours. */
+            assigned_within_10_min_pct: number;
+            /** @description Sur 30 jours. */
+            median_ready_to_delivered_minutes: number;
+        };
+        OverviewDay: {
+            /** Format: date */
+            day: string;
+            /** Format: int64 */
+            delivery: number;
+            /** Format: int64 */
+            pickup: number;
+        };
+        OverviewDrivers: {
+            /** Format: int64 */
+            available: number;
+            /** Format: int64 */
+            busy: number;
+            /** Format: int64 */
+            offline: number;
+            /** Format: int64 */
+            suspended: number;
+            /** Format: int64 */
+            pending_review: number;
+        };
+        OverviewPayments: {
+            /** Format: int64 */
+            succeeded: number;
+            /** Format: int64 */
+            succeeded_xof: number;
+            /** Format: int64 */
+            pending: number;
+            /** Format: int64 */
+            failed: number;
+        };
+        OverviewActiveOrder: {
+            /** Format: uuid */
+            id: string;
+            /** Format: int64 */
+            number: number;
+            reference: string;
+            shop_name: string;
+            buyer_name: string;
+            /** @enum {string} */
+            fulfillment: "pickup" | "delivery";
+            /** Format: int64 */
+            total_xof: number;
+            status: string;
+            handover_locked: boolean;
+            /**
+             * Format: date-time
+             * @description Dernier changement de statut.
+             */
+            since: string;
+        };
+        OverviewActive: {
+            group: string;
+            /** Format: int64 */
+            all: number;
+            /** Format: int64 */
+            to_accept: number;
+            /** Format: int64 */
+            without_driver: number;
+            /** Format: int64 */
+            locked: number;
+            items: components["schemas"]["OverviewActiveOrder"][];
+        };
+        OverviewAuditLine: {
+            /** Format: int64 */
+            id: number;
+            admin_name: string;
+            admin_initials: string;
+            action: string;
+            target_type: string;
+            target_id: string;
+            target_label: string;
+            reason: string;
+            /** Format: date-time */
+            created_at: string;
+        };
+        OverviewSidebar: {
+            /** Format: int64 */
+            orders: number;
+            /** Format: int64 */
+            refunds: number;
+            /** Format: int64 */
+            shops: number;
+            /** Format: int64 */
+            drivers: number;
+        };
+        AdminOverview: {
+            /** Format: date-time */
+            generated_at: string;
+            /** @enum {string} */
+            period: "today" | "7d" | "30d";
+            /** Format: date */
+            from: string;
+            /** Format: date */
+            to: string;
+            todo: components["schemas"]["OverviewTodo"];
+            kpis: components["schemas"]["OverviewKPIs"];
+            paid_per_day: components["schemas"]["OverviewDay"][];
+            drivers: components["schemas"]["OverviewDrivers"];
+            payments: components["schemas"]["OverviewPayments"];
+            active_orders: components["schemas"]["OverviewActive"];
+            audit: components["schemas"]["OverviewAuditLine"][];
+            sidebar: components["schemas"]["OverviewSidebar"];
+        };
         Dashboard: {
             /** Format: date */
             from: string;
@@ -3333,6 +3731,382 @@ export interface operations {
                 content: {
                     "application/json": components["schemas"]["Session"];
                 };
+            };
+            /** @description Erreur (voir `code`) */
+            default: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["Error"];
+                };
+            };
+        };
+    };
+    getAuthProviders: {
+        parameters: {
+            query?: never;
+            header?: never;
+            path?: never;
+            cookie?: never;
+        };
+        requestBody?: never;
+        responses: {
+            /** @description Succès */
+            200: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["AuthProviders"];
+                };
+            };
+            /** @description Erreur (voir `code`) */
+            default: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["Error"];
+                };
+            };
+        };
+    };
+    postAuthSignupCode: {
+        parameters: {
+            query?: never;
+            header?: never;
+            path?: never;
+            cookie?: never;
+        };
+        requestBody: {
+            content: {
+                "application/json": {
+                    /** Format: email */
+                    email: string;
+                };
+            };
+        };
+        responses: {
+            /** @description Succès */
+            202: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["OTPRequested"];
+                };
+            };
+            /** @description Erreur (voir `code`) */
+            default: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["Error"];
+                };
+            };
+        };
+    };
+    postAuthSignup: {
+        parameters: {
+            query?: never;
+            header?: never;
+            path?: never;
+            cookie?: never;
+        };
+        requestBody: {
+            content: {
+                "application/json": {
+                    /** Format: email */
+                    email: string;
+                    code: string;
+                    password: string;
+                };
+            };
+        };
+        responses: {
+            /** @description Succès */
+            201: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["Session"];
+                };
+            };
+            /** @description Erreur (voir `code`) */
+            default: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["Error"];
+                };
+            };
+        };
+    };
+    postAuthLogin: {
+        parameters: {
+            query?: never;
+            header?: never;
+            path?: never;
+            cookie?: never;
+        };
+        requestBody: {
+            content: {
+                "application/json": {
+                    /** Format: email */
+                    email: string;
+                    password: string;
+                };
+            };
+        };
+        responses: {
+            /** @description Succès */
+            200: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["Session"];
+                };
+            };
+            /** @description Erreur (voir `code`) */
+            default: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["Error"];
+                };
+            };
+        };
+    };
+    postAuthPasswordForgot: {
+        parameters: {
+            query?: never;
+            header?: never;
+            path?: never;
+            cookie?: never;
+        };
+        requestBody: {
+            content: {
+                "application/json": {
+                    /** Format: email */
+                    email: string;
+                };
+            };
+        };
+        responses: {
+            /** @description Succès */
+            202: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["OTPRequested"];
+                };
+            };
+            /** @description Erreur (voir `code`) */
+            default: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["Error"];
+                };
+            };
+        };
+    };
+    postAuthPasswordReset: {
+        parameters: {
+            query?: never;
+            header?: never;
+            path?: never;
+            cookie?: never;
+        };
+        requestBody: {
+            content: {
+                "application/json": {
+                    /** Format: email */
+                    email: string;
+                    code: string;
+                    password: string;
+                };
+            };
+        };
+        responses: {
+            /** @description Succès */
+            200: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["Session"];
+                };
+            };
+            /** @description Erreur (voir `code`) */
+            default: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["Error"];
+                };
+            };
+        };
+    };
+    postAuthGoogle: {
+        parameters: {
+            query?: never;
+            header?: never;
+            path?: never;
+            cookie?: never;
+        };
+        requestBody: {
+            content: {
+                "application/json": {
+                    id_token: string;
+                };
+            };
+        };
+        responses: {
+            /** @description Succès */
+            200: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["Session"];
+                };
+            };
+            /** @description Erreur (voir `code`) */
+            default: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["Error"];
+                };
+            };
+        };
+    };
+    getAuthSession: {
+        parameters: {
+            query?: never;
+            header?: never;
+            path?: never;
+            cookie?: never;
+        };
+        requestBody?: never;
+        responses: {
+            /** @description Succès */
+            200: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["SessionInfo"];
+                };
+            };
+            /** @description Erreur (voir `code`) */
+            default: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["Error"];
+                };
+            };
+        };
+    };
+    postAuthMfaCode: {
+        parameters: {
+            query?: never;
+            header?: never;
+            path?: never;
+            cookie?: never;
+        };
+        requestBody?: never;
+        responses: {
+            /** @description Succès */
+            202: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["OTPRequested"];
+                };
+            };
+            /** @description Erreur (voir `code`) */
+            default: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["Error"];
+                };
+            };
+        };
+    };
+    postAuthMfaVerify: {
+        parameters: {
+            query?: never;
+            header?: never;
+            path?: never;
+            cookie?: never;
+        };
+        requestBody: {
+            content: {
+                "application/json": {
+                    code: string;
+                };
+            };
+        };
+        responses: {
+            /** @description Succès */
+            200: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["SessionInfo"];
+                };
+            };
+            /** @description Erreur (voir `code`) */
+            default: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["Error"];
+                };
+            };
+        };
+    };
+    postMePassword: {
+        parameters: {
+            query?: never;
+            header?: never;
+            path?: never;
+            cookie?: never;
+        };
+        requestBody: {
+            content: {
+                "application/json": {
+                    current_password?: string;
+                    new_password: string;
+                };
+            };
+        };
+        responses: {
+            /** @description Effectué */
+            204: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content?: never;
             };
             /** @description Erreur (voir `code`) */
             default: {
@@ -7681,6 +8455,38 @@ export interface operations {
                 };
                 content: {
                     "application/json": components["schemas"]["Settlement"];
+                };
+            };
+            /** @description Erreur (voir `code`) */
+            default: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["Error"];
+                };
+            };
+        };
+    };
+    getAdminOverview: {
+        parameters: {
+            query?: {
+                period?: "today" | "7d" | "30d";
+                group?: "to_accept" | "without_driver" | "locked";
+            };
+            header?: never;
+            path?: never;
+            cookie?: never;
+        };
+        requestBody?: never;
+        responses: {
+            /** @description Succès */
+            200: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["AdminOverview"];
                 };
             };
             /** @description Erreur (voir `code`) */

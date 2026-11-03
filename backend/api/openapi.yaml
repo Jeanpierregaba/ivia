@@ -5226,6 +5226,48 @@ paths:
             application/json:
               schema:
                 "$ref": "#/components/schemas/Error"
+  "/v1/admin/overview":
+    get:
+      summary: "Vue d'ensemble du tableau de bord"
+      tags:
+        - Admin
+      operationId: getAdminOverview
+      description: "Tout le tableau de bord en un appel (maquette B03) : à traiter, indicateurs de la période (comparés à la période précédente ; pour « today », au même jour la semaine précédente), taux sur 30 jours, commandes payées des 14 derniers jours par mode, livreurs, paiements de la période, commandes en cours (puces et lignes du groupe), journal, pastilles de la barre latérale. Prévu pour être relu toutes les 30 s."
+      parameters:
+        - name: period
+          in: query
+          required: false
+          schema:
+            type: string
+            enum:
+              - today
+              - 7d
+              - 30d
+            default: today
+        - name: group
+          in: query
+          required: false
+          schema:
+            type: string
+            enum:
+              - to_accept
+              - without_driver
+              - locked
+      x-roles:
+        - admin
+      responses:
+        "200":
+          description: "Succès"
+          content:
+            application/json:
+              schema:
+                "$ref": "#/components/schemas/AdminOverview"
+        default:
+          description: "Erreur (voir `code`)"
+          content:
+            application/json:
+              schema:
+                "$ref": "#/components/schemas/Error"
   "/v1/admin/metrics":
     get:
       summary: "Indicateurs métier"
@@ -7727,6 +7769,335 @@ components:
         - after
         - reason
         - created_at
+    OverviewOrderRef:
+      type: object
+      properties:
+        id:
+          type: string
+          format: uuid
+        number:
+          type: integer
+          format: int64
+        reference:
+          type: string
+        offers_count:
+          type: integer
+          description: "Livreurs sollicités sans succès (commande sans livreur)."
+      required:
+        - id
+        - number
+        - reference
+        - offers_count
+    OverviewTodo:
+      type: object
+      properties:
+        refunds:
+          type: integer
+          format: int64
+        refunds_xof:
+          type: integer
+          format: int64
+        shops:
+          type: integer
+          format: int64
+        shops_oldest:
+          type:
+            - string
+            - "null"
+          format: date-time
+        drivers:
+          type: integer
+          format: int64
+        handover_locked:
+          type: integer
+          format: int64
+        handover_locked_order:
+          oneOf:
+            - "$ref": "#/components/schemas/OverviewOrderRef"
+            - type: "null"
+        unassigned:
+          type: integer
+          format: int64
+        unassigned_order:
+          oneOf:
+            - "$ref": "#/components/schemas/OverviewOrderRef"
+            - type: "null"
+      required:
+        - refunds
+        - refunds_xof
+        - shops
+        - shops_oldest
+        - drivers
+        - handover_locked
+        - handover_locked_order
+        - unassigned
+        - unassigned_order
+    OverviewKPIs:
+      type: object
+      properties:
+        paid_orders:
+          type: integer
+          format: int64
+        paid_orders_prev:
+          type: integer
+          format: int64
+        gmv_xof:
+          type: integer
+          format: int64
+        commission_xof:
+          type: integer
+          format: int64
+        cancellation_rate_pct:
+          type: number
+          description: "Sur 30 jours."
+        assigned_within_10_min_pct:
+          type: number
+          description: "Sur 30 jours."
+        median_ready_to_delivered_minutes:
+          type: number
+          description: "Sur 30 jours."
+      required:
+        - paid_orders
+        - paid_orders_prev
+        - gmv_xof
+        - commission_xof
+        - cancellation_rate_pct
+        - assigned_within_10_min_pct
+        - median_ready_to_delivered_minutes
+    OverviewDay:
+      type: object
+      properties:
+        day:
+          type: string
+          format: date
+        delivery:
+          type: integer
+          format: int64
+        pickup:
+          type: integer
+          format: int64
+      required:
+        - day
+        - delivery
+        - pickup
+    OverviewDrivers:
+      type: object
+      properties:
+        available:
+          type: integer
+          format: int64
+        busy:
+          type: integer
+          format: int64
+        offline:
+          type: integer
+          format: int64
+        suspended:
+          type: integer
+          format: int64
+        pending_review:
+          type: integer
+          format: int64
+      required:
+        - available
+        - busy
+        - offline
+        - suspended
+        - pending_review
+    OverviewPayments:
+      type: object
+      properties:
+        succeeded:
+          type: integer
+          format: int64
+        succeeded_xof:
+          type: integer
+          format: int64
+        pending:
+          type: integer
+          format: int64
+        failed:
+          type: integer
+          format: int64
+      required:
+        - succeeded
+        - succeeded_xof
+        - pending
+        - failed
+    OverviewActiveOrder:
+      type: object
+      properties:
+        id:
+          type: string
+          format: uuid
+        number:
+          type: integer
+          format: int64
+        reference:
+          type: string
+        shop_name:
+          type: string
+        buyer_name:
+          type: string
+        fulfillment:
+          type: string
+          enum:
+            - pickup
+            - delivery
+        total_xof:
+          type: integer
+          format: int64
+        status:
+          type: string
+        handover_locked:
+          type: boolean
+        since:
+          type: string
+          format: date-time
+          description: "Dernier changement de statut."
+      required:
+        - id
+        - number
+        - reference
+        - shop_name
+        - buyer_name
+        - fulfillment
+        - total_xof
+        - status
+        - handover_locked
+        - since
+    OverviewActive:
+      type: object
+      properties:
+        group:
+          type: string
+        all:
+          type: integer
+          format: int64
+        to_accept:
+          type: integer
+          format: int64
+        without_driver:
+          type: integer
+          format: int64
+        locked:
+          type: integer
+          format: int64
+        items:
+          type: array
+          items:
+            "$ref": "#/components/schemas/OverviewActiveOrder"
+      required:
+        - group
+        - all
+        - to_accept
+        - without_driver
+        - locked
+        - items
+    OverviewAuditLine:
+      type: object
+      properties:
+        id:
+          type: integer
+          format: int64
+        admin_name:
+          type: string
+        admin_initials:
+          type: string
+        action:
+          type: string
+        target_type:
+          type: string
+        target_id:
+          type: string
+        target_label:
+          type: string
+        reason:
+          type: string
+        created_at:
+          type: string
+          format: date-time
+      required:
+        - id
+        - admin_name
+        - admin_initials
+        - action
+        - target_type
+        - target_id
+        - target_label
+        - reason
+        - created_at
+    OverviewSidebar:
+      type: object
+      properties:
+        orders:
+          type: integer
+          format: int64
+        refunds:
+          type: integer
+          format: int64
+        shops:
+          type: integer
+          format: int64
+        drivers:
+          type: integer
+          format: int64
+      required:
+        - orders
+        - refunds
+        - shops
+        - drivers
+    AdminOverview:
+      type: object
+      properties:
+        generated_at:
+          type: string
+          format: date-time
+        period:
+          type: string
+          enum:
+            - today
+            - 7d
+            - 30d
+        from:
+          type: string
+          format: date
+        to:
+          type: string
+          format: date
+        todo:
+          "$ref": "#/components/schemas/OverviewTodo"
+        kpis:
+          "$ref": "#/components/schemas/OverviewKPIs"
+        paid_per_day:
+          type: array
+          items:
+            "$ref": "#/components/schemas/OverviewDay"
+        drivers:
+          "$ref": "#/components/schemas/OverviewDrivers"
+        payments:
+          "$ref": "#/components/schemas/OverviewPayments"
+        active_orders:
+          "$ref": "#/components/schemas/OverviewActive"
+        audit:
+          type: array
+          items:
+            "$ref": "#/components/schemas/OverviewAuditLine"
+        sidebar:
+          "$ref": "#/components/schemas/OverviewSidebar"
+      required:
+        - generated_at
+        - period
+        - from
+        - to
+        - todo
+        - kpis
+        - paid_per_day
+        - drivers
+        - payments
+        - active_orders
+        - audit
+        - sidebar
     Dashboard:
       type: object
       properties:

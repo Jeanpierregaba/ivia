@@ -100,3 +100,16 @@ SELECT count(*)::bigint AS n, coalesce(min(created_at), now())::timestamptz AS o
 FROM payments
 WHERE payer_phone = sqlc.arg(payer_phone) AND created_at > sqlc.arg(since)::timestamptz
   AND failure_reason <> sqlc.arg(not_sent)::text;
+
+-- name: PaymentsOverview :one
+-- Paiements d'une période (tableau de bord) : réussis (hors doublons) et montant, en attente,
+-- échoués ou expirés.
+SELECT
+  count(*) FILTER (WHERE succeeded_at >= sqlc.arg(from_time)::timestamptz AND succeeded_at < sqlc.arg(to_time)::timestamptz
+                     AND NOT is_duplicate)::bigint AS succeeded,
+  coalesce(sum(amount_xof) FILTER (WHERE succeeded_at >= sqlc.arg(from_time)::timestamptz AND succeeded_at < sqlc.arg(to_time)::timestamptz
+                     AND NOT is_duplicate), 0)::bigint AS succeeded_xof,
+  count(*) FILTER (WHERE status = 'pending')::bigint AS pending,
+  count(*) FILTER (WHERE status IN ('failed', 'expired')
+                     AND created_at >= sqlc.arg(from_time)::timestamptz AND created_at < sqlc.arg(to_time)::timestamptz)::bigint AS failed
+FROM payments;

@@ -7,12 +7,15 @@ import (
 	"net/http"
 	"time"
 
+	"ivia/backend/internal/admin"
 	"ivia/backend/internal/delivery"
 	"ivia/backend/internal/orders"
 	"ivia/backend/internal/payments"
 	"ivia/backend/internal/platform/apperr"
 	"ivia/backend/internal/platform/httpapi"
 	"ivia/backend/internal/platform/identity"
+	"ivia/backend/internal/shops"
+	"ivia/backend/internal/users"
 )
 
 // Dashboard regroupe les indicateurs d'une période.
@@ -29,16 +32,20 @@ type Handler struct {
 	orders   *orders.Service
 	delivery *delivery.Service
 	payments *payments.Service
+	shops    *shops.Service
+	users    *users.Service
+	admin    *admin.Service
 }
 
 // NewHandler crée le handler.
-func NewHandler(o *orders.Service, d *delivery.Service, p *payments.Service) *Handler {
-	return &Handler{orders: o, delivery: d, payments: p}
+func NewHandler(o *orders.Service, d *delivery.Service, p *payments.Service, s *shops.Service, u *users.Service, a *admin.Service) *Handler {
+	return &Handler{orders: o, delivery: d, payments: p, shops: s, users: u, admin: a}
 }
 
 // Register enregistre les routes.
 func (h *Handler) Register(rt *httpapi.Router) {
 	rt.Roles("GET /v1/admin/metrics", h.metrics, identity.RoleAdmin)
+	rt.Roles("GET /v1/admin/overview", h.overview, identity.RoleAdmin)
 }
 
 // Compute calcule les indicateurs sur une période en dates de Lomé (bornes incluses).

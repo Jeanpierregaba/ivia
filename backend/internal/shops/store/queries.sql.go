@@ -507,6 +507,24 @@ func (q *Queries) MerchantDocumentKeysIn(ctx context.Context, keys []string) ([]
 	return items, nil
 }
 
+const pendingShopsOverview = `-- name: PendingShopsOverview :one
+SELECT count(*)::bigint AS n, coalesce(min(created_at), now())::timestamptz AS oldest
+FROM shops WHERE status = 'pending_review'
+`
+
+type PendingShopsOverviewRow struct {
+	N      int64
+	Oldest time.Time
+}
+
+// Boutiques à valider et date de la plus ancienne (tableau de bord).
+func (q *Queries) PendingShopsOverview(ctx context.Context) (PendingShopsOverviewRow, error) {
+	row := q.db.QueryRow(ctx, pendingShopsOverview)
+	var i PendingShopsOverviewRow
+	err := row.Scan(&i.N, &i.Oldest)
+	return i, err
+}
+
 const setShopStatus = `-- name: SetShopStatus :execrows
 UPDATE shops
 SET status = $1, status_reason = $2,

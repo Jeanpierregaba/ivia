@@ -692,3 +692,20 @@ func newReference(prefix string) string {
 	_, _ = rand.Read(b)
 	return prefix + "_" + strings.ToLower(base32.StdEncoding.WithPadding(base32.NoPadding).EncodeToString(b))
 }
+
+// Overview : paiements d'une période (tableau de bord).
+type Overview struct {
+	Succeeded    int64 `json:"succeeded"`
+	SucceededXOF int64 `json:"succeeded_xof"`
+	Pending      int64 `json:"pending"`
+	Failed       int64 `json:"failed"`
+}
+
+// Overview retourne les paiements réussis (hors doublons), en attente et échoués entre from et to.
+func (s *Service) Overview(ctx context.Context, from, to time.Time) (Overview, error) {
+	r, err := store.New(s.db.Conn(ctx)).PaymentsOverview(ctx, store.PaymentsOverviewParams{FromTime: from, ToTime: to})
+	if err != nil {
+		return Overview{}, fmt.Errorf("paiements de la période : %w", err)
+	}
+	return Overview{Succeeded: r.Succeeded, SucceededXOF: r.SucceededXof, Pending: r.Pending, Failed: r.Failed}, nil
+}

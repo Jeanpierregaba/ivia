@@ -174,7 +174,7 @@ func (a *App) routes() (http.Handler, []string) {
 	payments.NewHandler(a.Payments, a.Logger, a.Config.DevToolsEnabled()).Register(rt)
 	delivery.NewHandler(a.Delivery).Register(rt)
 	settlements.NewHandler(a.Settlements).Register(rt)
-	reports.NewHandler(a.Orders, a.Delivery, a.Payments).Register(rt)
+	reports.NewHandler(a.Orders, a.Delivery, a.Payments, a.Shops, a.Users, a.Admin).Register(rt)
 
 	if a.Config.Env != config.EnvProduction { // documentation interactive : local, test, staging
 		rt.Raw(docs.PageRoute, http.HandlerFunc(docs.Page))

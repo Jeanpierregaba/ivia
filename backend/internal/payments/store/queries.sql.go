@@ -445,6 +445,44 @@ func (q *Queries) LockPayment(ctx context.Context, id uuid.UUID) (Payment, error
 	return i, err
 }
 
+const paymentsOverview = `-- name: PaymentsOverview :one
+SELECT
+  count(*) FILTER (WHERE succeeded_at >= $1::timestamptz AND succeeded_at < $2::timestamptz
+                     AND NOT is_duplicate)::bigint AS succeeded,
+  coalesce(sum(amount_xof) FILTER (WHERE succeeded_at >= $1::timestamptz AND succeeded_at < $2::timestamptz
+                     AND NOT is_duplicate), 0)::bigint AS succeeded_xof,
+  count(*) FILTER (WHERE status = 'pending')::bigint AS pending,
+  count(*) FILTER (WHERE status IN ('failed', 'expired')
+                     AND created_at >= $1::timestamptz AND created_at < $2::timestamptz)::bigint AS failed
+FROM payments
+`
+
+type PaymentsOverviewParams struct {
+	FromTime time.Time
+	ToTime   time.Time
+}
+
+type PaymentsOverviewRow struct {
+	Succeeded    int64
+	SucceededXof int64
+	Pending      int64
+	Failed       int64
+}
+
+// Paiements d'une période (tableau de bord) : réussis (hors doublons) et montant, en attente,
+// échoués ou expirés.
+func (q *Queries) PaymentsOverview(ctx context.Context, arg PaymentsOverviewParams) (PaymentsOverviewRow, error) {
+	row := q.db.QueryRow(ctx, paymentsOverview, arg.FromTime, arg.ToTime)
+	var i PaymentsOverviewRow
+	err := row.Scan(
+		&i.Succeeded,
+		&i.SucceededXof,
+		&i.Pending,
+		&i.Failed,
+	)
+	return i, err
+}
+
 const paymentsToRecheck = `-- name: PaymentsToRecheck :many
 SELECT id, order_id, buyer_id, provider, reference, provider_ref, amount_xof, currency, operator, payer_phone, status, failure_reason, is_duplicate, succeeded_at, created_at, updated_at FROM payments
 WHERE created_at < now() - interval '2 minutes'
