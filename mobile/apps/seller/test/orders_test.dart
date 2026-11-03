@@ -254,6 +254,12 @@ void main() {
       expect(find.bySemanticsLabel('En cours, 2'), findsOneWidget);
       // La plus urgente (payée il y a 10 min) en haut.
       expect(rows(tester), ['#1043 · Yao', '#1042 · Ama']);
+      // Ligne sur toute la largeur : titre à gauche, montant à droite.
+      final list = tester.getRect(find.byType(OrderRow).first);
+      final title = tester.getRect(find.text('#1043 · Yao'));
+      final amount = tester.getRect(textPlain('10 500 F').first);
+      expect(title.left, lessThan(list.left + 24));
+      expect(amount.right, greaterThan(list.right - 24));
       expect(find.text('Retrait · 3 articles'), findsNWidgets(2));
       expect(textPlain('10 500 F'), findsNWidgets(2));
       expect(find.text('Nouvelle'), findsNWidgets(2));

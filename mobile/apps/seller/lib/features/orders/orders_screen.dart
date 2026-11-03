@@ -161,6 +161,8 @@ class _OrderList extends StatelessWidget {
     borderRadius: BorderRadius.circular(IviaRadius.large),
     clipBehavior: Clip.antiAlias,
     child: Column(
+      // Lignes sur toute la largeur (montant à droite).
+      crossAxisAlignment: CrossAxisAlignment.stretch,
       children: [
         for (final (i, order) in orders.indexed) ...[
           if (i > 0) const Divider(height: 1),
@@ -215,23 +217,27 @@ class OrderRow extends ConsumerWidget {
               // Montant à droite du titre, ou dessous s'il manque de place
               // (police agrandie).
               ExcludeSemantics(
-                child: Wrap(
-                  alignment: WrapAlignment.spaceBetween,
-                  spacing: IviaSpacing.sm,
-                  children: [
-                    Text(
-                      title,
-                      style: textTheme.titleMedium?.copyWith(
-                        fontWeight: FontWeight.w700,
+                // Sans largeur imposée, spaceBetween n'écarterait rien.
+                child: SizedBox(
+                  width: double.infinity,
+                  child: Wrap(
+                    alignment: WrapAlignment.spaceBetween,
+                    spacing: IviaSpacing.sm,
+                    children: [
+                      Text(
+                        title,
+                        style: textTheme.titleMedium?.copyWith(
+                          fontWeight: FontWeight.w700,
+                        ),
                       ),
-                    ),
-                    Text(
-                      amount,
-                      style: textTheme.titleMedium?.copyWith(
-                        fontWeight: FontWeight.w700,
+                      Text(
+                        amount,
+                        style: textTheme.titleMedium?.copyWith(
+                          fontWeight: FontWeight.w700,
+                        ),
                       ),
-                    ),
-                  ],
+                    ],
+                  ),
                 ),
               ),
               const SizedBox(height: IviaSpacing.xs),
