@@ -2458,7 +2458,9 @@ class FakeSellerOrders {
         // Essai compté avant la comparaison, comme le serveur.
         final attempts = order['handover_attempts'] as int;
         if (attempts >= maxHandoverAttempts) return locked;
-        order['handover_attempts'] = attempts + 1;
+        order
+          ..['handover_attempts'] = attempts + 1
+          ..['updated_at'] = now().toIso8601String();
         final body = r.body as Map<String, dynamic>? ?? const {};
         if (body['code'] != handoverCode) {
           if (attempts + 1 >= maxHandoverAttempts) return locked;

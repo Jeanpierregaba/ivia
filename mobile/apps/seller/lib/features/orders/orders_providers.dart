@@ -1,3 +1,5 @@
+import 'dart:async';
+
 import 'package:flutter_riverpod/flutter_riverpod.dart';
 import 'package:ivia_api_client/ivia_api_client.dart';
 import 'package:ivia_app_core/ivia_app_core.dart';
@@ -97,9 +99,11 @@ class SellerOrdersController extends AsyncNotifier<SellerOrders> {
   /// (action du marchand) garde sa version la plus récente. Échec : les
   /// données affichées restent, l'erreur remonte à l'appelant.
   Future<void> refresh() async {
-    if (_shopId == null) return;
+    final shopId = _shopId;
+    if (shopId == null) return;
     final fresh = await _fetchFirst();
-    if (!ref.mounted) return;
+    // Boutique ou compte changé pendant la requête : réponse ignorée.
+    if (!ref.mounted || _shopId != shopId) return;
     final current = state.value;
     if (current == null) {
       state = AsyncData(fresh);
@@ -126,19 +130,22 @@ class SellerOrdersController extends AsyncNotifier<SellerOrders> {
     );
   }
 
-  /// Ajoute la page suivante (« Afficher plus »).
+  /// Ajoute la page suivante (« Afficher plus »). La liste est relue à la
+  /// réponse : une relecture ou une action arrivée entre-temps est gardée.
   Future<void> loadMore() async {
-    final current = state.value;
-    final offset = current?.nextOffset;
-    if (current == null || offset == null || _shopId == null) return;
+    final shopId = _shopId;
+    final offset = state.value?.nextOffset;
+    if (offset == null || shopId == null) return;
     final page = await _guard(
       () => _client.sellerOrders(
-        shopId: _shopId,
+        shopId: shopId,
         offset: offset,
         limit: ordersPageSize,
       ),
     );
-    if (!ref.mounted) return;
+    if (!ref.mounted || _shopId != shopId) return;
+    final current = state.value;
+    if (current == null) return;
     final known = {for (final o in current.orders) o.id};
     state = AsyncData(
       SellerOrders(
@@ -153,17 +160,16 @@ class SellerOrdersController extends AsyncNotifier<SellerOrders> {
   }
 
   /// Commande rendue par le serveur (action, détail relu) : remplace la
-  /// version de la liste si elle est au moins aussi récente.
+  /// version de la liste si elle est au moins aussi récente. Une commande
+  /// absente de la liste (ancienne, lien) n'y est pas ajoutée : sa place
+  /// dépend de la pagination, la relecture suivante la range.
   void replace(SellerOrder order) {
     final current = state.value;
     if (current == null) return;
     final orders = [...current.orders];
     final i = orders.indexWhere((o) => o.id == order.id);
-    if (i < 0) {
-      orders.insert(0, order);
-    } else {
-      orders[i] = _newest(orders[i], order);
-    }
+    if (i < 0) return;
+    orders[i] = _newest(orders[i], order);
     state = AsyncData(
       SellerOrders(orders: orders, nextOffset: current.nextOffset),
     );
@@ -207,23 +213,36 @@ class SellerOrderController extends AsyncNotifier<SellerOrder> {
     return _fetch();
   }
 
+  /// Lit la commande et la reporte dans la liste (même si l'écran est
+  /// quitté entre-temps). Boutique suspendue : la boutique est relue.
   Future<SellerOrder> _fetch() async {
-    final order = await ref.read(apiClientProvider).sellerOrder(id);
-    ref.read(sellerOrdersProvider.notifier).replace(order);
-    return order;
+    final client = ref.read(apiClientProvider);
+    final list = ref.read(sellerOrdersProvider.notifier);
+    final shop = ref.read(sellerShopProvider.notifier);
+    try {
+      final order = await client.sellerOrder(id);
+      list.replace(order);
+      return order;
+    } on ApiException catch (e) {
+      if (e.code == 'shop_suspended' || e.code == 'shop_not_found') {
+        unawaited(shop.refresh());
+      }
+      rethrow;
+    }
   }
 
   /// Relit la commande ; une version plus récente déjà affichée (action
   /// faite pendant la requête) est gardée.
   Future<void> refresh() async {
     final order = await _fetch();
-    if (!ref.mounted) return;
     set(order);
   }
 
   /// Commande rendue par le serveur : affichée si elle est au moins aussi
-  /// récente, et reportée dans la liste.
+  /// récente, et reportée dans la liste. Sans effet si le détail n'est plus
+  /// affiché (fournisseur libéré).
   void set(SellerOrder order) {
+    if (!ref.mounted) return;
     state = AsyncData(_newest(state.value, order));
     ref.read(sellerOrdersProvider.notifier).replace(order);
   }

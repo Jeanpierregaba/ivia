@@ -21,6 +21,7 @@ class IviaCodeInput extends StatefulWidget {
     this.autofocus = false,
     this.onCompleted,
     this.semanticLabel = 'Code à 6 chiffres',
+    this.autofill = true,
   });
 
   final TextEditingController controller;
@@ -35,6 +36,11 @@ class IviaCodeInput extends StatefulWidget {
   /// Appelé quand tous les chiffres sont saisis.
   final ValueChanged<String>? onCompleted;
   final String semanticLabel;
+
+  /// Remplissage automatique d'un code reçu par SMS ou e-mail. Désactivé
+  /// pour un code donné de vive voix (code de remise) : le téléphone
+  /// proposerait un code reçu par le marchand.
+  final bool autofill;
 
   @override
   State<IviaCodeInput> createState() => _IviaCodeInputState();
@@ -115,7 +121,10 @@ class _IviaCodeInputState extends State<IviaCodeInput> {
               enabled: widget.enabled,
               autofocus: widget.autofocus,
               keyboardType: TextInputType.number,
-              autofillHints: const [AutofillHints.oneTimeCode],
+              autofillHints: widget.autofill
+                  ? const [AutofillHints.oneTimeCode]
+                  : null,
+              enableIMEPersonalizedLearning: false,
               inputFormatters: [
                 FilteringTextInputFormatter.digitsOnly,
                 LengthLimitingTextInputFormatter(widget.length),

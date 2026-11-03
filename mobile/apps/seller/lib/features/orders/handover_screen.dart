@@ -1,3 +1,5 @@
+import 'dart:async';
+
 import 'package:flutter/material.dart';
 import 'package:flutter_riverpod/flutter_riverpod.dart';
 import 'package:go_router/go_router.dart';
@@ -52,6 +54,12 @@ class _HandoverScreenState extends ConsumerState<HandoverScreen> {
     if (_busy || code.length != 4) return;
     final messenger = ScaffoldMessenger.of(context);
     final router = GoRouter.of(context);
+    // Lus avant l'envoi : utilisables même si l'écran est quitté (retour
+    // système) pendant la requête.
+    final client = ref.read(apiClientProvider);
+    final list = ref.read(sellerOrdersProvider.notifier);
+    final shop = ref.read(sellerShopProvider.notifier);
+    final detail = _order;
     setState(() {
       _busy = true;
       _error = null;
@@ -59,12 +67,11 @@ class _HandoverScreenState extends ConsumerState<HandoverScreen> {
     // Vidé dès l'envoi : le code ne reste pas à l'écran.
     _code.clear();
     try {
-      final order = await ref
-          .read(apiClientProvider)
-          .handOverOrder(widget.orderId, code);
-      if (!mounted) return;
-      _order.set(order);
+      final order = await client.handOverOrder(widget.orderId, code);
+      list.replace(order);
+      detail.set(order);
       showMessage(messenger, 'Commande remise.');
+      if (!mounted) return;
       if (router.canPop()) {
         router.pop();
       } else {
@@ -83,15 +90,24 @@ class _HandoverScreenState extends ConsumerState<HandoverScreen> {
           showMessage(messenger, orderNotFoundMessage);
           router.go(Routes.orders);
           return;
+        case 'invalid_transition':
+          // La commande a changé (annulée par l'admin…) : retour au détail,
+          // qui montre son vrai statut.
+          showMessage(messenger, e.message);
+          unawaited(detail.refresh().catchError((Object _) {}));
+          if (mounted && router.canPop()) router.pop();
+          return;
         case 'shop_suspended' || 'shop_not_found':
           error = e.message;
-          await ref.read(sellerShopProvider.notifier).refresh();
+          unawaited(shop.refresh());
         default:
           error = e.message;
       }
       if (mounted) setState(() => _error = error);
-      // Essais comptés ou statut changé : le détail se met à jour.
-      if (!e.isNetwork) await _order.refresh().catchError((Object _) {});
+      // Essais comptés : le détail se met à jour.
+      if (!e.isNetwork) {
+        unawaited(detail.refresh().catchError((Object _) {}));
+      }
     } on Exception {
       if (mounted) {
         setState(() => _error = 'Une erreur est survenue. Réessayez.');
@@ -148,6 +164,7 @@ class _HandoverScreenState extends ConsumerState<HandoverScreen> {
                       enabled: !_busy,
                       hasError: _error != null,
                       semanticLabel: 'Code de remise à 4 chiffres',
+                      autofill: false,
                     ),
                   if (error != null) ...[
                     const SizedBox(height: IviaSpacing.md),

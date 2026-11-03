@@ -43,8 +43,9 @@
   l'app acheteur à `packages/app_core` (`order_labels.dart`) ; chaque app garde son
   `statusLabel` (côté marchand : « Nouvelle », « Acceptée », « Retirée », « Annulée » ; le reste
   comme DESIGN).
-- **Actions** : `SellerOrderActions` (dans l'app) appelle le client, met à jour les providers et
-  traduit les erreurs :
+- **Actions** : dans l'écran du détail (`_run`) et de la remise (`_submit`) ; les fournisseurs
+  sont lus avant l'envoi, pour que le résultat soit reporté dans la liste même si l'écran est
+  quitté pendant la requête. Erreurs affichées au-dessus du bouton :
   - réseau : « Pas de connexion. Réessayez. », rien ne change ;
   - `invalid_transition`, `order_not_found` : message du serveur, commande relue (404 : retour à
     la liste avec « Commande introuvable. ») ;
@@ -91,7 +92,6 @@
 - `lib/features/orders/` (remplace `orders_placeholder_screen.dart`, supprimé) :
   - `order_labels.dart` : `statusLabel` marchand, groupes Nouvelles / En cours / Terminées ;
   - `orders_providers.dart` : `sellerOrdersProvider`, `sellerOrderProvider(id)` ;
-  - `order_actions.dart` : `SellerOrderActions` et messages d'erreur ;
   - `orders_screen.dart` : onglets, lignes, vides, tirer pour actualiser, « Afficher plus » ;
   - `order_screen.dart` : détail, actions selon le statut, relecture ;
   - `reject_sheet.dart` : motifs ;

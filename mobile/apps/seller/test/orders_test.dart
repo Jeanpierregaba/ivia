@@ -567,9 +567,14 @@ void main() {
       var serverShift = Duration.zero;
       orders.now = () => DateTime.now().toUtc().add(shift);
       server.clock = () => DateTime.now().toUtc().add(serverShift);
-      orders.add(paidAgo: const Duration(minutes: 14, seconds: 50));
+      // 30 s de marge en heure réelle : le test reste juste sur une machine
+      // lente ou lancé seul.
+      orders.add(paidAgo: const Duration(minutes: 14, seconds: 30));
       await openOrder(tester, '#1042 · Koffi');
-      expect(find.textContaining('Il vous reste 00:1'), findsOneWidget);
+      expect(
+        find.textContaining(RegExp(r'^Il vous reste 00:[0-3]\d')),
+        findsOneWidget,
+      );
 
       // L'heure du serveur (lue dans l'en-tête Date) passe le délai, avant
       // que la commande soit annulée.
@@ -632,6 +637,22 @@ void main() {
         find.widgetWithText(FilledButton, 'Commencer la préparation'),
         findsOneWidget,
       );
+    });
+
+    testWidgets('commande disparue pendant une action : retour à la liste', (
+      tester,
+    ) async {
+      orders.add();
+      await openOrder(tester, '#1042 · Koffi');
+      orders.failures['POST /v1/seller/orders'] = FakeResponse.error(
+        404,
+        'order_not_found',
+        'Commande introuvable.',
+      );
+      await tapButton(tester, 'Accepter la commande');
+      expect(find.text('Commande introuvable.'), findsOneWidget);
+      expect(find.text('Commande #1042'), findsNothing);
+      expect(find.byType(OrderRow), findsWidgets);
     });
 
     testWidgets('commande introuvable : message, retour à la liste', (
@@ -842,6 +863,20 @@ void main() {
       expect(find.byType(FilledButton), findsNothing);
     });
 
+    testWidgets('annulée pendant la saisie : retour au détail, vrai statut', (
+      tester,
+    ) async {
+      final id = await openHandover(tester);
+      orders.cancel(id, "Annulée par l'équipe ivia.");
+      await submit(tester, FakeSellerOrders.handoverCode);
+      expect(
+        find.text('Action impossible : la commande est « annulée ».'),
+        findsOneWidget,
+      );
+      expect(find.text('Code de remise'), findsNothing);
+      expect(find.text('Annulée'), findsOneWidget);
+    });
+
     testWidgets('code collé avec espaces : chiffres seuls gardés', (
       tester,
     ) async {
@@ -890,6 +925,24 @@ void main() {
       await tester.tap(find.text('2 nouvelles commandes à accepter'));
       await tester.pumpAndSettle();
       expect(rows(tester), ['#1043 · Koffi', '#1042 · Koffi']);
+    });
+
+    testWidgets('carte après un sous-onglet choisi à la main : le bon', (
+      tester,
+    ) async {
+      orders
+        ..add()
+        ..add(status: 'accepted', buyerFirstName: 'Kossi');
+      await launch(tester);
+      await tester.tap(find.byIcon(Icons.receipt_long_outlined));
+      await tester.pumpAndSettle();
+      await openTab(tester, 'En cours');
+      expect(rows(tester), ['#1043 · Kossi']);
+      await tester.tap(find.byIcon(Icons.home_outlined));
+      await tester.pumpAndSettle();
+      await tester.tap(find.text('1 nouvelle commande à accepter'));
+      await tester.pumpAndSettle();
+      expect(rows(tester), ['#1042 · Koffi']);
     });
 
     testWidgets('singulier', (tester) async {
