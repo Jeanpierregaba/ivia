@@ -868,6 +868,34 @@ void main() {
       expect(find.text('Annulée'), findsWidgets);
     });
 
+    testWidgets('police à 200 % sur 320 dp : bouton et feuille', (
+      tester,
+    ) async {
+      final semantics = tester.ensureSemantics();
+      tester.view.physicalSize = const Size(320, 640);
+      tester.view.devicePixelRatio = 1;
+      tester.platformDispatcher.textScaleFactorTestValue = 2;
+      addTearDown(tester.view.reset);
+      addTearDown(tester.platformDispatcher.clearTextScaleFactorTestValue);
+      final order = await seed(status: 'awaiting_seller');
+      await open(tester, Routes.order(order['id'] as String));
+      await tester.scrollUntilVisible(
+        cancelButton(),
+        300,
+        scrollable: find.byType(Scrollable).first,
+      );
+      expect(tester.takeException(), isNull);
+      expect(
+        tester.getSemantics(cancelButton()),
+        isSemantics(label: 'Annuler la commande', isButton: true),
+      );
+      await tester.tap(cancelButton());
+      await tester.pumpAndSettle();
+      expect(tester.takeException(), isNull);
+      expect(find.text('Garder ma commande'), findsOneWidget);
+      semantics.dispose();
+    });
+
     testWidgets('pendant l\'envoi : bouton désactivé, une seule annulation', (
       tester,
     ) async {
