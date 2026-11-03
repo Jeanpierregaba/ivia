@@ -14,6 +14,13 @@ Format :
 - Prochaine étape :
 -->
 
+### 2026-11-03 — Recherche pendant la frappe
+- Fait : produits trouvés par le début du dernier mot (`to_tsquery` « mot1 & mot2:* », construite
+  par `search.prefixQuery` à partir des lettres et chiffres, rang ajouté à la pertinence) ; jokers
+  de `LIKE` échappés dans la recherche de boutiques (`likeText`, `ESCAPE ''`) ; tests unitaires et
+  de bout en bout ; suite backend complète verte.
+- Prochaine étape : relecture du backend de 010 (paiement) écrit par Jean-Pierre.
+
 ### 2026-11-03 — Documents privés : rien ne survit au compte, pas d'orphelins
 - Fait : `ObjectStore.List` (disque local et R2 ListObjectsV2 signé, pages suivies) ;
   `uploads.DeleteAllOf` (tout le dossier privé d'un utilisateur) appelé à la suppression du compte
