@@ -78,6 +78,8 @@ export async function api<T>(path: string, opts: Options = {}): Promise<T> {
   const payload: unknown = await res.json().catch(() => null);
   if (!res.ok) {
     const err = (payload as Schemas["Error"] | null)?.error;
+    // Mot de passe vérifié mais pas encore le code (ADR 0011) : écran B02.
+    if (res.status === 403 && err?.code === "mfa_required") redirect("/login/code");
     throw new ApiError(
       res.status,
       err?.code ?? "unknown_error",

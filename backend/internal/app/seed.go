@@ -77,6 +77,12 @@ func (a *App) SeedDev(ctx context.Context) (SeedSummary, error) {
 		return sum, fmt.Errorf("admin : %w", err)
 	}
 	adminID := adminUser.ID
+	if adminUser.FirstName == "" {
+		first, last := "Yao", "Amouzou" // compte de démonstration (local uniquement)
+		if _, err := a.Users.UpdateProfile(ctx, adminID, users.ProfileInput{FirstName: &first, LastName: &last}); err != nil {
+			return sum, fmt.Errorf("profil de l'admin : %w", err)
+		}
+	}
 
 	existing, err := a.Geo.List(ctx, true)
 	if err != nil {

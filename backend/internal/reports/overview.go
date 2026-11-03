@@ -257,7 +257,12 @@ func (h *Handler) targetLabel(ctx context.Context, targetType, targetID string) 
 		}
 	case "driver", "user":
 		if u, err := h.users.Get(ctx, id); err == nil {
-			return strings.TrimSpace(u.FirstName + " " + initial(u.LastName))
+			if name := strings.TrimSpace(u.FirstName + " " + initial(u.LastName)); name != "" {
+				return name
+			}
+			if u.Email != nil {
+				return *u.Email // compte sans prénom (créé par la ligne de commande)
+			}
 		}
 	}
 	return ""

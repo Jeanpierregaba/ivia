@@ -14,6 +14,23 @@ Format :
 - Prochaine étape :
 -->
 
+### 2026-11-03 — Mot de passe et Google (ADR 0011), back-office aux maquettes B01 à B03
+- Fait : ADR 0011 (remplace en partie l'ADR 0006) : création de compte par code puis mot de passe,
+  connexion (verrou 15 min après 10 échecs), mot de passe oublié, changement de mot de passe,
+  Google (jeton vérifié par le serveur, désactivé sans GOOGLE_CLIENT_IDS), double vérification
+  obligatoire des admins (session plafonnée à 8 h) ; Argon2id ; migration 00024 ; tout le banc de
+  test passe par mot de passe et code. GET /v1/admin/overview (tableau de bord en un appel).
+  Back-office : connexion B01 (mot de passe), B02 (6 cases, renvoi minuté, rester connecté 8 h),
+  mot de passe oublié, tableau de bord B03 (à traiter, indicateurs et objectifs, graphique
+  livraison/retrait 14 jours, livreurs, paiements, commandes en cours filtrables, journal), relu
+  toutes les 30 s, chiffres animés ; barre latérale avec pastilles ; recherche globale ;
+  notifications. Vérifié en vrai (captures Edge par le protocole de débogage).
+- Pièges rencontrés : un composant serveur ne peut pas passer de fonction à un composant client
+  (format des nombres) ; setState dans un effet refusé par le lint React (faire dans l'action) ;
+  1 code par minute et par usage (sinon l'admin ne reçoit pas son code juste après la création).
+- Prochaine étape : écrans de connexion des apps mobiles (création de compte, mot de passe,
+  oublié, Google) ; identifiants Google OAuth à fournir.
+
 ### 2026-11-03 — Relecture du paiement (010)
 - Fait : relecture du backend de Jean-Pierre (annulation d'une demande, revérification des demandes
   abandonnées, « Vérifier maintenant » admin) : conforme. Limite des demandes de paiement passée de

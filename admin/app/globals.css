@@ -28,6 +28,70 @@
   --radius-tile: 6px;
   --radius-card: 14px;
   --radius-field: 18px;
+
+  /* Animations : entrées discrètes, données qui se mettent à jour (DESIGN.md « Mouvement »). */
+  --animate-tile-in: tile-in 700ms cubic-bezier(0.2, 0.8, 0.2, 1) both;
+  --animate-rise: rise 420ms cubic-bezier(0.2, 0.8, 0.2, 1) both;
+  --animate-grow: grow 700ms cubic-bezier(0.2, 0.8, 0.2, 1) both;
+  --animate-live: live 1.8s ease-in-out infinite;
+  --animate-flash: flash 1.2s ease-out;
+
+  @keyframes tile-in {
+    from {
+      opacity: 0;
+      transform: translateX(40px) scale(0.92);
+    }
+    to {
+      opacity: 1;
+      transform: none;
+    }
+  }
+  @keyframes rise {
+    from {
+      opacity: 0;
+      transform: translateY(10px);
+    }
+    to {
+      opacity: 1;
+      transform: none;
+    }
+  }
+  @keyframes grow {
+    from {
+      transform: scaleY(0);
+    }
+    to {
+      transform: scaleY(1);
+    }
+  }
+  @keyframes live {
+    0%,
+    100% {
+      opacity: 1;
+    }
+    50% {
+      opacity: 0.35;
+    }
+  }
+  @keyframes flash {
+    from {
+      background-color: #fff4d6;
+    }
+    to {
+      background-color: transparent;
+    }
+  }
+}
+
+/* Mouvement réduit à la demande du système : aucune animation. */
+@media (prefers-reduced-motion: reduce) {
+  *,
+  *::before,
+  *::after {
+    animation-duration: 1ms !important;
+    animation-iteration-count: 1 !important;
+    transition-duration: 1ms !important;
+  }
 }
 
 body {

@@ -14,9 +14,10 @@ pnpm install
 API_BASE_URL=http://localhost:8080 pnpm dev   # http://localhost:3000
 ```
 
-Connexion : `admin@ivia.local` (créé par `seed-dev`). Avec l'API lancée en `OTP_SENDER=smtp`, l'e-mail
-du code arrive dans Mailpit : http://localhost:8025. Sinon : `POST http://localhost:8080/v1/dev/otp`
-avec `{"recipient":"admin@ivia.local"}`.
+Connexion (ADR 0011) : `admin@ivia.local`, mot de passe de démonstration `ivia-demo-2026` (créé par
+`seed-dev`, local uniquement), puis le code de vérification reçu dans Mailpit (http://localhost:8025).
+Sans ce code, les routes admin répondent `mfa_required` et le back-office renvoie vers l'écran du
+code. Mot de passe oublié : `/login/forgot`.
 
 Design : même langage visuel que les apps (`mobile/packages/ui`) — Berkeley Blue pour la barre
 latérale et les en-têtes de fiche, Imperial Red pour l'action principale et la partie colorée des
@@ -59,10 +60,13 @@ Premier admin d'un autre environnement : `go run ./cmd/manage grant-admin <email
 ```
 app/
   layout.tsx              police, langue, métadonnées (non indexé)
-  login/                  connexion par code e-mail (Server Action login), rôle admin exigé
+  login/                  connexion (maquettes B01, B02) : mot de passe, puis code de vérification (code/),
+                          mot de passe oublié (forgot/) ; rôle admin exigé ; cookie httpOnly
+  (admin)/page.tsx        tableau de bord (maquette B03) : GET /v1/admin/overview, relu toutes les 30 s
+  (admin)/search/         recherche globale (commande, boutique, compte)
+  (admin)/notifications/  notifications des admins
   logout/route.ts         révocation de la session + effacement du cookie
   (admin)/layout.tsx      garde d'accès + barre latérale
-  (admin)/page.tsx        tableau de bord (à traiter, indicateurs des 30 derniers jours)
   (admin)/shops/          boutiques : liste, fiche avec pièces du marchand, publier, refuser, suspendre, rétablir
   (admin)/drivers/        livreurs : liste, dossier (documents en lien temporaire), activation
   (admin)/orders/         commandes : liste, recherche par numéro, détail, actions admin
