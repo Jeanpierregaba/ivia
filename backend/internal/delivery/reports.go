@@ -94,3 +94,21 @@ func adminAudit(adminID uuid.UUID, action string, orderID, driverID uuid.UUID, r
 		Before: map[string]any{"driver_id": driverID}, Reason: reason,
 	}
 }
+
+// DriverOverview : livreurs maintenant (tableau de bord).
+type DriverOverview struct {
+	Available     int64 `json:"available"`
+	Busy          int64 `json:"busy"`
+	Offline       int64 `json:"offline"`
+	Suspended     int64 `json:"suspended"`
+	PendingReview int64 `json:"pending_review"`
+}
+
+// Overview retourne la répartition des livreurs et les dossiers à valider.
+func (s *Service) Overview(ctx context.Context) (DriverOverview, error) {
+	r, err := store.New(s.db.Conn(ctx)).DriverOverview(ctx)
+	if err != nil {
+		return DriverOverview{}, fmt.Errorf("répartition des livreurs : %w", err)
+	}
+	return DriverOverview{Available: r.Available, Busy: r.Busy, Offline: r.Offline, Suspended: r.Suspended, PendingReview: r.PendingReview}, nil
+}

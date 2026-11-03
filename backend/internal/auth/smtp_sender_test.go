@@ -65,7 +65,7 @@ func fakeSMTP(t *testing.T) (addr string, received chan string) {
 func TestSMTPSenderDeliversCode(t *testing.T) {
 	addr, received := fakeSMTP(t)
 	s := &SMTPSender{Addr: addr, From: "ivia <no-reply@ivia.local>"}
-	if err := s.Send(context.Background(), ChannelEmail, "ama@example.tg", "482913"); err != nil {
+	if err := s.Send(context.Background(), OTPMessage{Channel: ChannelEmail, Recipient: "ama@example.tg", Code: "482913", Purpose: PurposeLogin}); err != nil {
 		t.Fatalf("envoi : %v", err)
 	}
 	msg := <-received
@@ -80,7 +80,7 @@ func TestTeeSenderKeepsDevEndpointWorking(t *testing.T) {
 	addr, received := fakeSMTP(t)
 	logs := &LogSender{Logger: slog.New(slog.NewTextHandler(io.Discard, nil))}
 	tee := TeeSender{&SMTPSender{Addr: addr, From: "no-reply@ivia.local"}, logs}
-	if err := tee.Send(context.Background(), ChannelEmail, "kofi@example.tg", "111222"); err != nil {
+	if err := tee.Send(context.Background(), OTPMessage{Channel: ChannelEmail, Recipient: "kofi@example.tg", Code: "111222", Purpose: PurposeLogin}); err != nil {
 		t.Fatal(err)
 	}
 	<-received

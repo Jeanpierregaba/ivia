@@ -23,37 +23,41 @@ FROM (
          END::float8 AS distance_m,
          CASE WHEN $3::text IS NULL THEN 0
               ELSE ts_rank(sp.search_vector, websearch_to_tsquery('french', immutable_unaccent($3::text)))
+                   + coalesce(ts_rank(sp.search_vector, to_tsquery('french', immutable_unaccent($4::text))), 0)
                    + similarity(immutable_unaccent(lower(sp.name)), immutable_unaccent(lower($3::text)))
          END::float8 AS score
   FROM search_products sp
   WHERE ($3::text IS NULL
          OR sp.search_vector @@ websearch_to_tsquery('french', immutable_unaccent($3::text))
+         OR ($4::text IS NOT NULL
+             AND sp.search_vector @@ to_tsquery('french', immutable_unaccent($4::text)))
          OR immutable_unaccent(lower(sp.name)) % immutable_unaccent(lower($3::text)))
-    AND ($4::uuid IS NULL
-         OR sp.category_id = $4::uuid OR sp.category_parent_id = $4::uuid)
-    AND ($5::uuid IS NULL OR sp.shop_id = $5::uuid)
-    AND ($6::uuid IS NULL OR sp.shop_category_id = $6::uuid)
-    AND ($7::bigint IS NULL OR sp.price_xof >= $7::bigint)
-    AND ($8::bigint IS NULL OR sp.price_xof <= $8::bigint)
-    AND ($9::uuid IS NULL OR sp.neighborhood_id = $9::uuid)
-    AND ($10::float8 IS NULL
-         OR ST_DWithin(sp.location, ST_SetSRID(ST_MakePoint($2::float8, $1::float8), 4326)::geography, $10::float8))
-    AND (NOT $11::boolean OR sp.in_stock)
+    AND ($5::uuid IS NULL
+         OR sp.category_id = $5::uuid OR sp.category_parent_id = $5::uuid)
+    AND ($6::uuid IS NULL OR sp.shop_id = $6::uuid)
+    AND ($7::uuid IS NULL OR sp.shop_category_id = $7::uuid)
+    AND ($8::bigint IS NULL OR sp.price_xof >= $8::bigint)
+    AND ($9::bigint IS NULL OR sp.price_xof <= $9::bigint)
+    AND ($10::uuid IS NULL OR sp.neighborhood_id = $10::uuid)
+    AND ($11::float8 IS NULL
+         OR ST_DWithin(sp.location, ST_SetSRID(ST_MakePoint($2::float8, $1::float8), 4326)::geography, $11::float8))
+    AND (NOT $12::boolean OR sp.in_stock)
 ) t
 ORDER BY
-  CASE WHEN $12::text = 'distance' THEN t.distance_m END ASC NULLS LAST,
-  CASE WHEN $12::text = 'price_asc' THEN t.price_xof END ASC,
-  CASE WHEN $12::text = 'price_desc' THEN t.price_xof END DESC,
+  CASE WHEN $13::text = 'distance' THEN t.distance_m END ASC NULLS LAST,
+  CASE WHEN $13::text = 'price_asc' THEN t.price_xof END ASC,
+  CASE WHEN $13::text = 'price_desc' THEN t.price_xof END DESC,
   t.score DESC,
   t.created_at DESC,
   t.id
-LIMIT $14 OFFSET $13
+LIMIT $15 OFFSET $14
 `
 
 type SearchProductsParams struct {
 	Lat            *float64
 	Lng            *float64
 	Q              *string
+	Tsprefix       *string
 	CategoryID     *uuid.UUID
 	ShopID         *uuid.UUID
 	ShopCategoryID *uuid.UUID
@@ -80,13 +84,16 @@ type SearchProductsRow struct {
 	DistanceM      float64
 }
 
-// Pertinence : plein texte (français, sans accents) + similarité trigramme (fautes de frappe).
+// Pertinence : plein texte (français, sans accents) + début du dernier mot (recherche pendant la
+// frappe : « pag » trouve « pagne ») + similarité trigramme (fautes de frappe). tsprefix est
+// construit par le service (lettres et chiffres seulement, « mot1 & mot2:* »), jamais par l'app.
 // distance_m vaut -1 sans position ; main_image_key vaut ” sans photo.
 func (q *Queries) SearchProducts(ctx context.Context, arg SearchProductsParams) ([]SearchProductsRow, error) {
 	rows, err := q.db.Query(ctx, searchProducts,
 		arg.Lat,
 		arg.Lng,
 		arg.Q,
+		arg.Tsprefix,
 		arg.CategoryID,
 		arg.ShopID,
 		arg.ShopCategoryID,
@@ -143,24 +150,26 @@ FROM (
   FROM search_shops ss
   WHERE ($3::text IS NULL
          OR immutable_unaccent(lower(ss.name)) % immutable_unaccent(lower($3::text))
-         OR immutable_unaccent(lower(ss.name)) LIKE '%' || immutable_unaccent(lower($3::text)) || '%')
-    AND ($4::uuid IS NULL OR ss.neighborhood_id = $4::uuid)
-    AND ($5::uuid IS NULL OR ss.category_id = $5::uuid)
-    AND ($6::float8 IS NULL
-         OR ST_DWithin(ss.location, ST_SetSRID(ST_MakePoint($2::float8, $1::float8), 4326)::geography, $6::float8))
+         -- q_like : texte de l'app avec \, % et _ échappés (sinon « % » trouverait toutes les boutiques).
+         OR immutable_unaccent(lower(ss.name)) LIKE '%' || immutable_unaccent(lower($4::text)) || '%' ESCAPE '\')
+    AND ($5::uuid IS NULL OR ss.neighborhood_id = $5::uuid)
+    AND ($6::uuid IS NULL OR ss.category_id = $6::uuid)
+    AND ($7::float8 IS NULL
+         OR ST_DWithin(ss.location, ST_SetSRID(ST_MakePoint($2::float8, $1::float8), 4326)::geography, $7::float8))
 ) t
 ORDER BY
-  CASE WHEN $7::text = 'distance' THEN t.distance_m END ASC NULLS LAST,
+  CASE WHEN $8::text = 'distance' THEN t.distance_m END ASC NULLS LAST,
   t.score DESC,
   t.created_at DESC,
   t.id
-LIMIT $9 OFFSET $8
+LIMIT $10 OFFSET $9
 `
 
 type SearchShopsParams struct {
 	Lat            *float64
 	Lng            *float64
 	Q              *string
+	QLike          *string
 	NeighborhoodID *uuid.UUID
 	ShopCategoryID *uuid.UUID
 	RadiusM        *float64
@@ -186,6 +195,7 @@ func (q *Queries) SearchShops(ctx context.Context, arg SearchShopsParams) ([]Sea
 		arg.Lat,
 		arg.Lng,
 		arg.Q,
+		arg.QLike,
 		arg.NeighborhoodID,
 		arg.ShopCategoryID,
 		arg.RadiusM,

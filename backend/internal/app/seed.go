@@ -30,7 +30,13 @@ func (a *App) GrantAdmin(ctx context.Context, email string) (users.User, error) 
 type SeedSummary struct {
 	AdminEmail, SellerEmail, BuyerEmail, DriverEmail string
 	ShopID                                           uuid.UUID
+	// Password : mot de passe des quatre comptes de démonstration (local uniquement).
+	Password string
 }
+
+// DemoPassword : mot de passe des comptes de démonstration (local uniquement, jamais en ligne :
+// SeedDev refuse de tourner hors local).
+const DemoPassword = "ivia-demo-2026"
 
 // lomeNeighborhoods : quartiers de démonstration pour le développement local. La liste officielle
 // reste à fournir par le porteur du projet (TASKS.md) ; l'admin la gère depuis le back-office.
@@ -55,14 +61,28 @@ func (a *App) SeedDev(ctx context.Context) (SeedSummary, error) {
 	}
 	sum := SeedSummary{
 		AdminEmail: "admin@ivia.local", SellerEmail: "marchand@ivia.local",
-		BuyerEmail: "acheteur@ivia.local", DriverEmail: "livreur@ivia.local",
+		BuyerEmail: "acheteur@ivia.local", DriverEmail: "livreur@ivia.local", Password: DemoPassword,
 	}
+	defer func() {
+		// Connexion par mot de passe (ADR 0011) : les quatre comptes reçoivent le mot de passe de démo.
+		for _, email := range []string{sum.AdminEmail, sum.SellerEmail, sum.BuyerEmail, sum.DriverEmail} {
+			if u, err := a.Users.FindByEmail(ctx, email); err == nil {
+				_ = a.Auth.SetPassword(ctx, u.ID, DemoPassword)
+			}
+		}
+	}()
 
 	adminUser, err := a.GrantAdmin(ctx, sum.AdminEmail)
 	if err != nil {
 		return sum, fmt.Errorf("admin : %w", err)
 	}
 	adminID := adminUser.ID
+	if adminUser.FirstName == "" {
+		first, last := "Yao", "Amouzou" // compte de démonstration (local uniquement)
+		if _, err := a.Users.UpdateProfile(ctx, adminID, users.ProfileInput{FirstName: &first, LastName: &last}); err != nil {
+			return sum, fmt.Errorf("profil de l'admin : %w", err)
+		}
+	}
 
 	existing, err := a.Geo.List(ctx, true)
 	if err != nil {

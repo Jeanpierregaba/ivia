@@ -74,6 +74,7 @@ func NewService(db *database.DB, urls URLResolver) *Service {
 
 type filters struct {
 	q                            *string
+	prefix                       *string // requête « début de mot », construite à partir de q
 	lat, lng, radius             *float64
 	neighborhood, category, shop *uuid.UUID
 	shopCategory                 *uuid.UUID
@@ -88,6 +89,7 @@ func parseFilters(r *http.Request, sorts ...string) (filters, error) {
 	f := filters{page: q.Page()}
 	if s := q.String("q", 100); s != "" {
 		f.q = &s
+		f.prefix = prefixQuery(s)
 	}
 	f.lat = q.Float("lat", -90, 90)
 	f.lng = q.Float("lng", -180, 180)
@@ -124,7 +126,7 @@ func parseFilters(r *http.Request, sorts ...string) (filters, error) {
 
 func (s *Service) products(ctx context.Context, f filters) ([]ProductHit, error) {
 	rows, err := store.New(s.db.Conn(ctx)).SearchProducts(ctx, store.SearchProductsParams{
-		Q: f.q, Lat: f.lat, Lng: f.lng, RadiusM: f.radius, CategoryID: f.category, ShopID: f.shop, ShopCategoryID: f.shopCategory,
+		Q: f.q, Tsprefix: f.prefix, Lat: f.lat, Lng: f.lng, RadiusM: f.radius, CategoryID: f.category, ShopID: f.shop, ShopCategoryID: f.shopCategory,
 		MinPrice: f.minPrice, MaxPrice: f.maxPrice, NeighborhoodID: f.neighborhood,
 		InStockOnly: f.inStockOnly, Sort: f.sort, Lim: f.page.FetchLimit(), Off: int32(f.page.Offset),
 	})
@@ -147,7 +149,7 @@ func (s *Service) products(ctx context.Context, f filters) ([]ProductHit, error)
 
 func (s *Service) shops(ctx context.Context, f filters) ([]ShopHit, error) {
 	rows, err := store.New(s.db.Conn(ctx)).SearchShops(ctx, store.SearchShopsParams{
-		Q: f.q, Lat: f.lat, Lng: f.lng, RadiusM: f.radius, NeighborhoodID: f.neighborhood, ShopCategoryID: f.shopCategory,
+		Q: f.q, QLike: likeText(f.q), Lat: f.lat, Lng: f.lng, RadiusM: f.radius, NeighborhoodID: f.neighborhood, ShopCategoryID: f.shopCategory,
 		Sort: f.sort, Lim: f.page.FetchLimit(), Off: int32(f.page.Offset),
 	})
 	if err != nil {

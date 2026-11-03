@@ -40,6 +40,49 @@ Format :
   `jeanpierre` → `develop` (via HTTPS tant que la clé SSH n'est pas ajoutée : `gh ssh-key add
   ~/.ssh/id_ed25519.pub`). Ensuite : lire le filtre `group` dans les deux apps, puis 012 (push).
 
+### 2026-11-03 — Mot de passe et Google (ADR 0011), back-office aux maquettes B01 à B03
+- Fait : ADR 0011 (remplace en partie l'ADR 0006) : création de compte par code puis mot de passe,
+  connexion (verrou 15 min après 10 échecs), mot de passe oublié, changement de mot de passe,
+  Google (jeton vérifié par le serveur, désactivé sans GOOGLE_CLIENT_IDS), double vérification
+  obligatoire des admins (session plafonnée à 8 h) ; Argon2id ; migration 00024 ; tout le banc de
+  test passe par mot de passe et code. GET /v1/admin/overview (tableau de bord en un appel).
+  Back-office : connexion B01 (mot de passe), B02 (6 cases, renvoi minuté, rester connecté 8 h),
+  mot de passe oublié, tableau de bord B03 (à traiter, indicateurs et objectifs, graphique
+  livraison/retrait 14 jours, livreurs, paiements, commandes en cours filtrables, journal), relu
+  toutes les 30 s, chiffres animés ; barre latérale avec pastilles ; recherche globale ;
+  notifications. Vérifié en vrai (captures Edge par le protocole de débogage).
+- Pièges rencontrés : un composant serveur ne peut pas passer de fonction à un composant client
+  (format des nombres) ; setState dans un effet refusé par le lint React (faire dans l'action) ;
+  1 code par minute et par usage (sinon l'admin ne reçoit pas son code juste après la création).
+- Prochaine étape : écrans de connexion des apps mobiles (création de compte, mot de passe,
+  oublié, Google) ; identifiants Google OAuth à fournir.
+
+### 2026-11-03 — Relecture du paiement (010)
+- Fait : relecture du backend de Jean-Pierre (annulation d'une demande, revérification des demandes
+  abandonnées, « Vérifier maintenant » admin) : conforme. Limite des demandes de paiement passée de
+  la mémoire du processus à un décompte dans `payments` (durable aux redémarrages, exacte) ;
+  migration 00023 (index acheteur et numéro) ; test de fenêtre glissante ; suite complète verte.
+- Décisions : une limite qui protège un tiers (demandes vers son téléphone) doit être durable ;
+  les limites par IP (anti-robot) restent en mémoire.
+- Prochaine étape : plus aucun point backend ouvert dans TASKS ; 016 (prestataire réel) attend le
+  choix de l'agrégateur.
+
+### 2026-11-03 — Recherche pendant la frappe
+- Fait : produits trouvés par le début du dernier mot (`to_tsquery` « mot1 & mot2:* », construite
+  par `search.prefixQuery` à partir des lettres et chiffres, rang ajouté à la pertinence) ; jokers
+  de `LIKE` échappés dans la recherche de boutiques (`likeText`, `ESCAPE ''`) ; tests unitaires et
+  de bout en bout ; suite backend complète verte.
+- Prochaine étape : relecture du backend de 010 (paiement) écrit par Jean-Pierre.
+
+### 2026-11-03 — Documents privés : rien ne survit au compte, pas d'orphelins
+- Fait : `ObjectStore.List` (disque local et R2 ListObjectsV2 signé, pages suivies) ;
+  `uploads.DeleteAllOf` (tout le dossier privé d'un utilisateur) appelé à la suppression du compte
+  par les modules boutiques et livreurs ; `uploads.PurgeOrphans` + tâche quotidienne
+  `uploads.purge_orphans` (fichiers privés non rattachés de plus de 24 h ; chaque module déclare
+  ses fichiers rattachés par `RegisterOwner`) ; tests de stockage et de bout en bout ; suite
+  backend complète verte.
+- Prochaine étape : recherche par préfixe (« pag » → « pagne »), relecture du backend de 010.
+
 ### 2026-11-03 — Commandes marchand : délai, motif, onglets côté serveur
 - Fait : points backend relevés par Jean-Pierre en 011 et 009 : `Accept`/`Reject` refusés après
   `seller_deadline_at` (`seller_deadline_passed`, annulation immédiate comme `SellerTimeout`) ;

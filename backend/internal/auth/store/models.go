@@ -10,6 +10,21 @@ import (
 	"github.com/google/uuid"
 )
 
+type AuthIdentity struct {
+	Provider  string
+	Subject   string
+	UserID    uuid.UUID
+	CreatedAt time.Time
+}
+
+type AuthPassword struct {
+	UserID         uuid.UUID
+	PasswordHash   string
+	FailedAttempts int32
+	LockedUntil    *time.Time
+	UpdatedAt      time.Time
+}
+
 type OtpCode struct {
 	ID         uuid.UUID
 	Channel    string
@@ -19,4 +34,5 @@ type OtpCode struct {
 	ExpiresAt  time.Time
 	ConsumedAt *time.Time
 	CreatedAt  time.Time
+	Purpose    string
 }

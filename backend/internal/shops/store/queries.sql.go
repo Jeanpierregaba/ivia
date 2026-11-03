@@ -482,6 +482,49 @@ func (q *Queries) ListShopsByStatus(ctx context.Context, arg ListShopsByStatusPa
 	return items, nil
 }
 
+const merchantDocumentKeysIn = `-- name: MerchantDocumentKeysIn :many
+SELECT object_key FROM merchant_documents WHERE object_key = ANY($1::text[])
+`
+
+// Clés rattachées parmi celles données (purge des fichiers jamais rattachés).
+func (q *Queries) MerchantDocumentKeysIn(ctx context.Context, keys []string) ([]string, error) {
+	rows, err := q.db.Query(ctx, merchantDocumentKeysIn, keys)
+	if err != nil {
+		return nil, err
+	}
+	defer rows.Close()
+	items := []string{}
+	for rows.Next() {
+		var object_key string
+		if err := rows.Scan(&object_key); err != nil {
+			return nil, err
+		}
+		items = append(items, object_key)
+	}
+	if err := rows.Err(); err != nil {
+		return nil, err
+	}
+	return items, nil
+}
+
+const pendingShopsOverview = `-- name: PendingShopsOverview :one
+SELECT count(*)::bigint AS n, coalesce(min(created_at), now())::timestamptz AS oldest
+FROM shops WHERE status = 'pending_review'
+`
+
+type PendingShopsOverviewRow struct {
+	N      int64
+	Oldest time.Time
+}
+
+// Boutiques à valider et date de la plus ancienne (tableau de bord).
+func (q *Queries) PendingShopsOverview(ctx context.Context) (PendingShopsOverviewRow, error) {
+	row := q.db.QueryRow(ctx, pendingShopsOverview)
+	var i PendingShopsOverviewRow
+	err := row.Scan(&i.N, &i.Oldest)
+	return i, err
+}
+
 const setShopStatus = `-- name: SetShopStatus :execrows
 UPDATE shops
 SET status = $1, status_reason = $2,

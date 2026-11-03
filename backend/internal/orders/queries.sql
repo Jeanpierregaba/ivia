@@ -157,3 +157,35 @@ SELECT (paid_at AT TIME ZONE 'Africa/Lome')::date AS day, count(*)::bigint AS or
 FROM orders
 WHERE paid_at >= sqlc.arg(from_time)::timestamptz AND paid_at < sqlc.arg(to_time)::timestamptz
 GROUP BY 1 ORDER BY 1;
+
+-- name: OverviewCounts :one
+-- Compteurs du tableau de bord : commandes en cours et leurs groupes, codes bloqués, file de
+-- remboursement (même définition que RefundQueue).
+SELECT
+  count(*) FILTER (WHERE status IN ('awaiting_seller', 'accepted', 'preparing', 'ready_for_pickup',
+                                    'awaiting_driver', 'driver_assigned', 'picked_up'))::bigint AS active,
+  count(*) FILTER (WHERE status = 'awaiting_seller')::bigint AS to_accept,
+  count(*) FILTER (WHERE status = 'awaiting_driver')::bigint AS without_driver,
+  count(*) FILTER (WHERE handover_attempts >= 5
+                     AND status IN ('ready_for_pickup', 'driver_assigned', 'picked_up'))::bigint AS handover_locked,
+  count(*) FILTER (WHERE status IN ('cancelled', 'returned_to_shop') AND refund_due_xof > 0)::bigint AS refunds,
+  coalesce(sum(refund_due_xof) FILTER (WHERE status IN ('cancelled', 'returned_to_shop') AND refund_due_xof > 0), 0)::bigint AS refunds_xof
+FROM orders;
+
+-- name: PaidPerDayByMode :many
+-- Commandes payées par jour (heure de Lomé) et par mode, sur une période.
+SELECT (paid_at AT TIME ZONE 'Africa/Lome')::date AS day, fulfillment, count(*)::bigint AS n
+FROM orders
+WHERE paid_at >= sqlc.arg(from_time)::timestamptz AND paid_at < sqlc.arg(to_time)::timestamptz
+GROUP BY 1, 2
+ORDER BY 1;
+
+-- name: ActiveOrdersOverview :many
+-- Commandes en cours du tableau de bord, filtrées par groupe ; since : dernier changement de statut.
+SELECT o.id, o.number, o.shop_id, o.buyer_id, o.fulfillment, o.total_xof, o.status, o.handover_attempts,
+       coalesce((SELECT max(e.created_at) FROM order_status_events e WHERE e.order_id = o.id), o.updated_at)::timestamptz AS since
+FROM orders o
+WHERE o.status = ANY(sqlc.arg(statuses)::text[])
+  AND (NOT sqlc.arg(locked_only)::boolean OR o.handover_attempts >= 5)
+ORDER BY o.number DESC
+LIMIT sqlc.arg(lim);

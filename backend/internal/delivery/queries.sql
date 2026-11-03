@@ -223,3 +223,18 @@ SELECT
 FROM deliveries x
 JOIN assignment_requests a ON a.order_id = x.order_id
 WHERE x.assigned_at >= sqlc.arg(from_time)::timestamptz AND x.assigned_at < sqlc.arg(to_time)::timestamptz;
+
+-- name: DriverDocumentKeysIn :many
+-- Clés rattachées parmi celles données (purge des fichiers jamais rattachés).
+SELECT object_key FROM driver_documents WHERE object_key = ANY(sqlc.arg(keys)::text[]);
+
+-- name: DriverOverview :one
+-- Livreurs maintenant (tableau de bord) : validés et non suspendus par disponibilité, suspendus,
+-- dossiers à valider.
+SELECT
+  count(*) FILTER (WHERE review_status = 'approved' AND suspended_at IS NULL AND availability = 'available')::bigint AS available,
+  count(*) FILTER (WHERE review_status = 'approved' AND suspended_at IS NULL AND availability = 'busy')::bigint AS busy,
+  count(*) FILTER (WHERE review_status = 'approved' AND suspended_at IS NULL AND availability = 'offline')::bigint AS offline,
+  count(*) FILTER (WHERE suspended_at IS NOT NULL)::bigint AS suspended,
+  count(*) FILTER (WHERE review_status = 'pending_review' AND suspended_at IS NULL)::bigint AS pending_review
+FROM drivers;

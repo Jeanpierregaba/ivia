@@ -21,7 +21,7 @@ Go 1.27, PostgreSQL 18 + PostGIS, tâches de fond River, 22 migrations, document
 (Swagger) sur `/docs`, contrat OpenAPI vérifié par les tests.
 
 **Comptes et connexion**
-- Connexion sans mot de passe par code à 6 chiffres envoyé par e-mail (10 min de validité, renvoi après 60 s, essais limités, anti-abus par adresse et par IP).
+- Création de compte par code reçu par e-mail puis mot de passe ; connexion par mot de passe (Argon2id, verrou après 10 échecs) ; mot de passe oublié ; connexion avec Google (prête, à activer avec les identifiants) ; double vérification par code pour les admins (ADR 0011).
 - Envoi des e-mails : Brevo (staging/production), SMTP vers Mailpit (local, boîte de test sur http://localhost:8025), journaux (tests). E-mail du code aux couleurs de la marque.
 - Sessions révocables, rôles acheteur / marchand / livreur / admin, consentement à la politique de confidentialité, suppression du compte.
 - Profil, carnet d'adresses avec point GPS, appareils pour les notifications push.
@@ -61,8 +61,8 @@ Go 1.27, PostgreSQL 18 + PostGIS, tâches de fond River, 22 migrations, document
 
 Next.js 16, TypeScript strict, Tailwind 4, même langage visuel que les apps (logotypes, Berkeley Blue, Imperial Red, cartes arrondies, mosaïque).
 
-- Connexion admin par code e-mail, session en cookie httpOnly, accès coupé dès que le rôle admin est retiré.
-- Tableau de bord : mosaïque « à traiter » (boutiques et livreurs à valider, remboursements, commandes sans livreur), commandes payées par jour, argent (volume, commission), indicateurs.
+- Connexion admin par mot de passe puis code reçu par e-mail (maquettes B01, B02), mot de passe oublié, session en cookie httpOnly limitée à 8 h, accès coupé dès que le rôle admin est retiré.
+- Tableau de bord (maquette B03), mis à jour en direct toutes les 30 s : 5 tuiles « à traiter », indicateurs avec objectifs et comparaison, graphique livraison/retrait sur 14 jours, livreurs maintenant, paiements, commandes en cours filtrables, journal des actions ; recherche globale, notifications, période au choix.
 - Boutiques : filtres par statut, colonne « Pièces », fiche boutique avec les pièces du marchand (lien temporaire), publier / refuser / suspendre / rétablir avec confirmation et motif ; « Publier » n'apparaît qu'une fois la pièce d'identité déposée.
 - Livreurs : liste filtrée, dossier complet (documents consultables par lien temporaire, documents manquants signalés), valider et activer / refuser / suspendre / rétablir.
 - Commandes : recherche par numéro, filtres, fiche (détail, frise d'historique, produits, paiements), actions : annuler, retirer le livreur, confirmer le retour, débloquer le code, rembourser.

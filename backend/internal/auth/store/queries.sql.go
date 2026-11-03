@@ -28,31 +28,56 @@ func (q *Queries) ConsumeOTP(ctx context.Context, id uuid.UUID) (int64, error) {
 const countRecentOTP = `-- name: CountRecentOTP :one
 SELECT count(*) FROM otp_codes
 WHERE channel = $1 AND recipient = $2 AND created_at > $3
+  AND ($4::text IS NULL OR purpose = $4::text)
 `
 
 type CountRecentOTPParams struct {
 	Channel   string
 	Recipient string
 	Since     time.Time
+	Purpose   *string
 }
 
-// Nombre de codes envoyés à un destinataire depuis une date (limite par minute et par jour).
+// Nombre de codes envoyés à un destinataire depuis une date : pour un usage (limite par minute)
+// ou tous usages confondus si purpose est NULL (limite par jour).
 func (q *Queries) CountRecentOTP(ctx context.Context, arg CountRecentOTPParams) (int64, error) {
-	row := q.db.QueryRow(ctx, countRecentOTP, arg.Channel, arg.Recipient, arg.Since)
+	row := q.db.QueryRow(ctx, countRecentOTP,
+		arg.Channel,
+		arg.Recipient,
+		arg.Since,
+		arg.Purpose,
+	)
 	var count int64
 	err := row.Scan(&count)
 	return count, err
 }
 
+const createIdentity = `-- name: CreateIdentity :exec
+INSERT INTO auth_identities (provider, subject, user_id) VALUES ($1, $2, $3)
+ON CONFLICT (provider, subject) DO NOTHING
+`
+
+type CreateIdentityParams struct {
+	Provider string
+	Subject  string
+	UserID   uuid.UUID
+}
+
+func (q *Queries) CreateIdentity(ctx context.Context, arg CreateIdentityParams) error {
+	_, err := q.db.Exec(ctx, createIdentity, arg.Provider, arg.Subject, arg.UserID)
+	return err
+}
+
 const createOTP = `-- name: CreateOTP :one
-INSERT INTO otp_codes (channel, recipient, code_hash, expires_at)
-VALUES ($1, $2, $3, $4)
+INSERT INTO otp_codes (channel, recipient, purpose, code_hash, expires_at)
+VALUES ($1, $2, $3, $4, $5)
 RETURNING id
 `
 
 type CreateOTPParams struct {
 	Channel   string
 	Recipient string
+	Purpose   string
 	CodeHash  []byte
 	ExpiresAt time.Time
 }
@@ -61,6 +86,7 @@ func (q *Queries) CreateOTP(ctx context.Context, arg CreateOTPParams) (uuid.UUID
 	row := q.db.QueryRow(ctx, createOTP,
 		arg.Channel,
 		arg.Recipient,
+		arg.Purpose,
 		arg.CodeHash,
 		arg.ExpiresAt,
 	)
@@ -99,6 +125,15 @@ func (q *Queries) CreateSession(ctx context.Context, arg CreateSessionParams) (C
 	return i, err
 }
 
+const deleteIdentitiesOf = `-- name: DeleteIdentitiesOf :exec
+DELETE FROM auth_identities WHERE user_id = $1
+`
+
+func (q *Queries) DeleteIdentitiesOf(ctx context.Context, userID uuid.UUID) error {
+	_, err := q.db.Exec(ctx, deleteIdentitiesOf, userID)
+	return err
+}
+
 const deleteOTPsFor = `-- name: DeleteOTPsFor :exec
 DELETE FROM otp_codes WHERE recipient = $1
 `
@@ -108,16 +143,88 @@ func (q *Queries) DeleteOTPsFor(ctx context.Context, recipient string) error {
 	return err
 }
 
+const deletePassword = `-- name: DeletePassword :exec
+DELETE FROM auth_passwords WHERE user_id = $1
+`
+
+func (q *Queries) DeletePassword(ctx context.Context, userID uuid.UUID) error {
+	_, err := q.db.Exec(ctx, deletePassword, userID)
+	return err
+}
+
+const getIdentity = `-- name: GetIdentity :one
+SELECT provider, subject, user_id, created_at FROM auth_identities WHERE provider = $1 AND subject = $2
+`
+
+type GetIdentityParams struct {
+	Provider string
+	Subject  string
+}
+
+func (q *Queries) GetIdentity(ctx context.Context, arg GetIdentityParams) (AuthIdentity, error) {
+	row := q.db.QueryRow(ctx, getIdentity, arg.Provider, arg.Subject)
+	var i AuthIdentity
+	err := row.Scan(
+		&i.Provider,
+		&i.Subject,
+		&i.UserID,
+		&i.CreatedAt,
+	)
+	return i, err
+}
+
+const getPassword = `-- name: GetPassword :one
+SELECT user_id, password_hash, failed_attempts, locked_until, updated_at FROM auth_passwords WHERE user_id = $1
+`
+
+func (q *Queries) GetPassword(ctx context.Context, userID uuid.UUID) (AuthPassword, error) {
+	row := q.db.QueryRow(ctx, getPassword, userID)
+	var i AuthPassword
+	err := row.Scan(
+		&i.UserID,
+		&i.PasswordHash,
+		&i.FailedAttempts,
+		&i.LockedUntil,
+		&i.UpdatedAt,
+	)
+	return i, err
+}
+
+const getSession = `-- name: GetSession :one
+SELECT id, user_id, expires_at, mfa_verified_at FROM sessions
+WHERE id = $1 AND revoked_at IS NULL AND expires_at > now()
+`
+
+type GetSessionRow struct {
+	ID            uuid.UUID
+	UserID        uuid.UUID
+	ExpiresAt     time.Time
+	MfaVerifiedAt *time.Time
+}
+
+func (q *Queries) GetSession(ctx context.Context, id uuid.UUID) (GetSessionRow, error) {
+	row := q.db.QueryRow(ctx, getSession, id)
+	var i GetSessionRow
+	err := row.Scan(
+		&i.ID,
+		&i.UserID,
+		&i.ExpiresAt,
+		&i.MfaVerifiedAt,
+	)
+	return i, err
+}
+
 const getSessionByHash = `-- name: GetSessionByHash :one
-SELECT id, user_id, expires_at, last_used_at FROM sessions
+SELECT id, user_id, expires_at, last_used_at, mfa_verified_at FROM sessions
 WHERE token_hash = $1 AND revoked_at IS NULL AND expires_at > now()
 `
 
 type GetSessionByHashRow struct {
-	ID         uuid.UUID
-	UserID     uuid.UUID
-	ExpiresAt  time.Time
-	LastUsedAt time.Time
+	ID            uuid.UUID
+	UserID        uuid.UUID
+	ExpiresAt     time.Time
+	LastUsedAt    time.Time
+	MfaVerifiedAt *time.Time
 }
 
 func (q *Queries) GetSessionByHash(ctx context.Context, tokenHash []byte) (GetSessionByHashRow, error) {
@@ -128,6 +235,7 @@ func (q *Queries) GetSessionByHash(ctx context.Context, tokenHash []byte) (GetSe
 		&i.UserID,
 		&i.ExpiresAt,
 		&i.LastUsedAt,
+		&i.MfaVerifiedAt,
 	)
 	return i, err
 }
@@ -153,23 +261,24 @@ func (q *Queries) IncrementOTPAttempts(ctx context.Context, arg IncrementOTPAtte
 
 const invalidateOTPs = `-- name: InvalidateOTPs :exec
 UPDATE otp_codes SET consumed_at = now()
-WHERE channel = $1 AND recipient = $2 AND consumed_at IS NULL
+WHERE channel = $1 AND recipient = $2 AND purpose = $3 AND consumed_at IS NULL
 `
 
 type InvalidateOTPsParams struct {
 	Channel   string
 	Recipient string
+	Purpose   string
 }
 
-// Un nouveau code annule les précédents : un seul code valable à la fois.
+// Un nouveau code annule les précédents du même usage : un seul code valable à la fois.
 func (q *Queries) InvalidateOTPs(ctx context.Context, arg InvalidateOTPsParams) error {
-	_, err := q.db.Exec(ctx, invalidateOTPs, arg.Channel, arg.Recipient)
+	_, err := q.db.Exec(ctx, invalidateOTPs, arg.Channel, arg.Recipient, arg.Purpose)
 	return err
 }
 
 const latestActiveOTP = `-- name: LatestActiveOTP :one
-SELECT id, channel, recipient, code_hash, attempts, expires_at, consumed_at, created_at FROM otp_codes
-WHERE channel = $1 AND recipient = $2 AND consumed_at IS NULL
+SELECT id, channel, recipient, code_hash, attempts, expires_at, consumed_at, created_at, purpose FROM otp_codes
+WHERE channel = $1 AND recipient = $2 AND purpose = $3 AND consumed_at IS NULL
 ORDER BY created_at DESC
 LIMIT 1
 `
@@ -177,10 +286,11 @@ LIMIT 1
 type LatestActiveOTPParams struct {
 	Channel   string
 	Recipient string
+	Purpose   string
 }
 
 func (q *Queries) LatestActiveOTP(ctx context.Context, arg LatestActiveOTPParams) (OtpCode, error) {
-	row := q.db.QueryRow(ctx, latestActiveOTP, arg.Channel, arg.Recipient)
+	row := q.db.QueryRow(ctx, latestActiveOTP, arg.Channel, arg.Recipient, arg.Purpose)
 	var i OtpCode
 	err := row.Scan(
 		&i.ID,
@@ -191,6 +301,7 @@ func (q *Queries) LatestActiveOTP(ctx context.Context, arg LatestActiveOTPParams
 		&i.ExpiresAt,
 		&i.ConsumedAt,
 		&i.CreatedAt,
+		&i.Purpose,
 	)
 	return i, err
 }
@@ -208,6 +319,26 @@ type LockRecipientParams struct {
 func (q *Queries) LockRecipient(ctx context.Context, arg LockRecipientParams) error {
 	_, err := q.db.Exec(ctx, lockRecipient, arg.Channel, arg.Recipient)
 	return err
+}
+
+const markSessionMFA = `-- name: MarkSessionMFA :one
+UPDATE sessions SET mfa_verified_at = now(), expires_cap = $1::timestamptz,
+  expires_at = least(expires_at, $1::timestamptz)
+WHERE id = $2 AND revoked_at IS NULL
+RETURNING expires_at
+`
+
+type MarkSessionMFAParams struct {
+	Cap time.Time
+	ID  uuid.UUID
+}
+
+// Code de double vérification accepté : la session est plafonnée (8 h pour le back-office).
+func (q *Queries) MarkSessionMFA(ctx context.Context, arg MarkSessionMFAParams) (time.Time, error) {
+	row := q.db.QueryRow(ctx, markSessionMFA, arg.Cap, arg.ID)
+	var expires_at time.Time
+	err := row.Scan(&expires_at)
+	return expires_at, err
 }
 
 const purgeOTPs = `-- name: PurgeOTPs :execrows
@@ -236,6 +367,55 @@ func (q *Queries) PurgeSessions(ctx context.Context) (int64, error) {
 	return result.RowsAffected(), nil
 }
 
+const recordLoginFailure = `-- name: RecordLoginFailure :one
+UPDATE auth_passwords
+SET failed_attempts = CASE WHEN failed_attempts + 1 >= $1::int THEN 0 ELSE failed_attempts + 1 END,
+    locked_until = CASE WHEN failed_attempts + 1 >= $1::int
+                        THEN now() + make_interval(secs => $2::int) ELSE locked_until END
+WHERE user_id = $3
+RETURNING locked_until
+`
+
+type RecordLoginFailureParams struct {
+	MaxAttempts int32
+	LockSeconds int32
+	UserID      uuid.UUID
+}
+
+// Échec compté ; au-delà du seuil, compte verrouillé pour la durée donnée (compteur remis à zéro).
+func (q *Queries) RecordLoginFailure(ctx context.Context, arg RecordLoginFailureParams) (*time.Time, error) {
+	row := q.db.QueryRow(ctx, recordLoginFailure, arg.MaxAttempts, arg.LockSeconds, arg.UserID)
+	var locked_until *time.Time
+	err := row.Scan(&locked_until)
+	return locked_until, err
+}
+
+const resetLoginFailures = `-- name: ResetLoginFailures :exec
+UPDATE auth_passwords SET failed_attempts = 0, locked_until = NULL
+WHERE user_id = $1 AND (failed_attempts > 0 OR locked_until IS NOT NULL)
+`
+
+func (q *Queries) ResetLoginFailures(ctx context.Context, userID uuid.UUID) error {
+	_, err := q.db.Exec(ctx, resetLoginFailures, userID)
+	return err
+}
+
+const revokeOtherSessions = `-- name: RevokeOtherSessions :exec
+UPDATE sessions SET revoked_at = now()
+WHERE user_id = $1 AND id <> $2 AND revoked_at IS NULL
+`
+
+type RevokeOtherSessionsParams struct {
+	UserID uuid.UUID
+	Keep   uuid.UUID
+}
+
+// Mot de passe changé ou réinitialisé : tous les autres appareils sont déconnectés.
+func (q *Queries) RevokeOtherSessions(ctx context.Context, arg RevokeOtherSessionsParams) error {
+	_, err := q.db.Exec(ctx, revokeOtherSessions, arg.UserID, arg.Keep)
+	return err
+}
+
 const revokeSession = `-- name: RevokeSession :exec
 UPDATE sessions SET revoked_at = now() WHERE id = $1 AND revoked_at IS NULL
 `
@@ -254,8 +434,26 @@ func (q *Queries) RevokeUserSessions(ctx context.Context, userID uuid.UUID) erro
 	return err
 }
 
+const setPassword = `-- name: SetPassword :exec
+INSERT INTO auth_passwords (user_id, password_hash) VALUES ($1, $2)
+ON CONFLICT (user_id) DO UPDATE
+SET password_hash = EXCLUDED.password_hash, failed_attempts = 0, locked_until = NULL, updated_at = now()
+`
+
+type SetPasswordParams struct {
+	UserID       uuid.UUID
+	PasswordHash string
+}
+
+func (q *Queries) SetPassword(ctx context.Context, arg SetPasswordParams) error {
+	_, err := q.db.Exec(ctx, setPassword, arg.UserID, arg.PasswordHash)
+	return err
+}
+
 const touchSession = `-- name: TouchSession :exec
-UPDATE sessions SET last_used_at = now(), expires_at = $1 WHERE id = $2
+UPDATE sessions SET last_used_at = now(),
+  expires_at = least($1::timestamptz, coalesce(expires_cap, $1::timestamptz))
+WHERE id = $2
 `
 
 type TouchSessionParams struct {
@@ -263,6 +461,7 @@ type TouchSessionParams struct {
 	ID        uuid.UUID
 }
 
+// Expiration glissante, jamais au-delà du plafond d'une session admin (expires_cap).
 func (q *Queries) TouchSession(ctx context.Context, arg TouchSessionParams) error {
 	_, err := q.db.Exec(ctx, touchSession, arg.ExpiresAt, arg.ID)
 	return err

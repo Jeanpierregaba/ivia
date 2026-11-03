@@ -1,5 +1,7 @@
 -- name: SearchProducts :many
--- Pertinence : plein texte (français, sans accents) + similarité trigramme (fautes de frappe).
+-- Pertinence : plein texte (français, sans accents) + début du dernier mot (recherche pendant la
+-- frappe : « pag » trouve « pagne ») + similarité trigramme (fautes de frappe). tsprefix est
+-- construit par le service (lettres et chiffres seulement, « mot1 & mot2:* »), jamais par l'app.
 -- distance_m vaut -1 sans position ; main_image_key vaut '' sans photo.
 SELECT t.id, t.shop_id, t.name, t.price_xof, t.parcel_size, t.shop_name, t.neighborhood_id,
        coalesce(t.main_image_key, '')::text AS main_image_key,
@@ -12,11 +14,14 @@ FROM (
          END::float8 AS distance_m,
          CASE WHEN sqlc.narg(q)::text IS NULL THEN 0
               ELSE ts_rank(sp.search_vector, websearch_to_tsquery('french', immutable_unaccent(sqlc.narg(q)::text)))
+                   + coalesce(ts_rank(sp.search_vector, to_tsquery('french', immutable_unaccent(sqlc.narg(tsprefix)::text))), 0)
                    + similarity(immutable_unaccent(lower(sp.name)), immutable_unaccent(lower(sqlc.narg(q)::text)))
          END::float8 AS score
   FROM search_products sp
   WHERE (sqlc.narg(q)::text IS NULL
          OR sp.search_vector @@ websearch_to_tsquery('french', immutable_unaccent(sqlc.narg(q)::text))
+         OR (sqlc.narg(tsprefix)::text IS NOT NULL
+             AND sp.search_vector @@ to_tsquery('french', immutable_unaccent(sqlc.narg(tsprefix)::text)))
          OR immutable_unaccent(lower(sp.name)) % immutable_unaccent(lower(sqlc.narg(q)::text)))
     AND (sqlc.narg(category_id)::uuid IS NULL
          OR sp.category_id = sqlc.narg(category_id)::uuid OR sp.category_parent_id = sqlc.narg(category_id)::uuid)
@@ -53,7 +58,8 @@ FROM (
   FROM search_shops ss
   WHERE (sqlc.narg(q)::text IS NULL
          OR immutable_unaccent(lower(ss.name)) % immutable_unaccent(lower(sqlc.narg(q)::text))
-         OR immutable_unaccent(lower(ss.name)) LIKE '%' || immutable_unaccent(lower(sqlc.narg(q)::text)) || '%')
+         -- q_like : texte de l'app avec \, % et _ échappés (sinon « % » trouverait toutes les boutiques).
+         OR immutable_unaccent(lower(ss.name)) LIKE '%' || immutable_unaccent(lower(sqlc.narg(q_like)::text)) || '%' ESCAPE '\')
     AND (sqlc.narg(neighborhood_id)::uuid IS NULL OR ss.neighborhood_id = sqlc.narg(neighborhood_id)::uuid)
     AND (sqlc.narg(shop_category_id)::uuid IS NULL OR ss.category_id = sqlc.narg(shop_category_id)::uuid)
     AND (sqlc.narg(radius_m)::float8 IS NULL

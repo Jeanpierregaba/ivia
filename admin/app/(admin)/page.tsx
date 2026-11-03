@@ -1,202 +1,338 @@
-import {
-  Banknote,
-  Clock3,
-  PackageCheck,
-  Percent,
-  ShoppingBag,
-  Store,
-  Timer,
-  Truck,
-  Wallet,
-} from "lucide-react";
+import { Bell, Search } from "lucide-react";
+import Link from "next/link";
 
-import { MosaicTile } from "@/components/illustration";
-import { Card, CardTitle, ErrorState, PageHeader } from "@/components/ui";
+import { AnimatedNumber, LiveRefresh, PeriodMenu } from "@/components/live";
+import { cx, ErrorState } from "@/components/ui";
 import { api, ApiError, type Schemas } from "@/lib/api";
-import { formatXOF } from "@/lib/format";
+import { ActiveOrders, AuditFeed, DriversPanel, PaidChart } from "./dashboard-parts";
 
 export const metadata = { title: "Tableau de bord" };
 
-type Page<T> = { items: T[]; next_offset: number | null };
+type Overview = Schemas["AdminOverview"];
+type Props = { searchParams: Promise<{ period?: string; group?: string }> };
 
-async function pendingCount(path: string, query: Record<string, string>): Promise<string> {
-  const page = await api<Page<unknown>>(path, { query: { ...query, limit: 100 } });
-  return page.next_offset !== null ? "100+" : String(page.items.length);
-}
+const PERIODS = [
+  { value: "today", label: "Aujourd'hui" },
+  { value: "7d", label: "7 derniers jours" },
+  { value: "30d", label: "30 derniers jours" },
+];
+const GROUPS = ["to_accept", "without_driver", "locked"];
 
-const frDate = (iso: string) => iso.split("-").reverse().join("/");
+const longDate = new Intl.DateTimeFormat("fr-FR", {
+  timeZone: "Africa/Lome",
+  weekday: "long",
+  day: "numeric",
+  month: "long",
+  year: "numeric",
+});
+// Montants courts de la maquette : « 21 350 F ».
+const grouped = new Intl.NumberFormat("fr-FR", { maximumFractionDigits: 0 });
+const F = (n: number) => `${grouped.format(n)} F`;
+const weekday = new Intl.DateTimeFormat("fr-FR", { timeZone: "Africa/Lome", weekday: "long" });
 
-export default async function DashboardPage() {
-  let data: Schemas["Dashboard"];
-  let todo: { shops: string; drivers: string; refunds: string; alerts: number };
+// Maquette B03 : tout le tableau de bord vient de GET /v1/admin/overview, relu toutes les 30 s.
+export default async function DashboardPage({ searchParams }: Props) {
+  const sp = await searchParams;
+  const period = PERIODS.some((p) => p.value === sp.period) ? sp.period! : "today";
+  const group = GROUPS.includes(sp.group ?? "") ? sp.group! : "";
+
+  let o: Overview;
+  let me: Schemas["User"];
+  let unread = 0;
   try {
-    const [d, shops, drivers, refunds, alerts] = await Promise.all([
-      // Sans période, l'API retient les 30 derniers jours (heure de Lomé).
-      api<Schemas["Dashboard"]>("/v1/admin/metrics"),
-      pendingCount("/v1/admin/shops", { status: "pending_review" }),
-      pendingCount("/v1/admin/drivers", { review_status: "pending_review" }),
-      pendingCount("/v1/admin/refund-queue", {}),
-      api<{ items: unknown[] }>("/v1/admin/delivery-alerts"),
+    const [overview, user, notifs] = await Promise.all([
+      api<Overview>("/v1/admin/overview", { query: { period, group } }),
+      api<Schemas["User"]>("/v1/me"),
+      api<{ unread_count: number }>("/v1/notifications", { query: { app: "admin", limit: 1 } }),
     ]);
-    data = d;
-    todo = { shops, drivers, refunds, alerts: alerts.items.length };
+    o = overview;
+    me = user;
+    unread = notifs.unread_count;
   } catch (err) {
     if (err instanceof ApiError) return <ErrorState message={err.message} />;
     throw err;
   }
 
-  const o = data.orders;
-  const perDay = o.paid_per_day;
-  const max = Math.max(1, ...perDay.map((p) => p.count));
+  const now = new Date(o.generated_at);
+  const today = longDate.format(now);
+  const href = (p: string, g: string) => {
+    const q = new URLSearchParams();
+    if (p !== "today") q.set("period", p);
+    if (g) q.set("group", g);
+    const s = q.toString();
+    return s ? `/?${s}` : "/";
+  };
+  const k = o.kpis;
+  const delta =
+    o.kpis.paid_orders_prev > 0
+      ? Math.round(((k.paid_orders - k.paid_orders_prev) / k.paid_orders_prev) * 100)
+      : null;
+  const versus =
+    period === "today"
+      ? `vs ${weekday.format(new Date(now.getTime() - 7 * 86400_000))} dernier`
+      : period === "7d"
+        ? "vs 7 jours précédents"
+        : "vs 30 jours précédents";
 
   return (
     <>
-      <PageHeader
-        overline={`Du ${frDate(data.from)} au ${frDate(data.to)} · heure de Lomé`}
-        title="Ce qui se passe sur la plateforme"
-        highlight="la plateforme"
+      <LiveRefreshHeader
+        firstName={me.first_name || "à vous"}
+        date={today.charAt(0).toUpperCase() + today.slice(1)}
+        generatedAt={o.generated_at}
+        period={period}
+        periodOptions={PERIODS.map((p) => ({ ...p, href: href(p.value, group) }))}
+        unread={unread}
       />
 
-      {/* Mosaïque « à traiter » : tuiles séparées de 8 px, coin extérieur arrondi à 18 px */}
-      <section aria-labelledby="todo" className="mb-8">
-        <h2 id="todo" className="mb-3 text-[12px] font-semibold uppercase tracking-[0.08em] text-text-muted">
-          À traiter
-        </h2>
-        <div className="grid grid-cols-4 gap-2">
-          <MosaicTile
-            tone="imperial"
-            cornerAt="tl"
-            caption="Boutiques à valider"
-            value={todo.shops}
-            detail="Invisibles des acheteurs tant qu'elles ne sont pas publiées"
-            href="/shops?status=pending_review"
-            icon={<Store size={20} aria-hidden="true" />}
-          />
-          <MosaicTile
-            tone="cobalt"
-            caption="Livreurs à valider"
-            value={todo.drivers}
-            detail="Pièce d'identité et permis à vérifier"
-            href="/drivers?review_status=pending_review"
-            icon={<Truck size={20} aria-hidden="true" />}
-          />
-          <MosaicTile
-            tone="berkeley"
-            caption="Remboursements en attente"
-            value={todo.refunds}
-            detail="Commandes annulées après paiement"
-            href="/refunds"
-            icon={<Banknote size={20} aria-hidden="true" />}
-          />
-          <MosaicTile
-            tone={todo.alerts > 0 ? "cornell" : "soft"}
-            cornerAt="tr"
-            caption="Commandes sans livreur"
-            value={String(todo.alerts)}
-            detail={todo.alerts > 0 ? "Aucun livreur n'a accepté à temps" : "Aucune alerte d'attribution"}
-            href="/orders?status=awaiting_driver"
-            icon={<Clock3 size={20} aria-hidden="true" />}
-          />
-        </div>
-      </section>
-
-      <div className="grid grid-cols-[minmax(0,1.6fr)_minmax(0,1fr)] gap-4">
-        <Card>
-          <CardTitle
-            icon={<ShoppingBag size={18} aria-hidden="true" />}
-            aside={<span className="text-[13px] text-text-muted">par jour</span>}
-          >
-            Commandes payées
-          </CardTitle>
-          <p className="text-[40px] font-bold leading-[44px] tracking-[-0.02em]">{o.paid_orders}</p>
-          {perDay.length === 0 ? (
-            <p className="mt-6 text-text-secondary">Pas encore de commande payée sur la période.</p>
-          ) : (
-            <ol className="mt-6 flex h-32 items-end gap-1.5" aria-label="Commandes payées par jour">
-              {perDay.map((p) => (
-                <li
-                  key={p.day}
-                  className="flex h-full flex-1 flex-col justify-end"
-                  title={`${frDate(p.day)} : ${p.count}`}
-                >
-                  <span
-                    className="block w-full rounded-t-[6px] bg-tertiary"
-                    style={{ height: `${Math.max(4, (p.count / max) * 100)}%` }}
-                  />
-                </li>
-              ))}
-            </ol>
-          )}
-        </Card>
-
-        <Card>
-          <CardTitle icon={<Wallet size={18} aria-hidden="true" />}>Argent</CardTitle>
-          <Metric label="Volume des commandes remises" value={formatXOF(o.gmv_xof)} />
-          <Metric label="Commission de la plateforme" value={formatXOF(o.commission_xof)} highlight />
-        </Card>
-      </div>
-
-      <div className="mt-4 grid grid-cols-4 gap-4">
-        <Stat
-          icon={<PackageCheck size={18} />}
-          label="Commandes remises"
-          value={String(o.completed_orders)}
+      {/* À traiter */}
+      <h2 className="mb-3 text-[14px] font-extrabold uppercase tracking-[0.12em] text-text-secondary">
+        À traiter
+      </h2>
+      <div className="mb-4 grid grid-cols-5 gap-4 max-[1400px]:grid-cols-3">
+        <TodoCard
+          tone="#ED1C2F"
+          value={o.todo.refunds}
+          action="Rembourser"
+          title="Remboursements en attente"
+          detail={
+            o.todo.refunds
+              ? `Commandes annulées après paiement · ${F(o.todo.refunds_xof)}`
+              : "Aucun remboursement en attente"
+          }
+          href="/refunds"
+          delay={0}
         />
-        <Stat
-          icon={<Percent size={18} />}
-          label="Annulées après paiement"
-          value={`${o.cancellation_rate_pct.toFixed(1)} %`}
+        <TodoCard
+          tone="#0E2E54"
+          value={o.todo.shops}
+          action="Examiner"
+          title="Boutiques à valider"
+          detail={
+            o.todo.shops && o.todo.shops_oldest
+              ? `La plus ancienne attend depuis ${ago(o.todo.shops_oldest, now)}`
+              : "Aucune boutique en attente"
+          }
+          href="/shops?status=pending_review"
+          delay={60}
         />
-        <Stat
-          icon={<Timer size={18} />}
-          label="Prête → livrée (médiane)"
-          value={`${Math.round(o.median_ready_to_delivered_minutes)} min`}
+        <TodoCard
+          tone="#004DA8"
+          value={o.todo.drivers}
+          action="Examiner"
+          title="Livreurs à valider"
+          detail={o.todo.drivers ? "Documents reçus, à vérifier" : "Aucun dossier en attente"}
+          href="/drivers?review_status=pending_review"
+          delay={120}
         />
-        <Stat
-          icon={<Truck size={18} />}
-          label="Livreur trouvé en moins de 10 min"
-          value={`${data.delivery.assigned_within_10_min_pct.toFixed(0)} %`}
+        <TodoCard
+          tone="#AA0E1B"
+          value={o.todo.handover_locked}
+          action="Intervenir"
+          title="Code de remise bloqué"
+          detail={
+            o.todo.handover_locked_order
+              ? `5 essais échoués · #${o.todo.handover_locked_order.number}`
+              : "Aucun code bloqué"
+          }
+          href={o.todo.handover_locked_order ? `/orders/${o.todo.handover_locked_order.id}` : "/orders"}
+          delay={180}
+        />
+        <TodoCard
+          tone="#8A5A00"
+          value={o.todo.unassigned}
+          action="Assigner"
+          title="Commande sans livreur"
+          detail={
+            o.todo.unassigned_order
+              ? `${o.todo.unassigned_order.offers_count} livreur${o.todo.unassigned_order.offers_count > 1 ? "s ont" : " a"} refusé · #${o.todo.unassigned_order.number}`
+              : "Toutes les commandes ont un livreur"
+          }
+          href={
+            o.todo.unassigned_order
+              ? `/orders/${o.todo.unassigned_order.id}`
+              : "/orders?status=awaiting_driver"
+          }
+          delay={240}
         />
       </div>
 
-      {data.payments_pending_over_15_min > 0 && (
-        <p
-          role="status"
-          className="mt-4 flex items-center gap-2 rounded-field bg-[#FBEFE3] px-5 py-3 text-warning"
-        >
-          <Clock3 size={16} aria-hidden="true" />
-          {data.payments_pending_over_15_min} paiement(s) en attente depuis plus de 15 minutes : la
-          revérification automatique est en cours.
-        </p>
-      )}
+      {/* Indicateurs */}
+      <div className="mb-4 grid grid-cols-5 gap-4 max-[1400px]:grid-cols-3">
+        <KpiCard label="Commandes payées">
+          <BigValue>
+            <AnimatedNumber value={k.paid_orders} />
+          </BigValue>
+          <p className="mt-3 text-[14px] text-text-muted">
+            {delta === null ? "Pas de comparaison" : `${delta >= 0 ? "+" : ""}${delta} % ${versus}`}
+          </p>
+        </KpiCard>
+        <KpiCard label="Volume des ventes">
+          <BigValue>
+            <AnimatedNumber value={k.gmv_xof} kind="xof" />
+          </BigValue>
+          <p className="mt-3 text-[14px] text-text-muted">Commission : {F(k.commission_xof)}</p>
+        </KpiCard>
+        <KpiCard label="Annulées ou remboursées">
+          <BigValue>{pct(k.cancellation_rate_pct, 1)}</BigValue>
+          <Goal note="Sur 30 jours" label="Objectif < 5 %" ok={k.cancellation_rate_pct < 5} />
+        </KpiCard>
+        <KpiCard label="Livreur assigné < 10 min">
+          <BigValue>{pct(k.assigned_within_10_min_pct, 0)}</BigValue>
+          <Goal note="Commandes prêtes" label="Objectif 80 %" ok={k.assigned_within_10_min_pct >= 80} />
+        </KpiCard>
+        <KpiCard label="Prête → livrée">
+          <BigValue>
+            {k.median_ready_to_delivered_minutes > 0
+              ? `${Math.round(k.median_ready_to_delivered_minutes)} min`
+              : "—"}
+          </BigValue>
+          <Goal
+            note="Délai médian"
+            label="Objectif < 45 min"
+            ok={k.median_ready_to_delivered_minutes === 0 || k.median_ready_to_delivered_minutes < 45}
+          />
+        </KpiCard>
+      </div>
+
+      <div className="mb-4 grid grid-cols-[minmax(0,1.75fr)_minmax(0,1fr)] gap-4 max-[1200px]:grid-cols-1">
+        <PaidChart days={o.paid_per_day} />
+        <DriversPanel
+          drivers={o.drivers}
+          payments={o.payments}
+          periodLabel={PERIODS.find((p) => p.value === period)!.label}
+        />
+      </div>
+
+      <div className="grid grid-cols-[minmax(0,1.75fr)_minmax(0,1fr)] gap-4 max-[1200px]:grid-cols-1">
+        <ActiveOrders active={o.active_orders} now={o.generated_at} chipHref={(g) => href(period, g)} />
+        <AuditFeed lines={o.audit} now={o.generated_at} />
+      </div>
     </>
   );
 }
 
-function Metric({ label, value, highlight }: { label: string; value: string; highlight?: boolean }) {
+function LiveRefreshHeader(props: {
+  firstName: string;
+  date: string;
+  generatedAt: string;
+  period: string;
+  periodOptions: { value: string; label: string; href: string }[];
+  unread: number;
+}) {
   return (
-    <div className="border-b border-border py-4 first:pt-0 last:border-0 last:pb-0">
-      <p className="text-[13px] text-text-muted">{label}</p>
-      <p
-        className={`mt-1 text-[28px] font-bold leading-8 tracking-[-0.02em] ${highlight ? "text-primary-strong" : ""}`}
+    <header className="animate-rise mb-7 flex items-start justify-between gap-6">
+      <div>
+        <h1 className="text-[44px] font-extrabold leading-[48px] tracking-[-0.03em]">
+          Bonjour {props.firstName}
+        </h1>
+        <p className="mt-2 text-[17px] text-text-secondary">
+          {props.date} · Lomé · <LiveRefresh generatedAt={props.generatedAt} />
+        </p>
+      </div>
+      <div className="flex items-center gap-3">
+        <form action="/search" role="search" className="relative">
+          <Search
+            size={19}
+            aria-hidden="true"
+            className="pointer-events-none absolute left-4 top-1/2 -translate-y-1/2 text-text-muted"
+          />
+          <label htmlFor="global-search" className="sr-only">
+            Rechercher une commande, une boutique, un livreur, un téléphone
+          </label>
+          <input
+            id="global-search"
+            name="q"
+            placeholder="Commande, boutique, livreur, téléphone…"
+            className="h-[54px] w-[380px] rounded-[14px] bg-surface pl-12 pr-4 text-[15px] outline-none focus:shadow-[inset_0_0_0_2px_var(--color-primary)] max-[1400px]:w-[260px]"
+          />
+        </form>
+        <PeriodMenu current={props.period} options={props.periodOptions} />
+        <Link
+          href="/notifications"
+          aria-label={props.unread ? `${props.unread} notification(s) non lue(s)` : "Notifications"}
+          className="relative grid size-[54px] place-items-center rounded-[14px] bg-surface hover:bg-white/70"
+        >
+          <Bell size={21} aria-hidden="true" />
+          {props.unread > 0 && (
+            <span className="animate-live absolute right-3 top-3 size-2.5 rounded-full bg-primary ring-2 ring-surface" />
+          )}
+        </Link>
+      </div>
+    </header>
+  );
+}
+
+function TodoCard(props: {
+  tone: string;
+  value: number;
+  action: string;
+  title: string;
+  detail: string;
+  href: string;
+  delay: number;
+}) {
+  const idle = props.value === 0;
+  return (
+    <Link
+      href={props.href}
+      style={{ borderTopColor: props.tone, animationDelay: `${props.delay}ms` }}
+      className="animate-rise group block rounded-[18px] border-t-[5px] bg-surface p-6 transition-transform hover:-translate-y-0.5 hover:shadow-[0_10px_24px_rgba(14,46,84,0.10)]"
+    >
+      <div className="flex items-start justify-between gap-3">
+        <span
+          className="text-[44px] font-extrabold leading-none"
+          style={{ color: idle ? "#9AA5B4" : props.tone }}
+        >
+          <AnimatedNumber value={props.value} />
+        </span>
+        <span className="rounded-full bg-background px-3.5 py-1.5 text-[14px] font-bold transition-colors group-hover:bg-tertiary group-hover:text-white">
+          {props.action}
+        </span>
+      </div>
+      <p className="mt-5 text-[19px] font-extrabold leading-[24px]">{props.title}</p>
+      <p className="mt-1.5 text-[14px] leading-[20px] text-text-muted">{props.detail}</p>
+    </Link>
+  );
+}
+
+function KpiCard({ label, children }: { label: string; children: React.ReactNode }) {
+  return (
+    <section className="animate-rise rounded-[18px] bg-surface p-6">
+      <p className="text-[16px] text-text-secondary">{label}</p>
+      {children}
+    </section>
+  );
+}
+
+function BigValue({ children }: { children: React.ReactNode }) {
+  return <p className="mt-2 text-[38px] font-extrabold leading-[44px] tracking-[-0.02em]">{children}</p>;
+}
+
+function Goal({ note, label, ok }: { note: string; label: string; ok: boolean }) {
+  return (
+    <div className="mt-3 flex items-center justify-between gap-2">
+      <span className="text-[14px] leading-[18px] text-text-muted">{note}</span>
+      <span
+        className={cx(
+          "whitespace-nowrap rounded-full px-3 py-1 text-[14px] font-bold",
+          ok ? "bg-secondary-soft text-secondary" : "bg-primary-soft text-primary-strong",
+        )}
       >
-        {value}
-      </p>
+        {label}
+      </span>
     </div>
   );
 }
 
-function Stat({ icon, label, value }: { icon: React.ReactNode; label: string; value: string }) {
-  return (
-    <Card className="p-5">
-      <span
-        aria-hidden="true"
-        className="mb-4 grid size-9 place-items-center rounded-card bg-secondary-soft text-tertiary"
-      >
-        {icon}
-      </span>
-      <p className="text-[22px] font-bold leading-7">{value}</p>
-      <p className="mt-1 text-[13px] text-text-muted">{label}</p>
-    </Card>
-  );
+function pct(v: number, digits: number) {
+  return `${v.toLocaleString("fr-FR", { minimumFractionDigits: digits, maximumFractionDigits: digits })} %`;
+}
+
+/** « 2 j », « 5 h », « 12 min » depuis une date. */
+function ago(iso: string, now: Date) {
+  const min = Math.max(0, Math.round((now.getTime() - new Date(iso).getTime()) / 60000));
+  if (min < 60) return `${min} min`;
+  if (min < 48 * 60) return `${Math.round(min / 60)} h`;
+  return `${Math.round(min / 1440)} j`;
 }

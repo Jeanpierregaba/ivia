@@ -59,6 +59,10 @@ type Config struct {
 	// RunWorkers : exécuter les tâches de fond River dans ce processus.
 	RunWorkers bool
 
+	// GoogleClientIDs : identifiants OAuth (Android, iOS, web) acceptés pour la connexion avec
+	// Google, séparés par des virgules dans GOOGLE_CLIENT_IDS. Vide : connexion Google désactivée.
+	GoogleClientIDs []string
+
 	// SentryDSN : suivi des erreurs (vide : désactivé). Version : identifiant de la version déployée.
 	SentryDSN string
 	Version   string
@@ -126,6 +130,11 @@ func Load(getenv func(string) string) (Config, error) {
 		Version:              get("APP_VERSION", "dev"),
 	}
 	c.PublicBaseURL = strings.TrimRight(get("PUBLIC_BASE_URL", "http://localhost:"+c.Port), "/")
+	for _, id := range strings.Split(get("GOOGLE_CLIENT_IDS", ""), ",") {
+		if id = strings.TrimSpace(id); id != "" {
+			c.GoogleClientIDs = append(c.GoogleClientIDs, id)
+		}
+	}
 
 	switch c.Env {
 	case EnvLocal, EnvTest, EnvStaging, EnvProduction:

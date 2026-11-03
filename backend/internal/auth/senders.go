@@ -26,14 +26,14 @@ type LogSender struct {
 }
 
 // Send implémente OTPSender.
-func (s *LogSender) Send(_ context.Context, channel Channel, recipient, code string) error {
+func (s *LogSender) Send(_ context.Context, m OTPMessage) error {
 	s.mu.Lock()
 	if s.last == nil {
 		s.last = map[string]string{}
 	}
-	s.last[recipient] = code
+	s.last[m.Recipient] = m.Code
 	s.mu.Unlock()
-	s.Logger.Info("[DEV] code de connexion", "channel", channel, "recipient", recipient, "code", code)
+	s.Logger.Info("[DEV] code", "purpose", m.Purpose, "channel", m.Channel, "recipient", m.Recipient, "code", m.Code)
 	return nil
 }
 
@@ -56,10 +56,11 @@ type BrevoSender struct {
 }
 
 // Send implémente OTPSender (canal e-mail uniquement).
-func (s *BrevoSender) Send(ctx context.Context, channel Channel, recipient, code string) error {
-	if channel != ChannelEmail {
-		return fmt.Errorf("brevo : canal non pris en charge : %s", channel)
+func (s *BrevoSender) Send(ctx context.Context, m OTPMessage) error {
+	if m.Channel != ChannelEmail {
+		return fmt.Errorf("brevo : canal non pris en charge : %s", m.Channel)
 	}
+	c := copyFor(m.Purpose)
 	endpoint := s.Endpoint
 	if endpoint == "" {
 		endpoint = "https://api.brevo.com/v3/smtp/email"
@@ -70,10 +71,10 @@ func (s *BrevoSender) Send(ctx context.Context, channel Channel, recipient, code
 	}
 	body, err := json.Marshal(map[string]any{
 		"sender":      map[string]string{"email": s.SenderEmail, "name": s.SenderName},
-		"to":          []map[string]string{{"email": recipient}},
-		"subject":     "Votre code de connexion ivia : " + code,
-		"textContent": otpText(code),
-		"htmlContent": otpHTML(code),
+		"to":          []map[string]string{{"email": m.Recipient}},
+		"subject":     c.subject + m.Code,
+		"textContent": otpText(c, m.Code),
+		"htmlContent": otpHTML(c, m.Code),
 		"tags":        []string{"otp"},
 	})
 	if err != nil {
@@ -99,15 +100,35 @@ func (s *BrevoSender) Send(ctx context.Context, channel Channel, recipient, code
 	return nil
 }
 
-func otpText(code string) string {
-	return "Bonjour,\n\nVotre code de connexion ivia est : " + code + "\n\n" +
+// mailCopy : textes de l'e-mail selon l'usage du code.
+type mailCopy struct {
+	subject  string // suivi du code
+	overline string
+	sentence string // suivi du code
+}
+
+func copyFor(p Purpose) mailCopy {
+	switch p {
+	case PurposeSignup:
+		return mailCopy{"Votre code pour créer votre compte ivia : ", "Création de compte", "Votre code pour créer votre compte ivia est : "}
+	case PurposeReset:
+		return mailCopy{"Votre code pour changer de mot de passe ivia : ", "Mot de passe oublié", "Votre code pour choisir un nouveau mot de passe ivia est : "}
+	case PurposeMFA:
+		return mailCopy{"Votre code de vérification du back-office ivia : ", "Back-office", "Votre code de vérification du back-office ivia est : "}
+	default:
+		return mailCopy{"Votre code de connexion ivia : ", "Code de connexion", "Votre code de connexion ivia est : "}
+	}
+}
+
+func otpText(c mailCopy, code string) string {
+	return "Bonjour,\n\n" + c.sentence + code + "\n\n" +
 		"Il est valable 10 minutes. Ne le communiquez à personne : l'équipe ivia ne vous le demandera jamais.\n\n" +
 		"Si vous n'avez pas demandé ce code, ignorez cet e-mail."
 }
 
 // otpHTML : e-mail aux couleurs d'ivia (docs/DESIGN.md). Mise en page en tableaux et styles en
 // ligne, seule forme lue correctement par les messageries (Gmail, Outlook, applis mobiles).
-func otpHTML(code string) string {
+func otpHTML(c mailCopy, code string) string {
 	var digits strings.Builder
 	for _, d := range code {
 		digits.WriteString(`<td style="width:44px;height:56px;background:#F3F4F6;border-radius:14px;` +
@@ -119,7 +140,7 @@ func otpHTML(code string) string {
 		`<table role="presentation" width="100%" cellpadding="0" cellspacing="0" style="max-width:480px;background:#FFFFFF;border-radius:18px;overflow:hidden">` +
 		`<tr><td style="background:#0E2E54;padding:24px 28px;font-size:30px;font-weight:700;letter-spacing:-0.5px;color:#FFFFFF">ivia</td></tr>` +
 		`<tr><td style="padding:28px">` +
-		`<p style="margin:0 0 4px;font-size:12px;font-weight:700;letter-spacing:1px;color:#004DA8;text-transform:uppercase">Code de connexion</p>` +
+		`<p style="margin:0 0 4px;font-size:12px;font-weight:700;letter-spacing:1px;color:#004DA8;text-transform:uppercase">` + html.EscapeString(c.overline) + `</p>` +
 		`<p style="margin:0 0 20px;font-size:22px;line-height:28px;font-weight:700">Voici votre code <span style="color:#ED1C2F">ivia</span></p>` +
 		`<table role="presentation" cellpadding="0" cellspacing="0"><tr>` + digits.String() + `</tr></table>` +
 		`<p style="margin:20px 0 0;font-size:15px;line-height:22px;color:#3A4A60">Saisissez-le dans l'application. Il est valable <strong>10 minutes</strong>.</p>` +

@@ -12,6 +12,65 @@ import (
 	"github.com/google/uuid"
 )
 
+const activeOrdersOverview = `-- name: ActiveOrdersOverview :many
+SELECT o.id, o.number, o.shop_id, o.buyer_id, o.fulfillment, o.total_xof, o.status, o.handover_attempts,
+       coalesce((SELECT max(e.created_at) FROM order_status_events e WHERE e.order_id = o.id), o.updated_at)::timestamptz AS since
+FROM orders o
+WHERE o.status = ANY($1::text[])
+  AND (NOT $2::boolean OR o.handover_attempts >= 5)
+ORDER BY o.number DESC
+LIMIT $3
+`
+
+type ActiveOrdersOverviewParams struct {
+	Statuses   []string
+	LockedOnly bool
+	Lim        int32
+}
+
+type ActiveOrdersOverviewRow struct {
+	ID               uuid.UUID
+	Number           int64
+	ShopID           uuid.UUID
+	BuyerID          uuid.UUID
+	Fulfillment      string
+	TotalXof         int64
+	Status           string
+	HandoverAttempts int32
+	Since            time.Time
+}
+
+// Commandes en cours du tableau de bord, filtrées par groupe ; since : dernier changement de statut.
+func (q *Queries) ActiveOrdersOverview(ctx context.Context, arg ActiveOrdersOverviewParams) ([]ActiveOrdersOverviewRow, error) {
+	rows, err := q.db.Query(ctx, activeOrdersOverview, arg.Statuses, arg.LockedOnly, arg.Lim)
+	if err != nil {
+		return nil, err
+	}
+	defer rows.Close()
+	items := []ActiveOrdersOverviewRow{}
+	for rows.Next() {
+		var i ActiveOrdersOverviewRow
+		if err := rows.Scan(
+			&i.ID,
+			&i.Number,
+			&i.ShopID,
+			&i.BuyerID,
+			&i.Fulfillment,
+			&i.TotalXof,
+			&i.Status,
+			&i.HandoverAttempts,
+			&i.Since,
+		); err != nil {
+			return nil, err
+		}
+		items = append(items, i)
+	}
+	if err := rows.Err(); err != nil {
+		return nil, err
+	}
+	return items, nil
+}
+
 const adminListOrders = `-- name: AdminListOrders :many
 SELECT o.id FROM orders o
 WHERE ($1::text IS NULL OR o.status = $1::text)
@@ -611,6 +670,44 @@ func (q *Queries) Metrics(ctx context.Context, arg MetricsParams) (MetricsRow, e
 	return i, err
 }
 
+const overviewCounts = `-- name: OverviewCounts :one
+SELECT
+  count(*) FILTER (WHERE status IN ('awaiting_seller', 'accepted', 'preparing', 'ready_for_pickup',
+                                    'awaiting_driver', 'driver_assigned', 'picked_up'))::bigint AS active,
+  count(*) FILTER (WHERE status = 'awaiting_seller')::bigint AS to_accept,
+  count(*) FILTER (WHERE status = 'awaiting_driver')::bigint AS without_driver,
+  count(*) FILTER (WHERE handover_attempts >= 5
+                     AND status IN ('ready_for_pickup', 'driver_assigned', 'picked_up'))::bigint AS handover_locked,
+  count(*) FILTER (WHERE status IN ('cancelled', 'returned_to_shop') AND refund_due_xof > 0)::bigint AS refunds,
+  coalesce(sum(refund_due_xof) FILTER (WHERE status IN ('cancelled', 'returned_to_shop') AND refund_due_xof > 0), 0)::bigint AS refunds_xof
+FROM orders
+`
+
+type OverviewCountsRow struct {
+	Active         int64
+	ToAccept       int64
+	WithoutDriver  int64
+	HandoverLocked int64
+	Refunds        int64
+	RefundsXof     int64
+}
+
+// Compteurs du tableau de bord : commandes en cours et leurs groupes, codes bloqués, file de
+// remboursement (même définition que RefundQueue).
+func (q *Queries) OverviewCounts(ctx context.Context) (OverviewCountsRow, error) {
+	row := q.db.QueryRow(ctx, overviewCounts)
+	var i OverviewCountsRow
+	err := row.Scan(
+		&i.Active,
+		&i.ToAccept,
+		&i.WithoutDriver,
+		&i.HandoverLocked,
+		&i.Refunds,
+		&i.RefundsXof,
+	)
+	return i, err
+}
+
 const paidOrdersPerDay = `-- name: PaidOrdersPerDay :many
 SELECT (paid_at AT TIME ZONE 'Africa/Lome')::date AS day, count(*)::bigint AS orders
 FROM orders
@@ -638,6 +735,46 @@ func (q *Queries) PaidOrdersPerDay(ctx context.Context, arg PaidOrdersPerDayPara
 	for rows.Next() {
 		var i PaidOrdersPerDayRow
 		if err := rows.Scan(&i.Day, &i.Orders); err != nil {
+			return nil, err
+		}
+		items = append(items, i)
+	}
+	if err := rows.Err(); err != nil {
+		return nil, err
+	}
+	return items, nil
+}
+
+const paidPerDayByMode = `-- name: PaidPerDayByMode :many
+SELECT (paid_at AT TIME ZONE 'Africa/Lome')::date AS day, fulfillment, count(*)::bigint AS n
+FROM orders
+WHERE paid_at >= $1::timestamptz AND paid_at < $2::timestamptz
+GROUP BY 1, 2
+ORDER BY 1
+`
+
+type PaidPerDayByModeParams struct {
+	FromTime time.Time
+	ToTime   time.Time
+}
+
+type PaidPerDayByModeRow struct {
+	Day         time.Time
+	Fulfillment string
+	N           int64
+}
+
+// Commandes payées par jour (heure de Lomé) et par mode, sur une période.
+func (q *Queries) PaidPerDayByMode(ctx context.Context, arg PaidPerDayByModeParams) ([]PaidPerDayByModeRow, error) {
+	rows, err := q.db.Query(ctx, paidPerDayByMode, arg.FromTime, arg.ToTime)
+	if err != nil {
+		return nil, err
+	}
+	defer rows.Close()
+	items := []PaidPerDayByModeRow{}
+	for rows.Next() {
+		var i PaidPerDayByModeRow
+		if err := rows.Scan(&i.Day, &i.Fulfillment, &i.N); err != nil {
 			return nil, err
 		}
 		items = append(items, i)

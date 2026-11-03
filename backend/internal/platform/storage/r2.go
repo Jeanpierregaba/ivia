@@ -5,7 +5,9 @@ import (
 	"crypto/hmac"
 	"crypto/sha256"
 	"encoding/hex"
+	"encoding/xml"
 	"fmt"
+	"io"
 	"net/http"
 	"sort"
 	"strconv"
@@ -133,6 +135,57 @@ func (r *R2) Delete(ctx context.Context, vis Visibility, key string) error {
 	return nil
 }
 
+// List implémente ObjectStore (ListObjectsV2, 1000 clés par page, pages suivies jusqu'au bout).
+func (r *R2) List(ctx context.Context, vis Visibility, prefix string) ([]Object, error) {
+	var out []Object
+	token := ""
+	for {
+		query := map[string]string{"list-type": "2", "prefix": prefix}
+		if token != "" {
+			query["continuation-token"] = token
+		}
+		u := presignV4(presignInput{
+			method: http.MethodGet, host: r.host(), path: "/" + r.bucket(vis),
+			region: "auto", accessKey: r.accessKeyID, secretKey: r.secretKey,
+			now: r.now().UTC(), ttl: time.Minute, query: query,
+		})
+		req, err := http.NewRequestWithContext(ctx, http.MethodGet, u, nil)
+		if err != nil {
+			return nil, err
+		}
+		resp, err := r.client.Do(req)
+		if err != nil {
+			return nil, fmt.Errorf("liste des fichiers sur R2 : %w", err)
+		}
+		body, err := io.ReadAll(io.LimitReader(resp.Body, 16<<20))
+		_ = resp.Body.Close()
+		if err != nil {
+			return nil, fmt.Errorf("liste des fichiers sur R2 : %w", err)
+		}
+		if resp.StatusCode != http.StatusOK {
+			return nil, fmt.Errorf("liste des fichiers sur R2 : statut %d", resp.StatusCode)
+		}
+		var page struct {
+			Contents []struct {
+				Key          string    `xml:"Key"`
+				LastModified time.Time `xml:"LastModified"`
+			} `xml:"Contents"`
+			IsTruncated           bool   `xml:"IsTruncated"`
+			NextContinuationToken string `xml:"NextContinuationToken"`
+		}
+		if err := xml.Unmarshal(body, &page); err != nil {
+			return nil, fmt.Errorf("liste des fichiers sur R2 : réponse illisible : %w", err)
+		}
+		for _, c := range page.Contents {
+			out = append(out, Object{Key: c.Key, LastModified: c.LastModified})
+		}
+		if !page.IsTruncated || page.NextContinuationToken == "" {
+			return out, nil
+		}
+		token = page.NextContinuationToken
+	}
+}
+
 type presignInput struct {
 	method, host, path   string
 	region               string
@@ -141,6 +194,8 @@ type presignInput struct {
 	ttl                  time.Duration
 	// headers signés en plus de host (noms en minuscules).
 	headers map[string]string
+	// query : paramètres de la requête en plus de ceux de la signature (signés aussi).
+	query map[string]string
 }
 
 // presignV4 construit une URL signée selon AWS Signature Version 4 (authentification par la
@@ -171,6 +226,9 @@ func presignV4(in presignInput) string {
 		"X-Amz-Date":          amzDate,
 		"X-Amz-Expires":       strconv.Itoa(int(in.ttl.Seconds())),
 		"X-Amz-SignedHeaders": signedHeaders,
+	}
+	for k, v := range in.query {
+		query[k] = v
 	}
 	canonicalQuery := canonicalQueryString(query)
 	canonicalURI := escapePath(in.path)

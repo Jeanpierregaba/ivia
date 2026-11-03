@@ -146,15 +146,41 @@ func uniqueEmail(prefix string) string {
 func uniquePhone() string { return fmt.Sprintf("+2289%07d", seq.Add(1)%10_000_000) }
 
 // login connecte un utilisateur par code (lu dans l'implémentation factice de l'envoi).
+// testPassword : mot de passe de tous les comptes de test.
+const testPassword = "mot-de-passe-de-test-solide"
+
+// login ouvre une session comme les apps (ADR 0011) : connexion par mot de passe si le compte
+// existe, sinon création du compte (code reçu par e-mail, puis mot de passe).
 func login(t *testing.T, email string) string {
 	t.Helper()
-	mustStatus(t, call(t, "", "POST", "/v1/auth/otp", map[string]string{"recipient": email}), http.StatusAccepted)
+	r := call(t, "", "POST", "/v1/auth/login", map[string]string{"email": email, "password": testPassword})
+	if r.Status == http.StatusOK {
+		return r.str("token")
+	}
+	if r.code() != "invalid_credentials" {
+		t.Fatalf("connexion : %d %s", r.Status, r.code())
+	}
+	mustStatus(t, call(t, "", "POST", "/v1/auth/signup/code", map[string]string{"email": email}), http.StatusAccepted)
+	return mustStatus(t, call(t, "", "POST", "/v1/auth/signup", map[string]string{
+		"email": email, "code": lastCode(t, email), "password": testPassword,
+	}), http.StatusCreated).str("token")
+}
+
+// lastCode lit le dernier code envoyé à une adresse (envoi vers le journal en test).
+func lastCode(t *testing.T, email string) string {
+	t.Helper()
 	code, ok := testApp.DevOTP.LastCode(email)
 	if !ok {
 		t.Fatal("code non envoyé")
 	}
-	r := mustStatus(t, call(t, "", "POST", "/v1/auth/verify", map[string]string{"recipient": email, "code": code}), http.StatusOK)
-	return r.str("token")
+	return code
+}
+
+// verifyMFA passe la double vérification par code d'une session (exigée pour les routes admin).
+func verifyMFA(t *testing.T, token, email string) {
+	t.Helper()
+	mustStatus(t, call(t, token, "POST", "/v1/auth/mfa/code", nil), http.StatusAccepted)
+	mustStatus(t, call(t, token, "POST", "/v1/auth/mfa/verify", map[string]string{"code": lastCode(t, email)}), http.StatusOK)
 }
 
 func completeProfile(t *testing.T, token, first string) {
@@ -174,6 +200,7 @@ func admin(t *testing.T) string {
 			t.Fatal(err)
 		}
 		adminToken = login(t, email)
+		verifyMFA(t, adminToken, email)
 	}
 	return adminToken
 }

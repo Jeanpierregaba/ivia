@@ -59,7 +59,8 @@ var rules = map[Purpose]rule{
 
 // Service signe les envois et vérifie les clés.
 type Service struct {
-	store storage.ObjectStore
+	store  storage.ObjectStore
+	owners owners
 }
 
 // NewService crée le service.
@@ -112,11 +113,6 @@ func (s *Service) Check(ctx context.Context, purpose Purpose, userID uuid.UUID, 
 		return apperr.Validation(map[string]string{field: "Le fichier n'a pas été reçu. Renvoyez-le."})
 	}
 	return nil
-}
-
-// DeletePrivate supprime un document privé (fin de collaboration d'un livreur ou d'un marchand).
-func (s *Service) DeletePrivate(ctx context.Context, key string) error {
-	return s.store.Delete(ctx, storage.Private, key)
 }
 
 // PublicURL retourne l'URL d'un fichier public (photo, logo).

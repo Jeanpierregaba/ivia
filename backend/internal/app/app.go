@@ -111,7 +111,7 @@ func New(cfg config.Config, logger *slog.Logger, pool *pgxpool.Pool, opts Option
 	a.Admin = admin.NewService(db)
 	a.Geo = geo.NewService(db, a.Admin)
 	a.Users = users.NewService(db, a.Geo, a.Admin)
-	a.Auth = auth.NewService(db, a.Users, otpSender, logger, auth.Options{Secret: cfg.AuthSecret, SessionTTL: cfg.SessionTTL})
+	a.Auth = auth.NewService(db, a.Users, otpSender, logger, auth.Options{Secret: cfg.AuthSecret, SessionTTL: cfg.SessionTTL, GoogleClientIDs: cfg.GoogleClientIDs})
 	a.Uploads = uploads.NewService(objectStore)
 	a.Notifications = notifications.NewService(db, enq, a.Users, push, logger)
 	a.Shops = shops.NewService(db, a.Geo, a.Users, a.Uploads, a.Admin, a.Notifications)
@@ -145,6 +145,7 @@ func New(cfg config.Config, logger *slog.Logger, pool *pgxpool.Pool, opts Option
 	a.Orders.RegisterJobs(reg)
 	a.Payments.RegisterJobs(reg)
 	a.Delivery.RegisterJobs(reg)
+	a.Uploads.RegisterJobs(reg, logger)
 	if a.Queue, err = jobs.New(pool, reg, jobs.Options{RunWorkers: cfg.RunWorkers, PollInterval: opts.PollInterval, Logger: logger, Reporter: a.Errors}); err != nil {
 		return nil, err
 	}
@@ -173,7 +174,7 @@ func (a *App) routes() (http.Handler, []string) {
 	payments.NewHandler(a.Payments, a.Logger, a.Config.DevToolsEnabled()).Register(rt)
 	delivery.NewHandler(a.Delivery).Register(rt)
 	settlements.NewHandler(a.Settlements).Register(rt)
-	reports.NewHandler(a.Orders, a.Delivery, a.Payments).Register(rt)
+	reports.NewHandler(a.Orders, a.Delivery, a.Payments, a.Shops, a.Users, a.Admin).Register(rt)
 
 	if a.Config.Env != config.EnvProduction { // documentation interactive : local, test, staging
 		rt.Raw(docs.PageRoute, http.HandlerFunc(docs.Page))

@@ -445,6 +445,44 @@ func (q *Queries) LockPayment(ctx context.Context, id uuid.UUID) (Payment, error
 	return i, err
 }
 
+const paymentsOverview = `-- name: PaymentsOverview :one
+SELECT
+  count(*) FILTER (WHERE succeeded_at >= $1::timestamptz AND succeeded_at < $2::timestamptz
+                     AND NOT is_duplicate)::bigint AS succeeded,
+  coalesce(sum(amount_xof) FILTER (WHERE succeeded_at >= $1::timestamptz AND succeeded_at < $2::timestamptz
+                     AND NOT is_duplicate), 0)::bigint AS succeeded_xof,
+  count(*) FILTER (WHERE status = 'pending')::bigint AS pending,
+  count(*) FILTER (WHERE status IN ('failed', 'expired')
+                     AND created_at >= $1::timestamptz AND created_at < $2::timestamptz)::bigint AS failed
+FROM payments
+`
+
+type PaymentsOverviewParams struct {
+	FromTime time.Time
+	ToTime   time.Time
+}
+
+type PaymentsOverviewRow struct {
+	Succeeded    int64
+	SucceededXof int64
+	Pending      int64
+	Failed       int64
+}
+
+// Paiements d'une période (tableau de bord) : réussis (hors doublons) et montant, en attente,
+// échoués ou expirés.
+func (q *Queries) PaymentsOverview(ctx context.Context, arg PaymentsOverviewParams) (PaymentsOverviewRow, error) {
+	row := q.db.QueryRow(ctx, paymentsOverview, arg.FromTime, arg.ToTime)
+	var i PaymentsOverviewRow
+	err := row.Scan(
+		&i.Succeeded,
+		&i.SucceededXof,
+		&i.Pending,
+		&i.Failed,
+	)
+	return i, err
+}
+
 const paymentsToRecheck = `-- name: PaymentsToRecheck :many
 SELECT id, order_id, buyer_id, provider, reference, provider_ref, amount_xof, currency, operator, payer_phone, status, failure_reason, is_duplicate, succeeded_at, created_at, updated_at FROM payments
 WHERE created_at < now() - interval '2 minutes'
@@ -538,6 +576,59 @@ func (q *Queries) PendingPaymentsOlderThan(ctx context.Context, before time.Time
 	var count int64
 	err := row.Scan(&count)
 	return count, err
+}
+
+const recentRequestsByBuyer = `-- name: RecentRequestsByBuyer :one
+SELECT count(*)::bigint AS n, coalesce(min(created_at), now())::timestamptz AS oldest
+FROM payments
+WHERE buyer_id = $1 AND created_at > $2::timestamptz
+  AND failure_reason <> $3::text
+`
+
+type RecentRequestsByBuyerParams struct {
+	BuyerID uuid.UUID
+	Since   time.Time
+	NotSent string
+}
+
+type RecentRequestsByBuyerRow struct {
+	N      int64
+	Oldest time.Time
+}
+
+// Demandes envoyées par un acheteur depuis `since` (sauf celles qui n'ont pas atteint le
+// prestataire) et la plus ancienne d'entre elles, pour le délai avant la prochaine.
+func (q *Queries) RecentRequestsByBuyer(ctx context.Context, arg RecentRequestsByBuyerParams) (RecentRequestsByBuyerRow, error) {
+	row := q.db.QueryRow(ctx, recentRequestsByBuyer, arg.BuyerID, arg.Since, arg.NotSent)
+	var i RecentRequestsByBuyerRow
+	err := row.Scan(&i.N, &i.Oldest)
+	return i, err
+}
+
+const recentRequestsToPhone = `-- name: RecentRequestsToPhone :one
+SELECT count(*)::bigint AS n, coalesce(min(created_at), now())::timestamptz AS oldest
+FROM payments
+WHERE payer_phone = $1 AND created_at > $2::timestamptz
+  AND failure_reason <> $3::text
+`
+
+type RecentRequestsToPhoneParams struct {
+	PayerPhone string
+	Since      time.Time
+	NotSent    string
+}
+
+type RecentRequestsToPhoneRow struct {
+	N      int64
+	Oldest time.Time
+}
+
+// Demandes envoyées vers un numéro payeur depuis `since`, tous comptes confondus.
+func (q *Queries) RecentRequestsToPhone(ctx context.Context, arg RecentRequestsToPhoneParams) (RecentRequestsToPhoneRow, error) {
+	row := q.db.QueryRow(ctx, recentRequestsToPhone, arg.PayerPhone, arg.Since, arg.NotSent)
+	var i RecentRequestsToPhoneRow
+	err := row.Scan(&i.N, &i.Oldest)
+	return i, err
 }
 
 const refundablePaymentForOrder = `-- name: RefundablePaymentForOrder :one

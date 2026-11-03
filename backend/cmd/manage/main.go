@@ -79,11 +79,12 @@ func run(args []string) error {
 		if err != nil {
 			return err
 		}
-		fmt.Println("Données de démonstration prêtes. Comptes (connexion par code, affiché dans les journaux de l'API) :")
+		fmt.Println("Données de démonstration prêtes. Comptes (connexion par mot de passe ; codes dans Mailpit, http://localhost:8025) :")
 		fmt.Println("  admin    :", s.AdminEmail)
 		fmt.Println("  marchand :", s.SellerEmail, "— boutique", s.ShopID)
 		fmt.Println("  acheteur :", s.BuyerEmail)
 		fmt.Println("  livreur  :", s.DriverEmail)
+		fmt.Println("  mot de passe des quatre comptes :", s.Password, "(local uniquement)")
 		return nil
 	default:
 		return errors.New(usage)

@@ -127,12 +127,27 @@ type Deps struct {
 
 // NewService crée le service.
 func NewService(d Deps) *Service {
-	return &Service{
+	s := &Service{
 		db: d.DB, jobs: d.Jobs, admin: d.Admin, users: d.Users, geo: d.Geo, shops: d.Shops, orders: d.Orders,
 		uploads: d.Uploads, notify: d.Notify, logger: d.Logger,
 		// Position : l'app en envoie une toutes les 30 s ; marge pour les reprises réseau.
 		locLimit: ratelimit.New(12, time.Minute),
 	}
+	d.Uploads.RegisterOwner(uploads.DriverDocument, s.attachedDocuments)
+	return s
+}
+
+// attachedDocuments dit lesquelles de ces clés sont rattachées à un dossier (uploads.AttachedFunc).
+func (s *Service) attachedDocuments(ctx context.Context, keys []string) (map[string]bool, error) {
+	found, err := store.New(s.db.Conn(ctx)).DriverDocumentKeysIn(ctx, keys)
+	if err != nil {
+		return nil, fmt.Errorf("lecture des documents rattachés : %w", err)
+	}
+	out := make(map[string]bool, len(found))
+	for _, k := range found {
+		out[k] = true
+	}
+	return out, nil
 }
 
 var errDriverNotFound = apperr.NotFound("driver_not_found", "Livreur introuvable.")
@@ -517,20 +532,15 @@ func (s *Service) CheckAccountDeletable(ctx context.Context, userID uuid.UUID) e
 // OnAccountDeleted met fin à la collaboration : livreur hors ligne et suspendu, positions et
 // documents effacés (users.DeletionHook).
 func (s *Service) OnAccountDeleted(ctx context.Context, userID uuid.UUID) error {
+	// Tout le dossier de fichiers, même sans candidature : un document peut avoir été envoyé avant.
+	if _, err := s.uploads.DeleteAllOf(ctx, uploads.DriverDocument, userID); err != nil {
+		return err
+	}
 	q := store.New(s.db.Conn(ctx))
 	if _, err := q.GetDriver(ctx, userID); database.IsNoRows(err) {
 		return nil
 	} else if err != nil {
 		return fmt.Errorf("lecture du livreur : %w", err)
-	}
-	docs, err := q.ListDocuments(ctx, userID)
-	if err != nil {
-		return fmt.Errorf("lecture des documents : %w", err)
-	}
-	for _, d := range docs {
-		if err := s.uploads.DeletePrivate(ctx, d.ObjectKey); err != nil {
-			return fmt.Errorf("suppression d'un document : %w", err)
-		}
 	}
 	if _, err := q.Suspend(ctx, store.SuspendParams{UserID: userID, Reason: "Compte supprimé."}); err != nil {
 		return fmt.Errorf("suspension du livreur : %w", err)

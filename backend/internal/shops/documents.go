@@ -97,20 +97,27 @@ func requireDocuments(docs []Document) error {
 	return nil
 }
 
-// deleteDocuments efface les pièces d'un marchand (fichiers puis lignes), à la suppression du compte.
+// deleteDocuments efface les pièces d'un marchand à la suppression du compte : tout son dossier
+// de fichiers (même ceux jamais rattachés), puis les lignes.
 func (s *Service) deleteDocuments(ctx context.Context, ownerID uuid.UUID) error {
-	q := store.New(s.db.Conn(ctx))
-	rows, err := q.ListMerchantDocuments(ctx, ownerID)
-	if err != nil {
-		return fmt.Errorf("lecture des documents : %w", err)
+	if _, err := s.uploads.DeleteAllOf(ctx, uploads.MerchantDocument, ownerID); err != nil {
+		return err
 	}
-	for _, r := range rows {
-		if err := s.uploads.DeletePrivate(ctx, r.ObjectKey); err != nil {
-			return fmt.Errorf("suppression d'un document : %w", err)
-		}
-	}
-	if err := q.DeleteMerchantDocumentsOf(ctx, ownerID); err != nil {
+	if err := store.New(s.db.Conn(ctx)).DeleteMerchantDocumentsOf(ctx, ownerID); err != nil {
 		return fmt.Errorf("suppression des documents : %w", err)
 	}
 	return nil
+}
+
+// attachedDocuments dit lesquelles de ces clés sont rattachées à un marchand (uploads.AttachedFunc).
+func (s *Service) attachedDocuments(ctx context.Context, keys []string) (map[string]bool, error) {
+	found, err := store.New(s.db.Conn(ctx)).MerchantDocumentKeysIn(ctx, keys)
+	if err != nil {
+		return nil, fmt.Errorf("lecture des pièces rattachées : %w", err)
+	}
+	out := make(map[string]bool, len(found))
+	for _, k := range found {
+		out[k] = true
+	}
+	return out, nil
 }

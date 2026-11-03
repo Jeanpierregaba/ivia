@@ -110,7 +110,8 @@ jobs:
   # Image de l'API publiée sur GitHub Container Registry après chaque fusion sur main (ADR 0008).
   # Étiquette = SHA du commit : c'est l'API_TAG déployé (voir infra/README.md).
   api-image:
-    if: github.event_name == 'push' && github.ref == 'refs/heads/main'
+    # main : production ; develop : staging (deploy.sh <sha> sur le serveur concerné).
+    if: github.event_name == 'push' && (github.ref == 'refs/heads/main' || github.ref == 'refs/heads/develop')
     needs: [backend, contract]
     runs-on: ubuntu-latest
     permissions:
@@ -131,7 +132,8 @@ jobs:
 
   # Image du back-office, publiée comme celle de l'API (ADMIN_TAG = SHA du commit).
   admin-image:
-    if: github.event_name == 'push' && github.ref == 'refs/heads/main'
+    # main : production ; develop : staging (deploy.sh <sha> sur le serveur concerné).
+    if: github.event_name == 'push' && (github.ref == 'refs/heads/main' || github.ref == 'refs/heads/develop')
     needs: [admin]
     runs-on: ubuntu-latest
     permissions:

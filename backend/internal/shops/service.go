@@ -144,7 +144,9 @@ type Service struct {
 
 // NewService crée le service.
 func NewService(db *database.DB, geoSvc *geo.Service, userSvc *users.Service, up *uploads.Service, audit *admin.Service, notify *notifications.Service) *Service {
-	return &Service{db: db, geo: geoSvc, users: userSvc, uploads: up, audit: audit, notify: notify}
+	s := &Service{db: db, geo: geoSvc, users: userSvc, uploads: up, audit: audit, notify: notify}
+	up.RegisterOwner(uploads.MerchantDocument, s.attachedDocuments)
+	return s
 }
 
 var (
@@ -466,4 +468,17 @@ func (s *Service) fromRow(ctx context.Context, r store.GetShopRow) (Shop, error)
 		shop.NeighborhoodName = n.Name
 	}
 	return shop, nil
+}
+
+// PendingOverview retourne le nombre de boutiques à valider et la date de la plus ancienne (nil
+// s'il n'y en a pas).
+func (s *Service) PendingOverview(ctx context.Context) (int64, *time.Time, error) {
+	r, err := store.New(s.db.Conn(ctx)).PendingShopsOverview(ctx)
+	if err != nil {
+		return 0, nil, fmt.Errorf("boutiques à valider : %w", err)
+	}
+	if r.N == 0 {
+		return 0, nil, nil
+	}
+	return r.N, &r.Oldest, nil
 }

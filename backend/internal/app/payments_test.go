@@ -159,3 +159,23 @@ func TestPaymentRecheckAfterCancel(t *testing.T) {
 		t.Fatalf("annulation d'une demande expirée : %s", r.Raw)
 	}
 }
+
+// La limite est comptée sur les demandes enregistrées (durable) : une heure plus tard, les
+// anciennes demandes ne comptent plus.
+func TestPaymentRequestLimitSlidesWithTime(t *testing.T) {
+	requireApp(t)
+	s := newSeller(t, 5)
+	b := newBuyer(t, s.lat, s.lng)
+	oid := mustStatus(t, order(t, b, s.untrackedID, 1, "pickup"), http.StatusCreated).str("id")
+	start := func() resp {
+		return call(t, b.token, "POST", "/v1/orders/"+oid+"/payments", map[string]string{"operator": "flooz", "phone": uniquePhone()})
+	}
+	for range 10 {
+		id := mustStatus(t, start(), http.StatusCreated).str("id")
+		mustStatus(t, call(t, b.token, "POST", "/v1/payments/"+id+"/cancel", nil), http.StatusOK)
+	}
+	mustStatus(t, start(), http.StatusTooManyRequests)
+
+	exec(t, "UPDATE payments SET created_at = now() - interval '61 minutes' WHERE order_id = $1", oid)
+	mustStatus(t, start(), http.StatusCreated)
+}

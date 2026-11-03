@@ -141,8 +141,17 @@ func (rt *Router) requireAuth(roles []identity.Role, next HandlerFunc) HandlerFu
 		if len(roles) > 0 && !principal.HasRole(roles...) {
 			return apperr.Forbidden("forbidden", "Votre compte n'a pas accès à cette fonctionnalité.")
 		}
+		// Routes réservées aux admins : la session doit avoir passé la double vérification par
+		// code (ADR 0011) ; un mot de passe volé ne suffit pas.
+		if adminOnly(roles) && !principal.MFA {
+			return apperr.Forbidden("mfa_required", "Confirmez votre connexion avec le code reçu par e-mail.")
+		}
 		return next(w, r.WithContext(identity.WithPrincipal(r.Context(), principal)))
 	}
+}
+
+func adminOnly(roles []identity.Role) bool {
+	return len(roles) == 1 && roles[0] == identity.RoleAdmin
 }
 
 func bearerToken(r *http.Request) (string, bool) {
