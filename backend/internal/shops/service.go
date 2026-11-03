@@ -144,7 +144,9 @@ type Service struct {
 
 // NewService crée le service.
 func NewService(db *database.DB, geoSvc *geo.Service, userSvc *users.Service, up *uploads.Service, audit *admin.Service, notify *notifications.Service) *Service {
-	return &Service{db: db, geo: geoSvc, users: userSvc, uploads: up, audit: audit, notify: notify}
+	s := &Service{db: db, geo: geoSvc, users: userSvc, uploads: up, audit: audit, notify: notify}
+	up.RegisterOwner(uploads.MerchantDocument, s.attachedDocuments)
+	return s
 }
 
 var (

@@ -103,3 +103,7 @@ SELECT count(*) FROM merchant_documents WHERE owner_id = $1;
 
 -- name: DeleteMerchantDocumentsOf :exec
 DELETE FROM merchant_documents WHERE owner_id = $1;
+
+-- name: MerchantDocumentKeysIn :many
+-- Clés rattachées parmi celles données (purge des fichiers jamais rattachés).
+SELECT object_key FROM merchant_documents WHERE object_key = ANY(sqlc.arg(keys)::text[]);

@@ -36,4 +36,12 @@ type ObjectStore interface {
 	Exists(ctx context.Context, vis Visibility, key string) (bool, error)
 	// Delete supprime un fichier (sans erreur s'il n'existe pas).
 	Delete(ctx context.Context, vis Visibility, key string) error
+	// List retourne les fichiers dont la clé commence par prefix (toutes les pages).
+	List(ctx context.Context, vis Visibility, prefix string) ([]Object, error)
+}
+
+// Object décrit un fichier stocké.
+type Object struct {
+	Key          string
+	LastModified time.Time
 }

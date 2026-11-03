@@ -8,6 +8,7 @@ import (
 	"errors"
 	"fmt"
 	"io"
+	"io/fs"
 	"net/http"
 	"net/url"
 	"os"
@@ -102,6 +103,47 @@ func (l *Local) Delete(_ context.Context, vis Visibility, key string) error {
 		return err
 	}
 	return nil
+}
+
+// List implémente ObjectStore.
+func (l *Local) List(_ context.Context, vis Visibility, prefix string) ([]Object, error) {
+	if vis != Public && vis != Private {
+		return nil, errors.New("compartiment inconnu")
+	}
+	root := filepath.Join(l.dir, string(vis))
+	// On parcourt le dossier le plus profond entièrement couvert par le préfixe.
+	start := root
+	if dir := prefix[:strings.LastIndex(prefix, "/")+1]; dir != "" {
+		p, err := l.path(vis, dir)
+		if err != nil {
+			return nil, err
+		}
+		start = p
+	}
+	var out []Object
+	err := filepath.WalkDir(start, func(p string, d fs.DirEntry, err error) error {
+		if errors.Is(err, fs.ErrNotExist) {
+			return fs.SkipAll
+		}
+		if err != nil || d.IsDir() {
+			return err
+		}
+		rel, err := filepath.Rel(root, p)
+		if err != nil {
+			return err
+		}
+		key := filepath.ToSlash(rel)
+		if !strings.HasPrefix(key, prefix) {
+			return nil
+		}
+		info, err := d.Info()
+		if err != nil {
+			return err
+		}
+		out = append(out, Object{Key: key, LastModified: info.ModTime()})
+		return nil
+	})
+	return out, err
 }
 
 func (l *Local) path(vis Visibility, key string) (string, error) {

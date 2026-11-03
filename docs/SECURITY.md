@@ -82,7 +82,8 @@ Cadre : loi togolaise n° 2019-014 relative à la protection des données à car
       est disponible ou en mission.
 - [ ] Durées de conservation définies : positions brutes des livreurs 30 jours, codes OTP et
       sessions expirées purgés, documents des livreurs et pièces des marchands conservés pendant la
-      collaboration, effacés à la suppression du compte.
+      collaboration, effacés à la suppression du compte (tout le dossier de l'utilisateur, fichiers
+      non rattachés compris) ; fichier privé jamais rattaché supprimé après 24 h (tâche quotidienne).
 - [ ] Suppression de compte depuis chaque app : données personnelles anonymisées, données
       financières conservées.
 - [ ] Données d'un acheteur visibles par un livreur uniquement pendant sa mission.

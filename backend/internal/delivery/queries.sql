@@ -223,3 +223,7 @@ SELECT
 FROM deliveries x
 JOIN assignment_requests a ON a.order_id = x.order_id
 WHERE x.assigned_at >= sqlc.arg(from_time)::timestamptz AND x.assigned_at < sqlc.arg(to_time)::timestamptz;
+
+-- name: DriverDocumentKeysIn :many
+-- Clés rattachées parmi celles données (purge des fichiers jamais rattachés).
+SELECT object_key FROM driver_documents WHERE object_key = ANY(sqlc.arg(keys)::text[]);

@@ -14,6 +14,15 @@ Format :
 - Prochaine étape :
 -->
 
+### 2026-11-03 — Documents privés : rien ne survit au compte, pas d'orphelins
+- Fait : `ObjectStore.List` (disque local et R2 ListObjectsV2 signé, pages suivies) ;
+  `uploads.DeleteAllOf` (tout le dossier privé d'un utilisateur) appelé à la suppression du compte
+  par les modules boutiques et livreurs ; `uploads.PurgeOrphans` + tâche quotidienne
+  `uploads.purge_orphans` (fichiers privés non rattachés de plus de 24 h ; chaque module déclare
+  ses fichiers rattachés par `RegisterOwner`) ; tests de stockage et de bout en bout ; suite
+  backend complète verte.
+- Prochaine étape : recherche par préfixe (« pag » → « pagne »), relecture du backend de 010.
+
 ### 2026-11-03 — Commandes marchand : délai, motif, onglets côté serveur
 - Fait : points backend relevés par Jean-Pierre en 011 et 009 : `Accept`/`Reject` refusés après
   `seller_deadline_at` (`seller_deadline_passed`, annulation immédiate comme `SellerTimeout`) ;

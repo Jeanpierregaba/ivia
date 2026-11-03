@@ -2,6 +2,7 @@ package storage
 
 import (
 	"context"
+	"io"
 	"net/http"
 	"net/http/httptest"
 	"strings"
@@ -90,5 +91,77 @@ func TestLocalStoreRoundTrip(t *testing.T) {
 
 	if ok, _ := l.Exists(ctx, Public, "../../etc/passwd"); ok {
 		t.Fatal("une clé hors du dossier ne doit jamais être acceptée")
+	}
+}
+
+func TestLocalListByPrefix(t *testing.T) {
+	l := NewLocal(t.TempDir(), "http://api.test", []byte("secret-de-test"))
+	for _, k := range []string{"merchants/u1/a.pdf", "merchants/u1/b.jpg", "merchants/u2/c.pdf", "drivers/u1/d.pdf"} {
+		if err := l.Write(Private, k, []byte("x")); err != nil {
+			t.Fatal(err)
+		}
+	}
+	keys := func(prefix string) []string {
+		t.Helper()
+		objs, err := l.List(context.Background(), Private, prefix)
+		if err != nil {
+			t.Fatal(err)
+		}
+		var out []string
+		for _, o := range objs {
+			if o.LastModified.IsZero() {
+				t.Fatalf("date manquante pour %s", o.Key)
+			}
+			out = append(out, o.Key)
+		}
+		return out
+	}
+	if got := strings.Join(keys("merchants/u1/"), ","); got != "merchants/u1/a.pdf,merchants/u1/b.jpg" {
+		t.Fatalf("préfixe d'un utilisateur : %s", got)
+	}
+	if got := len(keys("merchants/")); got != 3 {
+		t.Fatalf("préfixe d'un usage : %d fichiers, attendu 3", got)
+	}
+	if got := keys("merchants/inconnu/"); len(got) != 0 {
+		t.Fatalf("dossier absent : %v", got)
+	}
+	if _, err := l.List(context.Background(), Private, "../"); err == nil {
+		t.Fatal("un préfixe hors du dossier doit être refusé")
+	}
+}
+
+type roundTripFunc func(*http.Request) (*http.Response, error)
+
+func (f roundTripFunc) RoundTrip(r *http.Request) (*http.Response, error) { return f(r) }
+
+func TestR2ListFollowsPagesWithSignedQuery(t *testing.T) {
+	r := NewR2(R2Config{AccountID: "acc", AccessKeyID: "ak", SecretAccessKey: "sk", PublicBucket: "pub", PrivateBucket: "priv"})
+	var calls []string
+	r.client = &http.Client{Transport: roundTripFunc(func(req *http.Request) (*http.Response, error) {
+		q := req.URL.Query()
+		calls = append(calls, q.Get("continuation-token"))
+		if req.URL.Path != "/priv" || q.Get("list-type") != "2" || q.Get("prefix") != "drivers/u1/" || q.Get("X-Amz-Signature") == "" {
+			t.Errorf("requête inattendue : %s", req.URL)
+		}
+		if !strings.Contains(q.Get("X-Amz-SignedHeaders"), "host") {
+			t.Errorf("en-têtes signés : %s", q.Get("X-Amz-SignedHeaders"))
+		}
+		body := `<ListBucketResult><Contents><Key>drivers/u1/a.pdf</Key><LastModified>2026-11-01T10:00:00.000Z</LastModified></Contents>` +
+			`<IsTruncated>true</IsTruncated><NextContinuationToken>page2</NextContinuationToken></ListBucketResult>`
+		if q.Get("continuation-token") == "page2" {
+			body = `<ListBucketResult><Contents><Key>drivers/u1/b.pdf</Key><LastModified>2026-11-02T10:00:00.000Z</LastModified></Contents>` +
+				`<IsTruncated>false</IsTruncated></ListBucketResult>`
+		}
+		return &http.Response{StatusCode: 200, Body: io.NopCloser(strings.NewReader(body)), Header: http.Header{}}, nil
+	})}
+	objs, err := r.List(context.Background(), Private, "drivers/u1/")
+	if err != nil {
+		t.Fatal(err)
+	}
+	if len(objs) != 2 || objs[0].Key != "drivers/u1/a.pdf" || objs[1].Key != "drivers/u1/b.pdf" || len(calls) != 2 {
+		t.Fatalf("pages : %v (appels %v)", objs, calls)
+	}
+	if objs[1].LastModified.Day() != 2 {
+		t.Fatalf("date lue : %v", objs[1].LastModified)
 	}
 }

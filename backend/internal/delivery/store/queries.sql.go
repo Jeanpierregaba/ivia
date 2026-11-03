@@ -261,6 +261,31 @@ func (q *Queries) DeletePositionsOf(ctx context.Context, driverID uuid.UUID) err
 	return err
 }
 
+const driverDocumentKeysIn = `-- name: DriverDocumentKeysIn :many
+SELECT object_key FROM driver_documents WHERE object_key = ANY($1::text[])
+`
+
+// Clés rattachées parmi celles données (purge des fichiers jamais rattachés).
+func (q *Queries) DriverDocumentKeysIn(ctx context.Context, keys []string) ([]string, error) {
+	rows, err := q.db.Query(ctx, driverDocumentKeysIn, keys)
+	if err != nil {
+		return nil, err
+	}
+	defer rows.Close()
+	items := []string{}
+	for rows.Next() {
+		var object_key string
+		if err := rows.Scan(&object_key); err != nil {
+			return nil, err
+		}
+		items = append(items, object_key)
+	}
+	if err := rows.Err(); err != nil {
+		return nil, err
+	}
+	return items, nil
+}
+
 const expireOffer = `-- name: ExpireOffer :execrows
 UPDATE delivery_offers SET status = 'expired', responded_at = now()
 WHERE id = $1 AND status = 'pending' AND expires_at <= now()

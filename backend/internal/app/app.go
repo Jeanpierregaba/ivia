@@ -145,6 +145,7 @@ func New(cfg config.Config, logger *slog.Logger, pool *pgxpool.Pool, opts Option
 	a.Orders.RegisterJobs(reg)
 	a.Payments.RegisterJobs(reg)
 	a.Delivery.RegisterJobs(reg)
+	a.Uploads.RegisterJobs(reg, logger)
 	if a.Queue, err = jobs.New(pool, reg, jobs.Options{RunWorkers: cfg.RunWorkers, PollInterval: opts.PollInterval, Logger: logger, Reporter: a.Errors}); err != nil {
 		return nil, err
 	}
