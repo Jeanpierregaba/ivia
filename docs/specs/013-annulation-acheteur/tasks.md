@@ -12,7 +12,7 @@
       `payment_not_cancellable` ⇒ feuille rouverte avec le montant ; `cannot_cancel` (acceptée,
       expirée) ; réseau ; double appui ; résultat gardé si l'écran est quitté ; tests.
 - [x] 4. Police à 200 % sur 320 dp et lecteur d'écran ; `docs/DESIGN.md`.
-- [ ] 5. Vérification sur le simulateur contre l'API locale (annulation avant et après paiement,
+- [x] 5. Vérification sur le simulateur contre l'API locale (annulation avant et après paiement,
       commande retirée des « Nouvelles » côté marchand).
 - [ ] Vérifier tous les critères d'acceptation de spec.md
 - [ ] Relecture par le sous-agent reviewer
