@@ -80,7 +80,9 @@ UPDATE orders SET handover_attempts = 0, updated_at = now() WHERE id = $1;
 
 -- name: ListBuyerOrders :many
 SELECT o.id FROM orders o
-WHERE o.buyer_id = $1
+WHERE o.buyer_id = sqlc.arg(buyer_id)
+  -- Groupe d'onglet (en cours, terminées) : liste de statuts, NULL pour toutes.
+  AND (sqlc.narg(statuses)::text[] IS NULL OR o.status = ANY(sqlc.narg(statuses)::text[]))
 ORDER BY o.created_at DESC
 LIMIT sqlc.arg(lim) OFFSET sqlc.arg(off);
 
@@ -90,6 +92,8 @@ WHERE o.shop_id = ANY(sqlc.arg(shop_ids)::uuid[])
   -- Le marchand ne voit que les commandes payées.
   AND o.paid_at IS NOT NULL
   AND (sqlc.narg(status)::text IS NULL OR o.status = sqlc.narg(status)::text)
+  -- Groupe d'onglet (nouvelles, en cours, terminées) : liste de statuts, NULL pour toutes.
+  AND (sqlc.narg(statuses)::text[] IS NULL OR o.status = ANY(sqlc.narg(statuses)::text[]))
 ORDER BY o.created_at DESC
 LIMIT sqlc.arg(lim) OFFSET sqlc.arg(off);
 

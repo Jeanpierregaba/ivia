@@ -6,6 +6,7 @@ import (
 	"errors"
 	"fmt"
 	"time"
+	"unicode/utf8"
 
 	"github.com/google/uuid"
 
@@ -235,13 +236,48 @@ func (s *Service) sellerAction(ctx context.Context, sellerID, orderID uuid.UUID,
 	return s.sellerView(ctx, o)
 }
 
-// Accept : le marchand accepte (et confirme la disponibilité des produits à stock non suivi).
+// MaxRejectReason : longueur maximale du motif de refus (caractères), comme dans l'app marchand.
+const MaxRejectReason = 200
+
+var errSellerDeadline = apperr.Conflict("seller_deadline_passed",
+	"Le délai de réponse est dépassé : la commande est annulée et l'acheteur remboursé.")
+
+// requireBeforeDeadline refuse une réponse du marchand arrivée après le délai, sans attendre la
+// tâche de fond SellerTimeout : la commande est annulée tout de suite, comme elle l'aurait fait.
+func (s *Service) requireBeforeDeadline(ctx context.Context, sellerID, orderID uuid.UUID) error {
+	o, err := s.requireSellerOrder(ctx, sellerID, orderID)
+	if err != nil {
+		return err
+	}
+	if o.Status != StatusAwaitingSeller || o.SellerDeadlineAt == nil || time.Now().Before(*o.SellerDeadlineAt) {
+		return nil
+	}
+	if err := s.SellerTimeout(ctx, orderID); err != nil {
+		return err
+	}
+	return errSellerDeadline
+}
+
+// Accept : le marchand accepte (et confirme la disponibilité des produits à stock non suivi),
+// avant la fin du délai de réponse.
 func (s *Service) Accept(ctx context.Context, sellerID, orderID uuid.UUID) (SellerOrder, error) {
+	if err := s.requireBeforeDeadline(ctx, sellerID, orderID); err != nil {
+		return SellerOrder{}, err
+	}
 	return s.sellerAction(ctx, sellerID, orderID, StatusAccepted, "")
 }
 
-// Reject : le marchand refuse ; la commande payée part dans la file de remboursement.
+// Reject : le marchand refuse avant la fin du délai ; la commande payée part dans la file de
+// remboursement. Motif facultatif, 200 caractères au plus.
 func (s *Service) Reject(ctx context.Context, sellerID, orderID uuid.UUID, reason string) (SellerOrder, error) {
+	if utf8.RuneCountInString(reason) > MaxRejectReason {
+		return SellerOrder{}, apperr.Validation(map[string]string{
+			"reason": fmt.Sprintf("Le motif fait %d caractères au plus.", MaxRejectReason),
+		})
+	}
+	if err := s.requireBeforeDeadline(ctx, sellerID, orderID); err != nil {
+		return SellerOrder{}, err
+	}
 	if reason == "" {
 		reason = "Refusée par le marchand."
 	}

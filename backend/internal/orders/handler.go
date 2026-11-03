@@ -79,10 +79,11 @@ func (h *Handler) checkout(w http.ResponseWriter, r *http.Request) error {
 func (h *Handler) listMine(w http.ResponseWriter, r *http.Request) error {
 	q := httpapi.NewQuery(r)
 	page := q.Page()
+	group := q.Enum("group", "", "active", "done")
 	if err := q.Err(); err != nil {
 		return err
 	}
-	items, err := h.svc.ListForBuyer(r.Context(), uid(r).UserID, page.FetchLimit(), int32(page.Offset))
+	items, err := h.svc.ListForBuyer(r.Context(), uid(r).UserID, group, page.FetchLimit(), int32(page.Offset))
 	if err != nil {
 		return err
 	}
@@ -118,10 +119,11 @@ func (h *Handler) sellerList(w http.ResponseWriter, r *http.Request) error {
 	page := q.Page()
 	shopID := q.UUID("shop_id")
 	status := Status(q.Enum("status", "", orderStatuses...))
+	group := q.Enum("group", "", "new", "active", "done")
 	if err := q.Err(); err != nil {
 		return err
 	}
-	items, err := h.svc.ListForSeller(r.Context(), uid(r).UserID, shopID, status, page.FetchLimit(), int32(page.Offset))
+	items, err := h.svc.ListForSeller(r.Context(), uid(r).UserID, shopID, status, group, page.FetchLimit(), int32(page.Offset))
 	if err != nil {
 		return err
 	}

@@ -14,6 +14,16 @@ Format :
 - Prochaine étape :
 -->
 
+### 2026-11-03 — Commandes marchand : délai, motif, onglets côté serveur
+- Fait : points backend relevés par Jean-Pierre en 011 et 009 : `Accept`/`Reject` refusés après
+  `seller_deadline_at` (`seller_deadline_passed`, annulation immédiate comme `SellerTimeout`) ;
+  motif de refus de 200 caractères au plus ; paramètre `group` sur `GET /v1/seller/orders`
+  (`new`, `active`, `done`) et `GET /v1/orders` (`active`, `done`), groupes alignés sur les apps
+  (`internal/orders/groups.go`) ; contrat OpenAPI et tests de bout en bout.
+- Pièges rencontrés : Docker Desktop s'arrête régulièrement : relancer avant les tests.
+- Prochaine étape : app marchand et acheteur sur `group` ; points restants pour Gedeon dans TASKS
+  (fichiers orphelins du compartiment privé, recherche par préfixe, relecture de 010).
+
 ### 2026-11-02 — Back-office complet
 - Fait : écrans paiements, relevés marchands (aperçu, création, réglé, suppression), livraisons par
   livreur et export CSV (Route Handler qui relaie le fichier, jeton côté serveur), comptes et droits

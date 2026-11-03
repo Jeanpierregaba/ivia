@@ -1629,10 +1629,19 @@ paths:
                 "$ref": "#/components/schemas/Error"
     get:
       summary: "Mes commandes"
+      description: "Plus récentes d'abord. `group` donne un onglet entier de l'app : `active` (en attente de paiement jusqu'à « en route ») ou `done` (remises, livrées, annulées, expirées, remboursées…)."
       tags:
         - Commandes
       operationId: getOrders
       parameters:
+        - name: group
+          in: query
+          required: false
+          schema:
+            type: string
+            enum:
+              - active
+              - done
         - name: limit
           in: query
           required: false
@@ -2058,6 +2067,16 @@ paths:
               - completed
               - cancelled
               - refunded
+        - name: group
+          in: query
+          required: false
+          description: "Onglet de l'app marchand : `new` (à accepter), `active` (acceptées jusqu'à « en route »), `done` (remises, livrées, échouées, revenues, annulées, remboursées)."
+          schema:
+            type: string
+            enum:
+              - new
+              - active
+              - done
         - name: limit
           in: query
           required: false
@@ -2132,6 +2151,7 @@ paths:
   "/v1/seller/orders/{id}/accept":
     post:
       summary: "Accepter (et confirmer la disponibilité)"
+      description: "Avant la fin du délai de réponse (`seller_deadline_at`) : après, 409 `seller_deadline_passed` et la commande est annulée sur-le-champ (acheteur remboursé), sans attendre la tâche de fond."
       tags:
         - Marchand
       operationId: postSellerOrdersByIdAccept
@@ -2160,6 +2180,7 @@ paths:
   "/v1/seller/orders/{id}/reject":
     post:
       summary: Refuser
+      description: "Motif facultatif, 200 caractères au plus (communiqué à l'acheteur). Avant la fin du délai de réponse : après, 409 `seller_deadline_passed` (commande annulée sur-le-champ)."
       tags:
         - Marchand
       operationId: postSellerOrdersByIdReject
@@ -2177,7 +2198,11 @@ paths:
         content:
           application/json:
             schema:
-              "$ref": "#/components/schemas/Reason"
+              type: object
+              properties:
+                reason:
+                  type: string
+                  maxLength: 200
       responses:
         "200":
           description: "Succès"
