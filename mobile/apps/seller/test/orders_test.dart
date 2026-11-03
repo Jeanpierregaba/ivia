@@ -1,5 +1,7 @@
 import 'dart:typed_data';
 
+import 'dart:async';
+
 import 'package:flutter/material.dart';
 import 'package:flutter_riverpod/flutter_riverpod.dart';
 import 'package:flutter_secure_storage/flutter_secure_storage.dart';
@@ -254,8 +256,9 @@ void main() {
       expect(find.text('Retrait · 3 articles'), findsNWidgets(2));
       expect(textPlain('10 500 F'), findsNWidgets(2));
       expect(find.text('Nouvelle'), findsNWidgets(2));
-      expect(find.text('05:00'), findsOneWidget);
-      expect(find.text('13:00'), findsOneWidget);
+      // Heure réelle : quelques secondes passent pendant le lancement.
+      expect(find.textContaining(RegExp(r'^0[45]:\d\d$')), findsOneWidget);
+      expect(find.textContaining(RegExp(r'^1[23]:\d\d$')), findsOneWidget);
       expect(find.bySemanticsLabel('Il reste 5 min'), findsOneWidget);
 
       await openTab(tester, 'En cours');
@@ -368,6 +371,268 @@ void main() {
       await tester.pumpAndSettle();
       expect(rows(tester), ['#1042 · Koffi']);
       expect(find.text('En préparation'), findsOneWidget);
+    });
+  });
+
+  /// Ouvre le détail de la commande de [buyer] depuis l'onglet [tab].
+  Future<void> openOrder(
+    WidgetTester tester,
+    String row, {
+    String tab = 'Nouvelles',
+  }) async {
+    await openOrders(tester);
+    if (tab != 'Nouvelles') await openTab(tester, tab);
+    await tester.tap(find.text(row));
+    await tester.pumpAndSettle();
+  }
+
+  Iterable<RecordedRequest> posts(String id, String action) =>
+      server.calls('POST', '/v1/seller/orders/$id/$action');
+
+  Future<void> tapButton(WidgetTester tester, String label) async {
+    await tester.tap(find.widgetWithText(FilledButton, label));
+    await tester.pumpAndSettle();
+  }
+
+  group('détail d\'une commande', () {
+    testWidgets('en-tête, compte à rebours, articles, montants', (
+      tester,
+    ) async {
+      final semantics = tester.ensureSemantics();
+      orders.add(paidAgo: const Duration(minutes: 2));
+      await openOrder(tester, '#1042 · Koffi');
+
+      expect(find.text('Commande #1042'), findsOneWidget);
+      expect(find.text('Nouvelle'), findsOneWidget);
+      expect(find.text('Pour Koffi · Retrait en boutique'), findsOneWidget);
+      expect(find.textContaining('Payée à '), findsOneWidget);
+      // Heure réelle : quelques secondes passent pendant le lancement.
+      expect(
+        find.textContaining(
+          RegExp(r'^Il vous reste 1[23]:\d\d pour répondre$'),
+        ),
+        findsOneWidget,
+      );
+      expect(
+        // Carte d'en-tête lue d'un bloc, temps restant à la minute près.
+        find.bySemanticsLabel(RegExp('Il vous reste 1[23] min pour répondre')),
+        findsOneWidget,
+      );
+      expect(
+        find.text(
+          "Sans réponse, la commande est annulée et l'acheteur remboursé.",
+        ),
+        findsOneWidget,
+      );
+      expect(find.text('3 articles'), findsOneWidget);
+      expect(find.text('2 × Pagne wax'), findsOneWidget);
+      expect(textPlain('9 000 F'), findsOneWidget);
+      // Seul le savon est à stock non suivi.
+      expect(
+        find.text("Stock non suivi : vérifiez que vous l'avez."),
+        findsOneWidget,
+      );
+      expect(textPlain('10 500 F'), findsOneWidget);
+      expect(textPlain('− 525 F'), findsOneWidget);
+      expect(find.text('Vous recevez'), findsOneWidget);
+      expect(textPlain('9 975 F'), findsOneWidget);
+      // Jamais le numéro ni l'adresse de l'acheteur.
+      expect(find.textContaining('+228'), findsNothing);
+      expect(
+        find.widgetWithText(FilledButton, 'Accepter la commande'),
+        findsOneWidget,
+      );
+      semantics.dispose();
+    });
+
+    testWidgets('retrait : accepter, préparer, prête', (tester) async {
+      final id = orders.add()['id'] as String;
+      await openOrder(tester, '#1042 · Koffi');
+
+      await tapButton(tester, 'Accepter la commande');
+      expect(posts(id, 'accept'), hasLength(1));
+      expect(find.text('Acceptée'), findsOneWidget);
+      expect(find.byType(SnackBar), findsNothing);
+      expect(find.byType(IviaCountdown), findsNothing);
+
+      await tapButton(tester, 'Commencer la préparation');
+      expect(posts(id, 'preparing'), hasLength(1));
+      expect(find.text('En préparation'), findsOneWidget);
+      expect(
+        find.text("L'acheteur sera prévenu qu'il peut venir."),
+        findsOneWidget,
+      );
+      expect(
+        find.text("Stock non suivi : vérifiez que vous l'avez."),
+        findsNothing,
+      );
+
+      await tapButton(tester, 'Commande prête');
+      expect(posts(id, 'ready'), hasLength(1));
+      expect(find.text('Prête à retirer'), findsOneWidget);
+
+      // La liste suit : la commande est dans « En cours », pastille retirée.
+      await tester.tap(find.byType(IviaBackButton));
+      await tester.pumpAndSettle();
+      expect(find.text('Aucune nouvelle commande.'), findsOneWidget);
+      expect(find.bySemanticsLabel('En cours, 1'), findsOneWidget);
+    });
+
+    testWidgets('livraison : prête ⇒ recherche d\'un livreur, sans action', (
+      tester,
+    ) async {
+      orders.add(status: 'preparing', fulfillment: 'delivery');
+      await openOrder(tester, '#1042 · Koffi', tab: 'En cours');
+      expect(find.text('Pour Koffi · Livraison'), findsOneWidget);
+      expect(find.text('Un livreur sera recherché.'), findsOneWidget);
+      await tapButton(tester, 'Commande prête');
+      expect(find.text('Recherche d’un livreur'), findsOneWidget);
+      expect(
+        find.text('La suite de la livraison est gérée par ivia.'),
+        findsOneWidget,
+      );
+      expect(find.byType(FilledButton), findsNothing);
+    });
+
+    testWidgets('double appui : une seule acceptation', (tester) async {
+      final id = orders.add()['id'] as String;
+      await openOrder(tester, '#1042 · Koffi');
+      final release = Completer<void>();
+      orders.beforeRequest = (r) async {
+        if (r.method == 'POST') await release.future;
+      };
+      final button = find.widgetWithText(FilledButton, 'Accepter la commande');
+      await tester.tap(button);
+      await tester.pump();
+      expect(find.byType(ButtonProgress), findsOneWidget);
+      await tester.tap(find.byType(FilledButton), warnIfMissed: false);
+      await tester.pump();
+      release.complete();
+      await tester.pumpAndSettle();
+      expect(posts(id, 'accept'), hasLength(1));
+      expect(find.text('Acceptée'), findsOneWidget);
+    });
+
+    testWidgets('annulée entre-temps : message du serveur, vrai statut', (
+      tester,
+    ) async {
+      final id = orders.add()['id'] as String;
+      await openOrder(tester, '#1042 · Koffi');
+      orders.cancel(id, "Annulée par l'acheteur.");
+      await tapButton(tester, 'Accepter la commande');
+      expect(
+        find.text('Action impossible : la commande est « annulée ».'),
+        findsOneWidget,
+      );
+      expect(find.text('Annulée'), findsOneWidget);
+      expect(find.text("Annulée par l'acheteur."), findsOneWidget);
+      expect(find.byType(FilledButton), findsNothing);
+    });
+
+    testWidgets('réseau coupé : message, rien ne change ; nouvel essai', (
+      tester,
+    ) async {
+      final id = orders.add()['id'] as String;
+      await openOrder(tester, '#1042 · Koffi');
+      orders.failures['POST /v1/seller/orders'] = FakeResponse.networkError();
+      await tapButton(tester, 'Accepter la commande');
+      expect(find.text('Pas de connexion. Réessayez.'), findsOneWidget);
+      expect(find.text('Nouvelle'), findsOneWidget);
+      await tapButton(tester, 'Accepter la commande');
+      expect(posts(id, 'accept'), hasLength(2));
+      expect(find.text('Acceptée'), findsOneWidget);
+      expect(find.text('Pas de connexion. Réessayez.'), findsNothing);
+    });
+
+    testWidgets('délai dépassé écran ouvert : plus d\'acceptation, annulée', (
+      tester,
+    ) async {
+      var shift = Duration.zero;
+      var serverShift = Duration.zero;
+      orders.now = () => DateTime.now().toUtc().add(shift);
+      server.clock = () => DateTime.now().toUtc().add(serverShift);
+      orders.add(paidAgo: const Duration(minutes: 14, seconds: 50));
+      await openOrder(tester, '#1042 · Koffi');
+      expect(find.textContaining('Il vous reste 00:1'), findsOneWidget);
+
+      // L'heure du serveur (lue dans l'en-tête Date) passe le délai, avant
+      // que la commande soit annulée.
+      serverShift = const Duration(minutes: 1);
+      await tester.fling(
+        find.text('Commande #1042'),
+        const Offset(0, 400),
+        1000,
+      );
+      await tester.pumpAndSettle();
+      await tester.pump(const Duration(seconds: 1));
+      await tester.pumpAndSettle();
+      expect(find.text('Délai dépassé'), findsOneWidget);
+      final accept = tester.widget<FilledButton>(
+        find.widgetWithText(FilledButton, 'Accepter la commande'),
+      );
+      expect(accept.onPressed, isNull);
+
+      // Annulée par le serveur : relue au passage suivant.
+      shift = const Duration(minutes: 1);
+      await tester.pump(const Duration(seconds: 30));
+      await tester.pumpAndSettle();
+      expect(find.text('Annulée'), findsOneWidget);
+      expect(find.text("Le marchand n'a pas répondu à temps."), findsOneWidget);
+    });
+
+    testWidgets('relu toutes les 30 s : annulation par l\'admin', (
+      tester,
+    ) async {
+      final id = orders.add(status: 'accepted')['id'] as String;
+      await openOrder(tester, '#1042 · Koffi', tab: 'En cours');
+      orders.cancel(id, "Annulée par l'équipe ivia.");
+      await tester.pump(const Duration(seconds: 30));
+      await tester.pumpAndSettle();
+      expect(find.text('Annulée'), findsOneWidget);
+    });
+
+    testWidgets('réponse en retard : ne défait pas une action', (tester) async {
+      final id = orders.add()['id'] as String;
+      await openOrder(tester, '#1042 · Koffi');
+      final stale = Map<String, dynamic>.of(orders.byId(id));
+      await tapButton(tester, 'Accepter la commande');
+      // Relecture partie avant l'acceptation, arrivée après.
+      orders.failures['GET /v1/seller/orders/$id'] = FakeResponse.json(
+        200,
+        stale,
+      );
+      await tester.pump(const Duration(seconds: 30));
+      await tester.pumpAndSettle();
+      expect(find.text('Acceptée'), findsOneWidget);
+      expect(
+        find.widgetWithText(FilledButton, 'Commencer la préparation'),
+        findsOneWidget,
+      );
+    });
+
+    testWidgets('commande introuvable : message, retour à la liste', (
+      tester,
+    ) async {
+      await launch(tester);
+      GoRouter.of(tester.element(find.byType(Scaffold).first))
+          .go(Routes.order('c0000000-0000-4000-8000-000000000999'));
+      await tester.pumpAndSettle();
+      expect(find.text('Commande introuvable.'), findsOneWidget);
+      await tester.tap(find.text('Voir les commandes'));
+      await tester.pumpAndSettle();
+      expect(find.text('Aucune nouvelle commande.'), findsOneWidget);
+    });
+
+    testWidgets('boutique suspendue pendant une action : écran « suspendue »', (
+      tester,
+    ) async {
+      orders.add();
+      await openOrder(tester, '#1042 · Koffi');
+      orders.shopSuspended = true;
+      withShop('suspended');
+      await tapButton(tester, 'Accepter la commande');
+      expect(find.textContaining('suspendue'), findsWidgets);
+      expect(find.text('Commande #1042'), findsNothing);
     });
   });
 }

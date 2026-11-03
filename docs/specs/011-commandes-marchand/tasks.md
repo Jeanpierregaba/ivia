@@ -16,7 +16,7 @@
       dans le cadre (premier plan seulement), pastille de l'onglet Commandes ; tests de relecture.
 - [x] 6. App marchand : onglet Commandes (Nouvelles / En cours / Terminées, compteurs, comptes à
       rebours, vides, tirer pour actualiser, « Afficher plus ») ; routes `/orders?tab=…`.
-- [ ] 7. App marchand : détail d'une commande (articles, stock non suivi, montants, statut,
+- [x] 7. App marchand : détail d'une commande (articles, stock non suivi, montants, statut,
       compte à rebours, relecture) et actions accepter / préparer / prête, avec les erreurs
       (réseau, `invalid_transition`, 404, `shop_suspended`, double appui, délai dépassé).
 - [ ] 8. App marchand : feuille de refus (motifs, « Autre » 200 caractères).
