@@ -48,23 +48,23 @@ annulée quitte « Nouvelles » à la relecture suivante ([011](../011-commandes
 
 ## Critères d'acceptation
 
-- [ ] Le bouton « Annuler la commande » n'apparaît que pour `pending_payment` et
+- [x] Le bouton « Annuler la commande » n'apparaît que pour `pending_payment` et
       `awaiting_seller` ; jamais pour une autre commande (acceptée, prête, terminée…).
-- [ ] La feuille affiche « Annuler la commande #N ? » et, selon que la commande est payée ou
+- [x] La feuille affiche « Annuler la commande #N ? » et, selon que la commande est payée ou
       non, le montant remboursé (total) ou « Vos produits seront libérés. ».
-- [ ] « Garder ma commande » ferme la feuille sans requête.
-- [ ] « Annuler la commande » envoie `POST /v1/orders/{id}/cancel` une seule fois (double appui) ;
+- [x] « Garder ma commande » ferme la feuille sans requête.
+- [x] « Annuler la commande » envoie `POST /v1/orders/{id}/cancel` une seule fois (double appui) ;
       le suivi passe à « Annulée », avec le remboursement annoncé si elle était payée ; la
       commande apparaît dans « Terminées ».
-- [ ] Avec une demande de paiement en attente, l'app annule d'abord la demande, puis la
+- [x] Avec une demande de paiement en attente, l'app annule d'abord la demande, puis la
       commande, dans cet ordre.
-- [ ] `cannot_cancel` : suivi relu, bouton retiré ; message du serveur, sauf commande expirée :
+- [x] `cannot_cancel` : suivi relu, bouton retiré ; message du serveur, sauf commande expirée :
       « Cette commande a expiré : vos produits sont déjà libérés. ».
-- [ ] `payment_not_cancellable` : commande relue ; si elle est payée et toujours annulable, la
+- [x] `payment_not_cancellable` : commande relue ; si elle est payée et toujours annulable, la
       feuille se rouvre avec le montant remboursé, sinon message et bouton retiré.
-- [ ] Réseau coupé : « Pas de connexion. Réessayez. », rien ne change ; un nouvel essai
+- [x] Réseau coupé : « Pas de connexion. Réessayez. », rien ne change ; un nouvel essai
       fonctionne.
-- [ ] Police à 200 % sur 320 dp : suivi avec le bouton et feuille sans débordement ; lecteur
+- [x] Police à 200 % sur 320 dp : suivi avec le bouton et feuille sans débordement ; lecteur
       d'écran : bouton et feuille lus.
 
 ## Cas limites et erreurs

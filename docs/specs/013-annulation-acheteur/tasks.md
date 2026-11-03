@@ -14,5 +14,5 @@
 - [x] 4. Police à 200 % sur 320 dp et lecteur d'écran ; `docs/DESIGN.md`.
 - [x] 5. Vérification sur le simulateur contre l'API locale (annulation avant et après paiement,
       commande retirée des « Nouvelles » côté marchand).
-- [ ] Vérifier tous les critères d'acceptation de spec.md
-- [ ] Relecture par le sous-agent reviewer
+- [x] Vérifier tous les critères d'acceptation de spec.md
+- [ ] Relecture par le sous-agent reviewer (lancée le 2026-11-03, interrompue par la limite d'usage : à reprendre)

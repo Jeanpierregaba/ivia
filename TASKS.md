@@ -8,7 +8,7 @@ docs/specs/NNN-nom/tasks.md. Les petites tâches isolées (bug, retouche) peuven
 
 ## En cours
 
-- [ ] 013 — Annulation d'une commande par l'acheteur ([spec](docs/specs/013-annulation-acheteur/spec.md)) : spec et plan validés, implémentation en cours
+- [ ] 013 — Annulation d'une commande par l'acheteur ([spec](docs/specs/013-annulation-acheteur/spec.md)) : faite, testée et vérifiée sur simulateur ; reste la relecture par le sous-agent reviewer (interrompue le 2026-11-03 par la limite d'usage), puis passage dans « Terminé »
 - [ ] 018 — Espace livreur : lancement, connexion, dossier de candidature ([spec](docs/specs/018-espace-livreur/spec.md)) : relu et corrigé ; appareil photo à vérifier sur un vrai téléphone
 - [ ] 004 — Espace marchand : lancement, connexion, création de la boutique ([spec](docs/specs/004-espace-marchand/spec.md)) : relu et corrigé ; reste les clés Google Maps (vérification de la carte)
 - [ ] 027 — Splash et présentation des 3 apps ([spec](docs/specs/027-splash-onboarding/spec.md)) : reste la vérification sur Android, la validation des textes et des couleurs par le designer
@@ -39,6 +39,8 @@ version « retrait seulement » (voir `docs/PRD.md`).
 - [ ] **Backend** (pour Gedeon, vu en 028) : fichiers orphelins dans le compartiment privé (`merchants/<id>/…`, `drivers/<id>/…`) quand une photo est envoyée puis remplacée avant le rattachement, ou que la réponse se perd ; `deleteDocuments` n'efface que les fichiers rattachés, alors que `docs/SECURITY.md` demande d'effacer les pièces à la suppression du compte : supprimer par préfixe et/ou purger les fichiers non rattachés après quelques heures
 - [x] **Backend** (pour Gedeon, vu en 011, fait le 2026-11-03) : motif de refus limité à 200 caractères (`validation_failed`) ; `GET /v1/seller/orders?group=new|active|done` (mêmes groupes que `tabOf`) ; `Accept` et `Reject` vérifient `seller_deadline_at` : après le délai, 409 `seller_deadline_passed` et la commande est annulée sur-le-champ (acheteur remboursé) sans attendre `SellerTimeout`. À faire côté app : lire `group` au lieu de répartir les 100 dernières commandes, afficher `seller_deadline_passed`
 - [ ] **Backend** (pour Gedeon, vu à la relecture de la 011 et en préparant la 013) : `ListForSeller` charge chaque commande une à une (commande, lignes, historique, prénom : ~400 requêtes SQL pour 100 commandes) ; `cannot_cancel` répond « La boutique a déjà accepté… » même pour une commande expirée
+- [ ] **Mobile** (suite de 009 et 011) : lire le filtre `group` du serveur (`GET /v1/orders?group=active|done` côté acheteur, `GET /v1/seller/orders?group=new|active|done` côté marchand) au lieu de répartir les 50 / 100 dernières commandes ; afficher le refus `seller_deadline_passed` (aujourd'hui message du serveur et commande relue)
+- [ ] **Mobile** (vu en 011) : libellé de l'onglet actif « Commandes » coupé (« Comman… ») dans la barre du bas de l'app marchand ; une nouvelle commande dont le délai expire reste « Délai dépassé » jusqu'à 30 s (relecture suivante)
 - [ ] **Backend** (pour Gedeon, vu en 007) : recherche par préfixe du dernier mot (« pag » doit trouver « pagne » : la recherche part pendant la frappe ; aujourd'hui plein texte entier + trigramme) ; échapper `%` et `_` dans le `LIKE` de `SearchShops`
 - [x] 007 — Recherche : texte, catégorie, prix, quartier, « autour de moi » : écrans acheteur faits (voir « Terminé »)
 
@@ -48,7 +50,7 @@ version « retrait seulement » (voir `docs/PRD.md`).
 - [x] 010 — Écrans de paiement (attente de validation sur le téléphone, interrogation du statut) : faits (voir « Terminé »)
 - [x] 011 — Marchand : acceptation / refus sous 15 min, préparation, remise par code : écrans marchand faits (voir « Terminé »)
 - [ ] 012 — Notifications push (`firebase_messaging`, enregistrement `PUT /v1/me/devices`) et liste ; dont la notification de validation promise par les écrans d'attente (boutique, dossier livreur)
-- [ ] 013 — Suivi de commande et annulation par l'acheteur : suivi fait (009), annulation en cours ([spec](docs/specs/013-annulation-acheteur/spec.md))
+- [ ] 013 — Suivi de commande et annulation par l'acheteur : suivi fait (009), annulation faite, relecture à reprendre ([spec](docs/specs/013-annulation-acheteur/spec.md))
 - [x] 014 — Back-office : supervision des paiements (liste filtrée, doublons, revérification, remboursement d'un doublon), commandes, actions admin et file de remboursement (2026-11-02)
 - [x] 015 — Back-office : référentiels (catégories de produits et de boutique, quartiers), comptes et droits admin, paramètres (2026-11-02)
 - [ ] 016 — **Backend** : intégrer le vrai prestataire de paiement derrière `payments.Provider` (dépend de l'ADR 0007 accepté) ; tester ses webhooks réels en staging
