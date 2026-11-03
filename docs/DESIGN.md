@@ -48,8 +48,13 @@ les images de splash des apps sont tirés de `logo-carre.png` : à remplacer par
   `IviaBackButton`, `IviaFieldLabel`, `IviaInfoCard`, `IviaPill`, `IviaImagePlaceholder`),
   `code_input.dart` (`IviaCodeInput`), `loading_splash.dart` (`IviaLoadingSplash`, logotype ou
   tuile), `step_list.dart` (`IviaStepList`), `illustration.dart` (`IllustrationCard`, `Tilted`,
-  `MosaicTile`, `CheckPill` : briques des illustrations). Champs communs de connexion et de
-  formulaire (`TogoPhoneField`, `ConsentCheckbox`) : `mobile/packages/app_core`.
+  `MosaicTile`, `CheckPill` : briques des illustrations), `countdown.dart` (`IviaCountdown` :
+  « 12:40 » relu chaque seconde sur l'heure du serveur, warning puis error sous 3 min, « Délai
+  dépassé », lu à la minute près), `navigation.dart` (`IviaBottomNav`, pastille d'onglet
+  `IviaNavItem.badge` en Cornell, « 9+ » au-delà de 9, lue « Commandes, 2 nouvelles »). Champs
+  communs de connexion et de formulaire (`TogoPhoneField`, `ConsentCheckbox`), libellés des
+  commandes (`statusLabel`, `statusPill`) et messages en bas d'écran (`showMessage`) :
+  `mobile/packages/app_core`.
   Le test `contrast_test.dart` vérifie les
   ratios du tableau « Contrastes » : à mettre à jour avec ce fichier si une couleur change.
 - Pas de mode sombre au MVP. Les tokens sont nommés par rôle (`surface`, `text-muted`…) et non par
@@ -277,10 +282,29 @@ Maquettes : à venir (lien Figma à ajouter ici). Les statuts affichés suivent
   agrandie, l'état passe sous le libellé. Sur « En cours de validation », étape « Pièce
   d'identité » (À ajouter ou Envoyée) ; sans elle, « Ajouter ma pièce d'identité » en bouton
   principal, « Préparer mes produits » en bouton secondaire.
-- **Commandes** : onglets Nouvelles / En cours / Terminées ; chaque nouvelle commande affiche le
-  compte à rebours de 15 min.
-- **Détail de commande** : produits, mode de remise, Accepter / Refuser, puis « En préparation »,
-  « Prête » ; saisie du code de remise (retrait) ; remise au livreur.
+- **Accueil** ([spec 011](specs/011-commandes-marchand/spec.md)) : tuile, nom de la boutique ;
+  carte orangé pâle « 2 nouvelles commandes à accepter » avec « La première expire dans 05:40 »,
+  carte blanche « 1 commande en cours » (un appui ouvre le bon onglet) ; sinon « Aucune commande à
+  traiter. Les nouvelles commandes arrivent ici. » ; « Mes produits ».
+- **Commandes** : relues toutes les 30 s app ouverte, pastille sur l'onglet ; onglets
+  **Nouvelles / En cours / Terminées** avec leur nombre ; lignes dans une carte blanche
+  (« #1042 · Koffi », « Retrait · 3 articles » ou « Aujourd'hui 14:05 » pour une terminée,
+  montant des produits, pastille de statut, compte à rebours sur une nouvelle, la plus urgente en
+  haut) ; « Afficher plus » dans Terminées.
+- **Détail de commande** (« Commande #1042 ») : carte d'en-tête (statut, « Pour Koffi · Retrait en
+  boutique », « Payée à 14:00 », « Il vous reste 12:40 pour répondre » et « Sans réponse, la
+  commande est annulée et l'acheteur remboursé. ») ; articles, « Stock non suivi : vérifiez que
+  vous l'avez » en orangé ; Produits, Commission ivia, **Vous recevez**. En bas, un bouton par
+  étape : « Accepter la commande » et « Refuser » (contour), « Commencer la préparation »,
+  « Commande prête », « Saisir le code de l'acheteur » ; erreurs au-dessus du bouton (un message en
+  bas d'écran le cacherait). Livraison : rien après « prête » (« La suite de la livraison est
+  gérée par ivia. »).
+- **Refus** : feuille « Pourquoi refusez-vous ? » (« Produit en rupture », « Boutique fermée »,
+  « Impossible de préparer à temps », « Autre » avec un texte de 200 caractères au plus),
+  « L'acheteur verra ce motif et sera remboursé. », « Refuser la commande ».
+- **Code de remise** : « Demandez à Koffi son code à 4 chiffres. », 4 cases (`IviaCodeInput`),
+  « Remettre la commande » fixé en bas au-dessus du clavier ; essais restants, puis code bloqué
+  (« Contactez l'équipe ivia »).
 - **Barre du bas** (boutique publiée) : pilule blanche flottante, Accueil · Commandes · Catalogue ·
   Compte ; l'onglet actif est une pilule Berkeley avec icône et libellé, les autres une icône seule
   (libellé lu par le lecteur d'écran). Boutique en validation : catalogue seul, sans barre.
@@ -355,6 +379,7 @@ Codes de la machine à états (`docs/ARCHITECTURE.md`) → texte affiché :
 | `refunded` | Remboursée | muted |
 
 Un statut s'affiche toujours avec une icône et son libellé, jamais par sa couleur seule.
+Côté marchand : `awaiting_seller` « Nouvelle » et `accepted` « Acceptée » (mêmes couleurs).
 
 États d'un produit (catalogue marchand) : `active` « En vente » (info) · `draft` « Brouillon »
 (muted) · `withdrawn` « Retiré » (muted).

@@ -921,6 +921,107 @@ void main() {
       expect(find.text('1 nouvelle commande à accepter'), findsOneWidget);
     });
   });
+
+  group('police à 200 % sur 320 dp', () {
+    void large(WidgetTester tester) {
+      tester.view.physicalSize = const Size(320, 640);
+      tester.view.devicePixelRatio = 1;
+      tester.platformDispatcher.textScaleFactorTestValue = 2;
+      addTearDown(tester.view.reset);
+      addTearDown(tester.platformDispatcher.clearTextScaleFactorTestValue);
+    }
+
+    testWidgets('Accueil, liste, détail, refus : rien ne déborde', (
+      tester,
+    ) async {
+      large(tester);
+      orders
+        ..add(
+          buyerFirstName: 'Abla-Kossiwa',
+          paidAgo: const Duration(minutes: 1),
+        )
+        ..add(status: 'ready_for_pickup');
+      await launch(tester);
+      expect(tester.takeException(), isNull);
+      expect(find.text('1 nouvelle commande à accepter'), findsOneWidget);
+
+      await tester.tap(find.byIcon(Icons.receipt_long_outlined));
+      await tester.pumpAndSettle();
+      expect(tester.takeException(), isNull);
+      expect(find.byType(OrderRow), findsOneWidget);
+
+      await tester.tap(find.text('#1042 · Abla-Kossiwa'));
+      await tester.pumpAndSettle();
+      expect(tester.takeException(), isNull);
+      await tester.scrollUntilVisible(
+        find.text('Vous recevez'),
+        200,
+        scrollable: find.byType(Scrollable).first,
+      );
+      expect(tester.takeException(), isNull);
+
+      await tester.tap(find.widgetWithText(OutlinedButton, 'Refuser'));
+      await tester.pumpAndSettle();
+      expect(tester.takeException(), isNull);
+      await tester.tap(find.text('Autre'));
+      await tester.pumpAndSettle();
+      expect(tester.takeException(), isNull);
+    });
+
+    testWidgets('détail prêt et code de remise : rien ne déborde', (
+      tester,
+    ) async {
+      large(tester);
+      orders.add(status: 'ready_for_pickup');
+      await launch(tester);
+      await tester.tap(find.byIcon(Icons.receipt_long_outlined));
+      await tester.pumpAndSettle();
+      await tester.tap(find.textContaining('En cours').first);
+      await tester.pumpAndSettle();
+      await tester.tap(find.text('#1042 · Koffi'));
+      await tester.pumpAndSettle();
+      expect(tester.takeException(), isNull);
+      await tapButton(tester, "Saisir le code de l'acheteur");
+      expect(tester.takeException(), isNull);
+      await tester.enterText(
+        find.descendant(
+          of: find.byType(IviaCodeInput),
+          matching: find.byType(TextField),
+        ),
+        '1111',
+      );
+      await tester.pump();
+      await tester.tap(
+        find.widgetWithText(FilledButton, 'Remettre la commande'),
+      );
+      await tester.pumpAndSettle();
+      expect(tester.takeException(), isNull);
+      expect(
+        find.text('Code incorrect. Il reste 4 essai(s).', skipOffstage: false),
+        findsOneWidget,
+      );
+    });
+
+    testWidgets('lecteur d\'écran : ligne lue d\'un bloc, bouton', (
+      tester,
+    ) async {
+      final semantics = tester.ensureSemantics();
+      orders.add();
+      await launch(tester);
+      await tester.tap(find.byIcon(Icons.receipt_long_outlined));
+      await tester.pumpAndSettle();
+      final row = tester.getSemantics(find.byType(OrderRow));
+      expect(
+        row.label,
+        allOf(
+          contains('Commande 1042, Koffi, Retrait · 3 articles'),
+          contains('Nouvelle'),
+        ),
+      );
+      expect(row, isSemantics(isButton: true));
+      semantics.dispose();
+    });
+  });
 }
 
 class _NoPicker implements PhotoPicker {

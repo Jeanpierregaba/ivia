@@ -507,15 +507,20 @@ class _AmountRow extends StatelessWidget {
     final style = strong
         ? textTheme.titleLarge?.copyWith(fontWeight: FontWeight.w700)
         : textTheme.bodyLarge;
+    // Montant à droite du libellé, ou dessous s'il manque de place (police
+    // agrandie).
     return Padding(
       padding: const EdgeInsets.symmetric(vertical: IviaSpacing.xs),
-      child: Row(
-        crossAxisAlignment: CrossAxisAlignment.start,
-        children: [
-          Expanded(child: Text(label, style: style)),
-          const SizedBox(width: IviaSpacing.md),
-          Text(amount, style: style?.copyWith(fontWeight: FontWeight.w700)),
-        ],
+      child: SizedBox(
+        width: double.infinity,
+        child: Wrap(
+          alignment: WrapAlignment.spaceBetween,
+          spacing: IviaSpacing.md,
+          children: [
+            Text(label, style: style),
+            Text(amount, style: style?.copyWith(fontWeight: FontWeight.w700)),
+          ],
+        ),
       ),
     );
   }

@@ -110,58 +110,75 @@ class _HandoverScreenState extends ConsumerState<HandoverScreen> {
     final error = _error ?? (locked ? handoverLockedMessage : null);
     return Scaffold(
       body: SafeArea(
-        child: ListView(
-          padding: const EdgeInsets.all(IviaSpacing.screen),
+        child: Column(
           children: [
-            Align(
-              alignment: Alignment.centerLeft,
-              child: IviaBackButton(
-                onPressed: _busy ? null : () => context.pop(),
-              ),
-            ),
-            const SizedBox(height: IviaSpacing.lg),
-            Semantics(
-              header: true,
-              child: Text('Code de remise', style: textTheme.headlineMedium),
-            ),
-            const SizedBox(height: IviaSpacing.sm),
-            Text(
-              buyer.isEmpty
-                  ? "Demandez à l'acheteur son code à 4 chiffres."
-                  : 'Demandez à $buyer son code à 4 chiffres.',
-              style: textTheme.bodyLarge?.copyWith(
-                color: IviaColors.textSecondary,
-              ),
-            ),
-            const SizedBox(height: IviaSpacing.xxl),
-            if (!locked)
-              IviaCodeInput(
-                controller: _code,
-                length: 4,
-                autofocus: true,
-                enabled: !_busy,
-                hasError: _error != null,
-                semanticLabel: 'Code de remise à 4 chiffres',
-              ),
-            if (error != null) ...[
-              const SizedBox(height: IviaSpacing.md),
-              Semantics(
-                liveRegion: true,
-                child: Text(
-                  error,
-                  style: textTheme.bodyMedium?.copyWith(
-                    color: IviaColors.error,
+            Expanded(
+              child: ListView(
+                padding: const EdgeInsets.all(IviaSpacing.screen),
+                children: [
+                  Align(
+                    alignment: Alignment.centerLeft,
+                    child: IviaBackButton(
+                      onPressed: _busy ? null : () => context.pop(),
+                    ),
                   ),
-                ),
+                  const SizedBox(height: IviaSpacing.lg),
+                  Semantics(
+                    header: true,
+                    child: Text(
+                      'Code de remise',
+                      style: textTheme.headlineMedium,
+                    ),
+                  ),
+                  const SizedBox(height: IviaSpacing.sm),
+                  Text(
+                    buyer.isEmpty
+                        ? "Demandez à l'acheteur son code à 4 chiffres."
+                        : 'Demandez à $buyer son code à 4 chiffres.',
+                    style: textTheme.bodyLarge?.copyWith(
+                      color: IviaColors.textSecondary,
+                    ),
+                  ),
+                  const SizedBox(height: IviaSpacing.xxl),
+                  if (!locked)
+                    IviaCodeInput(
+                      controller: _code,
+                      length: 4,
+                      autofocus: true,
+                      enabled: !_busy,
+                      hasError: _error != null,
+                      semanticLabel: 'Code de remise à 4 chiffres',
+                    ),
+                  if (error != null) ...[
+                    const SizedBox(height: IviaSpacing.md),
+                    Semantics(
+                      liveRegion: true,
+                      child: Text(
+                        error,
+                        style: textTheme.bodyMedium?.copyWith(
+                          color: IviaColors.error,
+                        ),
+                      ),
+                    ),
+                  ],
+                ],
               ),
-            ],
-            const SizedBox(height: IviaSpacing.xxl),
+            ),
+            // En bas, au-dessus du clavier : toujours visible.
             if (!locked)
-              FilledButton(
-                onPressed: _busy || _code.text.length != 4 ? null : _submit,
-                child: _busy
-                    ? const ButtonProgress()
-                    : const Text('Remettre la commande'),
+              Padding(
+                padding: const EdgeInsets.fromLTRB(
+                  IviaSpacing.screen,
+                  IviaSpacing.sm,
+                  IviaSpacing.screen,
+                  IviaSpacing.lg,
+                ),
+                child: FilledButton(
+                  onPressed: _busy || _code.text.length != 4 ? null : _submit,
+                  child: _busy
+                      ? const ButtonProgress()
+                      : const Text('Remettre la commande'),
+                ),
               ),
           ],
         ),

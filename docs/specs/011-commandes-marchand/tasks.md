@@ -23,7 +23,7 @@
 - [x] 9. App marchand : écran « Code de remise » (essais restants, `handover_locked`, code jamais
       gardé).
 - [x] 10. App marchand : Accueil (résumé nouvelles / en cours, vide, navigation).
-- [ ] 11. Police à 200 % sur 320 dp et lecteur d'écran sur tous les nouveaux écrans ;
+- [x] 11. Police à 200 % sur 320 dp et lecteur d'écran sur tous les nouveaux écrans ;
       `docs/DESIGN.md` ; points backend dans `TASKS.md`.
 - [ ] 12. Vérification sur le simulateur contre l'API locale (commande acheteur → traitée par le
       marchand jusqu'à « Retirée »).
