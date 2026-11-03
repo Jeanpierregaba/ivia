@@ -20,7 +20,7 @@
       compte à rebours, relecture) et actions accepter / préparer / prête, avec les erreurs
       (réseau, `invalid_transition`, 404, `shop_suspended`, double appui, délai dépassé).
 - [x] 8. App marchand : feuille de refus (motifs, « Autre » 200 caractères).
-- [ ] 9. App marchand : écran « Code de remise » (essais restants, `handover_locked`, code jamais
+- [x] 9. App marchand : écran « Code de remise » (essais restants, `handover_locked`, code jamais
       gardé).
 - [ ] 10. App marchand : Accueil (résumé nouvelles / en cours, vide, navigation).
 - [ ] 11. Police à 200 % sur 320 dp et lecteur d'écran sur tous les nouveaux écrans ;

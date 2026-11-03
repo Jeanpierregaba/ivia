@@ -14,6 +14,7 @@ import 'package:ivia_ui/ivia_ui.dart';
 import 'package:ivia_seller/app/device_services.dart';
 import 'package:ivia_seller/app/identity.dart';
 import 'package:ivia_seller/app/router.dart';
+import 'package:ivia_seller/features/orders/handover_screen.dart';
 import 'package:ivia_seller/features/orders/order_labels.dart';
 import 'package:ivia_seller/features/orders/orders_screen.dart';
 import 'package:ivia_seller/main.dart';
@@ -744,6 +745,110 @@ void main() {
       await tester.pumpAndSettle();
       expect(find.text('Pas de connexion. Réessayez.'), findsOneWidget);
       expect(find.text('Nouvelle'), findsOneWidget);
+    });
+  });
+
+  group('remise par code', () {
+    Finder codeField() => find.descendant(
+      of: find.byType(IviaCodeInput),
+      matching: find.byType(TextField),
+    );
+    Finder handOver() =>
+        find.widgetWithText(FilledButton, 'Remettre la commande');
+
+    Future<String> openHandover(WidgetTester tester, {int attempts = 0}) async {
+      final id =
+          orders.add(
+                status: 'ready_for_pickup',
+                handoverAttempts: attempts,
+              )['id']
+              as String;
+      await openOrder(tester, '#1042 · Koffi', tab: 'En cours');
+      await tapButton(tester, "Saisir le code de l'acheteur");
+      return id;
+    }
+
+    Future<void> submit(WidgetTester tester, String code) async {
+      await tester.enterText(codeField(), code);
+      await tester.pump();
+      await tester.tap(handOver());
+      await tester.pumpAndSettle();
+    }
+
+    testWidgets('code juste : « Retirée », retour au détail', (tester) async {
+      final id = await openHandover(tester);
+      expect(find.text('Code de remise'), findsOneWidget);
+      expect(
+        find.text('Demandez à Koffi son code à 4 chiffres.'),
+        findsOneWidget,
+      );
+      expect(tester.widget<FilledButton>(handOver()).onPressed, isNull);
+
+      await submit(tester, FakeSellerOrders.handoverCode);
+      expect(posts(id, 'handover').single.body, {
+        'code': FakeSellerOrders.handoverCode,
+      });
+      expect(find.text('Commande remise.'), findsOneWidget);
+      expect(find.text('Commande #1042'), findsOneWidget);
+      expect(find.text('Retirée'), findsOneWidget);
+      expect(find.byType(FilledButton), findsNothing);
+    });
+
+    testWidgets('code faux : essais restants, cases vidées, puis juste', (
+      tester,
+    ) async {
+      await openHandover(tester);
+      await submit(tester, '1111');
+      expect(find.text('Code incorrect. Il reste 4 essai(s).'), findsOneWidget);
+      expect(tester.widget<TextField>(codeField()).controller!.text, isEmpty);
+      expect(tester.widget<FilledButton>(handOver()).onPressed, isNull);
+
+      await submit(tester, FakeSellerOrders.handoverCode);
+      expect(find.text('Retirée'), findsOneWidget);
+    });
+
+    testWidgets('5e essai faux : code bloqué, plus de saisie ni au détail', (
+      tester,
+    ) async {
+      await openHandover(tester, attempts: 4);
+      await submit(tester, '1111');
+      expect(find.text(handoverLockedMessage), findsOneWidget);
+      expect(find.byType(IviaCodeInput), findsNothing);
+      expect(handOver(), findsNothing);
+
+      await tester.tap(find.byType(IviaBackButton));
+      await tester.pumpAndSettle();
+      expect(find.text('Prête à retirer'), findsOneWidget);
+      expect(find.text(handoverLockedMessage), findsOneWidget);
+      expect(find.byType(FilledButton), findsNothing);
+    });
+
+    testWidgets('code déjà bloqué : le détail ne propose pas la saisie', (
+      tester,
+    ) async {
+      orders.add(status: 'ready_for_pickup', handoverAttempts: 5);
+      await openOrder(tester, '#1042 · Koffi', tab: 'En cours');
+      expect(find.text(handoverLockedMessage), findsOneWidget);
+      expect(find.byType(FilledButton), findsNothing);
+    });
+
+    testWidgets('code collé avec espaces : chiffres seuls gardés', (
+      tester,
+    ) async {
+      final id = await openHandover(tester);
+      await submit(tester, '48 27');
+      expect(posts(id, 'handover').single.body, {'code': '4827'});
+    });
+
+    testWidgets('réseau coupé : message, cases vidées, rien de compté', (
+      tester,
+    ) async {
+      final id = await openHandover(tester);
+      orders.failures['POST /v1/seller/orders'] = FakeResponse.networkError();
+      await submit(tester, FakeSellerOrders.handoverCode);
+      expect(find.text('Pas de connexion. Réessayez.'), findsOneWidget);
+      expect(tester.widget<TextField>(codeField()).controller!.text, isEmpty);
+      expect(orders.byId(id)['handover_attempts'], 0);
     });
   });
 }

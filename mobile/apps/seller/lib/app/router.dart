@@ -10,6 +10,7 @@ import '../features/catalog/product_edit_screen.dart';
 import '../features/catalog/product_editor_screen.dart';
 import '../features/catalog/product_published_screen.dart';
 import '../features/home/home_placeholder_screen.dart';
+import '../features/orders/handover_screen.dart';
 import '../features/orders/order_labels.dart';
 import '../features/orders/order_screen.dart';
 import '../features/orders/orders_screen.dart';
@@ -44,6 +45,7 @@ abstract final class Routes {
   /// Onglet Commandes ouvert sur [tab].
   static String ordersTab(OrderTab tab) => '/orders?tab=${tab.code}';
   static String order(String id) => '/orders/$id';
+  static String handover(String id) => '/orders/$id/handover';
 }
 
 /// Écrans permis selon la session et la boutique ; le premier est la
@@ -171,6 +173,15 @@ final routerProvider = Provider<GoRouter>((ref) {
                     parentNavigatorKey: rootKey,
                     builder: (context, state) =>
                         OrderScreen(orderId: state.pathParameters['id']!),
+                    routes: [
+                      GoRoute(
+                        path: 'handover',
+                        parentNavigatorKey: rootKey,
+                        builder: (context, state) => HandoverScreen(
+                          orderId: state.pathParameters['id']!,
+                        ),
+                      ),
+                    ],
                   ),
                 ],
               ),

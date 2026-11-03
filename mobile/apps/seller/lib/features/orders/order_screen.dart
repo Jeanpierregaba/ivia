@@ -9,6 +9,7 @@ import 'package:ivia_ui/ivia_ui.dart';
 
 import '../../app/router.dart';
 import '../../app/seller_shop.dart';
+import 'handover_screen.dart';
 import 'order_labels.dart';
 import 'orders_providers.dart';
 import 'reject_sheet.dart';
@@ -280,6 +281,19 @@ class _OrderScreenState extends ConsumerState<OrderScreen> {
       OrderStatus.accepted => primary(
         'Commencer la préparation',
         () => _run((c) => c.startPreparingOrder(id)),
+      ),
+      OrderStatus.readyForPickup when order.isHandoverLocked => Semantics(
+        liveRegion: true,
+        child: Text(
+          handoverLockedMessage,
+          textAlign: TextAlign.center,
+          style: Theme.of(context).textTheme.bodyMedium
+              ?.copyWith(color: IviaColors.error),
+        ),
+      ),
+      OrderStatus.readyForPickup => primary(
+        "Saisir le code de l'acheteur",
+        () => context.push(Routes.handover(id)),
       ),
       OrderStatus.preparing => Column(
         crossAxisAlignment: CrossAxisAlignment.stretch,
