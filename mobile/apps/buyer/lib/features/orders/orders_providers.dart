@@ -199,6 +199,13 @@ class OrderController extends AsyncNotifier<BuyerOrder> {
 
   Future<void> _load() async {
     final order = await _client.myOrder(id);
+    set(order);
+  }
+
+  /// Commande rendue par le serveur (relecture, annulation) : affichée si
+  /// elle n'est pas plus ancienne que l'affichée, et reportée dans la
+  /// liste ; sans effet si le suivi n'est plus affiché.
+  void set(BuyerOrder order) {
     if (!ref.mounted) return;
     final shown = state.value;
     if (shown != null && order.updatedAt.isBefore(shown.updatedAt)) return;
