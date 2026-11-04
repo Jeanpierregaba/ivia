@@ -11,6 +11,7 @@ import '../../app/cart.dart';
 import '../../app/router.dart';
 import '../orders/order_parts.dart';
 import '../orders/orders_providers.dart';
+import '../promo/promo_state.dart';
 import '../shop/shop_screen.dart' show publicShopProvider;
 
 /// Récapitulatif du retrait, calculé par le serveur à l'ouverture.
@@ -97,6 +98,10 @@ class _CheckoutScreenState extends ConsumerState<CheckoutScreen> {
         order = await client.createOrder(clientRequestId: _requestId);
       }
       _uncertain = false;
+      // Commande après un clic publicitaire : comptée pour les statistiques.
+      _container
+          .read(promoTrackerProvider)
+          .orderPlaced(order.items.map((i) => i.productId));
       // Même si l'écran a été quitté : panier vidé par le serveur, liste
       // des commandes à jour.
       _refreshCart();

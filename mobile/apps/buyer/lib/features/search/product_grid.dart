@@ -8,6 +8,7 @@ import 'package:ivia_ui/ivia_ui.dart';
 import '../../app/cart.dart';
 import '../../app/router.dart';
 import '../cart/cart_actions.dart';
+import '../promo/promo_state.dart';
 
 /// Une ou deux colonnes : une seule sur un écran étroit ou avec une police
 /// agrandie.
@@ -99,9 +100,12 @@ Widget _gridRow(
 /// Carte d'un produit trouvé : un appui ouvre sa fiche, « + » en ajoute un
 /// exemplaire au panier (pas de « + » sur un produit épuisé).
 class ProductHitCard extends ConsumerWidget {
-  const ProductHitCard({super.key, required this.hit});
+  const ProductHitCard({super.key, required this.hit, this.fromPromo = false});
 
   final ProductHit hit;
+
+  /// Produit mis en avant par la publicité : ses ouvertures sont comptées.
+  final bool fromPromo;
 
   @override
   Widget build(BuildContext context, WidgetRef ref) {
@@ -116,9 +120,22 @@ class ProductHitCard extends ConsumerWidget {
         final m? => formatDistance(m),
         null => null,
       },
-      price: formatXof(hit.priceXof),
+      price: formatXof(hit.effectivePriceXof),
+      oldPrice: hit.onPromo ? formatXof(hit.priceXof) : null,
+      badge: hit.badges.firstOrNull?.label,
       soldOut: !hit.inStock,
-      onTap: () => context.push(Routes.product(hit.id)),
+      onTap: () {
+        if (fromPromo || hit.featuredRank != null) {
+          ref
+              .read(promoTrackerProvider)
+              .track(
+                'click_product',
+                productId: hit.id,
+                placement: PromoPlacement.catalogFeed,
+              );
+        }
+        context.push(Routes.product(hit.id));
+      },
       onAdd: hit.inStock
           ? () => addToCart(context, ref, productId: hit.id, name: hit.name)
           : null,

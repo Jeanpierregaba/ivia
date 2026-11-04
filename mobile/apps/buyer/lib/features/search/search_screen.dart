@@ -11,6 +11,7 @@ import '../../app/buyer_area.dart';
 import '../../app/catalog_data.dart';
 import '../../app/router.dart';
 import '../home/area_sheet.dart';
+import '../promo/promo_state.dart';
 import 'product_grid.dart';
 import 'search_results.dart';
 import 'search_sheets.dart';
@@ -267,7 +268,13 @@ class _SearchScreenState extends ConsumerState<SearchScreen> {
                 area: area,
                 filters: filters,
                 query: query,
-                builder: (items) => ProductGridSliver(items: items),
+                // Navigation sans texte : les produits mis en avant
+                // reviennent dans la liste (recherche précise : intacte).
+                builder: (items) => ProductGridSliver(
+                  items: filters.text.isEmpty
+                      ? withFeatured(ref, items)
+                      : items,
+                ),
                 emptyText: filters.text.isEmpty
                     ? 'Aucun produit autour de vous pour l’instant.'
                     : 'Aucun produit ne correspond à « ${filters.text} ».',

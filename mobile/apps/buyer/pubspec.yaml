@@ -16,6 +16,7 @@ dependencies:
   ivia_app_core: any
   ivia_ui: any
   shared_preferences: ^2.5.6
+  url_launcher: ^6.3.3
 
 dev_dependencies:
   flutter_native_splash: ^2.4.8

@@ -11,7 +11,7 @@
 | Back-office web (Next.js)   |  **~95 %** | Tous les écrans du MVP faits ; restent les tests navigateur (Playwright)   |
 | Apps mobiles (Flutter)      |  **~50 %** | Acheteur jusqu'à la commande en retrait, catalogue marchand, dossier livreur ; paiement et livraison à faire |
 | Infrastructure / mise en ligne | **~60 %** | Images Docker, Compose, Caddy, sauvegardes, CI prêts ; serveurs à louer |
-| Publicité IVI / marketing   |  **~60 %** | API, back-office et jeu de démo faits ; reste l'affichage dans l'app acheteur |
+| Publicité IVI / marketing   |  **~90 %** | API, back-office, jeu de démo et app acheteur faits ; reste à saisir les prix IVI |
 | Démarches hors code         |  **~10 %** | Société, agrégateur de paiement, Play Store, Meta, domaine                 |
 
 ---
@@ -95,6 +95,7 @@ Next.js 16, TypeScript strict, Tailwind 4, même langage visuel que les apps (lo
 - **Acheteur** : accueil (zone par position ou quartier, catégories, boutiques, nouveautés), recherche avec filtres et tri, fiches boutique et produit, panier (008), commande en retrait et suivi avec code de remise (009, en relecture).
 - **Marchand** : création de la boutique, écran « en cours de validation » avec dépôt de la pièce d'identité et du RCCM, catalogue (produits, photos, brouillons, retrait, stock) (005).
 - **Livreur** : dossier de candidature avec documents (018).
+- **Publicité IVI (acheteur)** : carrousel de bannières dans un ordre tiré au hasard qui défile seul ; section « Produits vedettes » ; produits mis en avant glissés dans l'accueil et la navigation du catalogue ; prix promotionnel avec prix normal barré, badges et caractéristiques ; fenêtres et interstitiels plein écran selon les réglages de l'admin (délai, intervalle, plafond par session, rotation), toujours fermables, jamais pendant le panier, la commande ou le paiement ; « Commander maintenant » passe par le panier habituel ; « Visiter le site officiel IVI » ouvre le navigateur ; statistiques anonymes envoyées par lots.
 
 ## 4. Infrastructure — fait
 
@@ -109,14 +110,13 @@ Next.js 16, TypeScript strict, Tailwind 4, même langage visuel que les apps (lo
 
 **Backend**
 - [ ] 016 — Brancher le vrai prestataire de paiement (CinetPay, PayDunya, FedaPay ou PayGate) : **bloqué par le choix de l'agrégateur** (ADR 0007).
-- [ ] OTP par WhatsApp puis SMS (après validation Meta).
+- [ ] OTP par WhatsApp puis SMS (après validation Meta) : numéro expéditeur vérifié fourni ; il manque l'identifiant du numéro, l'identifiant du compte WhatsApp Business, le jeton d'accès et un modèle de message « authentification » approuvé.
 
 **Back-office**
 - [ ] Tests navigateur (Playwright) des parcours admin.
 
 **Publicité IVI**
 - [ ] **Renseigner les prix et le stock des 5 produits IVI** dans le back-office (Produits IVI), puis les publier.
-- [ ] App acheteur : carrousel de bannières qui change au hasard, produits IVI qui reviennent dans les listes, fenêtres et interstitiels plafonnés, bouton « Commander maintenant » vers le panier, « Visiter le site officiel », envoi des statistiques.
 
 **Apps mobiles**
 - [ ] Acheteur : écrans de paiement Mobile Money ; commande en livraison ; notifications push.

@@ -128,6 +128,17 @@ class _ProductScreenState extends ConsumerState<ProductScreen> {
           padding: const EdgeInsets.all(IviaSpacing.screen),
           sliver: SliverList.list(
             children: [
+              if (product.badges.isNotEmpty) ...[
+                Wrap(
+                  spacing: IviaSpacing.xs,
+                  runSpacing: IviaSpacing.xs,
+                  children: [
+                    for (final b in product.badges)
+                      IviaPromoBadge(label: b.label),
+                  ],
+                ),
+                const SizedBox(height: IviaSpacing.sm),
+              ],
               Wrap(
                 alignment: WrapAlignment.spaceBetween,
                 spacing: IviaSpacing.md,
@@ -136,9 +147,29 @@ class _ProductScreenState extends ConsumerState<ProductScreen> {
                     header: true,
                     child: Text(product.name, style: textTheme.headlineSmall),
                   ),
-                  Text(
-                    formatXof(product.priceXof),
-                    style: textTheme.headlineSmall,
+                  Wrap(
+                    spacing: IviaSpacing.sm,
+                    crossAxisAlignment: WrapCrossAlignment.end,
+                    children: [
+                      Text(
+                        formatXof(product.effectivePriceXof),
+                        style: textTheme.headlineSmall?.copyWith(
+                          color: product.promoActive
+                              ? IviaColors.primary
+                              : null,
+                        ),
+                      ),
+                      if (product.promoActive)
+                        Text(
+                          formatXof(product.priceXof),
+                          semanticsLabel:
+                              'au lieu de ${formatXof(product.priceXof)}',
+                          style: textTheme.bodyLarge?.copyWith(
+                            decoration: TextDecoration.lineThrough,
+                            color: IviaColors.textMuted,
+                          ),
+                        ),
+                    ],
                   ),
                 ],
               ),
@@ -154,6 +185,24 @@ class _ProductScreenState extends ConsumerState<ProductScreen> {
                   'Déjà $inCart dans votre panier',
                   style: textTheme.bodyMedium,
                 ),
+              if (product.features.isNotEmpty) ...[
+                const SizedBox(height: IviaSpacing.md),
+                for (final f in product.features)
+                  Padding(
+                    padding: const EdgeInsets.only(bottom: IviaSpacing.xs),
+                    child: Row(
+                      children: [
+                        const Icon(
+                          Icons.check_circle,
+                          size: 18,
+                          color: IviaColors.success,
+                        ),
+                        const SizedBox(width: IviaSpacing.sm),
+                        Expanded(child: Text(f, style: textTheme.bodyMedium)),
+                      ],
+                    ),
+                  ),
+              ],
               const SizedBox(height: IviaSpacing.lg),
               _ShopCard(shop: shop),
               if (product.description.isNotEmpty) ...[
@@ -231,7 +280,8 @@ class _ProductScreenState extends ConsumerState<ProductScreen> {
                 _ when full && cap < cartMaxQuantity =>
                   'Tout le stock est au panier',
                 _ when full => '$cartMaxQuantity au plus : déjà au panier',
-                _ => 'Ajouter · ${formatXof(product.priceXof * quantity)}',
+                _ =>
+                  'Ajouter · ${formatXof(product.effectivePriceXof * quantity)}',
               }),
             ),
           ),

@@ -1130,6 +1130,9 @@ class FakeSearch {
               : (p['images'] as List).first['url'],
           'in_stock': _inStock(p),
           'distance_m': d?.round(),
+          'effective_price_xof': p['effective_price_xof'] ?? p['price_xof'],
+          'badges': p['badges'] ?? const <String>[],
+          'featured_rank': p['featured_rank'],
         },
     ]);
   }
@@ -1320,7 +1323,8 @@ class FakeCart {
     final items = <Map<String, dynamic>>[];
     for (final MapEntry(key: id, value: qty) in lines.entries) {
       final p = _product(id)!;
-      final price = p['price_xof'] as int;
+      // Prix facturé : promotion comprise, comme le backend.
+      final price = (p['effective_price_xof'] ?? p['price_xof']) as int;
       final stock = _stock(p);
       final images = p['images'] as List;
       final (issue, issueCode) = p['is_active'] == false || shop == null
@@ -2520,4 +2524,84 @@ class FakeSellerOrders {
     }
     return FakeResponse.json(200, Map<String, dynamic>.of(order));
   }
+}
+
+/// Fil publicitaire en mémoire branché sur un [FakeApiServer] : réglages,
+/// visuels et produits mis en avant modifiables, événements enregistrés.
+class FakePromo {
+  FakePromo(this.server) {
+    server
+      ..on('GET', '/v1/promo/feed', (_) => FakeResponse.json(200, feed))
+      ..on('POST', '/v1/promo/events', (r) {
+        final body = r.body as Map<String, dynamic>;
+        final list = body['events'] as List;
+        events.addAll(list.cast<Map<String, dynamic>>());
+        sessions.add(body['session_id'] as String);
+        return FakeResponse.json(200, {'recorded': list.length});
+      });
+  }
+
+  final FakeApiServer server;
+
+  /// Réglages diffusés (mêmes clés que l'API).
+  final settings = <String, dynamic>{
+    'enabled': true,
+    'banners_enabled': true,
+    'modal_enabled': true,
+    'interstitial_enabled': true,
+    'first_delay_seconds': 0,
+    'min_interval_seconds': 15,
+    'max_per_session': 3,
+    'feed_every': 4,
+    'rotation': 'weighted',
+    'official_url': 'https://www.eaumineraleivi.com',
+  };
+  final visuals = <Map<String, dynamic>>[];
+  final featured = <Map<String, dynamic>>[];
+  final events = <Map<String, dynamic>>[];
+  final sessions = <String>{};
+
+  Map<String, dynamic> get feed => {
+    'settings': settings,
+    'visuals': visuals,
+    'featured': featured,
+  };
+
+  /// Ajoute un visuel ; [product] : produit commandable (corps `Product`).
+  Map<String, dynamic> visual(
+    String title, {
+    List<String> placements = const ['home_hero'],
+    String kind = 'banner',
+    Map<String, dynamic>? product,
+    String externalUrl = 'https://www.eaumineraleivi.com',
+    int priority = 50,
+    int weight = 1,
+  }) {
+    final v = {
+      'id':
+          'b0000000-0000-4000-8000-${(visuals.length + 1).toString().padLeft(12, '0')}',
+      'kind': kind,
+      'title': title,
+      'subtitle': 'Eau minérale naturelle',
+      'body': '',
+      'image_url': 'https://cdn.test/promo/${visuals.length}.jpg',
+      'image_key': 'promo/${visuals.length}.jpg',
+      'product_id': product?['id'],
+      'product': product,
+      'cta_label': product == null ? '' : 'Commander maintenant',
+      'external_url': externalUrl,
+      'placements': placements,
+      'apps': ['buyer'],
+      'priority': priority,
+      'weight': weight,
+      'is_active': true,
+      'live': true,
+    };
+    visuals.add(v);
+    return v;
+  }
+
+  /// Événements d'un type.
+  Iterable<Map<String, dynamic>> of(String kind) =>
+      events.where((e) => e['kind'] == kind);
 }

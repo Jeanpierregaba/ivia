@@ -105,11 +105,19 @@ class IviaProductCard extends StatelessWidget {
     this.soldOut = false,
     this.onAdd,
     this.adding = false,
+    this.oldPrice,
+    this.badge,
   });
 
   final String? imageUrl;
   final String name;
   final String shopName;
+
+  /// Prix normal barré pendant une promotion (déjà mis en forme).
+  final String? oldPrice;
+
+  /// Badge commercial sur la photo (« Promotion », « Produit vedette »).
+  final String? badge;
 
   /// Distance déjà mise en forme (« 350 m ») ; `null` : inconnue.
   final String? distance;
@@ -150,7 +158,9 @@ class IviaProductCard extends StatelessWidget {
     final textTheme = Theme.of(context).textTheme;
     final spoken = [
       name,
+      ?badge,
       price,
+      if (oldPrice case final old?) 'au lieu de $old',
       shopName,
       ?distance,
       if (soldOut) 'épuisé',
@@ -173,7 +183,18 @@ class IviaProductCard extends StatelessWidget {
               children: [
                 AspectRatio(
                   aspectRatio: 1.3,
-                  child: IviaNetworkImage(url: imageUrl),
+                  child: Stack(
+                    fit: StackFit.expand,
+                    children: [
+                      IviaNetworkImage(url: imageUrl),
+                      if (badge case final b?)
+                        Positioned(
+                          left: IviaSpacing.xs,
+                          bottom: IviaSpacing.xs,
+                          child: IviaPromoBadge(label: b),
+                        ),
+                    ],
+                  ),
                 ),
                 Padding(
                   padding: const EdgeInsets.fromLTRB(
@@ -213,11 +234,28 @@ class IviaProductCard extends StatelessWidget {
                         style: textTheme.bodySmall,
                       ),
                       const SizedBox(height: IviaSpacing.xs),
-                      Text(
-                        price,
-                        style: textTheme.titleMedium?.copyWith(
-                          fontWeight: FontWeight.w700,
-                        ),
+                      Wrap(
+                        spacing: IviaSpacing.xs,
+                        crossAxisAlignment: WrapCrossAlignment.end,
+                        children: [
+                          Text(
+                            price,
+                            style: textTheme.titleMedium?.copyWith(
+                              fontWeight: FontWeight.w700,
+                              color: oldPrice == null
+                                  ? null
+                                  : IviaColors.imperialRed,
+                            ),
+                          ),
+                          if (oldPrice case final old?)
+                            Text(
+                              old,
+                              style: textTheme.bodySmall?.copyWith(
+                                decoration: TextDecoration.lineThrough,
+                                color: IviaColors.textMuted,
+                              ),
+                            ),
+                        ],
                       ),
                       if (soldOut)
                         Text(
@@ -361,6 +399,33 @@ class _IviaPhotoCarouselState extends State<IviaPhotoCarousel> {
               ),
             ),
         ],
+      ),
+    );
+  }
+}
+
+/// Pastille commerciale (« Promotion », « Produit vedette ») : Imperial Red,
+/// texte blanc, sur une photo ou au-dessus d'un titre.
+class IviaPromoBadge extends StatelessWidget {
+  const IviaPromoBadge({super.key, required this.label});
+
+  final String label;
+
+  @override
+  Widget build(BuildContext context) {
+    return Container(
+      padding: const EdgeInsets.symmetric(
+        horizontal: IviaSpacing.sm,
+        vertical: 2,
+      ),
+      decoration: BoxDecoration(
+        color: IviaColors.imperialRed,
+        borderRadius: BorderRadius.circular(IviaRadius.pill),
+      ),
+      child: Text(
+        label,
+        style: Theme.of(context).textTheme.labelSmall
+            ?.copyWith(color: Colors.white, fontWeight: FontWeight.w700),
       ),
     );
   }
