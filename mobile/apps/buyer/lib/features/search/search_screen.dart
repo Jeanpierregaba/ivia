@@ -12,6 +12,7 @@ import '../../app/catalog_data.dart';
 import '../../app/router.dart';
 import '../home/area_sheet.dart';
 import '../promo/promo_state.dart';
+import '../promo/promo_widgets.dart';
 import 'product_grid.dart';
 import 'search_results.dart';
 import 'search_sheets.dart';
@@ -270,10 +271,19 @@ class _SearchScreenState extends ConsumerState<SearchScreen> {
                 query: query,
                 // Navigation sans texte : les produits mis en avant
                 // reviennent dans la liste (recherche précise : intacte).
-                builder: (items) => ProductGridSliver(
-                  items: filters.text.isEmpty
-                      ? withFeatured(ref, items)
-                      : items,
+                builder: (items) => SliverMainAxisGroup(
+                  slivers: [
+                    const SliverToBoxAdapter(
+                      child: PromoInlineBanner(
+                        placement: PromoPlacement.catalogFeed,
+                      ),
+                    ),
+                    ProductGridSliver(
+                      items: filters.text.isEmpty
+                          ? withFeatured(ref, items)
+                          : items,
+                    ),
+                  ],
                 ),
                 emptyText: filters.text.isEmpty
                     ? 'Aucun produit autour de vous pour l’instant.'

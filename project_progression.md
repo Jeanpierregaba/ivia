@@ -61,8 +61,9 @@ Go 1.27, PostgreSQL 18 + PostGIS, tâches de fond River, 26 migrations, document
 - Statistiques : affichages, clics, fermetures, clics vers le site officiel, commandes après clic, conversion, ventes payées par produit promu. Événements anonymes (aucune donnée personnelle), limités par adresse IP.
 
 **Jeu de démonstration** (`manage seed-demo`, local uniquement, relançable sans doublon)
-- 10 boutiques dans 10 quartiers (marché, épicerie, boulangerie, jus, plats, couture, beauté, maison, électronique, IVI), 64 produits dont 59 avec de vraies photos sous licence libre (crédits conservés), sous-catégories, promotions.
-- Boutique officielle IVI : AWU IVI 1,5 L, 0,5 L, 0,33 L, paquet 30 sachets, bonbonne, avec les photos de la marque ; **prix à renseigner par l'admin** (non inventés), déjà mis en avant ; 6 visuels IVI en diffusion.
+- Catalogue haut de gamme : 10 boutiques dans 10 quartiers (concept store, maroquinerie, couture wax de cérémonie, parfums et beauté, pâtisserie fine, épicerie fine, bar à smoothies, high-tech, décoration, sneakers), 52 produits avec 91 vraies photos sous licence libre **embarquées dans le dépôt** (aucune connexion nécessaire, crédits conservés), sous-catégories, promotions et badges. Les boutiques de la première version (marché, épicerie de base…) sont suspendues à la relance.
+- Boutique officielle IVI : AWU IVI 1,5 L, 0,5 L, 0,33 L, paquet 30 sachets, bonbonne, avec les photos de la marque, **en vente et en tête de toutes les listes**, promotions (1,5 L à 400 F, paquet à 650 F, bonbonne à 2 500 F). Ce sont des **prix de démonstration** à remplacer par les vrais dans Produits IVI.
+- 7 visuels IVI : carrousel d'accueil (toutes les bannières), bannières glissées dans l'accueil, la recherche et chaque boutique, fenêtres, interstitiels plein écran, bienvenue à l'ouverture. Diffusion insistante : première fenêtre après 8 s, puis toutes les 40 s, jusqu'à 10 par session ; un produit IVI toutes les 4 cartes.
 - 12 acheteurs avec adresses, 10 livreurs (en ligne, hors ligne, dossier à valider), 27 commandes couvrant tous les statuts, paniers en cours. Mot de passe commun des comptes de démo : `ivia-demo-2026`.
 
 **Secrets** : jamais dans Git (détection gitleaks en CI, historique vérifié sain) ; en production, un fichier par secret (droits 400, lisible par root et le conteneur seulement), jamais en variable d'environnement ; démarrage refusé avec un secret faible ou mal protégé ; aucun secret dans les journaux ; sauvegardes chiffrées.
@@ -116,7 +117,7 @@ Next.js 16, TypeScript strict, Tailwind 4, même langage visuel que les apps (lo
 - [ ] Tests navigateur (Playwright) des parcours admin.
 
 **Publicité IVI**
-- [ ] **Renseigner les prix et le stock des 5 produits IVI** dans le back-office (Produits IVI), puis les publier.
+- [ ] **Remplacer les prix de démonstration des 5 produits IVI** par les vrais prix (back-office, Produits IVI).
 
 **Apps mobiles**
 - [ ] Acheteur : écrans de paiement Mobile Money ; commande en livraison ; notifications push.
@@ -141,4 +142,8 @@ Next.js 16, TypeScript strict, Tailwind 4, même langage visuel que les apps (lo
 | Back-office           | http://localhost:3000 (compte `admin@ivia.local`) |
 | E-mails reçus (Mailpit) | http://localhost:8025       |
 
-Jeu de démonstration : `go run ./cmd/manage seed-demo` depuis `backend/` (PostgreSQL lancé ; photos téléchargées une fois puis en cache).
+**Voir le jeu de démonstration sur un autre poste (ex. chez Jean-Pierre)** — les données ne voyagent pas avec Git, chaque base locale doit être remplie :
+1. `git pull` sur `develop` ;
+2. PostgreSQL lancé (`POSTGRES_PORT=5434 docker compose up -d`) ;
+3. depuis `backend/` : `go run ./cmd/manage seed-demo` (local uniquement ; 2 à 3 minutes ; relançable) ;
+4. redémarrer l'API, puis relancer l'app acheteur sur l'émulateur.

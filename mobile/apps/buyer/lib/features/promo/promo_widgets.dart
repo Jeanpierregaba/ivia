@@ -315,3 +315,64 @@ class FeaturedProductsStrip extends ConsumerWidget {
     );
   }
 }
+
+/// Bannière glissée dans une liste (accueil, recherche, boutique) : un visuel
+/// de l'emplacement tiré au hasard à chaque affichage de l'écran (à défaut,
+/// un visuel du carrousel), pour que la marque revienne pendant la
+/// navigation.
+class PromoInlineBanner extends ConsumerStatefulWidget {
+  const PromoInlineBanner({super.key, required this.placement});
+
+  final PromoPlacement placement;
+
+  @override
+  ConsumerState<PromoInlineBanner> createState() => _PromoInlineBannerState();
+}
+
+class _PromoInlineBannerState extends ConsumerState<PromoInlineBanner> {
+  PromoVisual? _visual;
+
+  @override
+  Widget build(BuildContext context) {
+    final feed = ref.watch(promoFeedProvider).value;
+    if (feed == null ||
+        !feed.settings.enabled ||
+        !feed.settings.bannersEnabled) {
+      return const SizedBox.shrink();
+    }
+    if (_visual == null) {
+      var pool = feed.at(widget.placement);
+      if (pool.isEmpty) pool = feed.at(PromoPlacement.homeHero);
+      _visual = pickVisual(
+        pool,
+        PromoRotation.random,
+        ref.read(promoRandomProvider),
+      );
+      if (_visual case final v?) {
+        WidgetsBinding.instance.addPostFrameCallback((_) {
+          if (mounted) {
+            ref
+                .read(promoTrackerProvider)
+                .track('impression', visual: v, placement: widget.placement);
+          }
+        });
+      }
+    }
+    final v = _visual;
+    if (v == null) return const SizedBox.shrink();
+    return Padding(
+      padding: const EdgeInsets.symmetric(
+        horizontal: IviaSpacing.screen,
+        vertical: IviaSpacing.lg,
+      ),
+      child: AspectRatio(
+        aspectRatio: 16 / 9,
+        child: PromoBanner(
+          visual: v,
+          settings: feed.settings,
+          placement: widget.placement,
+        ),
+      ),
+    );
+  }
+}

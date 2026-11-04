@@ -154,8 +154,8 @@ func (a *App) SeedDev(ctx context.Context) (SeedSummary, error) {
 			return sum, errors.New("aucune catégorie de boutique active")
 		}
 		shop, err := a.Shops.Create(ctx, seller.ID, shops.Input{
-			Name: "Boutique Afi", Description: "Épicerie et produits du quotidien.", Phone: "+22890000101",
-			AddressText: "Rue du marché, Bè", NeighborhoodID: &bè.ID, Location: geo.Point{Lat: 6.1430, Lng: 1.2370},
+			Name: "Concept store Afi", Description: "Maroquinerie et accessoires de créateurs, pièces choisies une à une.",
+			Phone: "+22890000101", AddressText: "Rue des artisans, Bè", NeighborhoodID: &bè.ID, Location: geo.Point{Lat: 6.1430, Lng: 1.2370},
 			CategoryID: &shopCats[0].ID,
 		})
 		if err != nil {
@@ -177,17 +177,7 @@ func (a *App) SeedDev(ctx context.Context) (SeedSummary, error) {
 			return sum, fmt.Errorf("validation de la boutique : %w", err)
 		}
 		sum.ShopID = shop.ID
-		qty := int32(25)
-		products := []catalog.ProductInput{
-			{CategoryID: catIDs["Alimentation"], Name: "Riz parfumé 5 kg", Description: "Sac de riz long grain.", PriceXOF: 4500, ParcelSize: catalog.ParcelMedium, StockMode: catalog.StockTracked, StockQuantity: &qty},
-			{CategoryID: catIDs["Boissons"], Name: "Jus de bissap 1 L", Description: "Fait maison.", PriceXOF: 800, ParcelSize: catalog.ParcelSmall, StockMode: catalog.StockUntracked},
-			{CategoryID: catIDs["Maison"], Name: "Ventilateur sur pied", Description: "40 cm, 3 vitesses.", PriceXOF: 18000, ParcelSize: catalog.ParcelLarge, StockMode: catalog.StockTracked, StockQuantity: &qty},
-		}
-		for _, p := range products {
-			if _, err := a.Catalog.Create(ctx, seller.ID, shop.ID, p); err != nil {
-				return sum, fmt.Errorf("produit %s : %w", p.Name, err)
-			}
-		}
+		// Produits photographiés ajoutés par seed-demo (catalogue « Concept store Afi »).
 	}
 
 	buyer, err := profile(sum.BuyerEmail, "Kossi", "+22890000102")

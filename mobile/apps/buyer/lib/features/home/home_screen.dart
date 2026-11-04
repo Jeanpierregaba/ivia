@@ -181,6 +181,7 @@ class _HomeScreenState extends ConsumerState<HomeScreen> {
               ),
               const SizedBox(height: IviaSpacing.md),
               _ShopsSection(),
+              const PromoInlineBanner(placement: PromoPlacement.homeFeed),
               const SizedBox(height: IviaSpacing.xxl),
               _pad(
                 _SectionTitle(

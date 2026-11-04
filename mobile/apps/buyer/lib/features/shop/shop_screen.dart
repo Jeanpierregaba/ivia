@@ -12,6 +12,7 @@ import '../../app/cart.dart';
 import '../../app/router.dart';
 import '../cart/cart_actions.dart';
 import '../common/unavailable_view.dart';
+import '../promo/promo_widgets.dart';
 import '../cart/cart_button.dart';
 import '../search/search_results.dart';
 import '../search/search_screen.dart' show searchDelay;
@@ -91,6 +92,11 @@ class _ShopScreenState extends ConsumerState<ShopScreen> {
                       ),
                       const SizedBox(height: IviaSpacing.lg),
                     ],
+                  ),
+                ),
+                const SliverToBoxAdapter(
+                  child: PromoInlineBanner(
+                    placement: PromoPlacement.catalogFeed,
                   ),
                 ),
                 ..._products(ref.watch(productResultsProvider(query)), query),
