@@ -5,7 +5,7 @@
 - [x] 1. `api_client` : modèles (`AuthProviders`, `SessionInfo`) et routes (`authProviders`,
       `sessionInfo`, `login`, `requestSignupCode`, `signup`, `requestPasswordReset`,
       `resetPassword`, `signInWithGoogle`, `changePassword`) ; tests du client.
-- [ ] 2. Tests du faux serveur `FakeAuth` écrits d'abord (sous-agent test-writer, partie
+- [x] 2. Tests du faux serveur `FakeAuth` écrits d'abord (sous-agent test-writer, partie
       critique) et vus en échec.
 - [ ] 3. `FakeAuth` fidèle au module `auth` : tests de la tâche 2 au vert.
 - [ ] 4. `app_core` : `PasswordField`, `GoogleAuth` (interface, `google_sign_in` 7.2.0, faux),
