@@ -15,4 +15,4 @@
 - [x] 5. Vérification sur le simulateur contre l'API locale (annulation avant et après paiement,
       commande retirée des « Nouvelles » côté marchand).
 - [x] Vérifier tous les critères d'acceptation de spec.md
-- [ ] Relecture par le sous-agent reviewer (lancée le 2026-11-03, interrompue par la limite d'usage : à reprendre)
+- [x] Relecture par le sous-agent reviewer (2026-11-04) ; retours corrigés

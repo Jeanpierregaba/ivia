@@ -851,6 +851,68 @@ void main() {
       expect(cancelButton(), findsNothing);
     });
 
+    testWidgets('refusée par la boutique pendant la confirmation', (
+      tester,
+    ) async {
+      final order = await seed(status: 'awaiting_seller');
+      await openOrder(tester, order);
+      await askCancel(tester);
+      app.orders.advance(order, 'cancelled', reason: 'Boutique fermée');
+      await tester.tap(confirm());
+      await tester.pumpAndSettle();
+      expect(find.text('Cette commande est déjà annulée.'), findsOneWidget);
+      expect(find.textContaining('La boutique a déjà accepté'), findsNothing);
+      expect(cancelButton(), findsNothing);
+    });
+
+    testWidgets(
+      'payée entre deux relectures : feuille rouverte avec le montant',
+      (tester) async {
+        final order = await seed();
+        await openOrder(tester, order);
+        // Payée côté serveur, le suivi affiche encore « à payer ».
+        app.orders.advance(order, 'awaiting_seller');
+        await askCancel(tester);
+        expect(find.text('Vos produits seront libérés.'), findsOneWidget);
+        await tester.tap(confirm());
+        await tester.pumpAndSettle();
+        expect(cancels(order), isEmpty);
+        expect(
+          textPlain(
+            'Vous serez remboursé de 10 500 F sur votre compte Mobile Money.',
+          ),
+          findsOneWidget,
+        );
+        await tester.tap(confirm());
+        await tester.pumpAndSettle();
+        expect(cancels(order), hasLength(1));
+      },
+    );
+
+    testWidgets(
+      'suivi quitté pendant l\'envoi, liste jamais ouverte : à jour',
+      (tester) async {
+        final order = await seed(status: 'awaiting_seller');
+        await openOrder(tester, order);
+        final release = Completer<void>();
+        app.orders.beforeRequest = (r) async {
+          if (r.path.endsWith('/cancel')) await release.future;
+        };
+        await askCancel(tester);
+        await tester.tap(confirm());
+        await tester.pump(const Duration(milliseconds: 300));
+        await tester.tap(find.byTooltip('Retour'));
+        await tester.pumpAndSettle();
+        await tester.tap(find.byIcon(Icons.receipt_long_outlined));
+        await tester.pumpAndSettle();
+        release.complete();
+        await tester.pumpAndSettle();
+        await tester.tap(find.text('Terminées'));
+        await tester.pumpAndSettle();
+        expect(find.text('Annulée'), findsOneWidget);
+      },
+    );
+
     testWidgets('réseau coupé : message, rien ne change ; nouvel essai', (
       tester,
     ) async {
@@ -862,6 +924,7 @@ void main() {
       await tester.pumpAndSettle();
       expect(find.text('Pas de connexion. Réessayez.'), findsOneWidget);
       expect(cancelButton(), findsOneWidget);
+      expect(order['status'], 'awaiting_seller');
       await askCancel(tester);
       await tester.tap(confirm());
       await tester.pumpAndSettle();

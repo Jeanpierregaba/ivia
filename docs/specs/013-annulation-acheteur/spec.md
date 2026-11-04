@@ -58,8 +58,10 @@ annulée quitte « Nouvelles » à la relecture suivante ([011](../011-commandes
       commande apparaît dans « Terminées ».
 - [x] Avec une demande de paiement en attente, l'app annule d'abord la demande, puis la
       commande, dans cet ordre.
-- [x] `cannot_cancel` : suivi relu, bouton retiré ; message du serveur, sauf commande expirée :
-      « Cette commande a expiré : vos produits sont déjà libérés. ».
+- [x] `cannot_cancel` (ou `invalid_transition`) : suivi relu, bouton retiré ; message selon le
+      vrai statut : expirée « Cette commande a expiré : vos produits sont déjà libérés. », déjà
+      annulée (refus ou délai de la boutique) « Cette commande est déjà annulée. », sinon message
+      du serveur.
 - [x] `payment_not_cancellable` : commande relue ; si elle est payée et toujours annulable, la
       feuille se rouvre avec le montant remboursé, sinon message et bouton retiré.
 - [x] Réseau coupé : « Pas de connexion. Réessayez. », rien ne change ; un nouvel essai
@@ -78,6 +80,11 @@ annulée quitte « Nouvelles » à la relecture suivante ([011](../011-commandes
 - **Paiement arrivé après l'annulation** (l'acheteur valide sur son téléphone malgré tout) : le
   serveur place la commande dans la file de remboursement ; le suivi reste « Annulée » et annonce
   le remboursement dès qu'il voit la commande payée.
+- **Payée entre deux relectures** (le suivi affiche encore « à payer ») : la commande est relue
+  avant l'envoi ; payée, la feuille se rouvre avec le montant remboursé.
+- **Réseau coupé entre l'annulation de la demande de paiement et celle de la commande** : la
+  demande est annulée, pas la commande ; un nouvel essai annule la commande, « Payer » crée une
+  nouvelle demande.
 - **Double appui** sur « Annuler la commande » : une seule requête (bouton désactivé pendant
   l'envoi).
 - **Retour arrière pendant l'envoi** : la requête aboutit quand même ; la liste montre la commande

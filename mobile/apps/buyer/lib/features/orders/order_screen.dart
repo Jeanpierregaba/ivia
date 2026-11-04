@@ -114,14 +114,94 @@ class _OrderScreenState extends ConsumerState<OrderScreen> {
   /// Annulation en cours d'envoi : bouton désactivé (une seule requête).
   var _cancelling = false;
 
-  /// Annule la demande de paiement en attente de [order], s'il y en a une.
-  /// Renvoie la commande relue si le paiement a été validé entre-temps
-  /// (`payment_not_cancellable`), `null` sinon.
-  Future<BuyerOrder?> _cancelPendingPayment(
+  /// Message d'un refus d'annulation selon le vrai statut de la commande
+  /// relue : le serveur répond « La boutique a déjà accepté… » même quand
+  /// elle est expirée ou déjà annulée.
+  static String _refusal(BuyerOrder? seen, String serverMessage) =>
+      switch (seen?.status) {
+        OrderStatus.expired =>
+          'Cette commande a expiré : vos produits sont déjà libérés.',
+        OrderStatus.cancelled ||
+        OrderStatus.refunded => 'Cette commande est déjà annulée.',
+        _ => serverMessage,
+      };
+
+  /// « Annuler la commande » : confirmation, puis demande de paiement en
+  /// attente annulée d'abord, puis la commande. Toute commande rendue par le
+  /// serveur (annulée ou relue) est reportée dans le suivi et dans la liste,
+  /// même si l'écran est quitté pendant l'envoi.
+  Future<void> _cancel(BuyerOrder order) async {
+    if (_cancelling) return;
+    if (!await showCancelSheet(context, order) || !mounted) return;
+    final messenger = ScaffoldMessenger.of(context);
+    final client = ref.read(apiClientProvider);
+    final controller = ref.read(orderProvider(widget.orderId).notifier);
+    // Conteneur lu avant l'envoi : la liste, même chargée entre-temps,
+    // reçoit le résultat.
+    final container = ProviderScope.containerOf(context, listen: false);
+    void publish(BuyerOrder o) {
+      if (container.exists(myOrdersProvider)) {
+        container.read(myOrdersProvider.notifier).put(o);
+      }
+      controller.set(o);
+    }
+
+    setState(() => _cancelling = true);
+    BuyerOrder? again;
+    try {
+      // Affichée non payée : relue d'abord (payée entre deux relectures, ou
+      // demande en attente validée pendant l'annulation de la demande).
+      // Payée et toujours annulable : l'acheteur confirme de nouveau, en
+      // voyant le montant remboursé.
+      final changed = await _beforeCancel(client, order);
+      if (changed != null) {
+        publish(changed);
+        if (canCancel(changed)) {
+          again = changed;
+        } else {
+          showMessage(messenger, _refusal(changed, 'Commande déjà traitée.'));
+        }
+      } else {
+        final cancelled = await client.cancelOrder(order.id);
+        publish(cancelled);
+        showMessage(messenger, 'Commande annulée.');
+      }
+    } on ApiException catch (e) {
+      if (e.isNetwork) {
+        showMessage(messenger, 'Pas de connexion. Réessayez.');
+      } else if (e.code == 'cannot_cancel' || e.code == 'invalid_transition') {
+        // Commande relue : son vrai statut, bouton retiré, message juste.
+        BuyerOrder? seen;
+        try {
+          seen = await client.myOrder(order.id);
+          publish(seen);
+        } on Exception {
+          // Message du serveur seul.
+        }
+        showMessage(messenger, _refusal(seen, e.message));
+      } else {
+        showMessage(messenger, e.message);
+      }
+    } on Exception {
+      showMessage(messenger, 'Une erreur est survenue. Réessayez.');
+    } finally {
+      if (mounted) setState(() => _cancelling = false);
+    }
+    if (again != null && mounted) await _cancel(again);
+  }
+
+  /// Avant d'annuler une commande affichée non payée : la relit et annule
+  /// sa demande de paiement en attente. Renvoie la commande relue si elle a
+  /// changé (payée, ou plus annulable), `null` si l'annulation peut partir.
+  Future<BuyerOrder?> _beforeCancel(
     IviaApiClient client,
     BuyerOrder order,
   ) async {
     if (order.status != OrderStatus.pendingPayment) return null;
+    final fresh = await client.myOrder(order.id);
+    if (fresh.paidAt != null || fresh.status != OrderStatus.pendingPayment) {
+      return fresh;
+    }
     final payments = await client.orderPayments(order.id);
     final pending = payments.where((p) => p.status.isPending).firstOrNull;
     if (pending == null) return null;
@@ -132,71 +212,6 @@ class _OrderScreenState extends ConsumerState<OrderScreen> {
       if (e.code != 'payment_not_cancellable') rethrow;
       return client.myOrder(order.id);
     }
-  }
-
-  /// « Annuler la commande » : confirmation, puis demande de paiement en
-  /// attente annulée d'abord, puis la commande. Le résultat est reporté
-  /// (suivi et liste) même si l'écran est quitté pendant l'envoi.
-  Future<void> _cancel(BuyerOrder order) async {
-    if (_cancelling) return;
-    if (!await showCancelSheet(context, order) || !mounted) return;
-    final messenger = ScaffoldMessenger.of(context);
-    final client = ref.read(apiClientProvider);
-    final controller = ref.read(orderProvider(widget.orderId).notifier);
-    // Liste lue avant l'envoi : mise à jour même si le suivi est quitté.
-    final list = ref.exists(myOrdersProvider)
-        ? ref.read(myOrdersProvider.notifier)
-        : null;
-    setState(() => _cancelling = true);
-    BuyerOrder? again;
-    try {
-      // Demande de paiement en attente : annulée d'abord. Validée entre-temps
-      // (payée) : la commande, payée, reste annulable avec remboursement et
-      // l'acheteur confirme de nouveau.
-      final paidMeanwhile = await _cancelPendingPayment(client, order);
-      if (paidMeanwhile != null) {
-        controller.set(paidMeanwhile);
-        if (canCancel(paidMeanwhile)) {
-          again = paidMeanwhile;
-        } else {
-          showMessage(
-            messenger,
-            'Ce paiement est déjà confirmé : il ne peut plus être annulé.',
-          );
-        }
-      } else {
-        final cancelled = await client.cancelOrder(order.id);
-        list?.put(cancelled);
-        controller.set(cancelled);
-        showMessage(messenger, 'Commande annulée.');
-      }
-    } on ApiException catch (e) {
-      if (e.isNetwork) {
-        showMessage(messenger, 'Pas de connexion. Réessayez.');
-      } else if (e.code == 'cannot_cancel') {
-        // Commande relue : son vrai statut, bouton retiré.
-        BuyerOrder? seen;
-        try {
-          seen = await client.myOrder(order.id);
-          controller.set(seen);
-        } on Exception {
-          // Message du serveur seul.
-        }
-        showMessage(
-          messenger,
-          seen?.status == OrderStatus.expired
-              ? 'Cette commande a expiré : vos produits sont déjà libérés.'
-              : e.message,
-        );
-      } else {
-        showMessage(messenger, e.message);
-      }
-    } on Exception {
-      showMessage(messenger, 'Une erreur est survenue. Réessayez.');
-    } finally {
-      if (mounted) setState(() => _cancelling = false);
-    }
-    if (again != null && mounted) await _cancel(again);
   }
 
   /// Ouverture du paiement en cours (lecture des demandes de la commande).
@@ -291,12 +306,12 @@ class _OrderScreenState extends ConsumerState<OrderScreen> {
                 ),
                 const SizedBox(height: IviaSpacing.sm),
                 for (final item in order.items)
-                  AmountRow(
+                  IviaAmountRow(
                     label: '${item.quantity} × ${item.name}',
                     amount: formatXof(item.lineTotalXof),
                   ),
                 const Divider(height: IviaSpacing.xl),
-                AmountRow(
+                IviaAmountRow(
                   label: 'Total',
                   amount: formatXof(order.totalXof),
                   strong: true,
@@ -309,6 +324,7 @@ class _OrderScreenState extends ConsumerState<OrderScreen> {
             OutlinedButton(
               style: OutlinedButton.styleFrom(
                 foregroundColor: IviaColors.error,
+                side: const BorderSide(color: IviaColors.error),
               ),
               onPressed: _cancelling ? null : () => _cancel(order),
               child: _cancelling

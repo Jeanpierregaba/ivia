@@ -8,7 +8,6 @@ docs/specs/NNN-nom/tasks.md. Les petites tâches isolées (bug, retouche) peuven
 
 ## En cours
 
-- [ ] 013 — Annulation d'une commande par l'acheteur ([spec](docs/specs/013-annulation-acheteur/spec.md)) : faite, testée et vérifiée sur simulateur ; reste la relecture par le sous-agent reviewer (interrompue le 2026-11-03 par la limite d'usage), puis passage dans « Terminé »
 - [ ] **ADR 0011 — connexion par mot de passe** (2026-11-03) : backend fait (création de compte par code puis mot de passe, connexion, verrou après 10 échecs, mot de passe oublié, changement de mot de passe, Google, double vérification des admins, migration 00024, tests). Back-office fait (maquettes B01, B02, B03 : mot de passe puis code, tableau de bord dynamique). Reste : apps mobiles (écrans « Créer un compte », « Se connecter », « Mot de passe oublié », bouton Google affiché si `GET /v1/auth/providers` le dit) ; identifiants Google OAuth à fournir par le porteur du projet ; puis suppression de l'ancienne connexion par code
 - [ ] 018 — Espace livreur : lancement, connexion, dossier de candidature ([spec](docs/specs/018-espace-livreur/spec.md)) : relu et corrigé ; appareil photo à vérifier sur un vrai téléphone
 - [ ] 004 — Espace marchand : lancement, connexion, création de la boutique ([spec](docs/specs/004-espace-marchand/spec.md)) : relu et corrigé ; reste les clés Google Maps (vérification de la carte)
@@ -51,7 +50,7 @@ version « retrait seulement » (voir `docs/PRD.md`).
 - [x] 010 — Écrans de paiement (attente de validation sur le téléphone, interrogation du statut) : faits (voir « Terminé »)
 - [x] 011 — Marchand : acceptation / refus sous 15 min, préparation, remise par code : écrans marchand faits (voir « Terminé »)
 - [ ] 012 — Notifications push (`firebase_messaging`, enregistrement `PUT /v1/me/devices`) et liste ; dont la notification de validation promise par les écrans d'attente (boutique, dossier livreur)
-- [ ] 013 — Suivi de commande et annulation par l'acheteur : suivi fait (009), annulation faite, relecture à reprendre ([spec](docs/specs/013-annulation-acheteur/spec.md))
+- [x] 013 — Suivi de commande et annulation par l'acheteur : suivi fait (009), annulation faite (voir « Terminé »)
 - [x] 014 — Back-office : supervision des paiements (liste filtrée, doublons, revérification, remboursement d'un doublon), commandes, actions admin et file de remboursement (2026-11-02)
 - [x] 015 — Back-office : référentiels (catégories de produits et de boutique, quartiers), comptes et droits admin, paramètres (2026-11-02)
 - [ ] 016 — **Backend** : intégrer le vrai prestataire de paiement derrière `payments.Provider` (dépend de l'ADR 0007 accepté) ; tester ses webhooks réels en staging
@@ -88,6 +87,7 @@ version « retrait seulement » (voir `docs/PRD.md`).
 - [ ] Boutiques et livreurs pilotes pour les tests terrain
 
 ## Terminé
+- [x] 013 — Annulation par l'acheteur ([spec](docs/specs/013-annulation-acheteur/spec.md), 2026-11-04) : « Annuler la commande » sur le suivi tant que la boutique n'a pas accepté ; feuille avec « Vos produits seront libérés. » ou le montant remboursé ; demande de paiement en attente annulée d'abord ; payée entre-temps : feuille rouverte avec le montant ; refus avec un message selon le vrai statut ; liste à jour même si le suivi est quitté ; `IviaAmountRow` commun (montants sans débordement) ; vérifié sur simulateur contre l'API locale
 - [x] 011 — Commandes du marchand ([spec](docs/specs/011-commandes-marchand/spec.md), 2026-11-03) : Accueil (nouvelles à accepter avec le temps restant, en cours) ; onglet Commandes (Nouvelles / En cours / Terminées, comptes à rebours, « Afficher plus ») ; détail (articles, stock non suivi, net « Vous recevez », accepter / refuser avec motif / préparer / prête) ; remise par le code de l'acheteur (essais restants, blocage au 5e) ; nouvelles relues toutes les 30 s app ouverte, pastille de l'onglet ; `IviaCountdown`, pastille d'onglet, libellés et `showMessage` communs ; vérifié sur simulateur contre l'API locale
 - [x] 008 suite — Panier de l'acheteur (2026-11-02) : `issue_code` et `stock_left` des lignes lus (`CartItem.issueCode`, `stockLeft`) au lieu d'analyser le texte de `issue`, affiché tel quel ; faux serveur mobile à jour
 - [x] 028 — Pièces du marchand ([spec](docs/specs/028-pieces-marchand/spec.md), 2026-11-02) : « Vérifions votre identité » après la création de la boutique (pièce d'identité obligatoire, RCCM facultatif, en photo, URL signée privée puis rattachement, nouvel essai sans doublon) ; étape « Pièce d'identité » et « Ajouter ma pièce d'identité » sur l'écran en attente ; ligne de document partagée avec le livreur (`DocumentPhotoRow` dans `app_core`) ; « 004 bis » demandé par Gedeon

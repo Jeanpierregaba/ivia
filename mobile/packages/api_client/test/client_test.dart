@@ -1805,6 +1805,21 @@ void main() {
       );
     });
 
+    test('commande d\'un autre compte : 404', () async {
+      final order = orders.seed(afi, [(riz, 1)]);
+      // Vue d'abord par un autre compte.
+      final other = IviaApiClient(
+        config: ApiConfig(baseUrl: Uri.parse('http://api.test')),
+        adapter: server,
+      )..token = 'autre-jeton';
+      await other.myOrder(order['id'] as String);
+      await expectLater(
+        client.cancelOrder(order['id'] as String),
+        apiError('order_not_found'),
+      );
+      expect(order['status'], 'pending_payment');
+    });
+
     test('paiement abouti après l\'annulation : payée, à rembourser', () async {
       final order = orders.seed(afi, [(riz, 1)])
         ..['payment_deadline_at'] = DateTime.now()

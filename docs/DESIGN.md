@@ -48,7 +48,9 @@ les images de splash des apps sont tirés de `logo-carre.png` : à remplacer par
   `IviaBackButton`, `IviaFieldLabel`, `IviaInfoCard`, `IviaPill`, `IviaImagePlaceholder`),
   `code_input.dart` (`IviaCodeInput`), `loading_splash.dart` (`IviaLoadingSplash`, logotype ou
   tuile), `step_list.dart` (`IviaStepList`), `illustration.dart` (`IllustrationCard`, `Tilted`,
-  `MosaicTile`, `CheckPill` : briques des illustrations), `countdown.dart` (`IviaCountdown` :
+  `MosaicTile`, `CheckPill` : briques des illustrations), `amount_row.dart` (`IviaAmountRow` :
+  « libellé … montant », montant sous le libellé si ce dernier garde moins de 40 % de la
+  largeur), `countdown.dart` (`IviaCountdown` :
   « 12:40 » relu chaque seconde sur l'heure du serveur, warning puis error sous 3 min, « Délai
   dépassé », lu à la minute près), `navigation.dart` (`IviaBottomNav`, pastille d'onglet
   `IviaNavItem.badge` en Cornell, « 9+ » au-delà de 9, lue « Commandes, 2 nouvelles »). Champs
@@ -258,8 +260,8 @@ Maquettes : à venir (lien Figma à ajouter ici). Les statuts affichés suivent
   une fois retirée, blanc pour une fin anormale ; « À payer avant 14:32 » et « Payer » en attente de
   paiement ; **code de remise** en très grand (`IviaHandoverCode` : 4 cases blanches, chiffres
   Cornell, lu chiffre par chiffre) ; carte de la boutique ; frise (`IviaTimeline`) des statuts
-  horodatés, étapes à venir en gris ; articles et total (avec une police très agrandie, montant
-  sous le libellé). **Annulation** ([spec 013](specs/013-annulation-acheteur/spec.md)) tant que la
+  horodatés, étapes à venir en gris ; articles et total (`IviaAmountRow` : montant à droite,
+  ou sous le libellé quand la place manque). **Annulation** ([spec 013](specs/013-annulation-acheteur/spec.md)) tant que la
   boutique n'a pas accepté : bouton contour Cornell « Annuler la commande » en bas du suivi ;
   feuille « Annuler la commande #1042 ? » (« Vos produits seront libérés. » ou « Vous serez
   remboursé de 10 500 F sur votre compte Mobile Money. »), « Annuler la commande » plein Cornell,

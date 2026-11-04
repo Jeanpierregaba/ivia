@@ -440,7 +440,7 @@ class _Items extends StatelessWidget {
           Text(articles(order.articleCount), style: textTheme.titleSmall),
           const SizedBox(height: IviaSpacing.sm),
           for (final item in order.items) ...[
-            _AmountRow(
+            IviaAmountRow(
               label: '${item.quantity} × ${item.name}',
               amount: formatXof(item.lineTotalXof),
             ),
@@ -472,13 +472,13 @@ class _Amounts extends StatelessWidget {
     child: Column(
       crossAxisAlignment: CrossAxisAlignment.stretch,
       children: [
-        _AmountRow(label: 'Produits', amount: formatXof(order.subtotalXof)),
-        _AmountRow(
+        IviaAmountRow(label: 'Produits', amount: formatXof(order.subtotalXof)),
+        IviaAmountRow(
           label: 'Commission ivia',
           amount: '− ${formatXof(order.commissionXof)}',
         ),
         const Divider(height: IviaSpacing.xl),
-        _AmountRow(
+        IviaAmountRow(
           label: 'Vous recevez',
           amount: formatXof(order.netXof),
           strong: true,
@@ -502,52 +502,6 @@ class _Card extends StatelessWidget {
     ),
     child: child,
   );
-}
-
-class _AmountRow extends StatelessWidget {
-  const _AmountRow({
-    required this.label,
-    required this.amount,
-    this.strong = false,
-  });
-
-  final String label;
-  final String amount;
-  final bool strong;
-
-  @override
-  Widget build(BuildContext context) {
-    final textTheme = Theme.of(context).textTheme;
-    final style = strong
-        ? textTheme.titleLarge?.copyWith(fontWeight: FontWeight.w700)
-        : textTheme.bodyLarge;
-    final amountText = Text(
-      amount,
-      style: style?.copyWith(fontWeight: FontWeight.w700),
-    );
-    // Police très agrandie : montant sous le libellé (il débordait à 200 %
-    // sur 320 dp) ; sinon à droite, le libellé passant à la ligne.
-    final stacked = MediaQuery.textScalerOf(context).scale(10) > 15;
-    return Padding(
-      padding: const EdgeInsets.symmetric(vertical: IviaSpacing.xs),
-      child: stacked
-          ? Column(
-              crossAxisAlignment: CrossAxisAlignment.start,
-              children: [
-                Text(label, style: style),
-                amountText,
-              ],
-            )
-          : Row(
-              crossAxisAlignment: CrossAxisAlignment.start,
-              children: [
-                Expanded(child: Text(label, style: style)),
-                const SizedBox(width: IviaSpacing.md),
-                amountText,
-              ],
-            ),
-    );
-  }
 }
 
 /// Commande introuvable, ou impossible à charger (réseau).

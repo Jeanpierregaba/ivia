@@ -303,18 +303,18 @@ class _CheckoutScreenState extends ConsumerState<CheckoutScreen> {
           crossAxisAlignment: CrossAxisAlignment.stretch,
           children: [
             for (final item in quote.items)
-              AmountRow(
+              IviaAmountRow(
                 label: '${item.quantity} × ${item.name}',
                 amount: formatXof(item.lineTotalXof),
               ),
             const Divider(height: IviaSpacing.xl),
-            AmountRow(
+            IviaAmountRow(
               label: 'Produits · ${articles(quote.articleCount)}',
               amount: formatXof(quote.subtotalXof),
             ),
-            AmountRow(label: 'Retrait en boutique', amount: 'Gratuit'),
+            IviaAmountRow(label: 'Retrait en boutique', amount: 'Gratuit'),
             const SizedBox(height: IviaSpacing.sm),
-            AmountRow(
+            IviaAmountRow(
               label: 'Total',
               amount: formatXof(quote.totalXof),
               strong: true,

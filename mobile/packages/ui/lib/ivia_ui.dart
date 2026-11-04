@@ -3,6 +3,7 @@
 /// Charte de référence : docs/DESIGN.md.
 library;
 
+export 'src/amount_row.dart';
 export 'src/brand.dart';
 export 'src/catalog_views.dart';
 export 'src/code_input.dart';
