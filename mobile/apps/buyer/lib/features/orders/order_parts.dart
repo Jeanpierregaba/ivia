@@ -37,16 +37,31 @@ class AmountRow extends StatelessWidget {
     final style = strong
         ? textTheme.titleLarge?.copyWith(fontWeight: FontWeight.w700)
         : textTheme.bodyLarge;
+    final amountText = Text(
+      amount,
+      style: style?.copyWith(fontWeight: FontWeight.w700),
+    );
+    // Police très agrandie : montant sous le libellé (il débordait à 200 %
+    // sur 320 dp) ; sinon à droite, le libellé passant à la ligne.
+    final stacked = MediaQuery.textScalerOf(context).scale(10) > 15;
     return Padding(
       padding: const EdgeInsets.symmetric(vertical: IviaSpacing.xs),
-      child: Row(
-        crossAxisAlignment: CrossAxisAlignment.start,
-        children: [
-          Expanded(child: Text(label, style: style)),
-          const SizedBox(width: IviaSpacing.md),
-          Text(amount, style: style?.copyWith(fontWeight: FontWeight.w700)),
-        ],
-      ),
+      child: stacked
+          ? Column(
+              crossAxisAlignment: CrossAxisAlignment.start,
+              children: [
+                Text(label, style: style),
+                amountText,
+              ],
+            )
+          : Row(
+              crossAxisAlignment: CrossAxisAlignment.start,
+              children: [
+                Expanded(child: Text(label, style: style)),
+                const SizedBox(width: IviaSpacing.md),
+                amountText,
+              ],
+            ),
     );
   }
 }

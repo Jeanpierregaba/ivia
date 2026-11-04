@@ -9,6 +9,7 @@ import 'package:ivia_ui/ivia_ui.dart';
 
 import '../../app/router.dart';
 import '../common/unavailable_view.dart';
+import 'cancel_sheet.dart';
 import 'order_labels.dart';
 import 'order_parts.dart';
 import 'orders_providers.dart';
@@ -108,6 +109,94 @@ class _OrderScreenState extends ConsumerState<OrderScreen> {
         'Commande non actualisée. Vérifiez votre connexion.',
       );
     }
+  }
+
+  /// Annulation en cours d'envoi : bouton désactivé (une seule requête).
+  var _cancelling = false;
+
+  /// Annule la demande de paiement en attente de [order], s'il y en a une.
+  /// Renvoie la commande relue si le paiement a été validé entre-temps
+  /// (`payment_not_cancellable`), `null` sinon.
+  Future<BuyerOrder?> _cancelPendingPayment(
+    IviaApiClient client,
+    BuyerOrder order,
+  ) async {
+    if (order.status != OrderStatus.pendingPayment) return null;
+    final payments = await client.orderPayments(order.id);
+    final pending = payments.where((p) => p.status.isPending).firstOrNull;
+    if (pending == null) return null;
+    try {
+      await client.cancelPayment(pending.id);
+      return null;
+    } on ApiException catch (e) {
+      if (e.code != 'payment_not_cancellable') rethrow;
+      return client.myOrder(order.id);
+    }
+  }
+
+  /// « Annuler la commande » : confirmation, puis demande de paiement en
+  /// attente annulée d'abord, puis la commande. Le résultat est reporté
+  /// (suivi et liste) même si l'écran est quitté pendant l'envoi.
+  Future<void> _cancel(BuyerOrder order) async {
+    if (_cancelling) return;
+    if (!await showCancelSheet(context, order) || !mounted) return;
+    final messenger = ScaffoldMessenger.of(context);
+    final client = ref.read(apiClientProvider);
+    final controller = ref.read(orderProvider(widget.orderId).notifier);
+    // Liste lue avant l'envoi : mise à jour même si le suivi est quitté.
+    final list = ref.exists(myOrdersProvider)
+        ? ref.read(myOrdersProvider.notifier)
+        : null;
+    setState(() => _cancelling = true);
+    BuyerOrder? again;
+    try {
+      // Demande de paiement en attente : annulée d'abord. Validée entre-temps
+      // (payée) : la commande, payée, reste annulable avec remboursement et
+      // l'acheteur confirme de nouveau.
+      final paidMeanwhile = await _cancelPendingPayment(client, order);
+      if (paidMeanwhile != null) {
+        controller.set(paidMeanwhile);
+        if (canCancel(paidMeanwhile)) {
+          again = paidMeanwhile;
+        } else {
+          showMessage(
+            messenger,
+            'Ce paiement est déjà confirmé : il ne peut plus être annulé.',
+          );
+        }
+      } else {
+        final cancelled = await client.cancelOrder(order.id);
+        list?.put(cancelled);
+        controller.set(cancelled);
+        showMessage(messenger, 'Commande annulée.');
+      }
+    } on ApiException catch (e) {
+      if (e.isNetwork) {
+        showMessage(messenger, 'Pas de connexion. Réessayez.');
+      } else if (e.code == 'cannot_cancel') {
+        // Commande relue : son vrai statut, bouton retiré.
+        BuyerOrder? seen;
+        try {
+          seen = await client.myOrder(order.id);
+          controller.set(seen);
+        } on Exception {
+          // Message du serveur seul.
+        }
+        showMessage(
+          messenger,
+          seen?.status == OrderStatus.expired
+              ? 'Cette commande a expiré : vos produits sont déjà libérés.'
+              : e.message,
+        );
+      } else {
+        showMessage(messenger, e.message);
+      }
+    } on Exception {
+      showMessage(messenger, 'Une erreur est survenue. Réessayez.');
+    } finally {
+      if (mounted) setState(() => _cancelling = false);
+    }
+    if (again != null && mounted) await _cancel(again);
   }
 
   /// Ouverture du paiement en cours (lecture des demandes de la commande).
@@ -215,6 +304,18 @@ class _OrderScreenState extends ConsumerState<OrderScreen> {
               ],
             ),
           ),
+          if (canCancel(order)) ...[
+            const SizedBox(height: IviaSpacing.xl),
+            OutlinedButton(
+              style: OutlinedButton.styleFrom(
+                foregroundColor: IviaColors.error,
+              ),
+              onPressed: _cancelling ? null : () => _cancel(order),
+              child: _cancelling
+                  ? const ButtonProgress()
+                  : const Text('Annuler la commande'),
+            ),
+          ],
         ],
       ),
     );
@@ -276,7 +377,11 @@ class _Header extends StatelessWidget {
       OrderStatus.cancelled => (
         null,
         'Annulée',
-        order.cancelReason.isEmpty ? null : order.cancelReason,
+        [
+          if (order.cancelReason.isNotEmpty) order.cancelReason,
+          // Payée : remboursement intégral, fait par l'équipe ivia.
+          if (order.paidAt != null) refundNotice(order),
+        ].join('\n'),
       ),
       OrderStatus.refunded => (
         null,

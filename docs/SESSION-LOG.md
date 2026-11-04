@@ -14,6 +14,32 @@ Format :
 - Prochaine étape :
 -->
 
+### 2026-11-03 — Commandes du marchand (011) et annulation par l'acheteur (013)
+- Fait : fusion de `develop` (version mobile des pièces de Gedeon remplacée par la 028, back-office
+  014/015/023/024 gardé) ; **011** close : Accueil marchand, onglet Commandes (Nouvelles / En cours /
+  Terminées, comptes à rebours), détail (accepter, refuser avec motif, préparer, prête), remise
+  par code (essais, blocage), relecture légère toutes les 30 s (nouvelles seulement) et pastille ;
+  `IviaCountdown`, pastille d'onglet, libellés et `showMessage` dans les paquets communs ;
+  relecture faite et corrigée (sous-onglet depuis l'Accueil, « Afficher plus » qui écrasait une
+  relecture, actions perdues si l'écran est quitté). Fusion de `ef833ba` (Gedeon : délai vérifié
+  à l'acceptation, motif borné, filtre `group`). **013** : annulation sur le suivi acheteur
+  (feuille, demande de paiement en attente annulée d'abord, remboursement annoncé), faux serveur
+  fidèle (`paid_at`, paiement sur commande annulée) ; montants à 200 % dans les deux apps.
+  Vérifié sur simulateur contre l'API locale (011 et 013).
+- Pièges rencontrés : clé SSH de ce Mac absente de GitHub (push en HTTPS avec `gh auth
+  git-credential`) ; build iOS qui relançait l'ancien point d'entrée (`flutter clean` +
+  désinstallation) ; limite de 10 codes OTP par adresse et par 24 h (acheteur neuf dans les
+  parcours) ; Riverpod 3 met en pause un fournisseur non écouté (`container.listen` dans les
+  tests) ; dio décode dans un isolat au-delà de 50 Ko (`runAsync` en test de widgets) ; un
+  `return` dans `try` saute le code après `finally` ; `find.widgetWithText` ne prend que le type
+  exact.
+- Décisions : relecture des commandes marchand allégée (nouvelles toutes les 30 s, liste complète
+  au retour et à l'ouverture de l'onglet), voir le plan de la 011 ; pas d'ADR.
+- Prochaine étape : reprendre la relecture de la 013 par le sous-agent `reviewer` (interrompue par
+  la limite d'usage), corriger ses retours, passer la 013 dans « Terminé » et pousser
+  `jeanpierre` → `develop` (via HTTPS tant que la clé SSH n'est pas ajoutée : `gh ssh-key add
+  ~/.ssh/id_ed25519.pub`). Ensuite : lire le filtre `group` dans les deux apps, puis 012 (push).
+
 ### 2026-11-03 — Mot de passe et Google (ADR 0011), back-office aux maquettes B01 à B03
 - Fait : ADR 0011 (remplace en partie l'ADR 0006) : création de compte par code puis mot de passe,
   connexion (verrou 15 min après 10 échecs), mot de passe oublié, changement de mot de passe,

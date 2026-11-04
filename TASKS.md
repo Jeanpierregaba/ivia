@@ -8,8 +8,8 @@ docs/specs/NNN-nom/tasks.md. Les petites tâches isolées (bug, retouche) peuven
 
 ## En cours
 
+- [ ] 013 — Annulation d'une commande par l'acheteur ([spec](docs/specs/013-annulation-acheteur/spec.md)) : faite, testée et vérifiée sur simulateur ; reste la relecture par le sous-agent reviewer (interrompue le 2026-11-03 par la limite d'usage), puis passage dans « Terminé »
 - [ ] **ADR 0011 — connexion par mot de passe** (2026-11-03) : backend fait (création de compte par code puis mot de passe, connexion, verrou après 10 échecs, mot de passe oublié, changement de mot de passe, Google, double vérification des admins, migration 00024, tests). Back-office fait (maquettes B01, B02, B03 : mot de passe puis code, tableau de bord dynamique). Reste : apps mobiles (écrans « Créer un compte », « Se connecter », « Mot de passe oublié », bouton Google affiché si `GET /v1/auth/providers` le dit) ; identifiants Google OAuth à fournir par le porteur du projet ; puis suppression de l'ancienne connexion par code
-
 - [ ] 018 — Espace livreur : lancement, connexion, dossier de candidature ([spec](docs/specs/018-espace-livreur/spec.md)) : relu et corrigé ; appareil photo à vérifier sur un vrai téléphone
 - [ ] 004 — Espace marchand : lancement, connexion, création de la boutique ([spec](docs/specs/004-espace-marchand/spec.md)) : relu et corrigé ; reste les clés Google Maps (vérification de la carte)
 - [ ] 027 — Splash et présentation des 3 apps ([spec](docs/specs/027-splash-onboarding/spec.md)) : reste la vérification sur Android, la validation des textes et des couleurs par le designer
@@ -40,6 +40,8 @@ version « retrait seulement » (voir `docs/PRD.md`).
 - [x] **Backend** (pour Gedeon, vu en 028, fait le 2026-11-03) : fichiers orphelins du compartiment privé : la suppression du compte efface tout le dossier `merchants/<id>/` et `drivers/<id>/` (rattaché ou non, même sans candidature) ; tâche quotidienne `uploads.purge_orphans` qui supprime les fichiers privés non rattachés de plus de 24 h ; `ObjectStore.List` (local et R2, pages suivies)
 - [x] **Backend** (pour Gedeon, vu en 011, fait le 2026-11-03) : motif de refus limité à 200 caractères (`validation_failed`) ; `GET /v1/seller/orders?group=new|active|done` (mêmes groupes que `tabOf`) ; `Accept` et `Reject` vérifient `seller_deadline_at` : après le délai, 409 `seller_deadline_passed` et la commande est annulée sur-le-champ (acheteur remboursé) sans attendre `SellerTimeout`. À faire côté app : lire `group` au lieu de répartir les 100 dernières commandes, afficher `seller_deadline_passed`
 - [ ] **Backend** (pour Gedeon, vu à la relecture de la 011 et en préparant la 013) : `ListForSeller` charge chaque commande une à une (commande, lignes, historique, prénom : ~400 requêtes SQL pour 100 commandes) ; `cannot_cancel` répond « La boutique a déjà accepté… » même pour une commande expirée
+- [ ] **Mobile** (suite de 009 et 011) : lire le filtre `group` du serveur (`GET /v1/orders?group=active|done` côté acheteur, `GET /v1/seller/orders?group=new|active|done` côté marchand) au lieu de répartir les 50 / 100 dernières commandes ; afficher le refus `seller_deadline_passed` (aujourd'hui message du serveur et commande relue)
+- [ ] **Mobile** (vu en 011) : libellé de l'onglet actif « Commandes » coupé (« Comman… ») dans la barre du bas de l'app marchand ; une nouvelle commande dont le délai expire reste « Délai dépassé » jusqu'à 30 s (relecture suivante)
 - [x] **Backend** (pour Gedeon, vu en 007, fait le 2026-11-03) : recherche de produits par début du dernier mot (« pag » trouve « pagne », requête `mot1 & mot2:*` construite côté serveur avec lettres et chiffres seulement) ; `%`, `_` et `\` échappés dans le `LIKE` de `SearchShops`. À faire côté app : le faux serveur `FakeSearch` doit suivre (début de mot)
 - [x] 007 — Recherche : texte, catégorie, prix, quartier, « autour de moi » : écrans acheteur faits (voir « Terminé »)
 
@@ -49,7 +51,7 @@ version « retrait seulement » (voir `docs/PRD.md`).
 - [x] 010 — Écrans de paiement (attente de validation sur le téléphone, interrogation du statut) : faits (voir « Terminé »)
 - [x] 011 — Marchand : acceptation / refus sous 15 min, préparation, remise par code : écrans marchand faits (voir « Terminé »)
 - [ ] 012 — Notifications push (`firebase_messaging`, enregistrement `PUT /v1/me/devices`) et liste ; dont la notification de validation promise par les écrans d'attente (boutique, dossier livreur)
-- [ ] 013 — Suivi de commande et annulation par l'acheteur
+- [ ] 013 — Suivi de commande et annulation par l'acheteur : suivi fait (009), annulation faite, relecture à reprendre ([spec](docs/specs/013-annulation-acheteur/spec.md))
 - [x] 014 — Back-office : supervision des paiements (liste filtrée, doublons, revérification, remboursement d'un doublon), commandes, actions admin et file de remboursement (2026-11-02)
 - [x] 015 — Back-office : référentiels (catégories de produits et de boutique, quartiers), comptes et droits admin, paramètres (2026-11-02)
 - [ ] 016 — **Backend** : intégrer le vrai prestataire de paiement derrière `payments.Provider` (dépend de l'ADR 0007 accepté) ; tester ses webhooks réels en staging

@@ -3,7 +3,9 @@ import 'dart:async';
 import 'package:flutter/material.dart';
 import 'package:flutter_test/flutter_test.dart';
 import 'package:go_router/go_router.dart';
+import 'package:ivia_api_client/ivia_api_client.dart';
 import 'package:ivia_api_client/testing.dart';
+import 'package:ivia_app_core/ivia_app_core.dart';
 import 'package:ivia_buyer/app/router.dart';
 import 'package:ivia_buyer/features/cart/cart_screen.dart';
 import 'package:ivia_buyer/features/checkout/checkout_screen.dart';
@@ -634,5 +636,286 @@ void main() {
       app.server.calls('GET', '/v1/orders').last.headers['authorization'],
       'Bearer jeton-kofi',
     );
+  });
+
+  group('annulation', () {
+    Future<Map<String, dynamic>> seed({
+      String status = 'pending_payment',
+    }) async {
+      final order = app.orders.seed(afi, [(riz, 2), (huile, 1)], status: status)
+        ..['payment_deadline_at'] = DateTime.now()
+            .toUtc()
+            .add(const Duration(minutes: 10))
+            .toIso8601String();
+      return order;
+    }
+
+    Future<void> openOrder(
+      WidgetTester tester,
+      Map<String, dynamic> order,
+    ) async {
+      tallScreen(tester);
+      await open(tester, Routes.order(order['id'] as String));
+    }
+
+    Finder cancelButton() =>
+        find.widgetWithText(OutlinedButton, 'Annuler la commande');
+    Finder confirm() =>
+        find.widgetWithText(FilledButton, 'Annuler la commande');
+
+    Future<void> askCancel(WidgetTester tester) async {
+      await tester.ensureVisible(cancelButton());
+      await tester.pumpAndSettle();
+      await tester.tap(cancelButton());
+      await tester.pumpAndSettle();
+    }
+
+    Iterable<RecordedRequest> cancels(Map<String, dynamic> order) =>
+        app.server.calls('POST', '/v1/orders/${order['id']}/cancel');
+
+    /// Demande de paiement en attente, faite par le même compte.
+    Future<Map<String, dynamic>> pendingPayment(
+      WidgetTester tester,
+      Map<String, dynamic> order,
+    ) async {
+      final client = IviaApiClient(
+        config: ApiConfig(baseUrl: Uri.parse('http://api.test')),
+        adapter: app.server,
+      )..token = 'jeton-secret';
+      await tester.runAsync(
+        () => client.startPayment(
+          order['id'] as String,
+          operator: PaymentOperator.flooz,
+          phone: '96451278',
+        ),
+      );
+      return app.payments.payments.last;
+    }
+
+    testWidgets('bouton seulement avant l\'acceptation', (tester) async {
+      for (final (status, shown) in [
+        ('pending_payment', true),
+        ('awaiting_seller', true),
+        ('accepted', false),
+        ('ready_for_pickup', false),
+        ('completed', false),
+      ]) {
+        final order = await seed(status: status);
+        await openOrder(tester, order);
+        expect(
+          cancelButton(),
+          shown ? findsOneWidget : findsNothing,
+          reason: status,
+        );
+      }
+    });
+
+    testWidgets('non payée : feuille, « Garder », puis annulée', (
+      tester,
+    ) async {
+      final order = await seed();
+      await openOrder(tester, order);
+      await askCancel(tester);
+      expect(find.text('Annuler la commande #1042 ?'), findsOneWidget);
+      expect(find.text('Vos produits seront libérés.'), findsOneWidget);
+      await tester.tap(find.text('Garder ma commande'));
+      await tester.pumpAndSettle();
+      expect(cancels(order), isEmpty);
+
+      final stock = riz['stock_quantity'] as int;
+      await askCancel(tester);
+      await tester.tap(confirm());
+      await tester.pumpAndSettle();
+      expect(cancels(order), hasLength(1));
+      expect(find.text('Commande annulée.'), findsOneWidget);
+      expect(find.text('Annulée'), findsWidgets);
+      expect(find.textContaining("Annulée par l'acheteur."), findsWidgets);
+      expect(find.textContaining('remboursé'), findsNothing);
+      expect(cancelButton(), findsNothing);
+      // Stock rendu (2 riz).
+      expect(riz['stock_quantity'], stock + 2);
+    });
+
+    testWidgets('payée : remboursement annoncé, puis suivi « Annulée »', (
+      tester,
+    ) async {
+      final order = await seed(status: 'awaiting_seller');
+      await openOrder(tester, order);
+      await askCancel(tester);
+      const refund =
+          'Vous serez remboursé de 10 500 F sur votre compte Mobile Money.';
+      expect(textPlain(refund), findsOneWidget);
+      await tester.tap(confirm());
+      await tester.pumpAndSettle();
+      expect(find.text('Annulée'), findsWidgets);
+      expect(
+        find.byWidgetPredicate(
+          (w) => w is Text && plain(w.data ?? '').contains(refund),
+        ),
+        findsOneWidget,
+      );
+
+      // La liste suit : la commande est dans « Terminées ».
+      await tester.tap(find.byTooltip('Retour'));
+      await tester.pumpAndSettle();
+      await tester.tap(find.byIcon(Icons.receipt_long_outlined));
+      await tester.pumpAndSettle();
+      await tester.tap(find.text('Terminées'));
+      await tester.pumpAndSettle();
+      expect(find.text('Annulée'), findsOneWidget);
+    });
+
+    testWidgets('demande de paiement en attente : annulée d\'abord', (
+      tester,
+    ) async {
+      final order = await seed();
+      final payment = await pendingPayment(tester, order);
+      final before = app.server.requests.length;
+      await openOrder(tester, order);
+      await askCancel(tester);
+      await tester.tap(confirm());
+      await tester.pumpAndSettle();
+      final posts = [
+        for (final r in app.server.requests.skip(before))
+          if (r.method == 'POST') r.path,
+      ];
+      expect(posts, [
+        '/v1/payments/${payment['id']}/cancel',
+        '/v1/orders/${order['id']}/cancel',
+      ]);
+      expect(payment['status'], 'failed');
+      expect(find.text('Annulée'), findsWidgets);
+    });
+
+    testWidgets('paiement validé entre-temps : feuille rouverte, remboursée', (
+      tester,
+    ) async {
+      final order = await seed();
+      final payment = await pendingPayment(tester, order);
+      await openOrder(tester, order);
+      // Le prestataire confirme juste avant l'annulation de la demande.
+      app.payments.beforeRequest = (r) async {
+        if (r.path.endsWith('/cancel') && r.path.contains('/payments/')) {
+          app.payments.succeed(payment);
+        }
+      };
+      await askCancel(tester);
+      await tester.tap(confirm());
+      await tester.pumpAndSettle();
+      expect(cancels(order), isEmpty);
+      expect(find.text('Annuler la commande #1042 ?'), findsOneWidget);
+      expect(
+        textPlain(
+          'Vous serez remboursé de 10 500 F sur votre compte Mobile Money.',
+        ),
+        findsOneWidget,
+      );
+      await tester.tap(confirm());
+      await tester.pumpAndSettle();
+      expect(cancels(order), hasLength(1));
+      expect(find.text('Annulée'), findsWidgets);
+    });
+
+    testWidgets('acceptée pendant la confirmation : message, bouton retiré', (
+      tester,
+    ) async {
+      final order = await seed(status: 'awaiting_seller');
+      await openOrder(tester, order);
+      await askCancel(tester);
+      app.orders.advance(order, 'accepted');
+      await tester.tap(confirm());
+      await tester.pumpAndSettle();
+      expect(
+        find.text(
+          "La boutique a déjà accepté cette commande : contactez le support pour l'annuler.",
+        ),
+        findsOneWidget,
+      );
+      expect(cancelButton(), findsNothing);
+    });
+
+    testWidgets('expirée pendant la confirmation : message juste', (
+      tester,
+    ) async {
+      final order = await seed();
+      await openOrder(tester, order);
+      await askCancel(tester);
+      app.orders.advance(order, 'expired');
+      await tester.tap(confirm());
+      await tester.pumpAndSettle();
+      expect(
+        find.text('Cette commande a expiré : vos produits sont déjà libérés.'),
+        findsOneWidget,
+      );
+      expect(find.text('Paiement expiré'), findsWidgets);
+      expect(cancelButton(), findsNothing);
+    });
+
+    testWidgets('réseau coupé : message, rien ne change ; nouvel essai', (
+      tester,
+    ) async {
+      final order = await seed(status: 'awaiting_seller');
+      await openOrder(tester, order);
+      app.orders.failures['POST /v1/orders/'] = FakeResponse.networkError();
+      await askCancel(tester);
+      await tester.tap(confirm());
+      await tester.pumpAndSettle();
+      expect(find.text('Pas de connexion. Réessayez.'), findsOneWidget);
+      expect(cancelButton(), findsOneWidget);
+      await askCancel(tester);
+      await tester.tap(confirm());
+      await tester.pumpAndSettle();
+      expect(find.text('Annulée'), findsWidgets);
+    });
+
+    testWidgets('police à 200 % sur 320 dp : bouton et feuille', (
+      tester,
+    ) async {
+      final semantics = tester.ensureSemantics();
+      tester.view.physicalSize = const Size(320, 640);
+      tester.view.devicePixelRatio = 1;
+      tester.platformDispatcher.textScaleFactorTestValue = 2;
+      addTearDown(tester.view.reset);
+      addTearDown(tester.platformDispatcher.clearTextScaleFactorTestValue);
+      final order = await seed(status: 'awaiting_seller');
+      await open(tester, Routes.order(order['id'] as String));
+      await tester.scrollUntilVisible(
+        cancelButton(),
+        300,
+        scrollable: find.byType(Scrollable).first,
+      );
+      expect(tester.takeException(), isNull);
+      expect(
+        tester.getSemantics(cancelButton()),
+        isSemantics(label: 'Annuler la commande', isButton: true),
+      );
+      await tester.tap(cancelButton());
+      await tester.pumpAndSettle();
+      expect(tester.takeException(), isNull);
+      expect(find.text('Garder ma commande'), findsOneWidget);
+      semantics.dispose();
+    });
+
+    testWidgets('pendant l\'envoi : bouton désactivé, une seule annulation', (
+      tester,
+    ) async {
+      final order = await seed(status: 'awaiting_seller');
+      await openOrder(tester, order);
+      final release = Completer<void>();
+      app.orders.beforeRequest = (r) async {
+        if (r.path.endsWith('/cancel')) await release.future;
+      };
+      await askCancel(tester);
+      await tester.tap(confirm());
+      await tester.pump(const Duration(milliseconds: 500));
+      final busy = find.ancestor(
+        of: find.byType(ButtonProgress),
+        matching: find.byType(OutlinedButton),
+      );
+      expect(tester.widget<OutlinedButton>(busy).onPressed, isNull);
+      release.complete();
+      await tester.pumpAndSettle();
+      expect(cancels(order), hasLength(1));
+    });
   });
 }

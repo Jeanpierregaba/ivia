@@ -359,6 +359,12 @@ class IviaApiClient {
   Future<BuyerOrder> myOrder(String id) async =>
       BuyerOrder.fromJson(await _send('GET', '/v1/orders/$id'));
 
+  /// Annule une commande de l'acheteur, possible tant que la boutique ne l'a
+  /// pas acceptée (409 `cannot_cancel` sinon) ; payée, elle est remboursée
+  /// intégralement par l'équipe ivia.
+  Future<BuyerOrder> cancelOrder(String id) async =>
+      BuyerOrder.fromJson(await _send('POST', '/v1/orders/$id/cancel'));
+
   /// Commandes payées des boutiques du marchand (ou de [shopId]), les plus
   /// récentes d'abord ; [status] filtre sur un statut.
   Future<Page<SellerOrder>> sellerOrders({

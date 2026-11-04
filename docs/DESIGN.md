@@ -258,8 +258,12 @@ Maquettes : à venir (lien Figma à ajouter ici). Les statuts affichés suivent
   une fois retirée, blanc pour une fin anormale ; « À payer avant 14:32 » et « Payer » en attente de
   paiement ; **code de remise** en très grand (`IviaHandoverCode` : 4 cases blanches, chiffres
   Cornell, lu chiffre par chiffre) ; carte de la boutique ; frise (`IviaTimeline`) des statuts
-  horodatés, étapes à venir en gris ; articles et total. Annulation tant que la boutique n'a pas
-  accepté : 013.
+  horodatés, étapes à venir en gris ; articles et total (avec une police très agrandie, montant
+  sous le libellé). **Annulation** ([spec 013](specs/013-annulation-acheteur/spec.md)) tant que la
+  boutique n'a pas accepté : bouton contour Cornell « Annuler la commande » en bas du suivi ;
+  feuille « Annuler la commande #1042 ? » (« Vos produits seront libérés. » ou « Vous serez
+  remboursé de 10 500 F sur votre compte Mobile Money. »), « Annuler la commande » plein Cornell,
+  « Garder ma commande » ; annulée et payée : le remboursement annoncé sous « Annulée ».
 - **Commandes** (onglet) : onglets « En cours · 2 » / « Terminées » (`IviaSegmentedTabs`), lignes
   (logo, boutique, « #1042 · Retrait · 3 articles » ou « #1018 · 24 oct. », total, pastille de
   statut avec icône), « Récemment » sous les commandes en cours (3 dernières terminées).
