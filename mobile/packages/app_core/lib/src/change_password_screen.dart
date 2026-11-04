@@ -76,9 +76,13 @@ class _ChangePasswordScreenState extends ConsumerState<ChangePasswordScreen> {
     } on ApiException catch (e) {
       if (!mounted) return;
       setState(() {
-        _currentError = e.fields['current_password'];
+        // Erreur sur l'actuel alors que le champ n'est pas affiché : message
+        // général.
+        _currentError = askCurrent ? e.fields['current_password'] : null;
         _nextError = e.fields['new_password'] ?? e.fields['password'];
-        if (_currentError == null && _nextError == null) _general = e.message;
+        if (_currentError == null && _nextError == null) {
+          _general = e.fields['current_password'] ?? e.message;
+        }
       });
     } finally {
       if (mounted) setState(() => _busy = false);
@@ -104,7 +108,8 @@ class _ChangePasswordScreenState extends ConsumerState<ChangePasswordScreen> {
               : 'Votre compte a été créé avec Google : ajoutez un mot de '
                     'passe pour vous connecter aussi avec votre e-mail.',
         ),
-        onBack: _busy ? null : () => context.pop(),
+        onBack: () => context.pop(),
+        backEnabled: !_busy,
         footer: [
           FilledButton(
             onPressed: _busy ? null : () => _submit(askCurrent),

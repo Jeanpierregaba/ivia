@@ -1,5 +1,5 @@
 name: ivia_app_core
-description: "Session, connexion par code e-mail et utilitaires communs aux 3 apps ivia."
+description: "Session, connexion (mot de passe, Google, codes par e-mail) et utilitaires communs aux 3 apps ivia."
 publish_to: none
 version: 0.1.0
 

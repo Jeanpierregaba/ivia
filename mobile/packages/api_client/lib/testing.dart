@@ -168,7 +168,7 @@ String _httpDate(DateTime date) {
       '${d.year} ${two(d.hour)}:${two(d.minute)}:${two(d.second)} GMT';
 }
 
-/// Réponse type de `POST /v1/auth/otp`.
+/// Réponse type d'une demande de code (`POST /v1/auth/signup/code`, `/v1/auth/password/forgot`).
 const otpBody = {
   'channel': 'email',
   'expires_in_seconds': 600,
@@ -3007,7 +3007,11 @@ class FakeAuth {
         );
       }
     }
-    a.password = next;
+    // Comme `SetPassword` : échecs et blocage remis à zéro.
+    a
+      ..password = next
+      ..failures = 0
+      ..lockedUntil = null;
     final keep = (r.headers['authorization'] ?? '').substring(7);
     _sessions.removeWhere((token, email) => email == a.email && token != keep);
     return FakeResponse.json(204, null);

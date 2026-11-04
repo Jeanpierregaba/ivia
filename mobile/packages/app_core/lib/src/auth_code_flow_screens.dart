@@ -50,9 +50,17 @@ class AuthEmailScreen extends ConsumerStatefulWidget {
 }
 
 class _AuthEmailScreenState extends ConsumerState<AuthEmailScreen> {
-  late final _email = TextEditingController(
-    text: ref.read(authFlowProvider)?.email ?? ref.read(authEmailDraftProvider),
-  );
+  late final _email = TextEditingController(text: _initialEmail());
+
+  /// Adresse du parcours en cours s'il est du même usage, sinon celle saisie
+  /// sur la connexion.
+  String _initialEmail() {
+    final flow = ref.read(authFlowProvider);
+    return flow != null && flow.purpose == widget.purpose
+        ? flow.email
+        : ref.read(authEmailDraftProvider);
+  }
+
   String? _error;
   var _busy = false;
 
@@ -81,7 +89,9 @@ class _AuthEmailScreenState extends ConsumerState<AuthEmailScreen> {
           .requestCode(widget.purpose, email);
       router.go(widget.purpose.codeRoute);
     } on ApiException catch (e) {
-      if (mounted) setState(() => _error = e.message);
+      if (mounted) {
+        setState(() => _error = e.fields['recipient'] ?? e.message);
+      }
     } finally {
       if (mounted) setState(() => _busy = false);
     }
@@ -99,7 +109,8 @@ class _AuthEmailScreenState extends ConsumerState<AuthEmailScreen> {
             : 'Nous vous envoyons un code à 6 chiffres pour choisir un '
                   'nouveau mot de passe.',
       ),
-      onBack: _busy ? null : () => _backToLogin(context, ref),
+      onBack: () => _backToLogin(context, ref),
+      backEnabled: !_busy,
       footer: [
         FilledButton(
           onPressed: _busy ? null : _submit,
@@ -159,16 +170,24 @@ class _AuthCodeScreenState extends ConsumerState<AuthCodeScreen> {
   void _syncCountdown(AuthFlowState flow) {
     if (flow.attempt == _attempt) return;
     _attempt = flow.attempt;
-    // Développement : code de l'API locale saisi tout seul.
+    // Développement : code de l'API locale saisi tout seul, une fois par
+    // envoi (un retour sur les 6 cases laisse voir le message du code).
     if (flow.devCode case final code?) {
       WidgetsBinding.instance.addPostFrameCallback((_) {
         if (!mounted) return;
+        ref.read(authFlowProvider.notifier).devCodeUsed();
         _code.text = code;
         _continue();
       });
     }
-    _remaining = flow.resendAfter;
+    // Temps restant depuis l'envoi : ne repart pas à chaque retour ici.
+    final left = flow.resendAfter - DateTime.now().difference(flow.sentAt);
+    // Arrondi à la seconde supérieure : « 1:00 » juste après l'envoi.
+    _remaining = left.isNegative
+        ? Duration.zero
+        : Duration(seconds: (left.inMilliseconds / 1000).ceil());
     _timer?.cancel();
+    if (_remaining <= Duration.zero) return;
     _timer = Timer.periodic(const Duration(seconds: 1), (timer) {
       setState(() => _remaining -= const Duration(seconds: 1));
       if (_remaining <= Duration.zero) timer.cancel();
@@ -230,7 +249,8 @@ class _AuthCodeScreenState extends ConsumerState<AuthCodeScreen> {
           ],
         ),
       ),
-      onBack: _busy ? null : () => context.go(widget.purpose.emailRoute),
+      onBack: () => context.go(widget.purpose.emailRoute),
+      backEnabled: !_busy,
       footer: [
         FilledButton(
           onPressed: _busy || _code.text.length != 6 ? null : _continue,
@@ -291,6 +311,7 @@ class NewPasswordScreen extends ConsumerStatefulWidget {
 
 class _NewPasswordScreenState extends ConsumerState<NewPasswordScreen> {
   final _password = TextEditingController();
+  AuthFlowState? _last;
   String? _error;
   String? _general;
   var _accountExists = false;
@@ -347,9 +368,13 @@ class _NewPasswordScreenState extends ConsumerState<NewPasswordScreen> {
 
   @override
   Widget build(BuildContext context) {
-    final flow = ref.watch(authFlowProvider);
-    if (flow == null || flow.code == null || flow.purpose != widget.purpose) {
-      // Sans code saisi (lien direct, parcours fini).
+    // Parcours oublié à l'ouverture de la session : l'écran garde son
+    // contenu pendant la transition.
+    final current = ref.watch(authFlowProvider);
+    if (current != null && current.code != null) _last = current;
+    final flow = _last;
+    if (flow == null || flow.purpose != widget.purpose) {
+      // Sans code saisi (lien direct).
       return const Scaffold(body: SizedBox.shrink());
     }
     final signup = widget.purpose == CodePurpose.signup;
@@ -357,7 +382,8 @@ class _NewPasswordScreenState extends ConsumerState<NewPasswordScreen> {
       child: AuthPage(
         title: signup ? 'Choisissez un mot de passe' : 'Nouveau mot de passe',
         intro: Text('Pour le compte ${flow.email}.'),
-        onBack: _busy ? null : () => context.go(widget.purpose.codeRoute),
+        onBack: () => context.go(widget.purpose.codeRoute),
+        backEnabled: !_busy,
         footer: [
           FilledButton(
             onPressed: _busy ? null : _submit,

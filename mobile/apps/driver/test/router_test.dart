@@ -29,6 +29,8 @@ void main() {
     // Connexion : /login et ses sous-écrans seulement.
     expect(go(const AuthSignedOut(), AuthRoutes.signupCode), isNull);
     expect(go(const AuthSignedOut(), AuthRoutes.forgotPassword), isNull);
+    // Changement de mot de passe : seulement une fois validé.
+    expect(go(const AuthSignedOut(), Routes.homePassword), Routes.login);
     expect(go(const AuthOffline(), Routes.home), Routes.offline);
   });
 
@@ -75,6 +77,15 @@ void main() {
         state: AsyncData(dossier(review: 'approved', status: 'offline')),
       ),
       Routes.home,
+    );
+    // Changement de mot de passe : permis une fois validé, refusé avant.
+    final approved = AsyncData<DriverDossier?>(
+      dossier(review: 'approved', status: 'offline'),
+    );
+    expect(go(signedIn, Routes.homePassword, state: approved), isNull);
+    expect(
+      go(signedIn, Routes.homePassword, state: pending),
+      Routes.dossierPending,
     );
   });
 }

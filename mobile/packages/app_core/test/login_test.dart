@@ -2,6 +2,7 @@ import 'dart:async';
 
 import 'package:flutter/material.dart';
 import 'package:flutter_riverpod/flutter_riverpod.dart';
+import 'package:flutter_riverpod/misc.dart' show Override;
 import 'package:flutter_secure_storage/flutter_secure_storage.dart';
 import 'package:flutter_test/flutter_test.dart';
 import 'package:go_router/go_router.dart';
@@ -42,9 +43,14 @@ void main() {
 
   /// App minimale : routes de connexion communes, accueil et profil ; la
   /// redirection suit l'état de session, comme dans les apps.
-  Future<void> launch(WidgetTester tester, {String? at}) async {
+  Future<void> launch(
+    WidgetTester tester, {
+    String? at,
+    List<Override> overrides = const [],
+  }) async {
     final container = ProviderContainer(
       overrides: [
+        ...overrides,
         apiClientProvider.overrideWithValue(
           IviaApiClient(
             config: ApiConfig(baseUrl: Uri.parse('http://api.test')),
@@ -496,6 +502,102 @@ void main() {
     });
   });
 
+  group('retours et compte à rebours (relecture)', () {
+    Future<void> toPassword(WidgetTester tester) async {
+      await tapText(tester, 'Créer un compte');
+      await tester.enterText(field('Adresse e-mail'), 'ama@test.tg');
+      await tapText(tester, 'Recevoir le code');
+      await tester.enterText(
+        find.descendant(
+          of: find.byType(IviaCodeInput),
+          matching: find.byType(TextField),
+        ),
+        auth.lastCode('ama@test.tg', 'signup')!,
+      );
+      await tester.pumpAndSettle();
+    }
+
+    testWidgets('retour système : mot de passe ⇒ code ⇒ e-mail ⇒ connexion', (
+      tester,
+    ) async {
+      await launch(tester);
+      await toPassword(tester);
+      expect(find.text('Choisissez un mot de passe'), findsOneWidget);
+      await tester.binding.handlePopRoute();
+      await tester.pumpAndSettle();
+      expect(find.text('Vérifiez vos e-mails'), findsOneWidget);
+      await tester.binding.handlePopRoute();
+      await tester.pumpAndSettle();
+      expect(find.text('Recevoir le code'), findsOneWidget);
+      await tester.binding.handlePopRoute();
+      await tester.pumpAndSettle();
+      expect(find.text('Se connecter'), findsOneWidget);
+      // Parcours (et code) oubliés en quittant.
+      final container = ProviderScope.containerOf(
+        tester.element(find.byType(LoginScreen)),
+      );
+      expect(container.read(authFlowProvider), isNull);
+    });
+
+    testWidgets('retour sur les 6 cases : le compte à rebours continue', (
+      tester,
+    ) async {
+      final flow = AuthFlowState(
+        purpose: CodePurpose.signup,
+        email: 'ama@test.tg',
+        resendAfter: const Duration(seconds: 60),
+        expiresIn: const Duration(minutes: 10),
+        attempt: 1,
+        sentAt: DateTime.now().subtract(const Duration(seconds: 50)),
+      );
+      await launch(
+        tester,
+        at: AuthRoutes.signupCode,
+        overrides: [authFlowProvider.overrideWith(() => _Preset(flow))],
+      );
+      expect(find.textContaining('0:1', findRichText: true), findsOneWidget);
+      expect(find.textContaining('1:00', findRichText: true), findsNothing);
+    });
+
+    testWidgets('compte créé avec Google : mot de passe sans l\'actuel', (
+      tester,
+    ) async {
+      // Compte existant sans mot de passe, rattaché à Google.
+      auth
+        ..google = true
+        ..addAccount('awa@test.tg')
+        ..addGoogleToken('jeton-google', subject: 'g1', email: 'awa@test.tg');
+      google.available = true;
+      await launch(tester);
+      await tapText(tester, 'Continuer avec Google');
+      expect(find.text('Accueil'), findsOneWidget);
+      GoRouter.of(tester.element(find.text('Accueil'))).go('/home/password');
+      await tester.pumpAndSettle();
+      expect(find.text('Choisir un mot de passe'), findsOneWidget);
+      expect(field('Mot de passe actuel'), findsNothing);
+      await tester.enterText(field('Nouveau mot de passe'), _goodPassword);
+      await tapText(tester, 'Enregistrer');
+      expect(posts('/v1/me/password').single.body, {
+        'new_password': _goodPassword,
+      });
+      expect(auth.passwordOf('awa@test.tg'), _goodPassword);
+    });
+
+    testWidgets('mot de passe saisi effacé en allant créer un compte', (
+      tester,
+    ) async {
+      await launch(tester);
+      await tester.enterText(field('Mot de passe'), 'secret-pagne-2026');
+      await tapText(tester, 'Créer un compte');
+      await tester.tap(find.byType(IviaBackButton));
+      await tester.pumpAndSettle();
+      expect(
+        tester.widget<TextField>(field('Mot de passe')).controller!.text,
+        isEmpty,
+      );
+    });
+  });
+
   group('police à 200 % sur 320 dp et lecteur d\'écran', () {
     void large(WidgetTester tester) {
       tester.view.physicalSize = const Size(320, 640);
@@ -569,4 +671,14 @@ void main() {
       semantics.dispose();
     });
   });
+}
+
+/// Parcours déjà engagé (code envoyé).
+class _Preset extends AuthFlow {
+  _Preset(this.initial);
+
+  final AuthFlowState initial;
+
+  @override
+  AuthFlowState? build() => initial;
 }

@@ -6,8 +6,8 @@ const driverIdentity = AppIdentity(
   brand: IviaAppBrand.driver,
   loginTitle: 'Espace livreur',
   loginBody:
-      'Connectez-vous avec votre e-mail. Les missions s\'ouvrent après la '
-      'validation de votre dossier par ivia.',
+      'Connectez-vous avec votre e-mail et votre mot de passe. Les missions '
+      's\'ouvrent après la validation de votre dossier par ivia.',
   loginBadge: 'Livreur',
   codeHint: _codeHint,
 );

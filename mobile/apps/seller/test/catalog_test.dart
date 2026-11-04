@@ -184,6 +184,30 @@ void main() {
   Iterable<RecordedRequest> creates() =>
       server.calls('POST', '/v1/seller/shops/$shopId/products');
 
+  testWidgets('Compte : « Changer le mot de passe », puis retour', (
+    tester,
+  ) async {
+    server.on(
+      'GET',
+      '/v1/auth/session',
+      (_) => FakeResponse.json(200, {
+        'mfa_verified': false,
+        'has_password': true,
+        'expires_at': '2026-12-30T08:00:00Z',
+      }),
+    );
+    await launch(tester);
+    await tester.tap(find.byIcon(Icons.person_outline));
+    await tester.pumpAndSettle();
+    await tapText(tester, 'Changer le mot de passe');
+    expect(find.text('Mot de passe actuel'), findsOneWidget);
+    // Au-dessus de la barre du bas.
+    expect(find.byType(IviaBottomNav), findsNothing);
+    await tester.tap(find.byTooltip('Retour'));
+    await tester.pumpAndSettle();
+    expect(find.text('Compte'), findsWidgets);
+  });
+
   group('catalogue', () {
     testWidgets('onglets, compteurs, lignes et barre du bas', (tester) async {
       catalog

@@ -60,7 +60,8 @@ sont communs (`packages/app_core`), chaque app garde sa couleur.
 
 **5. Changer de mot de passe** (écran Compte de chaque app : « Profil » de l'acheteur, « Compte »
 du marchand, écran du livreur)
-- Ligne **« Mot de passe »** ⇒ écran : « Mot de passe actuel » (absent pour un compte créé avec
+- Entrée **« Mot de passe »** (ligne du Profil de l'acheteur, bouton « Changer le mot de passe »
+  du marchand et du livreur) ⇒ écran : « Mot de passe actuel » (absent pour un compte créé avec
   Google qui n'en a pas encore), « Nouveau mot de passe », « Enregistrer » (`/v1/me/password`).
 - Réussite : « Mot de passe changé. Vos autres appareils sont déconnectés. » ; mot de passe actuel
   faux : message sous le champ.
@@ -71,24 +72,24 @@ erreur réseau (comme la 001).
 
 ## Critères d'acceptation
 
-- [ ] Connexion : e-mail et mot de passe envoyés à `/v1/auth/login` ; succès ⇒ session gardée et
+- [x] Connexion : e-mail et mot de passe envoyés à `/v1/auth/login` ; succès ⇒ session gardée et
       même suite que la 001 (profil incomplet ⇒ « Faisons connaissance », sinon accueil de
       l'app).
-- [ ] `invalid_credentials` : message, champ mot de passe vidé, aide « Créez votre mot de passe »
+- [x] `invalid_credentials` : message, champ mot de passe vidé, aide « Créez votre mot de passe »
       qui ouvre la création avec l'e-mail rempli ; `account_locked` : message du serveur.
-- [ ] Création de compte : code demandé à `signup/code`, 6 cases, puis mot de passe envoyé à
+- [x] Création de compte : code demandé à `signup/code`, 6 cases, puis mot de passe envoyé à
       `signup` avec l'e-mail et le code ; session ouverte ; mot de passe refusé ⇒ message sous le
       champ sans redemander de code ; `account_exists` ⇒ message et « Se connecter ».
-- [ ] Mot de passe oublié : `password/forgot`, 6 cases, nouveau mot de passe à `password/reset` ;
+- [x] Mot de passe oublié : `password/forgot`, 6 cases, nouveau mot de passe à `password/reset` ;
       session ouverte, message « Mot de passe changé. ».
-- [ ] « Continuer avec Google » n'apparaît que si `providers.google` est vrai ; jeton envoyé à
+- [x] « Continuer avec Google » n'apparaît que si `providers.google` est vrai ; jeton envoyé à
       `/v1/auth/google` ; annulation par l'utilisateur ⇒ aucun message ; refus ⇒ message.
-- [ ] Changer de mot de passe depuis l'écran Compte de chaque app (`/v1/me/password`) ;
+- [x] Changer de mot de passe depuis l'écran Compte de chaque app (`/v1/me/password`) ;
       « Mot de passe actuel » absent si le compte n'en a pas.
-- [ ] Les trois apps utilisent ces écrans (couleur de chaque app), sans la connexion par code
+- [x] Les trois apps utilisent ces écrans (couleur de chaque app), sans la connexion par code
       seule (`/v1/auth/otp` + `/v1/auth/verify` plus appelés).
-- [ ] Aucun mot de passe ni code dans les journaux, le stockage du téléphone ou une URL.
-- [ ] Police à 200 % sur 320 dp et lecteur d'écran : champs étiquetés, bouton œil lu (« Afficher
+- [x] Aucun mot de passe ni code dans les journaux, le stockage du téléphone ou une URL.
+- [x] Police à 200 % sur 320 dp et lecteur d'écran : champs étiquetés, bouton œil lu (« Afficher
       le mot de passe »), erreurs annoncées.
 
 ## Cas limites et erreurs

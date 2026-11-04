@@ -47,7 +47,7 @@ class User {
   };
 }
 
-/// Session ouverte par `POST /v1/auth/verify`.
+/// Session ouverte par la connexion, la création de compte, le mot de passe oublié ou Google.
 class Session {
   const Session({
     required this.token,

@@ -304,6 +304,41 @@ void main() {
       expect(find.textContaining('Bonjour Awa'), findsOneWidget);
     });
 
+    testWidgets('Profil : « Mot de passe », écran au-dessus de la barre', (
+      tester,
+    ) async {
+      await SessionStore().save(
+        'jeton-secret',
+        User.fromJson(userBody(complete: true)),
+      );
+      server
+        ..on(
+          'GET',
+          '/v1/me',
+          (_) => FakeResponse.json(200, userBody(complete: true)),
+        )
+        ..on(
+          'GET',
+          '/v1/auth/session',
+          (_) => FakeResponse.json(200, {
+            'mfa_verified': false,
+            'has_password': false,
+            'expires_at': '2026-12-30T08:00:00Z',
+          }),
+        );
+      await launchApp(tester);
+      await tester.tap(find.byIcon(Icons.person_outline));
+      await tester.pumpAndSettle();
+      await tapText(tester, 'Mot de passe');
+      // Compte sans mot de passe (Google) : pas d'« actuel ».
+      expect(find.text('Choisir un mot de passe'), findsOneWidget);
+      expect(find.text('Mot de passe actuel'), findsNothing);
+      expect(find.byType(IviaBottomNav), findsNothing);
+      await tester.tap(find.byTooltip('Retour'));
+      await tester.pumpAndSettle();
+      expect(find.text('Se déconnecter'), findsOneWidget);
+    });
+
     testWidgets('relance avec une session : accueil sans connexion', (
       tester,
     ) async {
@@ -376,7 +411,7 @@ void main() {
       await finishCountdown(tester);
     });
 
-    testWidgets('« Vérifier le code » inactif tant que le code est incomplet', (
+    testWidgets('« Continuer » inactif tant que le code est incomplet', (
       tester,
     ) async {
       await launchApp(tester);

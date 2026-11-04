@@ -5,8 +5,8 @@ abstract final class AuthRoutes {
 
   static const signup = '/login/signup';
   static const signupCode = '/login/signup/code';
-  static const signupPassword = '/login/signup/password';
+  static const signupPassword = '/login/signup/code/password';
   static const forgot = '/login/forgot';
   static const forgotCode = '/login/forgot/code';
-  static const forgotPassword = '/login/forgot/password';
+  static const forgotPassword = '/login/forgot/code/password';
 }

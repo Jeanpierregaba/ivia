@@ -16,8 +16,11 @@ import 'password_field.dart';
 import 'providers.dart';
 
 /// Modes de connexion ouverts par le serveur ; `null` si la lecture échoue
-/// (le bouton Google est alors masqué).
-final authProvidersProvider = FutureProvider<AuthProviders?>((ref) async {
+/// (le bouton Google est alors masqué). Relu à chaque ouverture de l'écran :
+/// un échec hors ligne n'est pas gardé.
+final authProvidersProvider = FutureProvider.autoDispose<AuthProviders?>((
+  ref,
+) async {
   try {
     return await ref.watch(apiClientProvider).authProviders();
   } on Exception {
@@ -58,6 +61,8 @@ class _LoginScreenState extends ConsumerState<LoginScreen> {
   /// Adresse reprise par l'écran suivant (création, mot de passe oublié).
   void _go(String location) {
     ref.read(authEmailDraftProvider.notifier).set(_email.text);
+    // L'écran reste dessous : le mot de passe n'y est pas gardé.
+    _password.clear();
     context.go(location);
   }
 

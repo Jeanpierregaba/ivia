@@ -11,8 +11,10 @@
 - **Routes communes** : `authRoutes()` (dans `app_core`) renvoie les `GoRoute` de la connexion,
   montées telles quelles par les trois routeurs :
   - `/login` (connexion) ;
-  - `/login/signup`, `/login/signup/code`, `/login/signup/password` (création) ;
-  - `/login/forgot`, `/login/forgot/code`, `/login/forgot/password` (mot de passe oublié).
+  - `/login/signup`, `/login/signup/code`, `/login/signup/code/password` (création) ;
+  - `/login/forgot`, `/login/forgot/code`, `/login/forgot/code/password` (mot de passe oublié).
+  Le mot de passe est sous le code : le retour du système revient aux 6 cases ; quitter
+  `signup` / `forgot` (`onExit`) oublie le parcours (relecture).
   La règle de redirection des apps (déconnecté ⇒ `/login` et ses sous-écrans) ne change que par
   la suppression de `Routes.code`.
 - **Parcours avec code** (`AuthFlow`, Notifier, remplace `LoginFlow`) : garde en mémoire

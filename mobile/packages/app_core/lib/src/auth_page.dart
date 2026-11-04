@@ -10,6 +10,7 @@ class AuthPage extends StatelessWidget {
     required this.children,
     this.intro,
     this.onBack,
+    this.backEnabled = true,
     this.header,
     this.footer = const [],
   });
@@ -17,6 +18,10 @@ class AuthPage extends StatelessWidget {
   final String title;
   final Widget? intro;
   final VoidCallback? onBack;
+
+  /// Retour désactivé (envoi en cours) sans disparaître : la mise en page
+  /// ne saute pas.
+  final bool backEnabled;
 
   /// Au-dessus du titre (logo de l'écran de connexion).
   final Widget? header;
@@ -42,7 +47,9 @@ class AuthPage extends StatelessWidget {
                     if (onBack case final back?) ...[
                       Align(
                         alignment: Alignment.centerLeft,
-                        child: IviaBackButton(onPressed: back),
+                        child: IviaBackButton(
+                          onPressed: backEnabled ? back : null,
+                        ),
                       ),
                       const SizedBox(height: IviaSpacing.xxl),
                     ],

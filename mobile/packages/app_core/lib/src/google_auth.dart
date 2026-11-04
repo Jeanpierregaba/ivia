@@ -1,3 +1,4 @@
+import 'package:flutter/foundation.dart';
 import 'package:flutter_riverpod/flutter_riverpod.dart';
 import 'package:google_sign_in/google_sign_in.dart';
 
@@ -37,18 +38,29 @@ class PluginGoogleAuth implements GoogleAuth {
   final String? clientId;
   Future<void>? _initialized;
 
+  /// Android : le client « web » suffit. iOS : le client iOS aussi (sans
+  /// lui, le SDK Google s'arrête au premier appui).
   @override
-  bool get available => serverClientId.isNotEmpty;
+  bool get available =>
+      serverClientId.isNotEmpty &&
+      (defaultTargetPlatform != TargetPlatform.iOS || clientId != null);
 
   @override
   Future<String?> signIn() async {
     if (!available) throw const GoogleAuthException();
     final google = GoogleSignIn.instance;
     try {
-      await (_initialized ??= google.initialize(
-        clientId: clientId,
-        serverClientId: serverClientId,
-      ));
+      try {
+        await (_initialized ??= google.initialize(
+          clientId: clientId,
+          serverClientId: serverClientId,
+        ));
+      } on Object {
+        // Échec gardé sinon jusqu'au redémarrage : nouvel essai au prochain
+        // appui.
+        _initialized = null;
+        rethrow;
+      }
       if (!google.supportsAuthenticate()) throw const GoogleAuthException();
       final account = await google.authenticate();
       final token = account.authentication.idToken;
@@ -56,6 +68,11 @@ class PluginGoogleAuth implements GoogleAuth {
       return token;
     } on GoogleSignInException catch (e) {
       if (e.code == GoogleSignInExceptionCode.canceled) return null;
+      throw const GoogleAuthException();
+    } on GoogleAuthException {
+      rethrow;
+    } on Exception {
+      // Erreur du système (service Google absent…) : même message.
       throw const GoogleAuthException();
     }
   }

@@ -660,6 +660,36 @@ void main() {
       expect(find.text('Vous êtes livreur ivia'), findsOneWidget);
     });
 
+    testWidgets('validé : « Changer le mot de passe », puis retour', (
+      tester,
+    ) async {
+      await signedInWith(_user());
+      server
+        ..on(
+          'GET',
+          '/v1/driver/me',
+          (_) => FakeResponse.json(
+            200,
+            driverBody(review: 'approved', status: 'offline'),
+          ),
+        )
+        ..on(
+          'GET',
+          '/v1/auth/session',
+          (_) => FakeResponse.json(200, {
+            'mfa_verified': false,
+            'has_password': true,
+            'expires_at': '2026-12-30T08:00:00Z',
+          }),
+        );
+      await launchApp(tester);
+      await tapText(tester, 'Changer le mot de passe');
+      expect(find.text('Mot de passe actuel'), findsOneWidget);
+      await tester.tap(find.byTooltip('Retour'));
+      await tester.pumpAndSettle();
+      expect(find.text('Vous êtes livreur ivia'), findsOneWidget);
+    });
+
     testWidgets('refusé : motif, correction préremplie, renvoi', (
       tester,
     ) async {

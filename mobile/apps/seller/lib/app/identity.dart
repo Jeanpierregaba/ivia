@@ -6,8 +6,8 @@ const sellerIdentity = AppIdentity(
   brand: IviaAppBrand.seller,
   loginTitle: 'Espace marchand',
   loginBody:
-      'Connectez-vous avec votre e-mail. Vous avez déjà un compte ivia ? '
-      'Utilisez le même.',
+      'Connectez-vous avec votre e-mail et votre mot de passe. Vous avez déjà '
+      'un compte ivia ? Utilisez le même.',
   loginBadge: 'Marchand',
   codeHint: _codeHint,
 );

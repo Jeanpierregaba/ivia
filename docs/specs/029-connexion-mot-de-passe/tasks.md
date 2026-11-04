@@ -23,5 +23,5 @@
       `docs/SECURITY.md` (relecture), renvoi depuis la 001.
 - [x] 10. Vérification sur le simulateur contre l'API locale (création, connexion, mot de passe
       oublié, changement) ; Google laissé à la fourniture des identifiants (tâche dans `TASKS.md`).
-- [ ] Vérifier tous les critères d'acceptation de spec.md
-- [ ] Relecture par le sous-agent reviewer
+- [x] Vérifier tous les critères d'acceptation de spec.md
+- [x] Relecture par le sous-agent reviewer (2026-11-04) ; retours corrigés
