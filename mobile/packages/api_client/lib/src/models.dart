@@ -67,7 +67,34 @@ class Session {
   final User user;
 }
 
-/// Réponse à une demande de code (`POST /v1/auth/otp`).
+/// Modes de connexion ouverts par le serveur (`GET /v1/auth/providers`) :
+/// `google` reste faux tant que les identifiants Google ne sont pas
+/// configurés.
+class AuthProviders {
+  const AuthProviders({required this.password, required this.google});
+
+  factory AuthProviders.fromJson(Map<String, dynamic> json) => AuthProviders(
+    password: json['password'] as bool? ?? true,
+    google: json['google'] as bool? ?? false,
+  );
+
+  final bool password;
+  final bool google;
+}
+
+/// État de la session courante (`GET /v1/auth/session`).
+class SessionInfo {
+  const SessionInfo({required this.hasPassword});
+
+  factory SessionInfo.fromJson(Map<String, dynamic> json) =>
+      SessionInfo(hasPassword: json['has_password'] as bool? ?? true);
+
+  /// Faux pour un compte créé avec Google (ou par l'ancienne connexion par
+  /// code) qui n'a pas encore de mot de passe.
+  final bool hasPassword;
+}
+
+/// Réponse à une demande de code (création de compte, mot de passe oublié).
 class OtpRequested {
   const OtpRequested({required this.expiresIn, required this.resendAfter});
 
