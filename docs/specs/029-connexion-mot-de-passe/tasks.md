@@ -21,7 +21,7 @@
       `requestOtp` / `verifyOtp`.
 - [x] 9. Police à 200 % sur 320 dp et lecteur d'écran ; `docs/DESIGN.md`, `AGENTS.md`,
       `docs/SECURITY.md` (relecture), renvoi depuis la 001.
-- [ ] 10. Vérification sur le simulateur contre l'API locale (création, connexion, mot de passe
+- [x] 10. Vérification sur le simulateur contre l'API locale (création, connexion, mot de passe
       oublié, changement) ; Google laissé à la fourniture des identifiants (tâche dans `TASKS.md`).
 - [ ] Vérifier tous les critères d'acceptation de spec.md
 - [ ] Relecture par le sous-agent reviewer
