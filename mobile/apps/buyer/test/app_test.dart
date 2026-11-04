@@ -545,8 +545,8 @@ void main() {
   testWidgets('illustrations ignorées par le lecteur d\'écran', (tester) async {
     final semantics = tester.ensureSemantics();
     await launchApp(tester);
-    expect(find.text('Riz parfumé 5 kg'), findsOneWidget);
-    expect(find.bySemanticsLabel(RegExp('Riz parfumé')), findsNothing);
+    expect(find.text('Coffret de 12 macarons'), findsOneWidget);
+    expect(find.bySemanticsLabel(RegExp('macarons')), findsNothing);
     expect(find.bySemanticsLabel(RegExp('tout près')), findsOneWidget);
     semantics.dispose();
   });

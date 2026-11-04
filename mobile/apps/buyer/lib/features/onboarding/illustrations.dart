@@ -24,8 +24,8 @@ class NearbyIllustration extends StatelessWidget {
               child: Tilted(
                 degrees: -4,
                 child: _ProductCard(
-                  name: 'Riz parfumé 5 kg',
-                  price: '4 500 FCFA',
+                  name: 'Coffret de 12 macarons',
+                  price: '9 500 FCFA',
                   distance: '350 m',
                 ),
               ),
