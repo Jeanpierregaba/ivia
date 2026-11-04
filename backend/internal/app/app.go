@@ -30,6 +30,7 @@ import (
 	"ivia/backend/internal/platform/httpapi"
 	"ivia/backend/internal/platform/jobs"
 	"ivia/backend/internal/platform/storage"
+	"ivia/backend/internal/promo"
 	"ivia/backend/internal/reports"
 	"ivia/backend/internal/search"
 	"ivia/backend/internal/settlements"
@@ -65,6 +66,7 @@ type App struct {
 	Payments      *payments.Service
 	Delivery      *delivery.Service
 	Settlements   *settlements.Service
+	Promo         *promo.Service
 
 	// Implémentations factices exposées en local et dans les tests (nil sinon).
 	DevOTP      *auth.LogSender
@@ -128,6 +130,7 @@ func New(cfg config.Config, logger *slog.Logger, pool *pgxpool.Pool, opts Option
 		Uploads: a.Uploads, Notify: a.Notifications, Logger: logger,
 	})
 	a.Settlements = settlements.NewService(db, a.Orders, a.Shops, a.Admin, a.Notifications)
+	a.Promo = promo.NewService(db, a.Uploads, a.Catalog, a.Orders, a.Admin)
 
 	// Suppression de compte : les modules qui bloquent, puis ceux qui effacent leurs données.
 	a.Users.AddDeletionGuard(a.Orders)
@@ -174,6 +177,7 @@ func (a *App) routes() (http.Handler, []string) {
 	payments.NewHandler(a.Payments, a.Logger, a.Config.DevToolsEnabled()).Register(rt)
 	delivery.NewHandler(a.Delivery).Register(rt)
 	settlements.NewHandler(a.Settlements).Register(rt)
+	promo.NewHandler(a.Promo).Register(rt)
 	reports.NewHandler(a.Orders, a.Delivery, a.Payments, a.Shops, a.Users, a.Admin).Register(rt)
 
 	if a.Config.Env != config.EnvProduction { // documentation interactive : local, test, staging

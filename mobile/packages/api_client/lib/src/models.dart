@@ -488,7 +488,13 @@ class Product {
     required this.publishedAt,
     required this.withdrawnAt,
     required this.images,
-  });
+    this.promoPriceXof,
+    this.promoActive = false,
+    int? effectivePriceXof,
+    this.badges = const [],
+    this.featuredRank,
+    this.features = const [],
+  }) : effectivePriceXof = effectivePriceXof ?? priceXof;
 
   factory Product.fromJson(Map<String, dynamic> json) => Product(
     id: json['id'] as String,
@@ -508,6 +514,12 @@ class Product {
       for (final image in json['images'] as List? ?? const [])
         ProductImage.fromJson(image as Map<String, dynamic>),
     ],
+    promoPriceXof: json['promo_price_xof'] as int?,
+    promoActive: json['promo_active'] as bool? ?? false,
+    effectivePriceXof: json['effective_price_xof'] as int?,
+    badges: _badges(json['badges']),
+    featuredRank: json['featured_rank'] as int?,
+    features: [for (final f in json['features'] as List? ?? const []) '$f'],
   );
 
   final String id;
@@ -535,10 +547,47 @@ class Product {
   final DateTime? withdrawnAt;
   final List<ProductImage> images;
 
+  /// Prix promotionnel programmé ou en cours ; `null` : pas de promotion.
+  final int? promoPriceXof;
+
+  /// Promotion en cours : [effectivePriceXof] est le prix promotionnel.
+  final bool promoActive;
+
+  /// Prix facturé aujourd'hui (promotion comprise).
+  final int effectivePriceXof;
+  final List<ProductBadge> badges;
+
+  /// Rang de mise en avant (1 = premier) ; `null` : pas mis en avant.
+  final int? featuredRank;
+
+  /// Caractéristiques mises en avant (« Eau minérale naturelle »…).
+  final List<String> features;
+
   /// Stock suivi épuisé.
   bool get soldOut =>
       stockMode == StockMode.tracked && (stockQuantity ?? 0) <= 0;
 }
+
+/// Badge commercial d'un produit.
+enum ProductBadge {
+  promotion('promotion', 'Promotion'),
+  specialOffer('special_offer', 'Offre spéciale'),
+  featured('featured', 'Produit vedette'),
+  bestSeller('best_seller', 'Meilleure vente');
+
+  const ProductBadge(this.code, this.label);
+
+  final String code;
+  final String label;
+
+  static ProductBadge? parse(String code) =>
+      values.where((b) => b.code == code).firstOrNull;
+}
+
+/// Badges connus de [json] ; les inconnus (version plus récente) sont ignorés.
+List<ProductBadge> _badges(Object? json) => [
+  for (final code in json as List? ?? const []) ?ProductBadge.parse('$code'),
+];
 
 /// Produit à créer ou à modifier (schéma `ProductInput`).
 class ProductInput {
@@ -758,7 +807,28 @@ class ProductHit {
     required this.imageUrl,
     required this.inStock,
     required this.distanceM,
-  });
+    int? effectivePriceXof,
+    this.badges = const [],
+    this.featuredRank,
+  }) : effectivePriceXof = effectivePriceXof ?? priceXof;
+
+  /// Carte d'un produit complet (produits mis en avant du fil publicitaire).
+  factory ProductHit.fromProduct(Product p, {required String shopName}) =>
+      ProductHit(
+        id: p.id,
+        shopId: p.shopId,
+        name: p.name,
+        priceXof: p.priceXof,
+        parcelSize: p.parcelSize,
+        shopName: shopName,
+        neighborhoodId: null,
+        imageUrl: p.images.firstOrNull?.url,
+        inStock: p.available,
+        distanceM: null,
+        effectivePriceXof: p.effectivePriceXof,
+        badges: p.badges,
+        featuredRank: p.featuredRank,
+      );
 
   factory ProductHit.fromJson(Map<String, dynamic> json) => ProductHit(
     id: json['id'] as String,
@@ -771,6 +841,9 @@ class ProductHit {
     imageUrl: json['image_url'] as String?,
     inStock: json['in_stock'] as bool,
     distanceM: json['distance_m'] as int?,
+    effectivePriceXof: json['effective_price_xof'] as int?,
+    badges: _badges(json['badges']),
+    featuredRank: json['featured_rank'] as int?,
   );
 
   final String id;
@@ -785,6 +858,16 @@ class ProductHit {
 
   /// Distance à la position envoyée ; `null` sans position.
   final int? distanceM;
+
+  /// Prix facturé aujourd'hui (promotion comprise).
+  final int effectivePriceXof;
+  final List<ProductBadge> badges;
+
+  /// Rang de mise en avant ; `null` : pas mis en avant.
+  final int? featuredRank;
+
+  /// En promotion : prix effectif inférieur au prix normal.
+  bool get onPromo => effectivePriceXof < priceXof;
 }
 
 /// Boutique trouvée (schéma `ShopHit`).

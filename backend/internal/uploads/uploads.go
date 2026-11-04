@@ -29,6 +29,8 @@ const (
 	DriverDocument Purpose = "driver_document"
 	// MerchantDocument : pièce d'identité ou registre du commerce, vérifiés avant publication.
 	MerchantDocument Purpose = "merchant_document"
+	// PromoVisual : affiche, bannière ou visuel publicitaire publié par l'admin dans les apps.
+	PromoVisual Purpose = "promo_visual"
 )
 
 // Limites imposées à la signature (SECURITY.md).
@@ -41,7 +43,7 @@ type rule struct {
 	prefix string
 	vis    storage.Visibility
 	types  map[string]string // type MIME → extension
-	role   identity.Role     // rôle requis ("" : tout utilisateur connecté)
+	roles  []identity.Role   // l'un de ces rôles est requis (aucun : tout utilisateur connecté)
 }
 
 var images = map[string]string{"image/jpeg": "jpg", "image/png": "png", "image/webp": "webp"}
@@ -49,12 +51,14 @@ var images = map[string]string{"image/jpeg": "jpg", "image/png": "png", "image/w
 var documents = map[string]string{"image/jpeg": "jpg", "image/png": "png", "image/webp": "webp", "application/pdf": "pdf"}
 
 var rules = map[Purpose]rule{
-	ProductImage: {prefix: "products", vis: storage.Public, types: images, role: identity.RoleSeller},
+	// L'admin gère aussi les produits des boutiques de la plateforme (IVI).
+	ProductImage: {prefix: "products", vis: storage.Public, types: images, roles: []identity.Role{identity.RoleSeller, identity.RoleAdmin}},
 	// Le logo est envoyé à la création de la boutique, avant que l'utilisateur soit marchand.
 	ShopLogo:       {prefix: "shops", vis: storage.Public, types: images},
 	DriverDocument: {prefix: "drivers", vis: storage.Private, types: documents},
 	// Déposées après la création de la boutique, qui donne le rôle marchand.
-	MerchantDocument: {prefix: "merchants", vis: storage.Private, types: documents, role: identity.RoleSeller},
+	MerchantDocument: {prefix: "merchants", vis: storage.Private, types: documents, roles: []identity.Role{identity.RoleSeller}},
+	PromoVisual:      {prefix: "promo", vis: storage.Public, types: images, roles: []identity.Role{identity.RoleAdmin}},
 }
 
 // Service signe les envois et vérifie les clés.
@@ -76,7 +80,7 @@ type Upload struct {
 func (s *Service) Sign(ctx context.Context, p identity.Principal, purpose Purpose, contentType string, size int64) (Upload, error) {
 	r, ok := rules[purpose]
 	v := validate.New()
-	v.Check(ok, "purpose", "Usage inconnu : product_image, shop_logo, driver_document ou merchant_document.")
+	v.Check(ok, "purpose", "Usage inconnu : product_image, shop_logo, driver_document, merchant_document ou promo_visual.")
 	if ok {
 		_, typeOK := r.types[contentType]
 		v.Check(typeOK, "content_type", "Type de fichier non accepté.")
@@ -85,7 +89,7 @@ func (s *Service) Sign(ctx context.Context, p identity.Principal, purpose Purpos
 	if err := v.Err(); err != nil {
 		return Upload{}, err
 	}
-	if r.role != "" && !p.HasRole(r.role) {
+	if len(r.roles) > 0 && !p.HasRole(r.roles...) {
 		return Upload{}, apperr.Forbidden("forbidden", "Votre compte n'a pas accès à cette fonctionnalité.")
 	}
 	key := fmt.Sprintf("%s/%s/%s.%s", r.prefix, p.UserID, uuid.New(), r.types[contentType])

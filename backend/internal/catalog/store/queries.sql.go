@@ -7,9 +7,74 @@ package store
 
 import (
 	"context"
+	"time"
 
 	"github.com/google/uuid"
 )
+
+const adminListProducts = `-- name: AdminListProducts :many
+SELECT id, shop_id, category_id, name, description, price_xof, parcel_size, stock_mode, is_active, search_vector, created_at, updated_at, published_at, withdrawn_at, promo_price_xof, promo_starts_at, promo_ends_at, badges, featured_rank, features FROM products
+WHERE ($1::uuid IS NULL OR shop_id = $1::uuid)
+  AND ($2::text IS NULL
+       OR immutable_unaccent(lower(name)) LIKE '%' || immutable_unaccent(lower($2::text)) || '%' ESCAPE '\')
+ORDER BY featured_rank NULLS LAST, created_at DESC, id
+LIMIT $4 OFFSET $3
+`
+
+type AdminListProductsParams struct {
+	ShopID *uuid.UUID
+	Q      *string
+	Off    int32
+	Lim    int32
+}
+
+// Tous les produits (back-office), d'une boutique ou de toutes, avec recherche dans le nom ; les
+// produits mis en avant d'abord.
+func (q *Queries) AdminListProducts(ctx context.Context, arg AdminListProductsParams) ([]Product, error) {
+	rows, err := q.db.Query(ctx, adminListProducts,
+		arg.ShopID,
+		arg.Q,
+		arg.Off,
+		arg.Lim,
+	)
+	if err != nil {
+		return nil, err
+	}
+	defer rows.Close()
+	items := []Product{}
+	for rows.Next() {
+		var i Product
+		if err := rows.Scan(
+			&i.ID,
+			&i.ShopID,
+			&i.CategoryID,
+			&i.Name,
+			&i.Description,
+			&i.PriceXof,
+			&i.ParcelSize,
+			&i.StockMode,
+			&i.IsActive,
+			&i.SearchVector,
+			&i.CreatedAt,
+			&i.UpdatedAt,
+			&i.PublishedAt,
+			&i.WithdrawnAt,
+			&i.PromoPriceXof,
+			&i.PromoStartsAt,
+			&i.PromoEndsAt,
+			&i.Badges,
+			&i.FeaturedRank,
+			&i.Features,
+		); err != nil {
+			return nil, err
+		}
+		items = append(items, i)
+	}
+	if err := rows.Err(); err != nil {
+		return nil, err
+	}
+	return items, nil
+}
 
 const countSellerProducts = `-- name: CountSellerProducts :one
 SELECT count(*) FILTER (WHERE is_active) AS active,
@@ -103,6 +168,55 @@ func (q *Queries) DeleteImages(ctx context.Context, productID uuid.UUID) error {
 	return err
 }
 
+const featuredProducts = `-- name: FeaturedProducts :many
+SELECT id, shop_id, category_id, name, description, price_xof, parcel_size, stock_mode, is_active, search_vector, created_at, updated_at, published_at, withdrawn_at, promo_price_xof, promo_starts_at, promo_ends_at, badges, featured_rank, features FROM products
+WHERE featured_rank IS NOT NULL AND is_active
+ORDER BY featured_rank, created_at DESC
+LIMIT $1
+`
+
+// Produits mis en avant en vente, par rang (la boutique publiée est vérifiée par le service).
+func (q *Queries) FeaturedProducts(ctx context.Context, lim int32) ([]Product, error) {
+	rows, err := q.db.Query(ctx, featuredProducts, lim)
+	if err != nil {
+		return nil, err
+	}
+	defer rows.Close()
+	items := []Product{}
+	for rows.Next() {
+		var i Product
+		if err := rows.Scan(
+			&i.ID,
+			&i.ShopID,
+			&i.CategoryID,
+			&i.Name,
+			&i.Description,
+			&i.PriceXof,
+			&i.ParcelSize,
+			&i.StockMode,
+			&i.IsActive,
+			&i.SearchVector,
+			&i.CreatedAt,
+			&i.UpdatedAt,
+			&i.PublishedAt,
+			&i.WithdrawnAt,
+			&i.PromoPriceXof,
+			&i.PromoStartsAt,
+			&i.PromoEndsAt,
+			&i.Badges,
+			&i.FeaturedRank,
+			&i.Features,
+		); err != nil {
+			return nil, err
+		}
+		items = append(items, i)
+	}
+	if err := rows.Err(); err != nil {
+		return nil, err
+	}
+	return items, nil
+}
+
 const getCategory = `-- name: GetCategory :one
 SELECT id, name, parent_id, position, is_active, created_at, updated_at FROM categories WHERE id = $1
 `
@@ -123,7 +237,7 @@ func (q *Queries) GetCategory(ctx context.Context, id uuid.UUID) (Category, erro
 }
 
 const getProduct = `-- name: GetProduct :one
-SELECT id, shop_id, category_id, name, description, price_xof, parcel_size, stock_mode, is_active, search_vector, created_at, updated_at, published_at, withdrawn_at FROM products WHERE id = $1
+SELECT id, shop_id, category_id, name, description, price_xof, parcel_size, stock_mode, is_active, search_vector, created_at, updated_at, published_at, withdrawn_at, promo_price_xof, promo_starts_at, promo_ends_at, badges, featured_rank, features FROM products WHERE id = $1
 `
 
 func (q *Queries) GetProduct(ctx context.Context, id uuid.UUID) (Product, error) {
@@ -144,12 +258,18 @@ func (q *Queries) GetProduct(ctx context.Context, id uuid.UUID) (Product, error)
 		&i.UpdatedAt,
 		&i.PublishedAt,
 		&i.WithdrawnAt,
+		&i.PromoPriceXof,
+		&i.PromoStartsAt,
+		&i.PromoEndsAt,
+		&i.Badges,
+		&i.FeaturedRank,
+		&i.Features,
 	)
 	return i, err
 }
 
 const getProductsByIDs = `-- name: GetProductsByIDs :many
-SELECT id, shop_id, category_id, name, description, price_xof, parcel_size, stock_mode, is_active, search_vector, created_at, updated_at, published_at, withdrawn_at FROM products WHERE id = ANY($1::uuid[])
+SELECT id, shop_id, category_id, name, description, price_xof, parcel_size, stock_mode, is_active, search_vector, created_at, updated_at, published_at, withdrawn_at, promo_price_xof, promo_starts_at, promo_ends_at, badges, featured_rank, features FROM products WHERE id = ANY($1::uuid[])
 `
 
 func (q *Queries) GetProductsByIDs(ctx context.Context, ids []uuid.UUID) ([]Product, error) {
@@ -176,6 +296,12 @@ func (q *Queries) GetProductsByIDs(ctx context.Context, ids []uuid.UUID) ([]Prod
 			&i.UpdatedAt,
 			&i.PublishedAt,
 			&i.WithdrawnAt,
+			&i.PromoPriceXof,
+			&i.PromoStartsAt,
+			&i.PromoEndsAt,
+			&i.Badges,
+			&i.FeaturedRank,
+			&i.Features,
 		); err != nil {
 			return nil, err
 		}
@@ -203,7 +329,7 @@ func (q *Queries) InsertImage(ctx context.Context, arg InsertImageParams) error 
 }
 
 const listActiveProductsByShop = `-- name: ListActiveProductsByShop :many
-SELECT id, shop_id, category_id, name, description, price_xof, parcel_size, stock_mode, is_active, search_vector, created_at, updated_at, published_at, withdrawn_at FROM products
+SELECT id, shop_id, category_id, name, description, price_xof, parcel_size, stock_mode, is_active, search_vector, created_at, updated_at, published_at, withdrawn_at, promo_price_xof, promo_starts_at, promo_ends_at, badges, featured_rank, features FROM products
 WHERE shop_id = $1 AND is_active
 ORDER BY created_at DESC, id
 LIMIT $3 OFFSET $2
@@ -240,6 +366,12 @@ func (q *Queries) ListActiveProductsByShop(ctx context.Context, arg ListActivePr
 			&i.UpdatedAt,
 			&i.PublishedAt,
 			&i.WithdrawnAt,
+			&i.PromoPriceXof,
+			&i.PromoStartsAt,
+			&i.PromoEndsAt,
+			&i.Badges,
+			&i.FeaturedRank,
+			&i.Features,
 		); err != nil {
 			return nil, err
 		}
@@ -316,7 +448,7 @@ func (q *Queries) ListImages(ctx context.Context, productIds []uuid.UUID) ([]Pro
 }
 
 const listSellerProducts = `-- name: ListSellerProducts :many
-SELECT id, shop_id, category_id, name, description, price_xof, parcel_size, stock_mode, is_active, search_vector, created_at, updated_at, published_at, withdrawn_at FROM products
+SELECT id, shop_id, category_id, name, description, price_xof, parcel_size, stock_mode, is_active, search_vector, created_at, updated_at, published_at, withdrawn_at, promo_price_xof, promo_starts_at, promo_ends_at, badges, featured_rank, features FROM products
 WHERE shop_id = $1
   AND CASE $2::text
         WHEN 'active' THEN is_active
@@ -371,6 +503,12 @@ func (q *Queries) ListSellerProducts(ctx context.Context, arg ListSellerProducts
 			&i.UpdatedAt,
 			&i.PublishedAt,
 			&i.WithdrawnAt,
+			&i.PromoPriceXof,
+			&i.PromoStartsAt,
+			&i.PromoEndsAt,
+			&i.Badges,
+			&i.FeaturedRank,
+			&i.Features,
 		); err != nil {
 			return nil, err
 		}
@@ -380,6 +518,38 @@ func (q *Queries) ListSellerProducts(ctx context.Context, arg ListSellerProducts
 		return nil, err
 	}
 	return items, nil
+}
+
+const setProductMarketing = `-- name: SetProductMarketing :exec
+UPDATE products
+SET promo_price_xof = $1, promo_starts_at = $2,
+    promo_ends_at = $3, badges = $4::text[],
+    featured_rank = $5, features = $6::text[], updated_at = now()
+WHERE id = $7
+`
+
+type SetProductMarketingParams struct {
+	PromoPriceXof *int64
+	PromoStartsAt *time.Time
+	PromoEndsAt   *time.Time
+	Badges        []string
+	FeaturedRank  *int32
+	Features      []string
+	ID            uuid.UUID
+}
+
+// Promotion et mise en avant d'un produit (admin) ; contrôles en base (products_promo_check…).
+func (q *Queries) SetProductMarketing(ctx context.Context, arg SetProductMarketingParams) error {
+	_, err := q.db.Exec(ctx, setProductMarketing,
+		arg.PromoPriceXof,
+		arg.PromoStartsAt,
+		arg.PromoEndsAt,
+		arg.Badges,
+		arg.FeaturedRank,
+		arg.Features,
+		arg.ID,
+	)
+	return err
 }
 
 const updateCategory = `-- name: UpdateCategory :one

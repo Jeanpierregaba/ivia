@@ -821,6 +821,7 @@ paths:
                     - shop_logo
                     - driver_document
                     - merchant_document
+                    - promo_visual
                 content_type:
                   type: string
                   enum:
@@ -5303,6 +5304,545 @@ paths:
             application/json:
               schema:
                 "$ref": "#/components/schemas/Error"
+  "/v1/products/featured":
+    get:
+      summary: "Produits mis en avant (IVI d'abord)"
+      tags:
+        - Catalogue
+      operationId: getProductsFeatured
+      security: []
+      responses:
+        "200":
+          description: "Succès"
+          content:
+            application/json:
+              schema:
+                type: object
+                properties:
+                  items:
+                    type: array
+                    items:
+                      "$ref": "#/components/schemas/Product"
+                required:
+                  - items
+        default:
+          description: "Erreur (voir `code`)"
+          content:
+            application/json:
+              schema:
+                "$ref": "#/components/schemas/Error"
+  "/v1/promo/feed":
+    get:
+      summary: "Fil publicitaire d'une app (visuels en cours, produits mis en avant, réglages)"
+      tags:
+        - Publicité
+      operationId: getPromoFeed
+      parameters:
+        - name: app
+          in: query
+          required: false
+          schema:
+            type: string
+            enum:
+              - buyer
+              - seller
+              - driver
+            default: buyer
+      security: []
+      responses:
+        "200":
+          description: "Succès"
+          content:
+            application/json:
+              schema:
+                "$ref": "#/components/schemas/PromoFeed"
+        default:
+          description: "Erreur (voir `code`)"
+          content:
+            application/json:
+              schema:
+                "$ref": "#/components/schemas/Error"
+  "/v1/promo/events":
+    post:
+      summary: "Remonter des événements publicitaires (anonymes, 50 au plus)"
+      tags:
+        - Publicité
+      operationId: postPromoEvents
+      security: []
+      requestBody:
+        required: true
+        content:
+          application/json:
+            schema:
+              "$ref": "#/components/schemas/PromoEventBatch"
+      responses:
+        "200":
+          description: "Succès"
+          content:
+            application/json:
+              schema:
+                type: object
+                properties:
+                  recorded:
+                    type: integer
+                required:
+                  - recorded
+        default:
+          description: "Erreur (voir `code`)"
+          content:
+            application/json:
+              schema:
+                "$ref": "#/components/schemas/Error"
+  "/v1/admin/products":
+    get:
+      summary: "Produits (toutes boutiques), mis en avant d'abord"
+      tags:
+        - Admin
+      operationId: getAdminProducts
+      parameters:
+        - name: shop_id
+          in: query
+          required: false
+          schema:
+            type: string
+            format: uuid
+        - name: q
+          in: query
+          required: false
+          schema:
+            type: string
+            maxLength: 100
+        - name: limit
+          in: query
+          required: false
+          schema:
+            type: integer
+            minimum: 1
+            maximum: 100
+            default: 20
+        - name: offset
+          in: query
+          required: false
+          schema:
+            type: integer
+            minimum: 0
+            maximum: 10000
+            default: 0
+      x-roles:
+        - admin
+      responses:
+        "200":
+          description: "Succès"
+          content:
+            application/json:
+              schema:
+                type: object
+                properties:
+                  items:
+                    type: array
+                    items:
+                      "$ref": "#/components/schemas/Product"
+                  next_offset:
+                    type:
+                      - integer
+                      - "null"
+                required:
+                  - items
+        default:
+          description: "Erreur (voir `code`)"
+          content:
+            application/json:
+              schema:
+                "$ref": "#/components/schemas/Error"
+  "/v1/admin/products/{id}":
+    get:
+      summary: "Produit (tout état)"
+      tags:
+        - Admin
+      operationId: getAdminProductsById
+      parameters:
+        - name: id
+          in: path
+          required: true
+          schema:
+            type: string
+            format: uuid
+      x-roles:
+        - admin
+      responses:
+        "200":
+          description: "Succès"
+          content:
+            application/json:
+              schema:
+                "$ref": "#/components/schemas/Product"
+        default:
+          description: "Erreur (voir `code`)"
+          content:
+            application/json:
+              schema:
+                "$ref": "#/components/schemas/Error"
+    patch:
+      summary: "Modifier un produit (boutiques de la plateforme)"
+      tags:
+        - Admin
+      operationId: patchAdminProductsById
+      parameters:
+        - name: id
+          in: path
+          required: true
+          schema:
+            type: string
+            format: uuid
+      x-roles:
+        - admin
+      requestBody:
+        required: true
+        content:
+          application/json:
+            schema:
+              "$ref": "#/components/schemas/ProductInput"
+      responses:
+        "200":
+          description: "Succès"
+          content:
+            application/json:
+              schema:
+                "$ref": "#/components/schemas/Product"
+        default:
+          description: "Erreur (voir `code`)"
+          content:
+            application/json:
+              schema:
+                "$ref": "#/components/schemas/Error"
+  "/v1/admin/products/{id}/stock":
+    put:
+      summary: "Fixer la quantité en stock"
+      tags:
+        - Admin
+      operationId: putAdminProductsByIdStock
+      parameters:
+        - name: id
+          in: path
+          required: true
+          schema:
+            type: string
+            format: uuid
+      x-roles:
+        - admin
+      requestBody:
+        required: true
+        content:
+          application/json:
+            schema:
+              type: object
+              properties:
+                quantity:
+                  type: integer
+                note:
+                  type: string
+              required:
+                - quantity
+      responses:
+        "200":
+          description: "Succès"
+          content:
+            application/json:
+              schema:
+                "$ref": "#/components/schemas/Product"
+        default:
+          description: "Erreur (voir `code`)"
+          content:
+            application/json:
+              schema:
+                "$ref": "#/components/schemas/Error"
+  "/v1/admin/products/{id}/marketing":
+    put:
+      summary: "Promotion, badges, mise en avant et caractéristiques d'un produit"
+      tags:
+        - Admin
+      operationId: putAdminProductsByIdMarketing
+      parameters:
+        - name: id
+          in: path
+          required: true
+          schema:
+            type: string
+            format: uuid
+      x-roles:
+        - admin
+      requestBody:
+        required: true
+        content:
+          application/json:
+            schema:
+              "$ref": "#/components/schemas/ProductMarketingInput"
+      responses:
+        "200":
+          description: "Succès"
+          content:
+            application/json:
+              schema:
+                "$ref": "#/components/schemas/Product"
+        default:
+          description: "Erreur (voir `code`)"
+          content:
+            application/json:
+              schema:
+                "$ref": "#/components/schemas/Error"
+  "/v1/admin/shops/{id}/products":
+    post:
+      summary: "Ajouter un produit à une boutique (IVI)"
+      tags:
+        - Admin
+      operationId: postAdminShopsByIdProducts
+      parameters:
+        - name: id
+          in: path
+          required: true
+          schema:
+            type: string
+            format: uuid
+      x-roles:
+        - admin
+      requestBody:
+        required: true
+        content:
+          application/json:
+            schema:
+              "$ref": "#/components/schemas/ProductInput"
+      responses:
+        "201":
+          description: "Succès"
+          content:
+            application/json:
+              schema:
+                "$ref": "#/components/schemas/Product"
+        default:
+          description: "Erreur (voir `code`)"
+          content:
+            application/json:
+              schema:
+                "$ref": "#/components/schemas/Error"
+  "/v1/admin/promo/visuals":
+    get:
+      summary: "Visuels publicitaires"
+      tags:
+        - Admin
+      operationId: getAdminPromoVisuals
+      x-roles:
+        - admin
+      responses:
+        "200":
+          description: "Succès"
+          content:
+            application/json:
+              schema:
+                type: object
+                properties:
+                  items:
+                    type: array
+                    items:
+                      "$ref": "#/components/schemas/PromoVisual"
+                required:
+                  - items
+        default:
+          description: "Erreur (voir `code`)"
+          content:
+            application/json:
+              schema:
+                "$ref": "#/components/schemas/Error"
+    post:
+      summary: "Publier un visuel (affiche, bannière, bienvenue, mois, fenêtre, interstitiel)"
+      tags:
+        - Admin
+      operationId: postAdminPromoVisuals
+      x-roles:
+        - admin
+      requestBody:
+        required: true
+        content:
+          application/json:
+            schema:
+              "$ref": "#/components/schemas/PromoVisualInput"
+      responses:
+        "201":
+          description: "Succès"
+          content:
+            application/json:
+              schema:
+                "$ref": "#/components/schemas/PromoVisual"
+        default:
+          description: "Erreur (voir `code`)"
+          content:
+            application/json:
+              schema:
+                "$ref": "#/components/schemas/Error"
+  "/v1/admin/promo/visuals/{id}":
+    get:
+      summary: "Visuel publicitaire"
+      tags:
+        - Admin
+      operationId: getAdminPromoVisualsById
+      parameters:
+        - name: id
+          in: path
+          required: true
+          schema:
+            type: string
+            format: uuid
+      x-roles:
+        - admin
+      responses:
+        "200":
+          description: "Succès"
+          content:
+            application/json:
+              schema:
+                "$ref": "#/components/schemas/PromoVisual"
+        default:
+          description: "Erreur (voir `code`)"
+          content:
+            application/json:
+              schema:
+                "$ref": "#/components/schemas/Error"
+    patch:
+      summary: "Modifier un visuel"
+      tags:
+        - Admin
+      operationId: patchAdminPromoVisualsById
+      parameters:
+        - name: id
+          in: path
+          required: true
+          schema:
+            type: string
+            format: uuid
+      x-roles:
+        - admin
+      requestBody:
+        required: true
+        content:
+          application/json:
+            schema:
+              "$ref": "#/components/schemas/PromoVisualInput"
+      responses:
+        "200":
+          description: "Succès"
+          content:
+            application/json:
+              schema:
+                "$ref": "#/components/schemas/PromoVisual"
+        default:
+          description: "Erreur (voir `code`)"
+          content:
+            application/json:
+              schema:
+                "$ref": "#/components/schemas/Error"
+    delete:
+      summary: "Supprimer un visuel (statistiques conservées)"
+      tags:
+        - Admin
+      operationId: deleteAdminPromoVisualsById
+      parameters:
+        - name: id
+          in: path
+          required: true
+          schema:
+            type: string
+            format: uuid
+      x-roles:
+        - admin
+      responses:
+        "204":
+          description: "Effectué"
+        default:
+          description: "Erreur (voir `code`)"
+          content:
+            application/json:
+              schema:
+                "$ref": "#/components/schemas/Error"
+  "/v1/admin/promo/settings":
+    get:
+      summary: "Réglages de diffusion"
+      tags:
+        - Admin
+      operationId: getAdminPromoSettings
+      x-roles:
+        - admin
+      responses:
+        "200":
+          description: "Succès"
+          content:
+            application/json:
+              schema:
+                "$ref": "#/components/schemas/PromoSettings"
+        default:
+          description: "Erreur (voir `code`)"
+          content:
+            application/json:
+              schema:
+                "$ref": "#/components/schemas/Error"
+    put:
+      summary: "Modifier les réglages de diffusion"
+      tags:
+        - Admin
+      operationId: putAdminPromoSettings
+      x-roles:
+        - admin
+      requestBody:
+        required: true
+        content:
+          application/json:
+            schema:
+              "$ref": "#/components/schemas/PromoSettings"
+      responses:
+        "200":
+          description: "Succès"
+          content:
+            application/json:
+              schema:
+                "$ref": "#/components/schemas/PromoSettings"
+        default:
+          description: "Erreur (voir `code`)"
+          content:
+            application/json:
+              schema:
+                "$ref": "#/components/schemas/Error"
+  "/v1/admin/promo/stats":
+    get:
+      summary: "Statistiques publicitaires (30 derniers jours par défaut)"
+      tags:
+        - Admin
+      operationId: getAdminPromoStats
+      parameters:
+        - name: from
+          in: query
+          required: false
+          schema:
+            type: string
+            format: date
+        - name: to
+          in: query
+          required: false
+          schema:
+            type: string
+            format: date
+      x-roles:
+        - admin
+      responses:
+        "200":
+          description: "Succès"
+          content:
+            application/json:
+              schema:
+                "$ref": "#/components/schemas/PromoStats"
+        default:
+          description: "Erreur (voir `code`)"
+          content:
+            application/json:
+              schema:
+                "$ref": "#/components/schemas/Error"
 components:
   securitySchemes:
     bearer:
@@ -5310,6 +5850,472 @@ components:
       scheme: bearer
       description: "Jeton de session opaque."
   schemas:
+    PromoVisual:
+      type: object
+      description: "Visuel publicitaire publié par l'admin."
+      properties:
+        id:
+          type: string
+          format: uuid
+        kind:
+          type: string
+          enum:
+            - banner
+            - modal
+            - interstitial
+            - welcome
+            - monthly
+            - poster
+        title:
+          type: string
+        subtitle:
+          type: string
+        body:
+          type: string
+        image_key:
+          type: string
+          description: "Clé promo_visual (POST /v1/uploads)."
+        product_id:
+          type:
+            - string
+            - "null"
+          format: uuid
+        cta_label:
+          type: string
+        external_url:
+          type: string
+          description: "Lien https:// (site officiel) ; vide sinon."
+        placements:
+          type: array
+          items:
+            type: string
+            enum:
+              - home_hero
+              - home_feed
+              - catalog_feed
+              - modal
+              - interstitial
+              - splash
+        apps:
+          type: array
+          items:
+            type: string
+            enum:
+              - buyer
+              - seller
+              - driver
+        priority:
+          type: integer
+          minimum: 0
+          maximum: 100
+        weight:
+          type: integer
+          minimum: 1
+          maximum: 100
+        starts_at:
+          type:
+            - string
+            - "null"
+          format: date-time
+        ends_at:
+          type:
+            - string
+            - "null"
+          format: date-time
+        image_url:
+          type: string
+        is_active:
+          type: boolean
+        live:
+          type: boolean
+          description: "Actif et dans sa période de diffusion."
+        created_at:
+          type: string
+          format: date-time
+        updated_at:
+          type: string
+          format: date-time
+      required:
+        - id
+        - kind
+        - title
+        - subtitle
+        - body
+        - image_key
+        - image_url
+        - product_id
+        - cta_label
+        - external_url
+        - placements
+        - apps
+        - priority
+        - weight
+        - starts_at
+        - ends_at
+        - is_active
+        - live
+        - created_at
+        - updated_at
+    PromoVisualInput:
+      type: object
+      properties:
+        kind:
+          type: string
+          enum:
+            - banner
+            - modal
+            - interstitial
+            - welcome
+            - monthly
+            - poster
+        title:
+          type: string
+        subtitle:
+          type: string
+        body:
+          type: string
+        image_key:
+          type: string
+          description: "Clé promo_visual (POST /v1/uploads)."
+        product_id:
+          type:
+            - string
+            - "null"
+          format: uuid
+        cta_label:
+          type: string
+        external_url:
+          type: string
+          description: "Lien https:// (site officiel) ; vide sinon."
+        placements:
+          type: array
+          items:
+            type: string
+            enum:
+              - home_hero
+              - home_feed
+              - catalog_feed
+              - modal
+              - interstitial
+              - splash
+        apps:
+          type: array
+          items:
+            type: string
+            enum:
+              - buyer
+              - seller
+              - driver
+        priority:
+          type: integer
+          minimum: 0
+          maximum: 100
+        weight:
+          type: integer
+          minimum: 1
+          maximum: 100
+        starts_at:
+          type:
+            - string
+            - "null"
+          format: date-time
+        ends_at:
+          type:
+            - string
+            - "null"
+          format: date-time
+        is_active:
+          type: boolean
+      required:
+        - kind
+        - title
+        - image_key
+        - placements
+    PromoFeedVisual:
+      description: "Visuel du fil (champs de PromoVisual) avec le produit commandable s'il est en vente."
+      allOf:
+        - "$ref": "#/components/schemas/PromoVisual"
+        - type: object
+          properties:
+            product:
+              oneOf:
+                - "$ref": "#/components/schemas/Product"
+                - type: "null"
+          required:
+            - product
+    PromoSettings:
+      type: object
+      description: "Réglages de diffusion ; les apps appliquent délai, intervalle, plafond et rotation."
+      properties:
+        enabled:
+          type: boolean
+        banners_enabled:
+          type: boolean
+        modal_enabled:
+          type: boolean
+        interstitial_enabled:
+          type: boolean
+        first_delay_seconds:
+          type: integer
+          minimum: 0
+          maximum: 600
+        min_interval_seconds:
+          type: integer
+          minimum: 15
+          maximum: 3600
+        max_per_session:
+          type: integer
+          minimum: 0
+          maximum: 50
+        feed_every:
+          type: integer
+          minimum: 3
+          maximum: 50
+          description: "Un produit mis en avant revient toutes les N cartes."
+        rotation:
+          type: string
+          enum:
+            - weighted
+            - random
+            - priority
+        official_url:
+          type: string
+        updated_at:
+          type: string
+          format: date-time
+      required:
+        - enabled
+        - banners_enabled
+        - modal_enabled
+        - interstitial_enabled
+        - first_delay_seconds
+        - min_interval_seconds
+        - max_per_session
+        - feed_every
+        - rotation
+        - official_url
+    PromoFeed:
+      type: object
+      properties:
+        settings:
+          "$ref": "#/components/schemas/PromoSettings"
+        visuals:
+          type: array
+          items:
+            "$ref": "#/components/schemas/PromoFeedVisual"
+        featured:
+          type: array
+          items:
+            "$ref": "#/components/schemas/Product"
+      required:
+        - settings
+        - visuals
+        - featured
+    PromoEvent:
+      type: object
+      description: "Visual_id ou product_id obligatoire ; un événement invalide est ignoré."
+      properties:
+        kind:
+          type: string
+          enum:
+            - impression
+            - dismiss
+            - click_order
+            - click_product
+            - click_site
+            - order
+        visual_id:
+          type:
+            - string
+            - "null"
+          format: uuid
+        product_id:
+          type:
+            - string
+            - "null"
+          format: uuid
+        placement:
+          type: string
+      required:
+        - kind
+    PromoEventBatch:
+      type: object
+      properties:
+        app:
+          type: string
+          enum:
+            - buyer
+            - seller
+            - driver
+        session_id:
+          type: string
+          minLength: 8
+          maxLength: 64
+          pattern: "^[A-Za-z0-9_-]+$"
+          description: "Tiré au hasard par l'app, sans lien avec le compte."
+        events:
+          type: array
+          maxItems: 50
+          items:
+            "$ref": "#/components/schemas/PromoEvent"
+      required:
+        - app
+        - session_id
+        - events
+    PromoStats:
+      type: object
+      properties:
+        from:
+          type: string
+          format: date
+        to:
+          type: string
+          format: date
+        impressions:
+          type: integer
+          format: int64
+        dismissals:
+          type: integer
+          format: int64
+        order_clicks:
+          type: integer
+          format: int64
+        product_clicks:
+          type: integer
+          format: int64
+        site_clicks:
+          type: integer
+          format: int64
+        orders:
+          type: integer
+          format: int64
+        sessions:
+          type: integer
+          format: int64
+        ctr_pct:
+          type: number
+        conversion_pct:
+          type: number
+        per_day:
+          type: array
+          items:
+            type: object
+            properties:
+              day:
+                type: string
+                format: date
+              impressions:
+                type: integer
+              clicks:
+                type: integer
+        visuals:
+          type: array
+          items:
+            type: object
+            properties:
+              visual_id:
+                type: string
+              title:
+                type: string
+              kind:
+                type: string
+              live:
+                type: boolean
+              impressions:
+                type: integer
+              dismissals:
+                type: integer
+              clicks:
+                type: integer
+              site_clicks:
+                type: integer
+              orders:
+                type: integer
+              ctr_pct:
+                type: number
+        products:
+          type: array
+          items:
+            type: object
+            properties:
+              product_id:
+                type: string
+              name:
+                type: string
+              impressions:
+                type: integer
+              views:
+                type: integer
+              order_clicks:
+                type: integer
+              ad_orders:
+                type: integer
+              paid_orders:
+                type: integer
+              units_sold:
+                type: integer
+              revenue_xof:
+                type: integer
+              featured_rank:
+                type:
+                  - integer
+                  - "null"
+      required:
+        - from
+        - to
+        - impressions
+        - dismissals
+        - order_clicks
+        - product_clicks
+        - site_clicks
+        - orders
+        - sessions
+        - ctr_pct
+        - conversion_pct
+        - per_day
+        - visuals
+        - products
+    ProductMarketingInput:
+      type: object
+      description: "Promotion et mise en avant ; null retire la promotion ou la mise en avant."
+      properties:
+        promo_price_xof:
+          type:
+            - integer
+            - "null"
+          format: int64
+          description: "Inférieur au prix normal."
+        promo_starts_at:
+          type:
+            - string
+            - "null"
+          format: date-time
+        promo_ends_at:
+          type:
+            - string
+            - "null"
+          format: date-time
+        badges:
+          type: array
+          items:
+            type: string
+            enum:
+              - promotion
+              - special_offer
+              - featured
+              - best_seller
+        featured_rank:
+          type:
+            - integer
+            - "null"
+          minimum: 1
+          maximum: 1000
+          description: "1 = premier."
+        features:
+          type: array
+          items:
+            type: string
+          maxItems: 12
     Status:
       type: object
       properties:
@@ -5910,6 +6916,44 @@ components:
         updated_at:
           type: string
           format: date-time
+        promo_price_xof:
+          type:
+            - integer
+            - "null"
+          format: int64
+        promo_starts_at:
+          type:
+            - string
+            - "null"
+          format: date-time
+        promo_ends_at:
+          type:
+            - string
+            - "null"
+          format: date-time
+        promo_active:
+          type: boolean
+        effective_price_xof:
+          type: integer
+          format: int64
+          description: "Prix facturé à l'instant (prix promotionnel pendant la promotion)."
+        badges:
+          type: array
+          items:
+            type: string
+            enum:
+              - promotion
+              - special_offer
+              - featured
+              - best_seller
+        featured_rank:
+          type:
+            - integer
+            - "null"
+        features:
+          type: array
+          items:
+            type: string
       required:
         - id
         - shop_id
@@ -5917,6 +6961,12 @@ components:
         - name
         - description
         - price_xof
+        - promo_price_xof
+        - promo_active
+        - effective_price_xof
+        - badges
+        - featured_rank
+        - features
         - parcel_size
         - stock_mode
         - stock_quantity
@@ -6028,6 +7078,18 @@ components:
     ProductHit:
       type: object
       properties:
+        effective_price_xof:
+          type: integer
+          format: int64
+          description: "Prix facturé à l'instant (prix promotionnel pendant la promotion)."
+        badges:
+          type: array
+          items:
+            type: string
+        featured_rank:
+          type:
+            - integer
+            - "null"
         id:
           type: string
           format: uuid

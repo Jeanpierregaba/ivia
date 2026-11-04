@@ -6,6 +6,7 @@ import 'package:go_router/go_router.dart';
 import 'package:ivia_ui/ivia_ui.dart';
 
 import '../orders/orders_providers.dart';
+import '../promo/promo_overlay.dart';
 
 /// Onglets de l'app acheteur, dans l'ordre des branches du routeur.
 const buyerTabs = [
@@ -27,7 +28,8 @@ class BuyerShell extends ConsumerWidget {
   @override
   Widget build(BuildContext context, WidgetRef ref) {
     return Scaffold(
-      body: shell,
+      // Publicité pendant la navigation (fenêtres et interstitiels).
+      body: PromoHost(child: shell),
       bottomNavigationBar: IviaBottomNav(
         items: buyerTabs,
         currentIndex: shell.currentIndex,

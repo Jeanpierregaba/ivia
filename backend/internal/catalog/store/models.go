@@ -21,20 +21,26 @@ type Category struct {
 }
 
 type Product struct {
-	ID           uuid.UUID
-	ShopID       uuid.UUID
-	CategoryID   uuid.UUID
-	Name         string
-	Description  string
-	PriceXof     int64
-	ParcelSize   string
-	StockMode    string
-	IsActive     bool
-	SearchVector interface{}
-	CreatedAt    time.Time
-	UpdatedAt    time.Time
-	PublishedAt  *time.Time
-	WithdrawnAt  *time.Time
+	ID            uuid.UUID
+	ShopID        uuid.UUID
+	CategoryID    uuid.UUID
+	Name          string
+	Description   string
+	PriceXof      int64
+	ParcelSize    string
+	StockMode     string
+	IsActive      bool
+	SearchVector  interface{}
+	CreatedAt     time.Time
+	UpdatedAt     time.Time
+	PublishedAt   *time.Time
+	WithdrawnAt   *time.Time
+	PromoPriceXof *int64
+	PromoStartsAt *time.Time
+	PromoEndsAt   *time.Time
+	Badges        []string
+	FeaturedRank  *int32
+	Features      []string
 }
 
 type ProductImage struct {

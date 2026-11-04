@@ -110,8 +110,8 @@ func (s *Service) Get(ctx context.Context, buyerID uuid.UUID) (Cart, error) {
 	for _, r := range rows {
 		p := products[r.ProductID]
 		it := Item{
-			ProductID: r.ProductID, Name: p.Name, UnitPriceXOF: p.PriceXOF, Quantity: r.Quantity,
-			LineTotalXOF: p.PriceXOF * int64(r.Quantity), ParcelSize: p.ParcelSize,
+			ProductID: r.ProductID, Name: p.Name, UnitPriceXOF: p.EffectivePriceXOF, Quantity: r.Quantity,
+			LineTotalXOF: p.EffectivePriceXOF * int64(r.Quantity), ParcelSize: p.ParcelSize,
 		}
 		if len(p.Images) > 0 {
 			it.ImageURL = &p.Images[0].URL

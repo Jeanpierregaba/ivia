@@ -100,9 +100,9 @@ func (s *Service) Quote(ctx context.Context, buyerID uuid.UUID, in CheckoutInput
 		if p.StockQuantity != nil && *p.StockQuantity < l.Quantity {
 			return Quote{}, apperr.Conflict("insufficient_stock", fmt.Sprintf("Stock insuffisant pour « %s ».", p.Name))
 		}
-		line := p.PriceXOF * int64(l.Quantity)
+		line := p.EffectivePriceXOF * int64(l.Quantity) // prix promotionnel pendant la promotion
 		q.Items = append(q.Items, Item{
-			ProductID: p.ID, ProductName: p.Name, UnitPriceXOF: p.PriceXOF, Quantity: l.Quantity,
+			ProductID: p.ID, ProductName: p.Name, UnitPriceXOF: p.EffectivePriceXOF, Quantity: l.Quantity,
 			LineTotalXOF: line, ParcelSize: string(p.ParcelSize), StockMode: string(p.StockMode),
 		})
 		q.SubtotalXOF += line

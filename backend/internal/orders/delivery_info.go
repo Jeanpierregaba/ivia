@@ -165,3 +165,26 @@ func (s *Service) MetricsBetween(ctx context.Context, from, to time.Time) (Metri
 	}
 	return out, nil
 }
+
+// ProductSale : ventes payées d'un produit sur une période.
+type ProductSale struct {
+	Orders     int64 `json:"orders"`
+	Units      int64 `json:"units"`
+	RevenueXOF int64 `json:"revenue_xof"`
+}
+
+// ProductSales retourne les ventes payées des produits sur [from, to), par produit.
+func (s *Service) ProductSales(ctx context.Context, productIDs []uuid.UUID, from, to time.Time) (map[uuid.UUID]ProductSale, error) {
+	out := map[uuid.UUID]ProductSale{}
+	if len(productIDs) == 0 {
+		return out, nil
+	}
+	rows, err := store.New(s.db.Conn(ctx)).ProductSales(ctx, store.ProductSalesParams{ProductIds: productIDs, FromTime: from, ToTime: to})
+	if err != nil {
+		return nil, fmt.Errorf("ventes des produits : %w", err)
+	}
+	for _, r := range rows {
+		out[r.ProductID] = ProductSale{Orders: r.Orders, Units: r.Units, RevenueXOF: r.RevenueXof}
+	}
+	return out, nil
+}

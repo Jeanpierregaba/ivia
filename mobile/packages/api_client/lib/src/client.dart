@@ -4,6 +4,7 @@ import 'package:flutter/foundation.dart';
 import 'api_config.dart';
 import 'api_exception.dart';
 import 'models.dart';
+import 'promo.dart';
 
 /// Client de l'API REST `/v1` (contrat : backend/api/openapi.yaml).
 ///
@@ -341,6 +342,32 @@ class IviaApiClient {
     return (
       Product.fromJson(json['product'] as Map<String, dynamic>),
       PublicShop.fromJson(json['shop'] as Map<String, dynamic>),
+    );
+  }
+
+  /// Fil publicitaire de l'app (route publique) : visuels en cours,
+  /// produits mis en avant et réglages de diffusion.
+  Future<PromoFeed> promoFeed({String app = 'buyer'}) async =>
+      PromoFeed.fromJson(
+        await _send('GET', '/v1/promo/feed', query: {'app': app}),
+      );
+
+  /// Envoie des événements publicitaires anonymes ([sessionId] : tiré au
+  /// hasard par l'app, sans lien avec le compte).
+  Future<void> sendPromoEvents(
+    List<PromoEvent> events, {
+    required String sessionId,
+    String app = 'buyer',
+  }) async {
+    if (events.isEmpty) return;
+    await _send(
+      'POST',
+      '/v1/promo/events',
+      data: {
+        'app': app,
+        'session_id': sessionId,
+        'events': [for (final e in events) e.toJson()],
+      },
     );
   }
 

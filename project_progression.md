@@ -1,6 +1,6 @@
 # Progression du projet ivia
 
-> Fichier tenu à jour à chaque étape. Dernière mise à jour : **2026-11-02**.
+> Fichier tenu à jour à chaque étape. Dernière mise à jour : **2026-11-04**.
 > Détail des tâches : [`TASKS.md`](TASKS.md) · journal des sessions : [`docs/SESSION-LOG.md`](docs/SESSION-LOG.md).
 
 ## En un coup d'œil
@@ -11,13 +11,14 @@
 | Back-office web (Next.js)   |  **~95 %** | Tous les écrans du MVP faits ; restent les tests navigateur (Playwright)   |
 | Apps mobiles (Flutter)      |  **~50 %** | Acheteur jusqu'à la commande en retrait, catalogue marchand, dossier livreur ; paiement et livraison à faire |
 | Infrastructure / mise en ligne | **~60 %** | Images Docker, Compose, Caddy, sauvegardes, CI prêts ; serveurs à louer |
+| Publicité IVI / marketing   |  **~90 %** | API, back-office, jeu de démo et app acheteur faits ; reste à saisir les prix IVI |
 | Démarches hors code         |  **~10 %** | Société, agrégateur de paiement, Play Store, Meta, domaine                 |
 
 ---
 
 ## 1. Backend — fait
 
-Go 1.27, PostgreSQL 18 + PostGIS, tâches de fond River, 22 migrations, documentation interactive
+Go 1.27, PostgreSQL 18 + PostGIS, tâches de fond River, 26 migrations, documentation interactive
 (Swagger) sur `/docs`, contrat OpenAPI vérifié par les tests.
 
 **Comptes et connexion**
@@ -53,6 +54,17 @@ Go 1.27, PostgreSQL 18 + PostGIS, tâches de fond River, 22 migrations, document
 - Relevés marchands (reversements) et marquage « réglé », export des livraisons par livreur.
 - Notifications push (Firebase), suivi des erreurs (Sentry).
 
+**Promotion et publicité (IVI et AWU-IVI d'abord)** — nouveau
+- Produits : prix promotionnel avec dates de début et de fin, badges (Promotion, Offre spéciale, Produit vedette, Meilleure vente), rang de mise en avant, caractéristiques. Le prix promo s'applique automatiquement au panier, à la commande et à la recherche ; les produits mis en avant passent en tête des listes.
+- Visuels publicitaires publiés par l'admin (bannière, fenêtre, interstitiel, bienvenue, visuel du mois, affiche) : emplacements, apps visées, priorité, poids, période, bouton « Commander » vers un produit, lien vers le site officiel.
+- Réglages de diffusion : délai avant la première fenêtre, intervalle minimal, plafond par session, rotation pondérée/aléatoire/par priorité, coupure générale.
+- Statistiques : affichages, clics, fermetures, clics vers le site officiel, commandes après clic, conversion, ventes payées par produit promu. Événements anonymes (aucune donnée personnelle), limités par adresse IP.
+
+**Jeu de démonstration** (`manage seed-demo`, local uniquement, relançable sans doublon)
+- 10 boutiques dans 10 quartiers (marché, épicerie, boulangerie, jus, plats, couture, beauté, maison, électronique, IVI), 64 produits dont 59 avec de vraies photos sous licence libre (crédits conservés), sous-catégories, promotions.
+- Boutique officielle IVI : AWU IVI 1,5 L, 0,5 L, 0,33 L, paquet 30 sachets, bonbonne, avec les photos de la marque ; **prix à renseigner par l'admin** (non inventés), déjà mis en avant ; 6 visuels IVI en diffusion.
+- 12 acheteurs avec adresses, 10 livreurs (en ligne, hors ligne, dossier à valider), 27 commandes couvrant tous les statuts, paniers en cours. Mot de passe commun des comptes de démo : `ivia-demo-2026`.
+
 **Secrets** : jamais dans Git (détection gitleaks en CI, historique vérifié sain) ; en production, un fichier par secret (droits 400, lisible par root et le conteneur seulement), jamais en variable d'environnement ; démarrage refusé avec un secret faible ou mal protégé ; aucun secret dans les journaux ; sauvegardes chiffrées.
 
 **Qualité** : tests sur base réelle pour chaque module et parcours de bout en bout ; `go vet`, `gofmt`, `govulncheck` en CI.
@@ -72,6 +84,8 @@ Next.js 16, TypeScript strict, Tailwind 4, même langage visuel que les apps (lo
 - Livraisons par livreur sur une période, avec total et export CSV pour la paie.
 - Comptes : recherche, filtre par rôle, droits admin donnés ou retirés (journalisé).
 - Référentiels : catégories de produits (avec catégorie parente), catégories de boutique, quartiers ; ajout, modification, désactivation.
+- **Publicité** : visuels en cartes (aperçu, statut de diffusion, chiffres), publication avec envoi d'image et aperçu, arrêt/reprise, suppression ; indicateurs et graphique par jour ; tableau des produits promus ; réglages de diffusion.
+- **Produits IVI** : liste (mis en avant d'abord, filtre gamme IVI), fiche complète : photos (ajout, retrait), prix, mise en vente, stock, promotion datée, badges, rang, caractéristiques.
 - Pages d'erreur, chargement et 404 soignées ; image Docker, job CI.
 
 ## 3. Apps mobiles (`mobile/`, Flutter) — fait
@@ -81,6 +95,7 @@ Next.js 16, TypeScript strict, Tailwind 4, même langage visuel que les apps (lo
 - **Acheteur** : accueil (zone par position ou quartier, catégories, boutiques, nouveautés), recherche avec filtres et tri, fiches boutique et produit, panier (008), commande en retrait et suivi avec code de remise (009, en relecture).
 - **Marchand** : création de la boutique, écran « en cours de validation » avec dépôt de la pièce d'identité et du RCCM, catalogue (produits, photos, brouillons, retrait, stock) (005).
 - **Livreur** : dossier de candidature avec documents (018).
+- **Publicité IVI (acheteur)** : carrousel de bannières dans un ordre tiré au hasard qui défile seul ; section « Produits vedettes » ; produits mis en avant glissés dans l'accueil et la navigation du catalogue ; prix promotionnel avec prix normal barré, badges et caractéristiques ; fenêtres et interstitiels plein écran selon les réglages de l'admin (délai, intervalle, plafond par session, rotation), toujours fermables, jamais pendant le panier, la commande ou le paiement ; « Commander maintenant » passe par le panier habituel ; « Visiter le site officiel IVI » ouvre le navigateur ; statistiques anonymes envoyées par lots.
 
 ## 4. Infrastructure — fait
 
@@ -95,10 +110,13 @@ Next.js 16, TypeScript strict, Tailwind 4, même langage visuel que les apps (lo
 
 **Backend**
 - [ ] 016 — Brancher le vrai prestataire de paiement (CinetPay, PayDunya, FedaPay ou PayGate) : **bloqué par le choix de l'agrégateur** (ADR 0007).
-- [ ] OTP par WhatsApp puis SMS (après validation Meta).
+- [ ] OTP par WhatsApp puis SMS (après validation Meta) : numéro expéditeur vérifié fourni ; il manque l'identifiant du numéro, l'identifiant du compte WhatsApp Business, le jeton d'accès et un modèle de message « authentification » approuvé.
 
 **Back-office**
 - [ ] Tests navigateur (Playwright) des parcours admin.
+
+**Publicité IVI**
+- [ ] **Renseigner les prix et le stock des 5 produits IVI** dans le back-office (Produits IVI), puis les publier.
 
 **Apps mobiles**
 - [ ] Acheteur : écrans de paiement Mobile Money ; commande en livraison ; notifications push.
@@ -122,3 +140,5 @@ Next.js 16, TypeScript strict, Tailwind 4, même langage visuel que les apps (lo
 | Documentation (Swagger) | http://localhost:8080/docs  |
 | Back-office           | http://localhost:3000 (compte `admin@ivia.local`) |
 | E-mails reçus (Mailpit) | http://localhost:8025       |
+
+Jeu de démonstration : `go run ./cmd/manage seed-demo` depuis `backend/` (PostgreSQL lancé ; photos téléchargées une fois puis en cache).

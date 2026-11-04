@@ -785,6 +785,55 @@ func (q *Queries) PaidPerDayByMode(ctx context.Context, arg PaidPerDayByModePara
 	return items, nil
 }
 
+const productSales = `-- name: ProductSales :many
+SELECT i.product_id, count(DISTINCT o.id)::bigint AS orders, coalesce(sum(i.quantity), 0)::bigint AS units,
+       coalesce(sum(i.line_total_xof), 0)::bigint AS revenue_xof
+FROM order_items i
+JOIN orders o ON o.id = i.order_id
+WHERE i.product_id = ANY($1::uuid[])
+  AND o.paid_at >= $2::timestamptz AND o.paid_at < $3::timestamptz
+GROUP BY i.product_id
+`
+
+type ProductSalesParams struct {
+	ProductIds []uuid.UUID
+	FromTime   time.Time
+	ToTime     time.Time
+}
+
+type ProductSalesRow struct {
+	ProductID  uuid.UUID
+	Orders     int64
+	Units      int64
+	RevenueXof int64
+}
+
+// Ventes payées des produits donnés sur [from, to) (statistiques publicitaires).
+func (q *Queries) ProductSales(ctx context.Context, arg ProductSalesParams) ([]ProductSalesRow, error) {
+	rows, err := q.db.Query(ctx, productSales, arg.ProductIds, arg.FromTime, arg.ToTime)
+	if err != nil {
+		return nil, err
+	}
+	defer rows.Close()
+	items := []ProductSalesRow{}
+	for rows.Next() {
+		var i ProductSalesRow
+		if err := rows.Scan(
+			&i.ProductID,
+			&i.Orders,
+			&i.Units,
+			&i.RevenueXof,
+		); err != nil {
+			return nil, err
+		}
+		items = append(items, i)
+	}
+	if err := rows.Err(); err != nil {
+		return nil, err
+	}
+	return items, nil
+}
+
 const recordLatePayment = `-- name: RecordLatePayment :execrows
 UPDATE orders SET paid_at = now(), refund_due_xof = total_xof, updated_at = now()
 WHERE id = $1 AND status = 'cancelled' AND paid_at IS NULL

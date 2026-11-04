@@ -84,3 +84,6 @@ sql:
   - <<: *module
     queries: internal/settlements/queries.sql
     gen: { go: { <<: *gen, out: internal/settlements/store } }
+  - <<: *module
+    queries: internal/promo/queries.sql
+    gen: { go: { <<: *gen, out: internal/promo/store } }

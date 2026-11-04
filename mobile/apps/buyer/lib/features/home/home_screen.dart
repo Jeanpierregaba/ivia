@@ -9,6 +9,8 @@ import '../../app/buyer_area.dart';
 import '../../app/catalog_data.dart';
 import '../../app/router.dart';
 import '../cart/cart_button.dart';
+import '../promo/promo_state.dart';
+import '../promo/promo_widgets.dart';
 import '../search/product_grid.dart';
 import '../search/search_state.dart';
 import 'area_sheet.dart';
@@ -53,7 +55,8 @@ class _HomeScreenState extends ConsumerState<HomeScreen> {
       ..invalidate(homeShopsProvider)
       ..invalidate(homeProductsProvider)
       ..invalidate(categoriesProvider)
-      ..invalidate(neighborhoodsProvider);
+      ..invalidate(neighborhoodsProvider)
+      ..invalidate(promoFeedProvider);
     try {
       await Future.wait([
         ref.read(homeShopsProvider.future),
@@ -123,6 +126,7 @@ class _HomeScreenState extends ConsumerState<HomeScreen> {
             ),
             const SizedBox(height: IviaSpacing.xl),
             _pad(_SearchEntry(onTap: () => _search(focus: true))),
+            const PromoHeroCarousel(),
             if (area case AreaUnknown(:final failure?)) ...[
               const SizedBox(height: IviaSpacing.lg),
               _pad(_AreaMissing(failure: failure)),
@@ -163,6 +167,7 @@ class _HomeScreenState extends ConsumerState<HomeScreen> {
                 ),
               ],
               const SizedBox(height: IviaSpacing.xxl),
+              const FeaturedProductsStrip(),
               _pad(
                 _SectionTitle(
                   title: 'Boutiques autour de vous',
@@ -436,7 +441,9 @@ class _ProductsSection extends ConsumerWidget {
     return switch (products) {
       AsyncValue(value: final items?) when items.isEmpty =>
         const _SectionMessage('Aucun produit autour de vous pour l’instant.'),
-      AsyncValue(value: final items?) => ProductGrid(items: items),
+      AsyncValue(value: final items?) => ProductGrid(
+        items: withFeatured(ref, items),
+      ),
       AsyncError(:final error) => _SectionError(
         error: error,
         onRetry: () => ref.invalidate(homeProductsProvider),

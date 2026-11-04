@@ -1,5 +1,6 @@
 import 'package:flutter/material.dart';
 import 'package:flutter_riverpod/flutter_riverpod.dart';
+import 'package:flutter_riverpod/misc.dart' show Override;
 import 'package:flutter_secure_storage/flutter_secure_storage.dart';
 import 'package:flutter_test/flutter_test.dart';
 import 'package:ivia_api_client/ivia_api_client.dart';
@@ -58,6 +59,9 @@ class BuyerHarness {
   late final FakePayments payments;
   final location = FakeLocation();
 
+  /// Surcharges propres à un test (navigateur externe, hasard…).
+  final overrides = <Override>[];
+
   /// Boutons de simulation du paiement (`IVIA_DEV_PAYMENT`).
   var devPayments = false;
 
@@ -80,6 +84,7 @@ class BuyerHarness {
     await tester.pumpWidget(
       ProviderScope(
         overrides: [
+          ...overrides,
           onboardingStoreProvider.overrideWithValue(onboarding),
           areaStoreProvider.overrideWithValue(area),
           locationServiceProvider.overrideWithValue(location),

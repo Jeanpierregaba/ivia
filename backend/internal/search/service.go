@@ -33,16 +33,20 @@ type URLResolver interface {
 
 // ProductHit est un produit trouvé.
 type ProductHit struct {
-	ID             uuid.UUID  `json:"id"`
-	ShopID         uuid.UUID  `json:"shop_id"`
-	Name           string     `json:"name"`
-	PriceXOF       int64      `json:"price_xof"`
-	ParcelSize     string     `json:"parcel_size"`
-	ShopName       string     `json:"shop_name"`
-	NeighborhoodID *uuid.UUID `json:"neighborhood_id"`
-	ImageURL       *string    `json:"image_url"`
-	InStock        bool       `json:"in_stock"`
-	DistanceM      *int64     `json:"distance_m"`
+	ID       uuid.UUID `json:"id"`
+	ShopID   uuid.UUID `json:"shop_id"`
+	Name     string    `json:"name"`
+	PriceXOF int64     `json:"price_xof"`
+	// EffectivePriceXOF : prix facturé aujourd'hui (prix promotionnel pendant la promotion).
+	EffectivePriceXOF int64      `json:"effective_price_xof"`
+	Badges            []string   `json:"badges"`
+	FeaturedRank      *int32     `json:"featured_rank"`
+	ParcelSize        string     `json:"parcel_size"`
+	ShopName          string     `json:"shop_name"`
+	NeighborhoodID    *uuid.UUID `json:"neighborhood_id"`
+	ImageURL          *string    `json:"image_url"`
+	InStock           bool       `json:"in_stock"`
+	DistanceM         *int64     `json:"distance_m"`
 }
 
 // ShopHit est une boutique trouvée.
@@ -137,6 +141,7 @@ func (s *Service) products(ctx context.Context, f filters) ([]ProductHit, error)
 	for i, r := range rows {
 		out[i] = ProductHit{
 			ID: r.ID, ShopID: r.ShopID, Name: r.Name, PriceXOF: r.PriceXof, ParcelSize: r.ParcelSize,
+			EffectivePriceXOF: r.EffectivePriceXof, Badges: nonNil(r.Badges), FeaturedRank: r.FeaturedRank,
 			ShopName: r.ShopName, NeighborhoodID: r.NeighborhoodID, InStock: r.InStock, DistanceM: meters(r.DistanceM),
 		}
 		if r.MainImageKey != "" {
@@ -216,4 +221,11 @@ func meters(f float64) *int64 {
 	}
 	m := int64(f + 0.5)
 	return &m
+}
+
+func nonNil(v []string) []string {
+	if v == nil {
+		return []string{}
+	}
+	return v
 }
