@@ -2521,3 +2521,528 @@ class FakeSellerOrders {
     return FakeResponse.json(200, Map<String, dynamic>.of(order));
   }
 }
+
+/// Module `auth` de l'ADR 0011, fidèle à `backend/internal/auth` (flows.go,
+/// service.go, password.go) : codes par usage (1 par minute et par usage,
+/// 10 par jour par adresse, 5 essais comptés avant comparaison, 10 min),
+/// création de compte (mot de passe vérifié avant le code), connexion
+/// (même refus que le compte existe ou non, blocage 15 min après 10 échecs),
+/// mot de passe oublié (sessions révoquées), Google, état de la session,
+/// changement de mot de passe.
+class FakeAuth {
+  FakeAuth(this.server, {this.google = false}) {
+    server
+      ..on('GET', '/v1/auth/providers', _providers)
+      ..on('GET', '/v1/auth/session', _session)
+      ..on('POST', '/v1/auth/login', _login)
+      ..on('POST', '/v1/auth/signup/code', _signupCode)
+      ..on('POST', '/v1/auth/signup', _signup)
+      ..on('POST', '/v1/auth/password/forgot', _forgot)
+      ..on('POST', '/v1/auth/password/reset', _reset)
+      ..on('POST', '/v1/auth/google', _google)
+      ..on('POST', '/v1/me/password', _changePassword);
+  }
+
+  final FakeApiServer server;
+
+  /// Connexion Google configurée (`GET /v1/auth/providers`).
+  bool google;
+
+  /// Heure du serveur.
+  DateTime Function() now = () => DateTime.now().toUtc();
+
+  /// Prochaine erreur, une seule fois, pour la première requête dont
+  /// « MÉTHODE chemin » contient la clé.
+  final failures = <String, FakeResponse>{};
+
+  /// Attendu avant de répondre (réseau lent).
+  Future<void> Function(RecordedRequest request)? beforeRequest;
+
+  static const otpTtl = Duration(minutes: 10);
+  static const maxCodeAttempts = 5;
+  static const maxLoginFailures = 10;
+  static const lockDuration = Duration(minutes: 15);
+
+  /// Comme `commonPasswords` de password.go.
+  static const commonPasswords = {
+    'motdepasse',
+    'motdepasse1',
+    'motdepasse123',
+    'password',
+    'password1',
+    'password123',
+    'azertyuiop',
+    'azerty1234',
+    'qwertyuiop',
+    '1234567890',
+    '0123456789',
+    '0987654321',
+    '1111111111',
+    'aaaaaaaaaa',
+    'iloveyou12',
+    'bonjour123',
+    'soleil1234',
+    'ivia123456',
+    'lome123456',
+    'togo123456',
+  };
+
+  final _accounts = <String, _FakeAccount>{};
+  final _codes = <_FakeCode>[];
+  final _googleTokens = <String, (String, String)>{};
+  final _sessions = <String, String>{};
+  var _seq = 0;
+
+  /// Compte existant ; [password] `null` : compte de l'ancienne connexion
+  /// par code (sans mot de passe).
+  void addAccount(String email, {String? password, bool complete = true}) {
+    final e = _normalize(email);
+    _accounts[e] = _FakeAccount(
+      id: _uuid(++_seq),
+      email: e,
+      password: password,
+      complete: complete,
+    );
+  }
+
+  /// Jeton d'identité Google accepté : identifiant Google et adresse.
+  void addGoogleToken(
+    String token, {
+    required String subject,
+    required String email,
+  }) => _googleTokens[token] = (subject, _normalize(email));
+
+  /// Dernier code envoyé à [email] pour [purpose] (`signup`, `reset`).
+  String? lastCode(String email, String purpose) => _codes
+      .where((c) => c.email == _normalize(email) && c.purpose == purpose)
+      .lastOrNull
+      ?.code;
+
+  /// Mot de passe enregistré (`null` sans mot de passe ou sans compte).
+  String? passwordOf(String email) => _accounts[_normalize(email)]?.password;
+
+  /// Jetons de session encore valides du compte.
+  Set<String> sessionsOf(String email) => {
+    for (final MapEntry(:key, :value) in _sessions.entries)
+      if (value == _normalize(email)) key,
+  };
+
+  bool isLocked(String email) =>
+      _accounts[_normalize(email)]?.locked(now()) ?? false;
+
+  static String _normalize(String email) => email.trim().toLowerCase();
+
+  static String _uuid(int n) =>
+      'a0000000-0000-4000-8000-${n.toRadixString(16).padLeft(12, '0')}';
+
+  FakeResponse? _failure(RecordedRequest r) {
+    for (final key in failures.keys) {
+      if ('${r.method} ${r.path}'.contains(key)) return failures.remove(key);
+    }
+    return null;
+  }
+
+  Future<FakeResponse?> _before(RecordedRequest r) async {
+    if (beforeRequest case final wait?) await wait(r);
+    return _failure(r);
+  }
+
+  static Map<String, dynamic> _body(RecordedRequest r) =>
+      (r.body as Map<String, dynamic>?) ?? const {};
+
+  static final _invalidCredentials = FakeResponse.error(
+    401,
+    'invalid_credentials',
+    'E-mail ou mot de passe incorrect.',
+  );
+  static final _invalidSession = FakeResponse.error(
+    401,
+    'invalid_session',
+    'Votre session a expiré. Reconnectez-vous.',
+  );
+  static final _unauthenticated = FakeResponse.error(
+    401,
+    'unauthenticated',
+    'Connectez-vous pour continuer.',
+  );
+
+  /// Adresse refusée comme `validate.NormalizeEmail` (codes, création, mot
+  /// de passe oublié) ; la connexion répond `invalid_credentials`.
+  static FakeResponse? _badEmail(String email) =>
+      RegExp(r'^[^\s@]+@[^\s@]+\.[^\s@]+$').hasMatch(email)
+      ? null
+      : FakeResponse.error(
+          400,
+          'validation_failed',
+          'Certaines informations sont invalides.',
+          fields: {'recipient': 'Adresse e-mail invalide.'},
+        );
+
+  static final _otpInvalid = FakeResponse.error(
+    401,
+    'otp_invalid',
+    'Code incorrect ou expiré.',
+  );
+
+  FakeResponse _locked(_FakeAccount a) {
+    final secs = a.lockedUntil!.difference(now()).inSeconds.clamp(1, 1 << 30);
+    return FakeResponse.error(
+      429,
+      'account_locked',
+      "Trop d'essais : compte bloqué ${(secs + 59) ~/ 60} min. Réessayez plus "
+          'tard, ou utilisez « Mot de passe oublié ».',
+    );
+  }
+
+  /// Règles de password.go ; `null` si le mot de passe est accepté.
+  static FakeResponse? _checkPassword(String password, String email) {
+    FakeResponse refuse(String message) => FakeResponse.error(
+      400,
+      'validation_failed',
+      'Certaines informations sont invalides.',
+      fields: {'password': message},
+    );
+    final n = password.runes.length;
+    if (n < 10) {
+      return refuse('Le mot de passe doit faire au moins 10 caractères.');
+    }
+    if (n > 128) return refuse('Le mot de passe fait 128 caractères au plus.');
+    final lower = password.toLowerCase();
+    final local = email.toLowerCase().split('@').first;
+    String bareOf(String v) =>
+        v.replaceAll(RegExp(r'[^\p{L}\p{N}]', unicode: true), '');
+    final bare = bareOf(lower);
+    final bareLocal = bareOf(local);
+    if (commonPasswords.contains(lower) ||
+        commonPasswords.contains(bare) ||
+        lower == email.toLowerCase() ||
+        (bareLocal.length >= 4 && bare.contains(bareLocal) && n < 16)) {
+      return refuse(
+        'Ce mot de passe est trop facile à deviner. Choisissez-en un autre.',
+      );
+    }
+    return null;
+  }
+
+  /// Envoi d'un code, comme `sendCode`.
+  FakeResponse _sendCode(String email, String purpose) {
+    final at = now();
+    final lastMinute = _codes.where(
+      (c) =>
+          c.email == email &&
+          c.purpose == purpose &&
+          at.difference(c.sentAt) < const Duration(minutes: 1),
+    );
+    if (lastMinute.isNotEmpty) {
+      return FakeResponse.error(
+        429,
+        'otp_rate_limited',
+        "Un code vient d'être envoyé. Patientez une minute avant d'en "
+            'demander un autre.',
+      );
+    }
+    final lastDay = _codes.where(
+      (c) =>
+          c.email == email &&
+          at.difference(c.sentAt) < const Duration(hours: 24),
+    );
+    if (lastDay.length >= 10) {
+      return FakeResponse.error(
+        429,
+        'otp_daily_limit',
+        "Nombre maximal de codes atteint pour aujourd'hui. Réessayez demain.",
+      );
+    }
+    for (final c in _codes) {
+      if (c.email == email && c.purpose == purpose) c.invalidated = true;
+    }
+    _codes.add(
+      _FakeCode(
+        email: email,
+        purpose: purpose,
+        code: (100000 + (++_seq * 7919) % 900000).toString(),
+        sentAt: at,
+      ),
+    );
+    return FakeResponse.json(202, otpBody);
+  }
+
+  /// Vérification d'un code, comme `checkCode` : l'essai est compté avant
+  /// la comparaison. Renvoie le code à consommer, ou le refus.
+  (_FakeCode?, FakeResponse?) _checkCode(
+    String email,
+    String purpose,
+    String code,
+  ) {
+    if (code.length != 6) return (null, _otpInvalid);
+    final otp = _codes
+        .where(
+          (c) =>
+              c.email == email &&
+              c.purpose == purpose &&
+              !c.used &&
+              !c.invalidated,
+        )
+        .lastOrNull;
+    if (otp == null) return (null, _otpInvalid);
+    if (now().isAfter(otp.sentAt.add(otpTtl))) {
+      return (
+        null,
+        FakeResponse.error(
+          401,
+          'otp_expired',
+          'Ce code a expiré. Demandez-en un nouveau.',
+        ),
+      );
+    }
+    final tooMany = FakeResponse.error(
+      401,
+      'otp_too_many_attempts',
+      "Trop d'essais. Demandez un nouveau code.",
+    );
+    if (otp.attempts >= maxCodeAttempts) return (null, tooMany);
+    otp.attempts++;
+    if (otp.code != code) {
+      return (null, otp.attempts >= maxCodeAttempts ? tooMany : _otpInvalid);
+    }
+    return (otp, null);
+  }
+
+  FakeResponse _openSession(
+    _FakeAccount a, {
+    bool isNew = false,
+    int status = 200,
+  }) {
+    final token = 'session-${++_seq}';
+    _sessions[token] = a.email;
+    return FakeResponse.json(status, {
+      'token': token,
+      'expires_at': now().add(const Duration(days: 60)).toIso8601String(),
+      'is_new_user': isNew,
+      'user': {...userBody(complete: a.complete, email: a.email), 'id': a.id},
+    });
+  }
+
+  /// Compte de la session ; sinon le refus : sans jeton `unauthenticated`
+  /// (middleware), jeton inconnu ou révoqué `invalid_session`.
+  (_FakeAccount?, FakeResponse?) _bearer(RecordedRequest r) {
+    final auth = r.headers['authorization'] ?? '';
+    if (!auth.startsWith('Bearer ')) return (null, _unauthenticated);
+    final email = _sessions[auth.substring(7)];
+    final account = email == null ? null : _accounts[email];
+    return account == null ? (null, _invalidSession) : (account, null);
+  }
+
+  void _recordFailure(_FakeAccount a) {
+    a.failures++;
+    if (a.failures >= maxLoginFailures) {
+      a
+        ..lockedUntil = now().add(lockDuration)
+        ..failures = 0;
+    }
+  }
+
+  Future<FakeResponse> _providers(RecordedRequest r) async =>
+      await _before(r) ??
+      FakeResponse.json(200, {'password': true, 'google': google});
+
+  Future<FakeResponse> _session(RecordedRequest r) async {
+    if (await _before(r) case final f?) return f;
+    final (a, refused) = _bearer(r);
+    if (refused != null) return refused;
+    return FakeResponse.json(200, {
+      'mfa_verified': false,
+      'has_password': a!.password != null,
+      'expires_at': now().add(const Duration(days: 60)).toIso8601String(),
+    });
+  }
+
+  Future<FakeResponse> _login(RecordedRequest r) async {
+    if (await _before(r) case final f?) return f;
+    final body = _body(r);
+    final email = _normalize(body['email'] as String? ?? '');
+    final password = body['password'] as String? ?? '';
+    final a = _accounts[email];
+    if (a == null || a.password == null) return _invalidCredentials;
+    if (a.locked(now())) return _locked(a);
+    if (a.password != password) {
+      _recordFailure(a);
+      return a.locked(now()) ? _locked(a) : _invalidCredentials;
+    }
+    a.failures = 0;
+    return _openSession(a);
+  }
+
+  Future<FakeResponse> _signupCode(RecordedRequest r) async {
+    if (await _before(r) case final f?) return f;
+    final email = _normalize(_body(r)['email'] as String? ?? '');
+    return _badEmail(email) ?? _sendCode(email, 'signup');
+  }
+
+  Future<FakeResponse> _signup(RecordedRequest r) async {
+    if (await _before(r) case final f?) return f;
+    final body = _body(r);
+    final email = _normalize(body['email'] as String? ?? '');
+    final password = body['password'] as String? ?? '';
+    if (_badEmail(email) case final bad?) return bad;
+    if (_checkPassword(password, email) case final refused?) return refused;
+    final (otp, refused) = _checkCode(
+      email,
+      'signup',
+      body['code'] as String? ?? '',
+    );
+    if (refused != null) return refused;
+    final existing = _accounts[email];
+    // Le code reste valable : l'acheteur peut se connecter.
+    if (existing?.password != null) {
+      return _conflict(
+        'account_exists',
+        'Un compte existe déjà avec cet e-mail : connectez-vous, ou utilisez '
+            '« Mot de passe oublié ».',
+      );
+    }
+    otp!.used = true;
+    final account =
+        existing ??
+        (_accounts[email] = _FakeAccount(
+          id: _uuid(++_seq),
+          email: email,
+          complete: false,
+        ));
+    account.password = password;
+    return _openSession(account, isNew: existing == null, status: 201);
+  }
+
+  static FakeResponse _conflict(String code, String message) =>
+      FakeResponse.error(409, code, message);
+
+  Future<FakeResponse> _forgot(RecordedRequest r) async {
+    if (await _before(r) case final f?) return f;
+    final email = _normalize(_body(r)['email'] as String? ?? '');
+    if (_badEmail(email) case final bad?) return bad;
+    // Même réponse sans compte, et aucun code envoyé.
+    if (!_accounts.containsKey(email)) return FakeResponse.json(202, otpBody);
+    return _sendCode(email, 'reset');
+  }
+
+  Future<FakeResponse> _reset(RecordedRequest r) async {
+    if (await _before(r) case final f?) return f;
+    final body = _body(r);
+    final email = _normalize(body['email'] as String? ?? '');
+    final password = body['password'] as String? ?? '';
+    if (_badEmail(email) case final bad?) return bad;
+    if (_checkPassword(password, email) case final refused?) return refused;
+    final (otp, refused) = _checkCode(
+      email,
+      'reset',
+      body['code'] as String? ?? '',
+    );
+    if (refused != null) return refused;
+    final a = _accounts[email];
+    if (a == null) return _otpInvalid;
+    otp!.used = true;
+    a
+      ..password = password
+      ..failures = 0
+      ..lockedUntil = null;
+    _sessions.removeWhere((_, value) => value == email);
+    return _openSession(a);
+  }
+
+  Future<FakeResponse> _google(RecordedRequest r) async {
+    if (await _before(r) case final f?) return f;
+    if (!google) {
+      return FakeResponse.error(
+        400,
+        'google_disabled',
+        "La connexion avec Google n'est pas encore disponible.",
+      );
+    }
+    final identity = _googleTokens[_body(r)['id_token'] as String? ?? ''];
+    if (identity == null) {
+      return FakeResponse.error(
+        401,
+        'google_token_invalid',
+        'Connexion avec Google impossible. Réessayez.',
+      );
+    }
+    final (subject, email) = identity;
+    final linked = _accounts.values
+        .where((a) => a.googleSubject == subject)
+        .firstOrNull;
+    if (linked != null) return _openSession(linked);
+    final existing = _accounts[email];
+    final account =
+        existing ??
+        (_accounts[email] = _FakeAccount(
+          id: _uuid(++_seq),
+          email: email,
+          complete: false,
+        ));
+    account.googleSubject = subject;
+    return _openSession(account, isNew: existing == null);
+  }
+
+  Future<FakeResponse> _changePassword(RecordedRequest r) async {
+    if (await _before(r) case final f?) return f;
+    final (account, refused) = _bearer(r);
+    if (refused != null) return refused;
+    final a = account!;
+    final body = _body(r);
+    final next = body['new_password'] as String? ?? '';
+    if (_checkPassword(next, a.email) case final refused?) return refused;
+    if (a.password != null) {
+      if (a.locked(now())) return _locked(a);
+      if (body['current_password'] != a.password) {
+        _recordFailure(a);
+        return FakeResponse.error(
+          400,
+          'validation_failed',
+          'Certaines informations sont invalides.',
+          fields: {'current_password': 'Mot de passe actuel incorrect.'},
+        );
+      }
+    }
+    a.password = next;
+    final keep = (r.headers['authorization'] ?? '').substring(7);
+    _sessions.removeWhere((token, email) => email == a.email && token != keep);
+    return FakeResponse.json(204, null);
+  }
+}
+
+class _FakeAccount {
+  _FakeAccount({
+    required this.id,
+    required this.email,
+    this.password,
+    this.complete = true,
+  });
+
+  final String id;
+  final String email;
+  String? password;
+  bool complete;
+  String? googleSubject;
+  int failures = 0;
+  DateTime? lockedUntil;
+
+  bool locked(DateTime now) =>
+      lockedUntil != null && now.isBefore(lockedUntil!);
+}
+
+class _FakeCode {
+  _FakeCode({
+    required this.email,
+    required this.purpose,
+    required this.code,
+    required this.sentAt,
+  });
+
+  final String email;
+  final String purpose;
+  final String code;
+  final DateTime sentAt;
+  int attempts = 0;
+  bool used = false;
+  bool invalidated = false;
+}

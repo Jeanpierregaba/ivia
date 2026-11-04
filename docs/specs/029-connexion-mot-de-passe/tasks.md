@@ -7,7 +7,7 @@
       `resetPassword`, `signInWithGoogle`, `changePassword`) ; tests du client.
 - [x] 2. Tests du faux serveur `FakeAuth` écrits d'abord (sous-agent test-writer, partie
       critique) et vus en échec.
-- [ ] 3. `FakeAuth` fidèle au module `auth` : tests de la tâche 2 au vert.
+- [x] 3. `FakeAuth` fidèle au module `auth` : tests de la tâche 2 au vert.
 - [ ] 4. `app_core` : `PasswordField`, `GoogleAuth` (interface, `google_sign_in` 7.2.0, faux),
       `AuthFlow` (remplace `LoginFlow`), `CodeScreen` paramétré par l'usage ; tests.
 - [ ] 5. `app_core` : écran de connexion (Google si disponible, e-mail, mot de passe, « Mot de
