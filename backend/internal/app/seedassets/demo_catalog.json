@@ -1,111 +1,160 @@
 {
- "_comment": "Catalogue de démonstration (local uniquement). Photos : Wikimedia Commons, licences libres ; téléchargées au premier lancement de seed-demo et mises en cache. Crédits : champ images[].",
+ "_comment": "Catalogue de démonstration haut de gamme (local uniquement). Photos : Openverse (Flickr, Wikimedia), licences CC BY, CC BY-SA, CC0 ou domaine public ; crédits dans images[].",
  "shops": [
   {
-   "key": "dzidudu",
-   "name": "Marché frais Dzidudu",
-   "category": "Alimentation",
-   "description": "Fruits et légumes frais du marché de Hédzranawoé, triés chaque matin.",
-   "neighborhood": "Hédzranawoé",
-   "address": "Marché de Hédzranawoé, allée des maraîchers",
-   "lat": 6.1641,
-   "lng": 1.2388,
+   "key": "afi",
+   "name": "Concept store Afi",
+   "category": "Mode",
+   "description": "Maroquinerie et accessoires de créateurs, pièces choisies une à une.",
+   "neighborhood": "Bè",
+   "address": "Rue des artisans, Bè",
+   "lat": 6.143,
+   "lng": 1.237,
    "owner": {
-    "first": "Akossiwa",
-    "last": "Dzidudu",
-    "email": "dzidudu@ivia.local",
-    "phone": "+22890000201"
+    "first": "Afi",
+    "last": "Koudjo",
+    "email": "marchand@ivia.local",
+    "phone": "+22890000101"
    },
    "products": [
     {
-     "name": "Tomates fraîches (1 kg)",
-     "description": "Tomates rouges bien mûres, idéales pour les sauces.",
-     "category": "Fruits et légumes",
-     "price_xof": 600,
+     "name": "Sac bandoulière en cuir gravé",
+     "description": "Cuir repoussé à la main, bandoulière réglable.",
+     "category": "Maroquinerie",
+     "price_xof": 48000,
      "parcel_size": "small",
-     "stock": 40,
+     "stock": 5,
      "images": [
       {
-       "url": "https://thumb.wikimedia.org/wikipedia/commons/thumb/c/c1/Fresh_Tomatoes_in_rolls_in_Barnawa_market_Kaduna_05.jpg/960px-Fresh_Tomatoes_in_rolls_in_Barnawa_market_Kaduna_05.jpg?utm_source=commons.wikimedia.org&utm_campaign=imageinfo&utm_content=thumbnail",
-       "source": "https://commons.wikimedia.org/wiki/File:Fresh_Tomatoes_in_rolls_in_Barnawa_market_Kaduna_05.jpg",
-       "author": "Holiness Istifanus",
-       "license": "CC BY-SA 4.0"
-      },
-      {
-       "url": "https://thumb.wikimedia.org/wikipedia/commons/thumb/4/4b/Fresh_tomatoes_stacked_at_market_stall.jpg/960px-Fresh_tomatoes_stacked_at_market_stall.jpg?utm_source=commons.wikimedia.org&utm_campaign=imageinfo&utm_content=thumbnail",
-       "source": "https://commons.wikimedia.org/wiki/File:Fresh_tomatoes_stacked_at_market_stall.jpg",
-       "author": "TopmanJnr1",
-       "license": "CC BY-SA 4.0"
+       "url": "https://live.staticflickr.com/4030/4707559875_d35846e7a2_b.jpg",
+       "source": "https://www.flickr.com/photos/36910487@N07/4707559875",
+       "author": "TheLivingRoominKenmore",
+       "license": "CC BY 2.0",
+       "file": "2f68ae45023b7fd3.jpg"
       }
      ],
-     "promo_price_xof": 500,
+     "badges": [
+      "featured"
+     ]
+    },
+    {
+     "name": "Sac seau en cuir vert sapin",
+     "description": "Cuir souple, cordon coulissant, pièce unique.",
+     "category": "Maroquinerie",
+     "price_xof": 52000,
+     "parcel_size": "small",
+     "stock": 3,
+     "images": [
+      {
+       "url": "https://pd.w.org/2025/09/85468db9600362682.56817591-1536x2048.jpg",
+       "source": "https://wordpress.org/photos/photo/85468db960/",
+       "author": "Alina Kakshapati",
+       "license": "CC0",
+       "file": "6b09cd40931a6eff.jpg"
+      }
+     ]
+    },
+    {
+     "name": "Coffret ceinture réversible",
+     "description": "Cuir noir et marron, boucle pivotante, coffret cadeau.",
+     "category": "Accessoires",
+     "price_xof": 26000,
+     "parcel_size": "small",
+     "stock": 8,
+     "images": [
+      {
+       "url": "https://live.staticflickr.com/8385/8571045779_c189952deb_b.jpg",
+       "source": "https://www.flickr.com/photos/51764518@N02/8571045779",
+       "author": "France1978",
+       "license": "CC BY-SA 2.0",
+       "file": "0e382a5437b368a6.jpg"
+      }
+     ],
+     "promo_price_xof": 22000,
      "badges": [
       "promotion"
      ]
     },
     {
-     "name": "Oignons rouges (1 kg)",
-     "description": "Oignons violets du Nord, se conservent bien.",
-     "category": "Fruits et légumes",
-     "price_xof": 700,
+     "name": "Portefeuille femme en cuir rouge",
+     "description": "Cuir grainé, porte-monnaie zippé, douze cartes.",
+     "category": "Maroquinerie",
+     "price_xof": 24000,
      "parcel_size": "small",
-     "stock": 35,
+     "stock": 10,
      "images": [
       {
-       "url": "https://thumb.wikimedia.org/wikipedia/commons/thumb/5/5c/Pile_of_Onions_at_Barkin_Dogo_Market%2C_Kaduna_North_02.jpg/960px-Pile_of_Onions_at_Barkin_Dogo_Market%2C_Kaduna_North_02.jpg?utm_source=commons.wikimedia.org&utm_campaign=imageinfo&utm_content=thumbnail",
-       "source": "https://commons.wikimedia.org/wiki/File:Pile_of_Onions_at_Barkin_Dogo_Market,_Kaduna_North_02.jpg",
-       "author": "Samsule2",
-       "license": "CC BY-SA 4.0"
+       "url": "https://live.staticflickr.com/2702/4198973978_299fe9919b_b.jpg",
+       "source": "https://www.flickr.com/photos/7940758@N07/4198973978",
+       "author": "MIKI Yoshihito. (#mikiyoshihito)",
+       "license": "CC BY 2.0",
+       "file": "5976a6c61a953ce1.jpg"
       },
       {
-       "url": "https://thumb.wikimedia.org/wikipedia/commons/thumb/c/cd/Sorting_Onions_%2815358524090%29.jpg/960px-Sorting_Onions_%2815358524090%29.jpg?utm_source=commons.wikimedia.org&utm_campaign=imageinfo&utm_content=thumbnail",
-       "source": "https://commons.wikimedia.org/wiki/File:Sorting_Onions_(15358524090).jpg",
-       "author": "John Hoey from Framingham, MA, United States",
-       "license": "CC BY 2.0"
+       "url": "https://live.staticflickr.com/2568/4198974470_e3a8e2f7f6_b.jpg",
+       "source": "https://www.flickr.com/photos/7940758@N07/4198974470",
+       "author": "MIKI Yoshihito. (#mikiyoshihito)",
+       "license": "CC BY 2.0",
+       "file": "ff36caf664186d43.jpg"
       }
      ]
     },
     {
-     "name": "Igname (tubercule d'environ 2 kg)",
-     "description": "Igname blanche, chair ferme, pour foutou ou frites.",
-     "category": "Fruits et légumes",
-     "price_xof": 1500,
-     "parcel_size": "medium",
-     "stock": 20,
+     "name": "Étole légère imprimée",
+     "description": "Voile de coton imprimé, 180 × 70 cm.",
+     "category": "Accessoires",
+     "price_xof": 15000,
+     "parcel_size": "small",
+     "stock": 12,
      "images": [
       {
-       "url": "https://thumb.wikimedia.org/wikipedia/commons/thumb/5/51/Yam_Tubers_at_bakin_dogo%27s_market_01.jpg/960px-Yam_Tubers_at_bakin_dogo%27s_market_01.jpg?utm_source=commons.wikimedia.org&utm_campaign=imageinfo&utm_content=thumbnail",
-       "source": "https://commons.wikimedia.org/wiki/File:Yam_Tubers_at_bakin_dogo%27s_market_01.jpg",
-       "author": "Zmu'az4Z",
-       "license": "CC BY-SA 4.0"
-      },
-      {
-       "url": "https://thumb.wikimedia.org/wikipedia/commons/thumb/a/a5/Tubers_of_Yam_in_Jalingo_Market.jpg/960px-Tubers_of_Yam_in_Jalingo_Market.jpg?utm_source=commons.wikimedia.org&utm_campaign=imageinfo&utm_content=thumbnail",
-       "source": "https://commons.wikimedia.org/wiki/File:Tubers_of_Yam_in_Jalingo_Market.jpg",
-       "author": "Yahuzaishat",
-       "license": "CC BY 4.0"
+       "url": "https://live.staticflickr.com/8524/8479422647_65bbb0d8cc_b.jpg",
+       "source": "https://www.flickr.com/photos/80459994@N05/8479422647",
+       "author": "Fair Trade Designs",
+       "license": "CC BY 2.0",
+       "file": "293584de2102e711.jpg"
       }
      ]
-    },
+    }
+   ]
+  },
+  {
+   "key": "maroquinerie",
+   "name": "Maison Akossiwa",
+   "category": "Mode",
+   "description": "Maroquinerie et accessoires de luxe : cuir pleine fleur, finitions main.",
+   "neighborhood": "Nyékonakpoè",
+   "address": "Boulevard de la République, face à l'hôtel Sarakawa",
+   "lat": 6.1318,
+   "lng": 1.2079,
+   "owner": {
+    "first": "Akossiwa",
+    "last": "Lawson",
+    "email": "akossiwa@ivia.local",
+    "phone": "+22890000501"
+   },
+   "products": [
     {
-     "name": "Bananes plantain (6 doigts)",
-     "description": "Plantain vert à cuire : aloko, frites ou bouillie.",
-     "category": "Fruits et légumes",
-     "price_xof": 1200,
+     "name": "Sac à main en cuir pleine fleur",
+     "description": "Sac structuré en cuir véritable, doublure satin, fermeture aimantée.",
+     "category": "Maroquinerie",
+     "price_xof": 85000,
      "parcel_size": "medium",
-     "stock": 25,
+     "stock": 6,
      "images": [
       {
-       "url": "https://thumb.wikimedia.org/wikipedia/commons/thumb/c/c3/Bunch_of_cooking_bananas_%28guineos%29_and_one_loose_plantain.jpg/960px-Bunch_of_cooking_bananas_%28guineos%29_and_one_loose_plantain.jpg?utm_source=commons.wikimedia.org&utm_campaign=imageinfo&utm_content=thumbnail",
-       "source": "https://commons.wikimedia.org/wiki/File:Bunch_of_cooking_bananas_(guineos)_and_one_loose_plantain.jpg",
-       "author": "The Eloquent Peasant",
-       "license": "CC BY-SA 4.0"
+       "url": "https://upload.wikimedia.org/wikipedia/commons/2/26/Shenkar_Archive_-_Bag_Collection._Tooled_leather_handbag%2C_late_20th_century.jpg",
+       "source": "https://commons.wikimedia.org/w/index.php?curid=29894480",
+       "author": "User:ShenkarArchive",
+       "license": "CC BY-SA 3.0",
+       "file": "a1f5e161da17d13d.jpg"
       },
       {
-       "url": "https://thumb.wikimedia.org/wikipedia/commons/thumb/3/32/A_plantain_bunch.jpg/960px-A_plantain_bunch.jpg?utm_source=commons.wikimedia.org&utm_campaign=imageinfo&utm_content=thumbnail",
-       "source": "https://commons.wikimedia.org/wiki/File:A_plantain_bunch.jpg",
-       "author": "Namwanje Sauyah",
-       "license": "CC0"
+       "url": "https://live.staticflickr.com/3562/3566073531_c2c046c00f_b.jpg",
+       "source": "https://www.flickr.com/photos/27042541@N06/3566073531",
+       "author": "janebelindasmith",
+       "license": "CC BY 2.0",
+       "file": "463728651d90f561.jpg"
       }
      ],
      "badges": [
@@ -113,327 +162,601 @@
      ]
     },
     {
-     "name": "Mangues (lot de 5)",
-     "description": "Mangues de saison, sucrées et juteuses.",
-     "category": "Fruits et légumes",
-     "price_xof": 1000,
+     "name": "Portefeuille en cuir",
+     "description": "Cuir tanné, huit emplacements pour cartes, coffret cadeau.",
+     "category": "Maroquinerie",
+     "price_xof": 22000,
      "parcel_size": "small",
-     "stock": 0,
+     "stock": 15,
      "images": [
       {
-       "url": "https://thumb.wikimedia.org/wikipedia/commons/thumb/5/5c/Ripe_fresh_mangoes.jpg/960px-Ripe_fresh_mangoes.jpg?utm_source=commons.wikimedia.org&utm_campaign=imageinfo&utm_content=thumbnail",
-       "source": "https://commons.wikimedia.org/wiki/File:Ripe_fresh_mangoes.jpg",
-       "author": "Hajia Hijjah",
-       "license": "CC BY-SA 4.0"
+       "url": "https://live.staticflickr.com/4117/4901751971_816b3eb23f_b.jpg",
+       "source": "https://www.flickr.com/photos/32888886@N08/4901751971",
+       "author": "Sir Stig",
+       "license": "CC BY-SA 2.0",
+       "file": "d8f1d8ddc1e18e9d.jpg"
       },
       {
-       "url": "https://thumb.wikimedia.org/wikipedia/commons/thumb/b/bc/Near_ripe_mangoes.jpg/960px-Near_ripe_mangoes.jpg?utm_source=commons.wikimedia.org&utm_campaign=imageinfo&utm_content=thumbnail",
-       "source": "https://commons.wikimedia.org/wiki/File:Near_ripe_mangoes.jpg",
-       "author": "ChimaBee",
-       "license": "CC BY-SA 4.0"
+       "url": "https://live.staticflickr.com/8521/8474470659_1dede8cfd1_b.jpg",
+       "source": "https://www.flickr.com/photos/8868801@N03/8474470659",
+       "author": "kemeko1971",
+       "license": "CC BY 2.0",
+       "file": "5df935d6d2681034.jpg"
       }
      ]
     },
     {
-     "name": "Ananas pain de sucre",
-     "description": "Ananas local très sucré, prêt à manger.",
-     "category": "Fruits et légumes",
-     "price_xof": 800,
+     "name": "Ceinture en cuir",
+     "description": "Ceinture homme en cuir, boucle en métal brossé.",
+     "category": "Accessoires",
+     "price_xof": 18000,
+     "parcel_size": "small",
+     "stock": 12,
+     "images": [
+      {
+       "url": "https://live.staticflickr.com/5589/14841090661_a123e4f464_b.jpg",
+       "source": "https://www.flickr.com/photos/34952213@N07/14841090661",
+       "author": "wagnerkari",
+       "license": "CC BY-SA 2.0",
+       "file": "90dd4e85ffdd9dc7.jpg"
+      },
+      {
+       "url": "https://live.staticflickr.com/8167/6992870326_9fdff4b75f_b.jpg",
+       "source": "https://www.flickr.com/photos/30574467@N03/6992870326",
+       "author": "Georgia Peanut Commission",
+       "license": "CC BY 2.0",
+       "file": "d526bd996245c190.jpg"
+      }
+     ]
+    },
+    {
+     "name": "Lunettes de soleil",
+     "description": "Verres polarisés, protection UV400, étui rigide.",
+     "category": "Accessoires",
+     "price_xof": 27000,
+     "parcel_size": "small",
+     "stock": 10,
+     "images": [
+      {
+       "url": "https://images.rawpixel.com/editor_1024/cHJpdmF0ZS9zdGF0aWMvaW1hZ2Uvd2Vic2l0ZS8yMDIyLTA0L2xyL3B4MTA0Mjk5Ny1pbWFnZS1rejJlOXVjMS5qcGc.jpg",
+       "source": "https://www.rawpixel.com/image/6113593/photo-image-background-public-domain-pink",
+       "author": "Auteur non indiqué",
+       "license": "CC0",
+       "file": "f79c242010a5e3f1.jpg"
+      },
+      {
+       "url": "https://live.staticflickr.com/65535/49390255151_11c4cc47e7_b.jpg",
+       "source": "https://www.flickr.com/photos/186095195@N02/49390255151",
+       "author": "chocolatedazzles",
+       "license": "CC BY 2.0",
+       "file": "edcb31a928e8a765.jpg"
+      }
+     ],
+     "badges": [
+      "featured"
+     ]
+    },
+    {
+     "name": "Montre classique",
+     "description": "Boîtier acier, bracelet cuir, mouvement à quartz, étanche 30 m.",
+     "category": "Accessoires",
+     "price_xof": 120000,
+     "parcel_size": "small",
+     "stock": 4,
+     "images": [
+      {
+       "url": "https://live.staticflickr.com/5169/5227094737_cfcc722e20_b.jpg",
+       "source": "https://www.flickr.com/photos/24826989@N04/5227094737",
+       "author": "Bruno Soares.",
+       "license": "CC BY 2.0",
+       "file": "df4efe5d38df5ca8.jpg"
+      },
+      {
+       "url": "https://live.staticflickr.com/3837/14870801916_6c25c83090_b.jpg",
+       "source": "https://www.flickr.com/photos/56721991@N06/14870801916",
+       "author": "jaguarmena",
+       "license": "CC BY 2.0",
+       "file": "3cdacb27ca99631f.jpg"
+      }
+     ]
+    }
+   ]
+  },
+  {
+   "key": "couture",
+   "name": "Atelier Wax Couture",
+   "category": "Mode",
+   "description": "Créations sur mesure en wax et bazin : tenues de cérémonie, prêt-à-porter chic.",
+   "neighborhood": "Kodjoviakopé",
+   "address": "Avenue de la Libération, près de l'ambassade du Ghana",
+   "lat": 6.1272,
+   "lng": 1.1994,
+   "owner": {
+    "first": "Akpéné",
+    "last": "Adjo",
+    "email": "couture@ivia.local",
+    "phone": "+22890000502"
+   },
+   "products": [
+    {
+     "name": "Robe de soirée en wax",
+     "description": "Coupe ajustée, tissu wax hollandais, réalisée sur mesure en 5 jours.",
+     "category": "Vêtements",
+     "price_xof": 45000,
+     "parcel_size": "small",
+     "stock": 5,
+     "images": [
+      {
+       "url": "https://live.staticflickr.com/7630/28356101355_776d26ed92_b.jpg",
+       "source": "https://www.flickr.com/photos/80355549@N00/28356101355",
+       "author": "lblanchard",
+       "license": "CC BY-SA 2.0",
+       "file": "d14091bdcb6bb4ec.jpg"
+      },
+      {
+       "url": "https://live.staticflickr.com/8644/28356101055_2a68026f5f_b.jpg",
+       "source": "https://www.flickr.com/photos/80355549@N00/28356101055",
+       "author": "lblanchard",
+       "license": "CC BY-SA 2.0",
+       "file": "dc224924252b6cad.jpg"
+      }
+     ],
+     "promo_price_xof": 39000,
+     "badges": [
+      "promotion"
+     ]
+    },
+    {
+     "name": "Chemise homme imprimée",
+     "description": "Chemise manches longues, coton premium, coupe slim.",
+     "category": "Vêtements",
+     "price_xof": 25000,
+     "parcel_size": "small",
+     "stock": 9,
+     "images": [
+      {
+       "url": "https://ids.si.edu/ids/deliveryService?id=NMAAHC-2007_3_938c_002",
+       "source": "https://nmaahc.si.edu/object/nmaahc_2007.3.938abc",
+       "author": "Unidentified",
+       "license": "CC0",
+       "file": "4f39d45613934458.jpg"
+      },
+      {
+       "url": "https://ids.si.edu/ids/deliveryService?id=NMAAHC-2007_3_938c_001",
+       "source": "https://nmaahc.si.edu/object/nmaahc_2007.3.938abc",
+       "author": "Unidentified",
+       "license": "CC0",
+       "file": "f5903b1395921aa2.jpg"
+      }
+     ],
+     "badges": [
+      "best_seller"
+     ]
+    },
+    {
+     "name": "Ensemble homme de cérémonie",
+     "description": "Ensemble brodé trois pièces pour mariages et fêtes.",
+     "category": "Vêtements",
+     "price_xof": 95000,
+     "parcel_size": "small",
+     "stock": 3,
+     "images": [
+      {
+       "url": "https://images.rawpixel.com/editor_1024/cHJpdmF0ZS9sci9pbWFnZXMvd2Vic2l0ZS8yMDIyLTEyL2FpYzI0ODcwMC1pbWFnZS5qcGc.jpg",
+       "source": "https://www.rawpixel.com/image/9049205/robe-boubou-lomasa-soninke",
+       "author": "artinstitutechicago",
+       "license": "CC0",
+       "file": "97453ba37471c87b.jpg"
+      }
+     ]
+    },
+    {
+     "name": "Veste en wax",
+     "description": "Veste doublée, boutons nacrés, motif exclusif de l'atelier.",
+     "category": "Vêtements",
+     "price_xof": 38000,
+     "parcel_size": "small",
+     "stock": 6,
+     "images": [
+      {
+       "url": "https://ids.si.edu/ids/deliveryService?id=NMAAHC-2007_3_955c_002",
+       "source": "https://nmaahc.si.edu/object/nmaahc_2007.3.955a-d",
+       "author": "Unidentified",
+       "license": "CC0",
+       "file": "0600c387ef9d1deb.jpg"
+      }
+     ]
+    },
+    {
+     "name": "Foulard en soie",
+     "description": "Soie naturelle 90 × 90 cm, ourlets roulottés main.",
+     "category": "Accessoires",
+     "price_xof": 19000,
+     "parcel_size": "small",
+     "stock": 14,
+     "images": [
+      {
+       "url": "https://upload.wikimedia.org/wikipedia/commons/5/58/Casol_square_silk_scarf_as_head_scarf.jpg",
+       "source": "https://commons.wikimedia.org/w/index.php?curid=4484834",
+       "author": "Mickael Casol",
+       "license": "CC BY 2.0",
+       "file": "17ca02d2f51e9308.jpg"
+      },
+      {
+       "url": "https://live.staticflickr.com/3753/13571973965_1d51f48899_b.jpg",
+       "source": "https://www.flickr.com/photos/122102475@N06/13571973965",
+       "author": "DU Jenny",
+       "license": "CC BY-SA 2.0",
+       "file": "31539231407723e6.jpg"
+      }
+     ]
+    },
+    {
+     "name": "Escarpins élégants",
+     "description": "Talon 8 cm, cuir verni, du 36 au 41.",
+     "category": "Chaussures",
+     "price_xof": 42000,
+     "parcel_size": "small",
+     "stock": 7,
+     "images": [
+      {
+       "url": "https://upload.wikimedia.org/wikipedia/commons/e/e9/HK_Movie_Star_Linda_Lin_Dai_High-heeled_shoes_6.JPG",
+       "source": "https://commons.wikimedia.org/w/index.php?curid=7666855",
+       "author": "ChangSamyue",
+       "license": "CC BY-SA 3.0",
+       "file": "b8d4f23a59d84f42.jpg"
+      },
+      {
+       "url": "https://live.staticflickr.com/65535/49394016518_bb57a52511_b.jpg",
+       "source": "https://www.flickr.com/photos/26344495@N05/49394016518",
+       "author": "Ivan Radic",
+       "license": "CC BY 2.0",
+       "file": "eacd2231e98083a1.jpg"
+      }
+     ]
+    }
+   ]
+  },
+  {
+   "key": "eclat",
+   "name": "Éclat Beauté",
+   "category": "Beauté",
+   "description": "Parfums, soins et maquillage des grandes maisons, conseils personnalisés.",
+   "neighborhood": "Kégué",
+   "address": "Kégué, galerie marchande du rond-point",
+   "lat": 6.1702,
+   "lng": 1.2598,
+   "owner": {
+    "first": "Yawa",
+    "last": "Amegah",
+    "email": "eclat@ivia.local",
+    "phone": "+22890000503"
+   },
+   "products": [
+    {
+     "name": "Eau de parfum femme 100 ml",
+     "description": "Notes florales et boisées, flacon collector.",
+     "category": "Parfums",
+     "price_xof": 65000,
+     "parcel_size": "small",
+     "stock": 8,
+     "images": [
+      {
+       "url": "https://live.staticflickr.com/7155/6782330983_4bdb39aede_b.jpg",
+       "source": "https://www.flickr.com/photos/64483003@N02/6782330983",
+       "author": "Vetiver Aromatics",
+       "license": "CC BY-SA 2.0",
+       "file": "76b248208fdd14c7.jpg"
+      },
+      {
+       "url": "https://live.staticflickr.com/3230/5867056518_fb83db8b7b_b.jpg",
+       "source": "https://www.flickr.com/photos/51492666@N06/5867056518",
+       "author": "D Anderson2010",
+       "license": "CC BY 2.0",
+       "file": "f2359a197346abf0.jpg"
+      }
+     ],
+     "badges": [
+      "best_seller"
+     ]
+    },
+    {
+     "name": "Eau de parfum mixte 100 ml",
+     "description": "Notes ambrées et épicées, flacon d'exception, tenue longue durée.",
+     "category": "Parfums",
+     "price_xof": 62000,
+     "parcel_size": "small",
+     "stock": 8,
+     "images": [
+      {
+       "url": "https://live.staticflickr.com/7144/6782333397_05e78ed024_b.jpg",
+       "source": "https://www.flickr.com/photos/64483003@N02/6782333397",
+       "author": "Vetiver Aromatics",
+       "license": "CC BY-SA 2.0",
+       "file": "25db575cb9c5a635.jpg"
+      },
+      {
+       "url": "https://live.staticflickr.com/65535/52575885613_ce5a02a629_b.jpg",
+       "source": "https://www.flickr.com/photos/12070225@N03/52575885613",
+       "author": "judy dean",
+       "license": "CC BY-SA 2.0",
+       "file": "a96497fa1e682b57.jpg"
+      }
+     ],
+     "promo_price_xof": 54000,
+     "badges": [
+      "promotion"
+     ]
+    },
+    {
+     "name": "Coffret sérums visage",
+     "description": "Trois sérums concentrés : éclat, hydratation et anti-âge.",
+     "category": "Soins",
+     "price_xof": 38000,
+     "parcel_size": "small",
+     "stock": 10,
+     "images": [
+      {
+       "url": "https://images.rawpixel.com/editor_1024/cHJpdmF0ZS9zdGF0aWMvaW1hZ2Uvd2Vic2l0ZS8yMDIyLTA0L2xyL3B4MTAxMzc5Ny1pbWFnZS1rejJlYmJwaS5qcGc.jpg",
+       "source": "https://www.rawpixel.com/image/6113768/photo-image-background-public-domain-doctor",
+       "author": "Auteur non indiqué",
+       "license": "CC0",
+       "file": "567db90d162fa02e.jpg"
+      }
+     ],
+     "badges": [
+      "special_offer"
+     ]
+    },
+    {
+     "name": "Rouge à lèvres mat",
+     "description": "Tenue 12 heures, six teintes au choix.",
+     "category": "Maquillage",
+     "price_xof": 12000,
+     "parcel_size": "small",
+     "stock": 25,
+     "images": [
+      {
+       "url": "https://live.staticflickr.com/28/54117410_7545ebebb9_b.jpg",
+       "source": "https://www.flickr.com/photos/19517696@N00/54117410",
+       "author": "shawnzrossi",
+       "license": "CC BY 2.0",
+       "file": "4d80ad4ada1281cf.jpg"
+      },
+      {
+       "url": "https://live.staticflickr.com/8164/7245823010_6231efce1f_b.jpg",
+       "source": "https://www.flickr.com/photos/63100391@N07/7245823010",
+       "author": "Hanbyul❤",
+       "license": "CC BY 2.0",
+       "file": "be777a539cc7a40e.jpg"
+      }
+     ]
+    },
+    {
+     "name": "Palette de maquillage",
+     "description": "Douze fards à paupières mats et irisés, miroir intégré.",
+     "category": "Maquillage",
+     "price_xof": 28000,
+     "parcel_size": "small",
+     "stock": 9,
+     "images": [
+      {
+       "url": "https://live.staticflickr.com/4090/5190648757_e8351a2dff_b.jpg",
+       "source": "https://www.flickr.com/photos/34313239@N02/5190648757",
+       "author": "Dominique Godbout",
+       "license": "CC BY 2.0",
+       "file": "138c2950379b227a.jpg"
+      },
+      {
+       "url": "https://live.staticflickr.com/65535/48430093316_9aa8a80af9_b.jpg",
+       "source": "https://www.flickr.com/photos/183111158@N06/48430093316",
+       "author": "crown65",
+       "license": "CC BY 2.0",
+       "file": "b27c5af715361c57.jpg"
+      }
+     ]
+    }
+   ]
+  },
+  {
+   "key": "delices",
+   "name": "Délices de Lomé",
+   "category": "Alimentation",
+   "description": "Pâtisserie fine : macarons, entremets et gâteaux d'anniversaire sur commande.",
+   "neighborhood": "Bè",
+   "address": "Bè Kpota, rue des artisans",
+   "lat": 6.1438,
+   "lng": 1.2378,
+   "owner": {
+    "first": "Afi",
+    "last": "Mensah",
+    "email": "delices@ivia.local",
+    "phone": "+22890000504"
+   },
+   "products": [
+    {
+     "name": "Boîte de 12 macarons",
+     "description": "Assortiment : vanille, framboise, pistache, chocolat, caramel beurre salé.",
+     "category": "Pâtisserie",
+     "price_xof": 9500,
+     "parcel_size": "small",
+     "stock": 20,
+     "images": [
+      {
+       "url": "https://live.staticflickr.com/7003/6435589453_71f41f42c1_b.jpg",
+       "source": "https://www.flickr.com/photos/40802894@N02/6435589453",
+       "author": "kubotake",
+       "license": "CC BY 2.0",
+       "file": "67ad238e45d51bb3.jpg"
+      },
+      {
+       "url": "https://live.staticflickr.com/2366/1616650487_9e2ab2bff4_b.jpg",
+       "source": "https://www.flickr.com/photos/88183497@N00/1616650487",
+       "author": "bloggyboulga",
+       "license": "CC BY 2.0",
+       "file": "f11d963bce1f3dec.jpg"
+      }
+     ],
+     "badges": [
+      "best_seller"
+     ]
+    },
+    {
+     "name": "Gâteau d'anniversaire (10 parts)",
+     "description": "Génoise, crème légère et décor personnalisé, à commander la veille.",
+     "category": "Pâtisserie",
+     "price_xof": 25000,
+     "parcel_size": "medium",
+     "stock": 6,
+     "images": [
+      {
+       "url": "https://live.staticflickr.com/5188/5563591206_efe1a5e4b6_b.jpg",
+       "source": "https://www.flickr.com/photos/87542849@N00/5563591206",
+       "author": "kimberlykv",
+       "license": "CC BY 2.0",
+       "file": "a557aa5688891575.jpg"
+      },
+      {
+       "url": "https://live.staticflickr.com/2037/2158571575_9dd17bdc96_b.jpg",
+       "source": "https://www.flickr.com/photos/22388938@N06/2158571575",
+       "author": "wfabry",
+       "license": "CC BY 2.0",
+       "file": "dc1206f1c25c710d.jpg"
+      }
+     ],
+     "promo_price_xof": 22000,
+     "badges": [
+      "promotion"
+     ]
+    },
+    {
+     "name": "Coffret de 6 cupcakes",
+     "description": "Cupcakes moelleux, glaçage crème au beurre.",
+     "category": "Pâtisserie",
+     "price_xof": 7500,
+     "parcel_size": "small",
+     "stock": 15,
+     "images": [
+      {
+       "url": "https://live.staticflickr.com/7149/6772905183_0e41440bd2_b.jpg",
+       "source": "https://www.flickr.com/photos/92269745@N00/6772905183",
+       "author": "ralph and jenny",
+       "license": "CC BY 2.0",
+       "file": "b14d9f2aa2f85d52.jpg"
+      },
+      {
+       "url": "https://live.staticflickr.com/8358/8257552048_867bfcf7b1_b.jpg",
+       "source": "https://www.flickr.com/photos/73422502@N08/8257552048",
+       "author": "Zeeyolq Photography",
+       "license": "CC BY 2.0",
+       "file": "38a0940ce0774f75.jpg"
+      }
+     ]
+    },
+    {
+     "name": "Croissants pur beurre (lot de 4)",
+     "description": "Feuilletage maison, cuits chaque matin.",
+     "category": "Pâtisserie",
+     "price_xof": 3200,
+     "parcel_size": "small",
+     "stock": 30,
+     "images": [
+      {
+       "url": "https://live.staticflickr.com/1351/4599562280_b3f9221600_b.jpg",
+       "source": "https://www.flickr.com/photos/46583370@N04/4599562280",
+       "author": "Blarvar",
+       "license": "Public domain",
+       "file": "5f13f971358afbbb.jpg"
+      },
+      {
+       "url": "https://live.staticflickr.com/1671/25488123843_6d8d7db999_b.jpg",
+       "source": "https://www.flickr.com/photos/133904091@N04/25488123843",
+       "author": "VV Nincic",
+       "license": "CC BY 2.0",
+       "file": "85cd576f404bbdc9.jpg"
+      }
+     ]
+    },
+    {
+     "name": "Tarte aux fruits frais",
+     "description": "Pâte sablée, crème pâtissière, fruits de saison.",
+     "category": "Pâtisserie",
+     "price_xof": 14000,
+     "parcel_size": "medium",
+     "stock": 5,
+     "images": [
+      {
+       "url": "https://live.staticflickr.com/3156/3418336485_d0d81883a5_b.jpg",
+       "source": "https://www.flickr.com/photos/8176740@N05/3418336485",
+       "author": "garryknight",
+       "license": "CC BY 2.0",
+       "file": "2bf138937a27b6d7.jpg"
+      },
+      {
+       "url": "https://live.staticflickr.com/8287/7762283142_de0c311524_b.jpg",
+       "source": "https://www.flickr.com/photos/95142644@N00/7762283142",
+       "author": "Ruth and Dave",
+       "license": "CC BY 2.0",
+       "file": "c5f01d15b74ea378.jpg"
+      }
+     ]
+    },
+    {
+     "name": "Éclairs au chocolat (lot de 3)",
+     "description": "Pâte à choux, crème au chocolat noir 70 %.",
+     "category": "Pâtisserie",
+     "price_xof": 4500,
      "parcel_size": "small",
      "stock": 18,
      "images": [
       {
-       "url": "https://thumb.wikimedia.org/wikipedia/commons/thumb/5/5c/Pineapple_fruit_2.jpg/960px-Pineapple_fruit_2.jpg?utm_source=commons.wikimedia.org&utm_campaign=imageinfo&utm_content=thumbnail",
-       "source": "https://commons.wikimedia.org/wiki/File:Pineapple_fruit_2.jpg",
-       "author": "Wilfredor",
-       "license": "CC0"
+       "url": "https://live.staticflickr.com/7249/7530270794_12fcc7341c_b.jpg",
+       "source": "https://www.flickr.com/photos/91068216@N00/7530270794",
+       "author": "afeitar",
+       "license": "CC BY 2.0",
+       "file": "9780a30e99a7298d.jpg"
       },
       {
-       "url": "https://upload.wikimedia.org/wikipedia/commons/6/63/Pineapple_Fruit.jpg?utm_source=commons.wikimedia.org&utm_campaign=imageinfo&utm_content=thumbnail_unscaled",
-       "source": "https://commons.wikimedia.org/wiki/File:Pineapple_Fruit.jpg",
-       "author": "சசிகுமார் காமராஜ்",
-       "license": "CC BY-SA 4.0"
-      }
-     ]
-    },
-    {
-     "name": "Avocats (lot de 4)",
-     "description": "Avocats crémeux, à point sous deux jours.",
-     "category": "Fruits et légumes",
-     "price_xof": 1000,
-     "parcel_size": "small",
-     "stock": 15,
-     "images": [
-      {
-       "url": "https://thumb.wikimedia.org/wikipedia/commons/thumb/c/c9/Avocado_Hass_-_single_and_halved.jpg/960px-Avocado_Hass_-_single_and_halved.jpg?utm_source=commons.wikimedia.org&utm_campaign=imageinfo&utm_content=thumbnail",
-       "source": "https://commons.wikimedia.org/wiki/File:Avocado_Hass_-_single_and_halved.jpg",
-       "author": "Ivar Leidus",
-       "license": "CC BY-SA 4.0"
-      },
-      {
-       "url": "https://thumb.wikimedia.org/wikipedia/commons/thumb/1/17/Avocado_IMGP1128.jpg/960px-Avocado_IMGP1128.jpg?utm_source=commons.wikimedia.org&utm_campaign=imageinfo&utm_content=thumbnail",
-       "source": "https://commons.wikimedia.org/wiki/File:Avocado_IMGP1128.jpg",
-       "author": "Nikodem Nijaki",
-       "license": "CC BY-SA 3.0"
-      }
-     ]
-    },
-    {
-     "name": "Piment frais (sachet de 200 g)",
-     "description": "Piment rouge fort, cueilli la veille.",
-     "category": "Fruits et légumes",
-     "price_xof": 300,
-     "parcel_size": "small",
-     "stock": 60,
-     "images": [
-      {
-       "url": "https://thumb.wikimedia.org/wikipedia/commons/thumb/0/04/Red_chili_peppers_drying_on_a_footbridge.jpg/960px-Red_chili_peppers_drying_on_a_footbridge.jpg?utm_source=commons.wikimedia.org&utm_campaign=imageinfo&utm_content=thumbnail",
-       "source": "https://commons.wikimedia.org/wiki/File:Red_chili_peppers_drying_on_a_footbridge.jpg",
-       "author": "Basile Morin",
-       "license": "CC BY-SA 4.0"
-      },
-      {
-       "url": "https://thumb.wikimedia.org/wikipedia/commons/thumb/e/e3/Basket_of_chili_peppers_in_Laos.jpg/960px-Basket_of_chili_peppers_in_Laos.jpg?utm_source=commons.wikimedia.org&utm_campaign=imageinfo&utm_content=thumbnail",
-       "source": "https://commons.wikimedia.org/wiki/File:Basket_of_chili_peppers_in_Laos.jpg",
-       "author": "Gzzz",
-       "license": "CC BY-SA 4.0"
-      },
-      {
-       "url": "https://thumb.wikimedia.org/wikipedia/commons/thumb/b/b1/Dried_pepper_on_sale_at_the_Monday_Market_in_Kakuri%2C_Kaduna_03.jpg/960px-Dried_pepper_on_sale_at_the_Monday_Market_in_Kakuri%2C_Kaduna_03.jpg?utm_source=commons.wikimedia.org&utm_campaign=imageinfo&utm_content=thumbnail",
-       "source": "https://commons.wikimedia.org/wiki/File:Dried_pepper_on_sale_at_the_Monday_Market_in_Kakuri,_Kaduna_03.jpg",
-       "author": "Kambai Akau",
-       "license": "CC BY-SA 4.0"
+       "url": "https://live.staticflickr.com/5023/5601042965_f1fd9012eb_b.jpg",
+       "source": "https://www.flickr.com/photos/53542700@N07/5601042965",
+       "author": "malcolmduchamp",
+       "license": "CC BY 2.0",
+       "file": "a6c013450e21a4d9.jpg"
       }
      ]
     }
    ]
   },
   {
-   "key": "mawuli",
-   "name": "Épicerie Mawuli",
+   "key": "comptoir",
+   "name": "Le Comptoir Gourmand",
    "category": "Alimentation",
-   "description": "Épicerie de quartier : céréales, légumineuses, huiles et produits de base.",
+   "description": "Épicerie fine : chocolats, cafés et thés d'exception, coffrets cadeaux.",
    "neighborhood": "Tokoin",
-   "address": "Boulevard du 13 janvier, face à la pharmacie de Tokoin",
-   "lat": 6.1502,
-   "lng": 1.2163,
+   "address": "Tokoin Wuiti, à côté de la pharmacie du Boulevard",
+   "lat": 6.1505,
+   "lng": 1.216,
    "owner": {
     "first": "Mawuli",
     "last": "Agbeko",
-    "email": "mawuli@ivia.local",
-    "phone": "+22890000202"
+    "email": "comptoir@ivia.local",
+    "phone": "+22890000505"
    },
    "products": [
     {
-     "name": "Riz parfumé (5 kg)",
-     "description": "Riz long grain parfumé, cuisson rapide.",
-     "category": "Épicerie",
-     "price_xof": 4800,
-     "parcel_size": "medium",
-     "stock": 30,
-     "images": [
-      {
-       "url": "https://thumb.wikimedia.org/wikipedia/commons/thumb/6/6e/Uncooked_ST25_rice_on_bamboo_surface.jpg/960px-Uncooked_ST25_rice_on_bamboo_surface.jpg?utm_source=commons.wikimedia.org&utm_campaign=imageinfo&utm_content=thumbnail",
-       "source": "https://commons.wikimedia.org/wiki/File:Uncooked_ST25_rice_on_bamboo_surface.jpg",
-       "author": "VinhNguyen.1257",
-       "license": "CC BY-SA 4.0"
-      },
-      {
-       "url": "https://thumb.wikimedia.org/wikipedia/commons/thumb/f/ff/Thai_jasmine_rice_uncooked_periodic.jpg/960px-Thai_jasmine_rice_uncooked_periodic.jpg?utm_source=commons.wikimedia.org&utm_campaign=imageinfo&utm_content=thumbnail",
-       "source": "https://commons.wikimedia.org/wiki/File:Thai_jasmine_rice_uncooked_periodic.jpg",
-       "author": "Seb35",
-       "license": "CC BY-SA 3.0"
-      }
-     ],
-     "badges": [
-      "best_seller"
-     ]
-    },
-    {
-     "name": "Haricots niébé (1 kg)",
-     "description": "Haricots à œil noir pour le koklo et l'abobo.",
-     "category": "Épicerie",
-     "price_xof": 1100,
-     "parcel_size": "small",
-     "stock": 25,
-     "images": [
-      {
-       "url": "https://thumb.wikimedia.org/wikipedia/commons/thumb/d/d0/BlackEyedPeas.JPG/960px-BlackEyedPeas.JPG?utm_source=commons.wikimedia.org&utm_campaign=imageinfo&utm_content=thumbnail",
-       "source": "https://commons.wikimedia.org/wiki/File:BlackEyedPeas.JPG",
-       "author": "Toby Hudson",
-       "license": "CC BY-SA 3.0"
-      },
-      {
-       "url": "https://thumb.wikimedia.org/wikipedia/commons/thumb/c/c5/Black-eyed-pea.jpg/960px-Black-eyed-pea.jpg?utm_source=commons.wikimedia.org&utm_campaign=imageinfo&utm_content=thumbnail",
-       "source": "https://commons.wikimedia.org/wiki/File:Black-eyed-pea.jpg",
-       "author": "Sanjay ach at English Wikipedia",
-       "license": "CC BY-SA 3.0"
-      }
-     ]
-    },
-    {
-     "name": "Huile de palme rouge (1 L)",
-     "description": "Huile de palme artisanale, couleur et goût authentiques.",
-     "category": "Épicerie",
-     "price_xof": 1300,
-     "parcel_size": "small",
-     "stock": 20,
-     "images": [
-      {
-       "url": "https://thumb.wikimedia.org/wikipedia/commons/thumb/2/2a/Bottles_of_red_oil.jpg/960px-Bottles_of_red_oil.jpg?utm_source=commons.wikimedia.org&utm_campaign=imageinfo&utm_content=thumbnail",
-       "source": "https://commons.wikimedia.org/wiki/File:Bottles_of_red_oil.jpg",
-       "author": "Daniel Paullll",
-       "license": "CC BY-SA 4.0"
-      },
-      {
-       "url": "https://thumb.wikimedia.org/wikipedia/commons/thumb/5/5d/Palm_Oil_0.jpg/960px-Palm_Oil_0.jpg?utm_source=commons.wikimedia.org&utm_campaign=imageinfo&utm_content=thumbnail",
-       "source": "https://commons.wikimedia.org/wiki/File:Palm_Oil_0.jpg",
-       "author": "Amuzujoe",
-       "license": "CC BY-SA 4.0"
-      }
-     ]
-    },
-    {
-     "name": "Maïs grain (1 kg)",
-     "description": "Maïs jaune sec pour pâte, akassa ou bouillie.",
-     "category": "Épicerie",
-     "price_xof": 450,
-     "parcel_size": "small",
-     "stock": 50,
-     "images": [
-      {
-       "url": "https://thumb.wikimedia.org/wikipedia/commons/thumb/7/78/Ab_food_06.jpg/960px-Ab_food_06.jpg?utm_source=commons.wikimedia.org&utm_campaign=imageinfo&utm_content=thumbnail",
-       "source": "https://commons.wikimedia.org/wiki/File:Ab_food_06.jpg",
-       "author": "Andrey Butko",
-       "license": "CC BY-SA 3.0"
-      },
-      {
-       "url": "https://thumb.wikimedia.org/wikipedia/commons/thumb/0/07/Corn_grains.JPG/960px-Corn_grains.JPG?utm_source=commons.wikimedia.org&utm_campaign=imageinfo&utm_content=thumbnail",
-       "source": "https://commons.wikimedia.org/wiki/File:Corn_grains.JPG",
-       "author": "Miansari66",
-       "license": "CC0"
-      }
-     ]
-    },
-    {
-     "name": "Arachides grillées (500 g)",
-     "description": "Arachides décortiquées et grillées à sec.",
-     "category": "Épicerie",
-     "price_xof": 800,
-     "parcel_size": "small",
-     "stock": 30,
-     "images": [
-      {
-       "url": "https://thumb.wikimedia.org/wikipedia/commons/thumb/7/70/Groundnut_cake_%28KuliKuli%29.jpg/960px-Groundnut_cake_%28KuliKuli%29.jpg?utm_source=commons.wikimedia.org&utm_campaign=imageinfo&utm_content=thumbnail",
-       "source": "https://commons.wikimedia.org/wiki/File:Groundnut_cake_(KuliKuli).jpg",
-       "author": "Xahrashots1000",
-       "license": "CC BY-SA 4.0"
-      },
-      {
-       "url": "https://thumb.wikimedia.org/wikipedia/commons/thumb/f/fc/Kuli_kuli_seller.jpg/960px-Kuli_kuli_seller.jpg?utm_source=commons.wikimedia.org&utm_campaign=imageinfo&utm_content=thumbnail",
-       "source": "https://commons.wikimedia.org/wiki/File:Kuli_kuli_seller.jpg",
-       "author": "Anasskoko",
-       "license": "CC BY-SA 4.0"
-      }
-     ]
-    },
-    {
-     "name": "Kuli-kuli (sachet de 250 g)",
-     "description": "Galettes croustillantes à base d'arachide, recette du Nord.",
-     "category": "Épicerie",
-     "price_xof": 500,
-     "parcel_size": "small",
-     "stock": 3,
-     "images": [
-      {
-       "url": "https://thumb.wikimedia.org/wikipedia/commons/thumb/3/3e/Kuli-Kuli.jpg/960px-Kuli-Kuli.jpg?utm_source=commons.wikimedia.org&utm_campaign=imageinfo&utm_content=thumbnail",
-       "source": "https://commons.wikimedia.org/wiki/File:Kuli-Kuli.jpg",
-       "author": "AgnesAbah",
-       "license": "CC0"
-      },
-      {
-       "url": "https://thumb.wikimedia.org/wikipedia/commons/thumb/0/0b/Kuli_Kuli.jpg/960px-Kuli_Kuli.jpg?utm_source=commons.wikimedia.org&utm_campaign=imageinfo&utm_content=thumbnail",
-       "source": "https://commons.wikimedia.org/wiki/File:Kuli_Kuli.jpg",
-       "author": "Ei'eke",
-       "license": "CC BY-SA 4.0"
-      }
-     ]
-    },
-    {
-     "name": "Sucre en morceaux (1 kg)",
-     "description": "Sucre blanc en morceaux.",
-     "category": "Épicerie",
-     "price_xof": 900,
+     "name": "Chocolat noir artisanal 72 %",
+     "description": "Tablette 100 g, cacao d'Afrique de l'Ouest.",
+     "category": "Épicerie fine",
+     "price_xof": 4500,
      "parcel_size": "small",
      "stock": 40,
      "images": [
       {
-       "url": "https://thumb.wikimedia.org/wikipedia/commons/thumb/a/ac/W%C3%BCrfelzucker_--_2018_--_3582.jpg/960px-W%C3%BCrfelzucker_--_2018_--_3582.jpg?utm_source=commons.wikimedia.org&utm_campaign=imageinfo&utm_content=thumbnail",
-       "source": "https://commons.wikimedia.org/wiki/File:W%C3%BCrfelzucker_--_2018_--_3582.jpg",
-       "author": "Dietmar Rabich",
-       "license": "CC BY-SA 4.0"
-      },
-      {
-       "url": "https://thumb.wikimedia.org/wikipedia/commons/thumb/d/da/Sugar_cubes_V1.jpg/960px-Sugar_cubes_V1.jpg?utm_source=commons.wikimedia.org&utm_campaign=imageinfo&utm_content=thumbnail",
-       "source": "https://commons.wikimedia.org/wiki/File:Sugar_cubes_V1.jpg",
-       "author": "Poyraz 72",
-       "license": "CC BY-SA 4.0"
-      }
-     ]
-    },
-    {
-     "name": "Farine de blé (1 kg)",
-     "description": "Farine pour beignets, gâteaux et pain maison.",
-     "category": "Épicerie",
-     "price_xof": 750,
-     "parcel_size": "small",
-     "stock": 35,
-     "images": [
-      {
-       "url": "https://thumb.wikimedia.org/wikipedia/commons/thumb/e/ee/A_nice_bag_of_wheat_flour%21.jpg/960px-A_nice_bag_of_wheat_flour%21.jpg?utm_source=commons.wikimedia.org&utm_campaign=imageinfo&utm_content=thumbnail",
-       "source": "https://commons.wikimedia.org/wiki/File:A_nice_bag_of_wheat_flour!.jpg",
-       "author": "Ph scale 56",
-       "license": "CC BY-SA 4.0"
-      }
-     ]
-    }
-   ]
-  },
-  {
-   "key": "fournil",
-   "name": "Le Fournil de Djidjolé",
-   "category": "Alimentation",
-   "description": "Boulangerie-pâtisserie : pain cuit trois fois par jour, viennoiseries et gâteaux.",
-   "neighborhood": "Djidjolé",
-   "address": "Carrefour Djidjolé, à côté de la station",
-   "lat": 6.1612,
-   "lng": 1.1961,
-   "owner": {
-    "first": "Komi",
-    "last": "Lawson",
-    "email": "fournil@ivia.local",
-    "phone": "+22890000203"
-   },
-   "products": [
-    {
-     "name": "Baguette tradition",
-     "description": "Baguette croustillante, cuite sur place.",
-     "category": "Boulangerie",
-     "price_xof": 250,
-     "parcel_size": "small",
-     "stock": null,
-     "images": [
-      {
-       "url": "https://thumb.wikimedia.org/wikipedia/commons/thumb/f/f5/Baguettes_-_stonesoup.jpg/960px-Baguettes_-_stonesoup.jpg?utm_source=commons.wikimedia.org&utm_campaign=imageinfo&utm_content=thumbnail",
-       "source": "https://commons.wikimedia.org/wiki/File:Baguettes_-_stonesoup.jpg",
-       "author": "jules / stonesoup",
-       "license": "CC BY 2.0"
-      },
-      {
-       "url": "https://thumb.wikimedia.org/wikipedia/commons/thumb/1/12/Baguette_mie.jpg/960px-Baguette_mie.jpg?utm_source=commons.wikimedia.org&utm_campaign=imageinfo&utm_content=thumbnail",
-       "source": "https://commons.wikimedia.org/wiki/File:Baguette_mie.jpg",
-       "author": "Popo le Chien",
-       "license": "CC BY-SA 4.0"
+       "url": "https://upload.wikimedia.org/wikipedia/commons/c/cd/Green_and_Black%27s_dark_chocolate_bar_2.jpg",
+       "source": "https://commons.wikimedia.org/w/index.php?curid=112888892",
+       "author": "Mx. Granger",
+       "license": "CC0",
+       "file": "608009a038f88ab6.jpg"
       }
      ],
      "badges": [
@@ -441,344 +764,157 @@
      ]
     },
     {
-     "name": "Croissant au beurre",
-     "description": "Croissant feuilleté pur beurre.",
-     "category": "Boulangerie",
-     "price_xof": 400,
+     "name": "Café en grains 500 g",
+     "description": "Arabica torréfié, notes de cacao et de fruits rouges.",
+     "category": "Épicerie fine",
+     "price_xof": 9000,
      "parcel_size": "small",
-     "stock": null,
+     "stock": 20,
      "images": [
       {
-       "url": "https://thumb.wikimedia.org/wikipedia/commons/thumb/a/a3/Le_Croissant_French_Bakery_-_November_2023_-_Sarah_Stierch_06.jpg/960px-Le_Croissant_French_Bakery_-_November_2023_-_Sarah_Stierch_06.jpg?utm_source=commons.wikimedia.org&utm_campaign=imageinfo&utm_content=thumbnail",
-       "source": "https://commons.wikimedia.org/wiki/File:Le_Croissant_French_Bakery_-_November_2023_-_Sarah_Stierch_06.jpg",
-       "author": "Missvain",
-       "license": "CC BY 4.0"
+       "url": "https://live.staticflickr.com/2940/14726580846_debc8f1c59_b.jpg",
+       "source": "https://www.flickr.com/photos/88798523@N02/14726580846",
+       "author": "AndreasPoike",
+       "license": "CC BY 2.0",
+       "file": "a01ac26d20ad073f.jpg"
       },
       {
-       "url": "https://thumb.wikimedia.org/wikipedia/commons/thumb/1/18/Le_Croissant_French_Bakery_-_November_2023_-_Sarah_Stierch_07.jpg/960px-Le_Croissant_French_Bakery_-_November_2023_-_Sarah_Stierch_07.jpg?utm_source=commons.wikimedia.org&utm_campaign=imageinfo&utm_content=thumbnail",
-       "source": "https://commons.wikimedia.org/wiki/File:Le_Croissant_French_Bakery_-_November_2023_-_Sarah_Stierch_07.jpg",
-       "author": "Missvain",
-       "license": "CC BY 4.0"
+       "url": "https://live.staticflickr.com/3116/2295096211_1c641c008e_b.jpg",
+       "source": "https://www.flickr.com/photos/98678037@N00/2295096211",
+       "author": "Stirling Noyes",
+       "license": "CC BY 2.0",
+       "file": "a3de5791f9c470eb.jpg"
       }
      ]
     },
     {
-     "name": "Pain de mie complet",
-     "description": "Pain de mie aux céréales, tranché.",
-     "category": "Boulangerie",
-     "price_xof": 1200,
+     "name": "Thé vert en vrac 100 g",
+     "description": "Thé vert à la menthe, feuilles entières.",
+     "category": "Épicerie fine",
+     "price_xof": 5500,
      "parcel_size": "small",
-     "stock": 12,
+     "stock": 25,
      "images": [
       {
-       "url": "https://thumb.wikimedia.org/wikipedia/commons/thumb/a/a1/Fresh_made_bread_06.jpg/960px-Fresh_made_bread_06.jpg?utm_source=commons.wikimedia.org&utm_campaign=imageinfo&utm_content=thumbnail",
-       "source": "https://commons.wikimedia.org/wiki/File:Fresh_made_bread_06.jpg",
-       "author": "FranHogan",
-       "license": "CC BY-SA 4.0"
+       "url": "https://live.staticflickr.com/2146/2544961540_f638085139_b.jpg",
+       "source": "https://www.flickr.com/photos/10559879@N00/2544961540",
+       "author": "avlxyz",
+       "license": "CC BY-SA 2.0",
+       "file": "886348b3c82e34b7.jpg"
       },
       {
-       "url": "https://thumb.wikimedia.org/wikipedia/commons/thumb/7/77/Tin_Loaf_-_one_slash_in_the_crust.jpg/960px-Tin_Loaf_-_one_slash_in_the_crust.jpg?utm_source=commons.wikimedia.org&utm_campaign=imageinfo&utm_content=thumbnail",
-       "source": "https://commons.wikimedia.org/wiki/File:Tin_Loaf_-_one_slash_in_the_crust.jpg",
-       "author": "Mike Finn",
-       "license": "CC BY 2.0"
+       "url": "https://live.staticflickr.com/8439/7928242596_b70cd9f9b2_b.jpg",
+       "source": "https://www.flickr.com/photos/79172203@N00/7928242596",
+       "author": "HarshLight",
+       "license": "CC BY 2.0",
+       "file": "25399a2b9df908b0.jpg"
       }
      ]
     },
     {
-     "name": "Gâteau au chocolat (8 parts)",
-     "description": "Génoise au chocolat et ganache, sur commande la veille.",
-     "category": "Boulangerie",
-     "price_xof": 12000,
-     "parcel_size": "medium",
-     "stock": 4,
+     "name": "Miel de forêt 500 g",
+     "description": "Miel pur récolté au Togo, pot en verre.",
+     "category": "Épicerie fine",
+     "price_xof": 6500,
+     "parcel_size": "small",
+     "stock": 18,
      "images": [
       {
-       "url": "https://thumb.wikimedia.org/wikipedia/commons/thumb/9/9e/Chocolate_cake_in_Tokyo.jpg/960px-Chocolate_cake_in_Tokyo.jpg?utm_source=commons.wikimedia.org&utm_campaign=imageinfo&utm_content=thumbnail",
-       "source": "https://commons.wikimedia.org/wiki/File:Chocolate_cake_in_Tokyo.jpg",
-       "author": "Syced",
-       "license": "CC0"
+       "url": "https://live.staticflickr.com/65535/51330849013_2fc392fd42_b.jpg",
+       "source": "https://www.flickr.com/photos/184594136@N08/51330849013",
+       "author": "Alabama Extension",
+       "license": "CC0",
+       "file": "6ecfdc3aa0c4006c.jpg"
       },
       {
-       "url": "https://upload.wikimedia.org/wikipedia/commons/e/eb/Chocolate_Cake_with_a_Decadent_Ganache.jpg?utm_source=commons.wikimedia.org&utm_campaign=imageinfo&utm_content=thumbnail_unscaled",
-       "source": "https://commons.wikimedia.org/wiki/File:Chocolate_Cake_with_a_Decadent_Ganache.jpg",
-       "author": "روتانا",
-       "license": "CC BY 4.0"
+       "url": "https://live.staticflickr.com/65535/51330848773_92478805dd_b.jpg",
+       "source": "https://www.flickr.com/photos/184594136@N08/51330848773",
+       "author": "Alabama Extension",
+       "license": "CC0",
+       "file": "a5cb492e9e13bd53.jpg"
       }
      ],
-     "promo_price_xof": 10000,
+     "promo_price_xof": 5500,
      "badges": [
-      "special_offer"
+      "promotion"
      ]
     },
     {
-     "name": "Beignets botokoin (sachet de 10)",
-     "description": "Beignets moelleux, servis chauds le matin.",
-     "category": "Boulangerie",
-     "price_xof": 500,
+     "name": "Noix de cajou grillées 250 g",
+     "description": "Noix entières grillées, légèrement salées.",
+     "category": "Épicerie fine",
+     "price_xof": 4000,
      "parcel_size": "small",
-     "stock": null,
+     "stock": 30,
      "images": [
       {
-       "url": "https://thumb.wikimedia.org/wikipedia/commons/thumb/5/51/Bolinho_de_chuva%2C_S%C3%A3o_Paulo%2C_2024_01.jpg/960px-Bolinho_de_chuva%2C_S%C3%A3o_Paulo%2C_2024_01.jpg?utm_source=commons.wikimedia.org&utm_campaign=imageinfo&utm_content=thumbnail",
-       "source": "https://commons.wikimedia.org/wiki/File:Bolinho_de_chuva,_S%C3%A3o_Paulo,_2024_01.jpg",
-       "author": "JnpoJuwan",
-       "license": "CC0"
-      },
-      {
-       "url": "https://thumb.wikimedia.org/wikipedia/commons/thumb/2/24/Bolinho_de_chuva%2C_S%C3%A3o_Paulo%2C_2024_02.jpg/960px-Bolinho_de_chuva%2C_S%C3%A3o_Paulo%2C_2024_02.jpg?utm_source=commons.wikimedia.org&utm_campaign=imageinfo&utm_content=thumbnail",
-       "source": "https://commons.wikimedia.org/wiki/File:Bolinho_de_chuva,_S%C3%A3o_Paulo,_2024_02.jpg",
-       "author": "JnpoJuwan",
-       "license": "CC0"
+       "url": "https://live.staticflickr.com/2369/2162847752_8c63be6c1e_b.jpg",
+       "source": "https://www.flickr.com/photos/8624431@N08/2162847752",
+       "author": "Asim Bijarani",
+       "license": "CC BY 2.0",
+       "file": "347fabac74e25b20.jpg"
       }
+     ]
+    },
+    {
+     "name": "Coffret cadeau gourmand",
+     "description": "Chocolats, thé, miel et biscuits fins dans une boîte prête à offrir.",
+     "category": "Épicerie fine",
+     "price_xof": 35000,
+     "parcel_size": "medium",
+     "stock": 6,
+     "images": [
+      {
+       "url": "https://live.staticflickr.com/65535/52964652045_e77da3f244_b.jpg",
+       "source": "https://www.flickr.com/photos/37779177@N03/52964652045",
+       "author": "jjes84",
+       "license": "CC BY 2.0",
+       "file": "3dac2a354d0fcb2a.jpg"
+      }
+     ],
+     "badges": [
+      "special_offer"
      ]
     }
    ]
   },
   {
-   "key": "golfe",
-   "name": "Saveurs du Golfe",
-   "category": "Alimentation",
-   "description": "Jus naturels pressés du jour et noix de coco fraîches.",
-   "neighborhood": "Nyékonakpoè",
-   "address": "Rue des cocotiers, Nyékonakpoè",
-   "lat": 6.1312,
-   "lng": 1.2061,
+   "key": "fresh",
+   "name": "Fresh Bar Lomé",
+   "category": "Boissons",
+   "description": "Smoothies, jus pressés et cafés glacés, préparés à la commande.",
+   "neighborhood": "Hédzranawoé",
+   "address": "Hédzranawoé, angle de la route de Kpalimé",
+   "lat": 6.1648,
+   "lng": 1.241,
    "owner": {
     "first": "Sika",
     "last": "Mensah",
-    "email": "golfe@ivia.local",
-    "phone": "+22890000204"
+    "email": "fresh@ivia.local",
+    "phone": "+22890000506"
    },
    "products": [
     {
-     "name": "Jus de bissap (50 cl)",
-     "description": "Infusion de fleurs d'hibiscus, sucrée et parfumée à la menthe.",
-     "category": "Jus et boissons",
-     "price_xof": 400,
-     "parcel_size": "small",
-     "stock": 48,
-     "images": [
-      {
-       "url": "https://thumb.wikimedia.org/wikipedia/commons/thumb/0/07/Sobolo.jpg/960px-Sobolo.jpg?utm_source=commons.wikimedia.org&utm_campaign=imageinfo&utm_content=thumbnail",
-       "source": "https://commons.wikimedia.org/wiki/File:Sobolo.jpg",
-       "author": "Noahalorwu",
-       "license": "CC BY-SA 4.0"
-      },
-      {
-       "url": "https://thumb.wikimedia.org/wikipedia/commons/thumb/a/ae/Zobo_drink.jpg/960px-Zobo_drink.jpg?utm_source=commons.wikimedia.org&utm_campaign=imageinfo&utm_content=thumbnail",
-       "source": "https://commons.wikimedia.org/wiki/File:Zobo_drink.jpg",
-       "author": "Lyndadelz",
-       "license": "CC BY-SA 4.0"
-      }
-     ],
-     "badges": [
-      "best_seller"
-     ]
-    },
-    {
-     "name": "Jus de gingembre (50 cl)",
-     "description": "Gingembre frais pressé, citron et ananas.",
-     "category": "Jus et boissons",
-     "price_xof": 400,
-     "parcel_size": "small",
-     "stock": 36,
-     "images": [
-      {
-       "url": "https://thumb.wikimedia.org/wikipedia/commons/thumb/3/36/Sugarcane_juice_Flavours.jpg/960px-Sugarcane_juice_Flavours.jpg?utm_source=commons.wikimedia.org&utm_campaign=imageinfo&utm_content=thumbnail",
-       "source": "https://commons.wikimedia.org/wiki/File:Sugarcane_juice_Flavours.jpg",
-       "author": "Sayhi2kojo",
-       "license": "CC BY-SA 4.0"
-      },
-      {
-       "url": "https://thumb.wikimedia.org/wikipedia/commons/thumb/f/fc/Omunanansi_Juice_Boiling.jpg/960px-Omunanansi_Juice_Boiling.jpg?utm_source=commons.wikimedia.org&utm_campaign=imageinfo&utm_content=thumbnail",
-       "source": "https://commons.wikimedia.org/wiki/File:Omunanansi_Juice_Boiling.jpg",
-       "author": "Fiktube",
-       "license": "CC BY-SA 4.0"
-      }
-     ]
-    },
-    {
-     "name": "Noix de coco fraîche",
-     "description": "Coco verte ouverte à la demande, eau et chair.",
-     "category": "Jus et boissons",
-     "price_xof": 500,
-     "parcel_size": "small",
-     "stock": 24,
-     "images": [
-      {
-       "url": "https://thumb.wikimedia.org/wikipedia/commons/thumb/1/1f/Drinking_Coconut_Water_-_Fresh_Coconut_-_Kauai.jpg/960px-Drinking_Coconut_Water_-_Fresh_Coconut_-_Kauai.jpg?utm_source=commons.wikimedia.org&utm_campaign=imageinfo&utm_content=thumbnail",
-       "source": "https://commons.wikimedia.org/wiki/File:Drinking_Coconut_Water_-_Fresh_Coconut_-_Kauai.jpg",
-       "author": "Tony Webster",
-       "license": "CC BY 2.0"
-      },
-      {
-       "url": "https://thumb.wikimedia.org/wikipedia/commons/thumb/1/1e/Fresh_Tender_Coconut_-_Cut.jpg/960px-Fresh_Tender_Coconut_-_Cut.jpg?utm_source=commons.wikimedia.org&utm_campaign=imageinfo&utm_content=thumbnail",
-       "source": "https://commons.wikimedia.org/wiki/File:Fresh_Tender_Coconut_-_Cut.jpg",
-       "author": "User:Yuvipanda",
-       "license": "CC BY-SA 1.0"
-      }
-     ]
-    },
-    {
-     "name": "Jus d'orange pressé (1 L)",
-     "description": "Oranges pressées le matin même, sans sucre ajouté.",
-     "category": "Jus et boissons",
-     "price_xof": 1500,
-     "parcel_size": "small",
-     "stock": 10,
-     "images": [
-      {
-       "url": "https://thumb.wikimedia.org/wikipedia/commons/thumb/6/67/Orange_juice_1_edit1.jpg/960px-Orange_juice_1_edit1.jpg?utm_source=commons.wikimedia.org&utm_campaign=imageinfo&utm_content=thumbnail",
-       "source": "https://commons.wikimedia.org/wiki/File:Orange_juice_1_edit1.jpg",
-       "author": "Agency of the United States Department of Agriculture\nEdited Version by: Arad",
-       "license": "Public domain"
-      },
-      {
-       "url": "https://thumb.wikimedia.org/wikipedia/commons/thumb/9/9d/Orange_juice_half_glass.jpg/960px-Orange_juice_half_glass.jpg?utm_source=commons.wikimedia.org&utm_campaign=imageinfo&utm_content=thumbnail",
-       "source": "https://commons.wikimedia.org/wiki/File:Orange_juice_half_glass.jpg",
-       "author": "Corn cheese",
-       "license": "CC BY-SA 4.0"
-      }
-     ],
-     "promo_price_xof": 1200,
-     "badges": [
-      "promotion"
-     ]
-    }
-   ]
-  },
-  {
-   "key": "tata",
-   "name": "Chez Tata Ablavi",
-   "category": "Alimentation",
-   "description": "Plats togolais faits maison, à emporter ou livrés chauds.",
-   "neighborhood": "Amoutiévé",
-   "address": "Rue Amoutiévé, derrière le marché",
-   "lat": 6.1341,
-   "lng": 1.2262,
-   "owner": {
-    "first": "Ablavi",
-    "last": "Kpodar",
-    "email": "tata@ivia.local",
-    "phone": "+22890000205"
-   },
-   "products": [
-    {
-     "name": "Attiéké et poisson braisé",
-     "description": "Attiéké, poisson braisé, piment et oignons.",
-     "category": "Plats cuisinés",
-     "price_xof": 2000,
-     "parcel_size": "small",
-     "stock": null,
-     "images": [
-      {
-       "url": "https://thumb.wikimedia.org/wikipedia/commons/thumb/7/70/Attieke_serves_with_fried_carp.jpg/960px-Attieke_serves_with_fried_carp.jpg?utm_source=commons.wikimedia.org&utm_campaign=imageinfo&utm_content=thumbnail",
-       "source": "https://commons.wikimedia.org/wiki/File:Attieke_serves_with_fried_carp.jpg",
-       "author": "Kod B",
-       "license": "CC BY-SA 4.0"
-      },
-      {
-       "url": "https://thumb.wikimedia.org/wikipedia/commons/thumb/5/53/Plat_de_attieke_et_de_soupe_de_carpe_a_Dimbokro.jpg/960px-Plat_de_attieke_et_de_soupe_de_carpe_a_Dimbokro.jpg?utm_source=commons.wikimedia.org&utm_campaign=imageinfo&utm_content=thumbnail",
-       "source": "https://commons.wikimedia.org/wiki/File:Plat_de_attieke_et_de_soupe_de_carpe_a_Dimbokro.jpg",
-       "author": "Poro26",
-       "license": "CC BY-SA 4.0"
-      }
-     ],
-     "badges": [
-      "best_seller"
-     ]
-    },
-    {
-     "name": "Riz au gras",
-     "description": "Riz cuit à la tomate, légumes et viande.",
-     "category": "Plats cuisinés",
-     "price_xof": 1500,
-     "parcel_size": "small",
-     "stock": null,
-     "images": [
-      {
-       "url": "https://thumb.wikimedia.org/wikipedia/commons/thumb/f/f7/Chicken_and_andouille_sausage_jambalaya.jpg/960px-Chicken_and_andouille_sausage_jambalaya.jpg?utm_source=commons.wikimedia.org&utm_campaign=imageinfo&utm_content=thumbnail",
-       "source": "https://commons.wikimedia.org/wiki/File:Chicken_and_andouille_sausage_jambalaya.jpg",
-       "author": "Jessica Rossi",
-       "license": "CC BY-SA 2.0"
-      }
-     ]
-    },
-    {
-     "name": "Poisson fumé (1 kg)",
-     "description": "Poisson fumé au feu de bois, pour sauces et ragoûts.",
-     "category": "Plats cuisinés",
-     "price_xof": 3500,
-     "parcel_size": "small",
-     "stock": 8,
-     "images": [
-      {
-       "url": "https://thumb.wikimedia.org/wikipedia/commons/thumb/1/13/Astrakhan_Smoked_Fish_Market_Sturgeon.jpg/960px-Astrakhan_Smoked_Fish_Market_Sturgeon.jpg?utm_source=commons.wikimedia.org&utm_campaign=imageinfo&utm_content=thumbnail",
-       "source": "https://commons.wikimedia.org/wiki/File:Astrakhan_Smoked_Fish_Market_Sturgeon.jpg",
-       "author": "michael clarke stuff",
-       "license": "CC BY-SA 2.0"
-      },
-      {
-       "url": "https://thumb.wikimedia.org/wikipedia/commons/thumb/8/8b/Smoked_fish_1.jpg/960px-Smoked_fish_1.jpg?utm_source=commons.wikimedia.org&utm_campaign=imageinfo&utm_content=thumbnail",
-       "source": "https://commons.wikimedia.org/wiki/File:Smoked_fish_1.jpg",
-       "author": "Amuzujoe",
-       "license": "CC BY-SA 4.0"
-      }
-     ]
-    },
-    {
-     "name": "Attiéké nature (500 g)",
-     "description": "Semoule de manioc fraîche.",
-     "category": "Plats cuisinés",
-     "price_xof": 300,
+     "name": "Smoothie mangue-passion",
+     "description": "Mangue, fruit de la passion, yaourt grec, 40 cl.",
+     "category": "Jus et smoothies",
+     "price_xof": 2500,
      "parcel_size": "small",
      "stock": 30,
      "images": [
       {
-       "url": "https://thumb.wikimedia.org/wikipedia/commons/thumb/1/10/Atti%C3%A9k%C3%A9.jpg/960px-Atti%C3%A9k%C3%A9.jpg?utm_source=commons.wikimedia.org&utm_campaign=imageinfo&utm_content=thumbnail",
-       "source": "https://commons.wikimedia.org/wiki/File:Atti%C3%A9k%C3%A9.jpg",
-       "author": "Blessingedi76",
-       "license": "CC BY-SA 4.0"
-      }
-     ]
-    }
-   ]
-  },
-  {
-   "key": "akpene",
-   "name": "Akpéné Couture",
-   "category": "Mode",
-   "description": "Pagnes wax, couture sur mesure et accessoires artisanaux.",
-   "neighborhood": "Kodjoviakopé",
-   "address": "Avenue de la Libération, Kodjoviakopé",
-   "lat": 6.1271,
-   "lng": 1.1992,
-   "owner": {
-    "first": "Akpéné",
-    "last": "Adjo",
-    "email": "akpene@ivia.local",
-    "phone": "+22890000206"
-   },
-   "products": [
-    {
-     "name": "Pagne wax (6 yards)",
-     "description": "Pagne wax imprimé, coton, motifs variés selon arrivage.",
-     "category": "Pagnes",
-     "price_xof": 15000,
-     "parcel_size": "small",
-     "stock": 12,
-     "images": [
-      {
-       "url": "https://thumb.wikimedia.org/wikipedia/commons/thumb/c/c1/Waxprints_in_a_West_African_Shop.jpg/960px-Waxprints_in_a_West_African_Shop.jpg?utm_source=commons.wikimedia.org&utm_campaign=imageinfo&utm_content=thumbnail",
-       "source": "https://commons.wikimedia.org/wiki/File:Waxprints_in_a_West_African_Shop.jpg",
-       "author": "Alexander Sarlay",
-       "license": "CC BY-SA 3.0"
+       "url": "https://live.staticflickr.com/7592/16917865207_eeffa69efe_b.jpg",
+       "source": "https://www.flickr.com/photos/129176831@N06/16917865207",
+       "author": "teflsearch",
+       "license": "CC BY 2.0",
+       "file": "01d1c25663f5cd9a.jpg"
       },
       {
-       "url": "https://thumb.wikimedia.org/wikipedia/commons/thumb/e/e0/Wax_print.jpeg/960px-Wax_print.jpeg?utm_source=commons.wikimedia.org&utm_campaign=imageinfo&utm_content=thumbnail",
-       "source": "https://commons.wikimedia.org/wiki/File:Wax_print.jpeg",
-       "author": "M_nunoo",
-       "license": "CC BY-SA 3.0"
+       "url": "https://live.staticflickr.com/5059/5549130494_56cee0400e_b.jpg",
+       "source": "https://www.flickr.com/photos/56846157@N00/5549130494",
+       "author": "Christine Rondeau",
+       "license": "CC BY 2.0",
+       "file": "2789a5982570f83a.jpg"
       }
      ],
      "badges": [
@@ -786,530 +922,148 @@
      ]
     },
     {
-     "name": "Chemise en wax (homme)",
-     "description": "Chemise manches courtes en tissu wax, tailles S à XXL.",
-     "category": "Vêtements",
-     "price_xof": 12000,
-     "parcel_size": "small",
-     "stock": 9,
-     "images": [
-      {
-       "url": "https://thumb.wikimedia.org/wikipedia/commons/thumb/c/cb/African-Waxprint-in-Western-Style-Shirts-2.jpg/960px-African-Waxprint-in-Western-Style-Shirts-2.jpg?utm_source=commons.wikimedia.org&utm_campaign=imageinfo&utm_content=thumbnail",
-       "source": "https://commons.wikimedia.org/wiki/File:African-Waxprint-in-Western-Style-Shirts-2.jpg",
-       "author": "Dr. Schorsch (talk)",
-       "license": "CC BY-SA 4.0"
-      },
-      {
-       "url": "https://thumb.wikimedia.org/wikipedia/commons/thumb/f/fa/African-Waxprint-in-Western-Style-Shirts-1.jpg/960px-African-Waxprint-in-Western-Style-Shirts-1.jpg?utm_source=commons.wikimedia.org&utm_campaign=imageinfo&utm_content=thumbnail",
-       "source": "https://commons.wikimedia.org/wiki/File:African-Waxprint-in-Western-Style-Shirts-1.jpg",
-       "author": "Dr. Schorsch (talk)",
-       "license": "CC BY-SA 4.0"
-      }
-     ]
-    },
-    {
-     "name": "Robe longue en wax",
-     "description": "Robe longue cousue main, sur mesure en 5 jours.",
-     "category": "Vêtements",
-     "price_xof": 18000,
-     "parcel_size": "small",
-     "stock": 5,
-     "images": [
-      {
-       "url": "https://thumb.wikimedia.org/wikipedia/commons/thumb/b/b3/Ghanaian_African_Print_Fashion%2C_Dresses.jpg/960px-Ghanaian_African_Print_Fashion%2C_Dresses.jpg?utm_source=commons.wikimedia.org&utm_campaign=imageinfo&utm_content=thumbnail",
-       "source": "https://commons.wikimedia.org/wiki/File:Ghanaian_African_Print_Fashion,_Dresses.jpg",
-       "author": "Sadekla Wise Nutifafa",
-       "license": "CC0"
-      },
-      {
-       "url": "https://upload.wikimedia.org/wikipedia/commons/8/8f/The_print_dress.jpg?utm_source=commons.wikimedia.org&utm_campaign=imageinfo&utm_content=thumbnail_unscaled",
-       "source": "https://commons.wikimedia.org/wiki/File:The_print_dress.jpg",
-       "author": "ODC-SIERRA-LEONE",
-       "license": "CC0"
-      }
-     ],
-     "promo_price_xof": 15000,
-     "badges": [
-      "promotion"
-     ]
-    },
-    {
-     "name": "Sac cabas en raphia",
-     "description": "Grand cabas tressé à la main, anses renforcées.",
-     "category": "Accessoires",
-     "price_xof": 6000,
-     "parcel_size": "medium",
-     "stock": 7,
-     "images": [
-      {
-       "url": "https://thumb.wikimedia.org/wikipedia/commons/thumb/d/df/Raffia_hand_bag.jpg/960px-Raffia_hand_bag.jpg?utm_source=commons.wikimedia.org&utm_campaign=imageinfo&utm_content=thumbnail",
-       "source": "https://commons.wikimedia.org/wiki/File:Raffia_hand_bag.jpg",
-       "author": "ODC-SIERRA-LEONE",
-       "license": "CC0"
-      }
-     ]
-    },
-    {
-     "name": "Sac à bandoulière perlé",
-     "description": "Sac brodé de perles, fermeture à rabat.",
-     "category": "Accessoires",
-     "price_xof": 9000,
-     "parcel_size": "small",
-     "stock": 0,
-     "images": [
-      {
-       "url": "https://thumb.wikimedia.org/wikipedia/commons/thumb/1/10/Raffia_Bag.jpg/960px-Raffia_Bag.jpg?utm_source=commons.wikimedia.org&utm_campaign=imageinfo&utm_content=thumbnail",
-       "source": "https://commons.wikimedia.org/wiki/File:Raffia_Bag.jpg",
-       "author": "Utibe Noah Silas",
-       "license": "CC BY-SA 4.0"
-      }
-     ]
-    },
-    {
-     "name": "Tongs en cuir",
-     "description": "Tongs en cuir véritable, semelle souple.",
-     "category": "Accessoires",
-     "price_xof": 4000,
-     "parcel_size": "small",
-     "stock": 10,
-     "images": [
-      {
-       "url": "https://thumb.wikimedia.org/wikipedia/commons/thumb/6/62/My_Flip_Flops_-_6160956610.jpg/960px-My_Flip_Flops_-_6160956610.jpg?utm_source=commons.wikimedia.org&utm_campaign=imageinfo&utm_content=thumbnail",
-       "source": "https://commons.wikimedia.org/wiki/File:My_Flip_Flops_-_6160956610.jpg",
-       "author": "Robert Stinnett",
-       "license": "CC BY 2.0"
-      }
-     ]
-    },
-    {
-     "name": "Tongs colorées",
-     "description": "Tongs en caoutchouc, toutes pointures.",
-     "category": "Accessoires",
-     "price_xof": 1500,
-     "parcel_size": "small",
-     "stock": 40,
-     "images": [
-      {
-       "url": "https://thumb.wikimedia.org/wikipedia/commons/thumb/d/d8/Flip_flops_%2886752398%29.jpg/960px-Flip_flops_%2886752398%29.jpg?utm_source=commons.wikimedia.org&utm_campaign=imageinfo&utm_content=thumbnail",
-       "source": "https://commons.wikimedia.org/wiki/File:Flip_flops_(86752398).jpg",
-       "author": "Dorothy from USA",
-       "license": "CC BY 2.0"
-      },
-      {
-       "url": "https://thumb.wikimedia.org/wikipedia/commons/thumb/0/0d/Zombies_flip_flops.jpg/960px-Zombies_flip_flops.jpg?utm_source=commons.wikimedia.org&utm_campaign=imageinfo&utm_content=thumbnail",
-       "source": "https://commons.wikimedia.org/wiki/File:Zombies_flip_flops.jpg",
-       "author": "Peachyeung316",
-       "license": "CC BY-SA 4.0"
-      }
-     ]
-    },
-    {
-     "name": "Chapeau de paille",
-     "description": "Chapeau tressé, léger et respirant.",
-     "category": "Accessoires",
-     "price_xof": 3500,
-     "parcel_size": "small",
-     "stock": 6,
-     "images": [
-      {
-       "url": "https://thumb.wikimedia.org/wikipedia/commons/thumb/a/a1/Panama_hat.jpg/960px-Panama_hat.jpg?utm_source=commons.wikimedia.org&utm_campaign=imageinfo&utm_content=thumbnail",
-       "source": "https://commons.wikimedia.org/wiki/File:Panama_hat.jpg",
-       "author": "Hex",
-       "license": "CC BY-SA 3.0"
-      },
-      {
-       "url": "https://thumb.wikimedia.org/wikipedia/commons/thumb/5/52/Straw_Harvest_Hat%2C_International_Hat%2C_ca._1960s_%282%29.jpg/960px-Straw_Harvest_Hat%2C_International_Hat%2C_ca._1960s_%282%29.jpg?utm_source=commons.wikimedia.org&utm_campaign=imageinfo&utm_content=thumbnail",
-       "source": "https://commons.wikimedia.org/wiki/File:Straw_Harvest_Hat,_International_Hat,_ca._1960s_(2).jpg",
-       "author": "Belshay",
-       "license": "CC BY-SA 4.0"
-      }
-     ]
-    }
-   ]
-  },
-  {
-   "key": "yawa",
-   "name": "Beauté Naturelle Yawa",
-   "category": "Beauté",
-   "description": "Soins naturels du Togo : karité, savon noir et huiles végétales.",
-   "neighborhood": "Avédji",
-   "address": "Avédji, rue de l'école primaire",
-   "lat": 6.1862,
-   "lng": 1.1861,
-   "owner": {
-    "first": "Yawa",
-    "last": "Amegah",
-    "email": "yawa@ivia.local",
-    "phone": "+22890000207"
-   },
-   "products": [
-    {
-     "name": "Beurre de karité pur (250 g)",
-     "description": "Karité non raffiné, pour la peau et les cheveux.",
-     "category": "Soins du corps",
-     "price_xof": 2000,
+     "name": "Jus détox vert",
+     "description": "Concombre, pomme, céleri, citron et gingembre, 40 cl.",
+     "category": "Jus et smoothies",
+     "price_xof": 2800,
      "parcel_size": "small",
      "stock": 25,
      "images": [
       {
-       "url": "https://thumb.wikimedia.org/wikipedia/commons/thumb/7/74/M%C3%A9lange_du_Beurre_de_karit%C3%A9_et_huiles_essentielles_dans_une_boite_pour_massage_02.jpg/960px-M%C3%A9lange_du_Beurre_de_karit%C3%A9_et_huiles_essentielles_dans_une_boite_pour_massage_02.jpg?utm_source=commons.wikimedia.org&utm_campaign=imageinfo&utm_content=thumbnail",
-       "source": "https://commons.wikimedia.org/wiki/File:M%C3%A9lange_du_Beurre_de_karit%C3%A9_et_huiles_essentielles_dans_une_boite_pour_massage_02.jpg",
-       "author": "Adoscam",
-       "license": "CC BY-SA 4.0"
+       "url": "https://live.staticflickr.com/1172/4725755984_4131472ec9_b.jpg",
+       "source": "https://www.flickr.com/photos/50230758@N03/4725755984",
+       "author": "The Sean & Lauren Spectacular",
+       "license": "CC BY 2.0",
+       "file": "016245888c699d74.jpg"
       },
       {
-       "url": "https://thumb.wikimedia.org/wikipedia/commons/thumb/a/a3/Shea_butter_2024.jpg/960px-Shea_butter_2024.jpg?utm_source=commons.wikimedia.org&utm_campaign=imageinfo&utm_content=thumbnail",
-       "source": "https://commons.wikimedia.org/wiki/File:Shea_butter_2024.jpg",
-       "author": "Vision L1",
-       "license": "CC0"
+       "url": "https://live.staticflickr.com/5474/14414237072_cce1894e5a_b.jpg",
+       "source": "https://www.flickr.com/photos/76603286@N08/14414237072",
+       "author": "my little red suitcase",
+       "license": "CC BY 2.0",
+       "file": "6853dbf4891328e7.jpg"
       }
-     ],
-     "badges": [
-      "best_seller"
      ]
     },
     {
-     "name": "Savon noir africain (200 g)",
-     "description": "Savon artisanal à base de cendres végétales et d'huile.",
-     "category": "Soins du corps",
-     "price_xof": 1000,
+     "name": "Jus d'ananas pressé",
+     "description": "Ananas pain de sucre, sans sucre ajouté, 50 cl.",
+     "category": "Jus et smoothies",
+     "price_xof": 1800,
      "parcel_size": "small",
      "stock": 30,
      "images": [
       {
-       "url": "https://thumb.wikimedia.org/wikipedia/commons/thumb/3/32/Alata_samina.jpg/960px-Alata_samina.jpg?utm_source=commons.wikimedia.org&utm_campaign=imageinfo&utm_content=thumbnail",
-       "source": "https://commons.wikimedia.org/wiki/File:Alata_samina.jpg",
-       "author": "Darkemperror",
-       "license": "CC BY-SA 4.0"
+       "url": "https://live.staticflickr.com/7309/8735135315_8d63720b1c_b.jpg",
+       "source": "https://www.flickr.com/photos/38102750@N06/8735135315",
+       "author": "Breville USA",
+       "license": "CC BY 2.0",
+       "file": "b3ddb1897004a19f.jpg"
       },
       {
-       "url": "https://thumb.wikimedia.org/wikipedia/commons/thumb/2/23/Black_soap_and_natural_homemade_soaps.jpg/960px-Black_soap_and_natural_homemade_soaps.jpg?utm_source=commons.wikimedia.org&utm_campaign=imageinfo&utm_content=thumbnail",
-       "source": "https://commons.wikimedia.org/wiki/File:Black_soap_and_natural_homemade_soaps.jpg",
-       "author": "Kolobetsoo",
-       "license": "CC BY-SA 4.0"
-      }
-     ]
-    },
-    {
-     "name": "Huile de coco vierge (250 ml)",
-     "description": "Huile de coco pressée à froid.",
-     "category": "Soins du corps",
-     "price_xof": 2500,
-     "parcel_size": "small",
-     "stock": 2,
-     "images": [
-      {
-       "url": "https://thumb.wikimedia.org/wikipedia/commons/thumb/6/6d/Coconut_oil_2.jpg/960px-Coconut_oil_2.jpg?utm_source=commons.wikimedia.org&utm_campaign=imageinfo&utm_content=thumbnail",
-       "source": "https://commons.wikimedia.org/wiki/File:Coconut_oil_2.jpg",
-       "author": "Tiia Monto",
-       "license": "CC BY-SA 4.0"
-      }
-     ]
-    }
-   ]
-  },
-  {
-   "key": "kodjo",
-   "name": "Maison Kodjo",
-   "category": "Maison",
-   "description": "Équipement de la maison : ventilation, cuisine, éclairage solaire.",
-   "neighborhood": "Agoè",
-   "address": "Agoè Assiyéyé, près du grand marché",
-   "lat": 6.2361,
-   "lng": 1.2062,
-   "owner": {
-    "first": "Kodjo",
-    "last": "Afanou",
-    "email": "kodjo@ivia.local",
-    "phone": "+22890000208"
-   },
-   "products": [
-    {
-     "name": "Ventilateur sur pied (40 cm)",
-     "description": "Trois vitesses, oscillation, hauteur réglable.",
-     "category": "Équipement",
-     "price_xof": 22000,
-     "parcel_size": "large",
-     "stock": 6,
-     "images": [
-      {
-       "url": "https://thumb.wikimedia.org/wikipedia/commons/thumb/5/57/Modern_electric_fan_at_a_school.jpg/960px-Modern_electric_fan_at_a_school.jpg?utm_source=commons.wikimedia.org&utm_campaign=imageinfo&utm_content=thumbnail",
-       "source": "https://commons.wikimedia.org/wiki/File:Modern_electric_fan_at_a_school.jpg",
-       "author": "Curpharar",
-       "license": "CC BY-SA 4.0"
-      },
-      {
-       "url": "https://thumb.wikimedia.org/wikipedia/commons/thumb/6/6d/Mounted_electric_fan_in_a_classroom.jpg/960px-Mounted_electric_fan_in_a_classroom.jpg?utm_source=commons.wikimedia.org&utm_campaign=imageinfo&utm_content=thumbnail",
-       "source": "https://commons.wikimedia.org/wiki/File:Mounted_electric_fan_in_a_classroom.jpg",
-       "author": "Curpharar",
-       "license": "CC BY-SA 4.0"
+       "url": "https://live.staticflickr.com/3277/2786411285_5289a162ab_b.jpg",
+       "source": "https://www.flickr.com/photos/95142644@N00/2786411285",
+       "author": "Ruth and Dave",
+       "license": "CC BY 2.0",
+       "file": "e0cf8bfe01461ff9.jpg"
       }
      ],
-     "promo_price_xof": 19500,
+     "promo_price_xof": 1500,
      "badges": [
       "promotion"
      ]
     },
     {
-     "name": "Ventilateur de table",
-     "description": "Compact et silencieux, deux vitesses.",
-     "category": "Équipement",
-     "price_xof": 15000,
-     "parcel_size": "medium",
-     "stock": 8,
-     "images": [
-      {
-       "url": "https://upload.wikimedia.org/wikipedia/commons/d/d9/Electric_Fan_240x355.jpg?utm_source=commons.wikimedia.org&utm_campaign=imageinfo&utm_content=thumbnail_unscaled",
-       "source": "https://commons.wikimedia.org/wiki/File:Electric_Fan_240x355.jpg",
-       "author": "Rfc1394(talk)",
-       "license": "Public domain"
-      },
-      {
-       "url": "https://thumb.wikimedia.org/wikipedia/commons/thumb/0/03/Rip_Hamilton_Beach_fan_1995-2009.jpg/960px-Rip_Hamilton_Beach_fan_1995-2009.jpg?utm_source=commons.wikimedia.org&utm_campaign=imageinfo&utm_content=thumbnail",
-       "source": "https://commons.wikimedia.org/wiki/File:Rip_Hamilton_Beach_fan_1995-2009.jpg",
-       "author": "Reuben Strayer",
-       "license": "CC BY-SA 2.0"
-      }
-     ]
-    },
-    {
-     "name": "Marmite en aluminium (10 L)",
-     "description": "Marmite épaisse pour grandes cuissons.",
-     "category": "Cuisine",
-     "price_xof": 8000,
-     "parcel_size": "medium",
-     "stock": 10,
-     "images": [
-      {
-       "url": "https://thumb.wikimedia.org/wikipedia/commons/thumb/b/b1/Pot_%28aluminium%29_for_holding_glutinous_rice_bamboo_steamer_-_Thailand.jpg/960px-Pot_%28aluminium%29_for_holding_glutinous_rice_bamboo_steamer_-_Thailand.jpg?utm_source=commons.wikimedia.org&utm_campaign=imageinfo&utm_content=thumbnail",
-       "source": "https://commons.wikimedia.org/wiki/File:Pot_(aluminium)_for_holding_glutinous_rice_bamboo_steamer_-_Thailand.jpg",
-       "author": "Susan Slater",
-       "license": "CC BY-SA 4.0"
-      },
-      {
-       "url": "https://thumb.wikimedia.org/wikipedia/commons/thumb/4/44/Traditional_Aluminium_Cooking_Pot_%28Himachal_Pradesh%29%2C4.jpg/960px-Traditional_Aluminium_Cooking_Pot_%28Himachal_Pradesh%29%2C4.jpg?utm_source=commons.wikimedia.org&utm_campaign=imageinfo&utm_content=thumbnail",
-       "source": "https://commons.wikimedia.org/wiki/File:Traditional_Aluminium_Cooking_Pot_(Himachal_Pradesh),4.jpg",
-       "author": "Rajani Gairshail",
-       "license": "CC BY-SA 4.0"
-      }
-     ]
-    },
-    {
-     "name": "Casserole dorée à anses",
-     "description": "Casserole légère avec couvercle.",
-     "category": "Cuisine",
-     "price_xof": 6500,
-     "parcel_size": "medium",
-     "stock": 5,
-     "images": [
-      {
-       "url": "https://thumb.wikimedia.org/wikipedia/commons/thumb/0/0f/Yangeun-naembi_2.jpg/960px-Yangeun-naembi_2.jpg?utm_source=commons.wikimedia.org&utm_campaign=imageinfo&utm_content=thumbnail",
-       "source": "https://commons.wikimedia.org/wiki/File:Yangeun-naembi_2.jpg",
-       "author": "The Marmot",
-       "license": "CC BY 2.0"
-      },
-      {
-       "url": "https://thumb.wikimedia.org/wikipedia/commons/thumb/b/ba/Yangeun-naembi_1.jpg/960px-Yangeun-naembi_1.jpg?utm_source=commons.wikimedia.org&utm_campaign=imageinfo&utm_content=thumbnail",
-       "source": "https://commons.wikimedia.org/wiki/File:Yangeun-naembi_1.jpg",
-       "author": "The Marmot",
-       "license": "CC BY 2.0"
-      }
-     ]
-    },
-    {
-     "name": "Lampe solaire de bureau",
-     "description": "Lampe LED rechargeable au soleil, 8 h d'autonomie.",
-     "category": "Équipement",
-     "price_xof": 7500,
+     "name": "Café glacé caramel",
+     "description": "Expresso double, lait frais, caramel, 40 cl.",
+     "category": "Jus et smoothies",
+     "price_xof": 2200,
      "parcel_size": "small",
-     "stock": 12,
+     "stock": 30,
      "images": [
       {
-       "url": "https://thumb.wikimedia.org/wikipedia/commons/thumb/2/2a/Solar_lamp_Home_appliance_Rotimi8.jpg/960px-Solar_lamp_Home_appliance_Rotimi8.jpg?utm_source=commons.wikimedia.org&utm_campaign=imageinfo&utm_content=thumbnail",
-       "source": "https://commons.wikimedia.org/wiki/File:Solar_lamp_Home_appliance_Rotimi8.jpg",
-       "author": "Rotimi8",
-       "license": "CC BY-SA 4.0"
-      }
-     ],
-     "badges": [
-      "special_offer"
-     ]
-    },
-    {
-     "name": "Kit solaire d'éclairage",
-     "description": "Panneau solaire, batterie et ampoules LED.",
-     "category": "Équipement",
-     "price_xof": 25000,
-     "parcel_size": "medium",
-     "stock": 3,
-     "images": [
-      {
-       "url": "https://thumb.wikimedia.org/wikipedia/commons/thumb/6/6d/Solar_integrated_light.jpg/960px-Solar_integrated_light.jpg?utm_source=commons.wikimedia.org&utm_campaign=imageinfo&utm_content=thumbnail",
-       "source": "https://commons.wikimedia.org/wiki/File:Solar_integrated_light.jpg",
-       "author": "Fumikas Sagisavas",
-       "license": "CC0"
-      }
-     ]
-    },
-    {
-     "name": "Thermos (1 L)",
-     "description": "Garde chaud ou froid pendant 12 heures.",
-     "category": "Cuisine",
-     "price_xof": 5000,
-     "parcel_size": "small",
-     "stock": 9,
-     "images": [
-      {
-       "url": "https://thumb.wikimedia.org/wikipedia/commons/thumb/d/dd/Thermos_flask_Termoverken.jpg/960px-Thermos_flask_Termoverken.jpg?utm_source=commons.wikimedia.org&utm_campaign=imageinfo&utm_content=thumbnail",
-       "source": "https://commons.wikimedia.org/wiki/File:Thermos_flask_Termoverken.jpg",
-       "author": "Bengt Oberger",
-       "license": "CC BY-SA 4.0"
+       "url": "https://live.staticflickr.com/2016/2166920105_f263827486_b.jpg",
+       "source": "https://www.flickr.com/photos/10559879@N00/2166920105",
+       "author": "avlxyz",
+       "license": "CC BY-SA 2.0",
+       "file": "913b5f01e49ee2dc.jpg"
       },
       {
-       "url": "https://thumb.wikimedia.org/wikipedia/commons/thumb/1/1b/%D0%A2%D0%B5%D1%80%D0%BC%D0%BE%D1%81_%281%29.jpg/960px-%D0%A2%D0%B5%D1%80%D0%BC%D0%BE%D1%81_%281%29.jpg?utm_source=commons.wikimedia.org&utm_campaign=imageinfo&utm_content=thumbnail",
-       "source": "https://commons.wikimedia.org/wiki/File:%D0%A2%D0%B5%D1%80%D0%BC%D0%BE%D1%81_(1).jpg",
-       "author": "Schekinov Alexey Victorovich",
-       "license": "CC BY-SA 4.0"
-      }
-     ]
-    },
-    {
-     "name": "Bouteille isotherme inox (75 cl)",
-     "description": "Acier inoxydable, bouchon étanche.",
-     "category": "Cuisine",
-     "price_xof": 6000,
-     "parcel_size": "small",
-     "stock": 7,
-     "images": [
-      {
-       "url": "https://thumb.wikimedia.org/wikipedia/commons/thumb/e/ef/Thermos_flask_with_hot_water.jpg/960px-Thermos_flask_with_hot_water.jpg?utm_source=commons.wikimedia.org&utm_campaign=imageinfo&utm_content=thumbnail",
-       "source": "https://commons.wikimedia.org/wiki/File:Thermos_flask_with_hot_water.jpg",
-       "author": "Robert Orzanna",
-       "license": "CC BY-SA 4.0"
-      }
-     ]
-    },
-    {
-     "name": "Bassine en plastique (30 L)",
-     "description": "Bassine solide pour lessive et vaisselle.",
-     "category": "Cuisine",
-     "price_xof": 1500,
-     "parcel_size": "medium",
-     "stock": 20,
-     "images": [
-      {
-       "url": "https://thumb.wikimedia.org/wikipedia/commons/thumb/2/22/Worn_out_plastic_laundry_basin.jpg/960px-Worn_out_plastic_laundry_basin.jpg?utm_source=commons.wikimedia.org&utm_campaign=imageinfo&utm_content=thumbnail",
-       "source": "https://commons.wikimedia.org/wiki/File:Worn_out_plastic_laundry_basin.jpg",
-       "author": "Sima shimony",
-       "license": "CC BY-SA 4.0"
-      }
-     ]
-    },
-    {
-     "name": "Bassine en aluminium",
-     "description": "Bassine rectangulaire inaltérable.",
-     "category": "Cuisine",
-     "price_xof": 4000,
-     "parcel_size": "medium",
-     "stock": 6,
-     "images": [
-      {
-       "url": "https://thumb.wikimedia.org/wikipedia/commons/thumb/d/db/Plastic_washbasin_bin.jpg/960px-Plastic_washbasin_bin.jpg?utm_source=commons.wikimedia.org&utm_campaign=imageinfo&utm_content=thumbnail",
-       "source": "https://commons.wikimedia.org/wiki/File:Plastic_washbasin_bin.jpg",
-       "author": "Mvolz",
-       "license": "CC0"
-      }
-     ]
-    },
-    {
-     "name": "Natte tressée",
-     "description": "Natte en fibres végétales, 1,80 m.",
-     "category": "Équipement",
-     "price_xof": 3000,
-     "parcel_size": "large",
-     "stock": 4,
-     "images": [
-      {
-       "url": "https://upload.wikimedia.org/wikipedia/commons/8/88/Rolled_Mat%2C_Stool%2C_and_Woven_Basket.jpg?utm_source=commons.wikimedia.org&utm_campaign=imageinfo&utm_content=thumbnail_unscaled",
-       "source": "https://commons.wikimedia.org/wiki/File:Rolled_Mat,_Stool,_and_Woven_Basket.jpg",
-       "author": "Nabunje Leticia",
-       "license": "CC BY-SA 4.0"
+       "url": "https://live.staticflickr.com/3212/3128040082_9751f246ed_b.jpg",
+       "source": "https://www.flickr.com/photos/10559879@N00/3128040082",
+       "author": "avlxyz",
+       "license": "CC BY-SA 2.0",
+       "file": "c0e7a587a2157c15.jpg"
       }
      ]
     }
    ]
   },
   {
-   "key": "tech",
-   "name": "Hédzranawoé Tech",
+   "key": "techavenue",
+   "name": "Tech Avenue",
    "category": "Électronique",
-   "description": "Téléphones, audio et accessoires, garantie boutique de 3 mois.",
-   "neighborhood": "Hédzranawoé",
-   "address": "Grand marché de Hédzranawoé, rangée électronique",
-   "lat": 6.1655,
-   "lng": 1.2418,
+   "description": "Smartphones, audio et objets connectés, garantie un an et livraison express.",
+   "neighborhood": "Adidogomé",
+   "address": "Adidogomé, boulevard Eyadéma, immeuble Prestige",
+   "lat": 6.1748,
+   "lng": 1.1612,
    "owner": {
     "first": "Edem",
     "last": "Kossi",
-    "email": "tech@ivia.local",
-    "phone": "+22890000209"
+    "email": "techavenue@ivia.local",
+    "phone": "+22890000507"
    },
    "products": [
     {
-     "name": "Smartphone Android 32 Go",
-     "description": "Écran 5 pouces, double SIM, reconditionné et testé.",
+     "name": "Smartphone 128 Go",
+     "description": "Écran 6,5 pouces, triple capteur photo, double SIM.",
      "category": "Téléphonie",
-     "price_xof": 65000,
+     "price_xof": 185000,
      "parcel_size": "small",
-     "stock": 4,
+     "stock": 6,
      "images": [
       {
-       "url": "https://thumb.wikimedia.org/wikipedia/commons/thumb/0/0f/Samsung_galaxy_young.jpg/960px-Samsung_galaxy_young.jpg?utm_source=commons.wikimedia.org&utm_campaign=imageinfo&utm_content=thumbnail",
-       "source": "https://commons.wikimedia.org/wiki/File:Samsung_galaxy_young.jpg",
-       "author": "Joydeep",
-       "license": "CC BY-SA 3.0"
+       "url": "https://live.staticflickr.com/7193/13467833314_5f09861088_b.jpg",
+       "source": "https://www.flickr.com/photos/65265630@N03/13467833314",
+       "author": "Janitors",
+       "license": "CC BY 2.0",
+       "file": "1d989674295c3c25.jpg"
       },
       {
-       "url": "https://thumb.wikimedia.org/wikipedia/commons/thumb/5/57/Samsung_Galaxy_S4_%28White_Frost%29_-_Left.jpg/960px-Samsung_Galaxy_S4_%28White_Frost%29_-_Left.jpg?utm_source=commons.wikimedia.org&utm_campaign=imageinfo&utm_content=thumbnail",
-       "source": "https://commons.wikimedia.org/wiki/File:Samsung_Galaxy_S4_(White_Frost)_-_Left.jpg",
-       "author": "Beamish4",
-       "license": "CC BY-SA 4.0"
+       "url": "https://live.staticflickr.com/4142/4937798246_709c7baab3_b.jpg",
+       "source": "https://www.flickr.com/photos/26414679@N05/4937798246",
+       "author": "TAKA@P.P.R.S",
+       "license": "CC BY-SA 2.0",
+       "file": "c530bfe0890b44ca.jpg"
       }
      ],
-     "promo_price_xof": 59000,
+     "promo_price_xof": 169000,
      "badges": [
       "promotion"
-     ]
-    },
-    {
-     "name": "Écouteurs filaires",
-     "description": "Écouteurs intra-auriculaires avec micro.",
-     "category": "Audio",
-     "price_xof": 2500,
-     "parcel_size": "small",
-     "stock": 30,
-     "images": [
-      {
-       "url": "https://thumb.wikimedia.org/wikipedia/commons/thumb/1/1d/Earphones_BW_2011-12-10_15-49-08.JPG/960px-Earphones_BW_2011-12-10_15-49-08.JPG?utm_source=commons.wikimedia.org&utm_campaign=imageinfo&utm_content=thumbnail",
-       "source": "https://commons.wikimedia.org/wiki/File:Earphones_BW_2011-12-10_15-49-08.JPG",
-       "author": "Berthold Werner",
-       "license": "CC BY-SA 3.0"
-      }
      ]
     },
     {
      "name": "Écouteurs sans fil",
-     "description": "Bluetooth, boîtier de charge, 20 h d'écoute.",
+     "description": "Réduction de bruit, boîtier de charge, 24 h d'autonomie.",
      "category": "Audio",
-     "price_xof": 12000,
+     "price_xof": 35000,
      "parcel_size": "small",
-     "stock": 10,
+     "stock": 15,
      "images": [
       {
-       "url": "https://thumb.wikimedia.org/wikipedia/commons/thumb/7/73/Yamaha_TW-E3A_Earbuds_Customize%2C_Japan%3B_April_2021_%2801%29.jpg/960px-Yamaha_TW-E3A_Earbuds_Customize%2C_Japan%3B_April_2021_%2801%29.jpg?utm_source=commons.wikimedia.org&utm_campaign=imageinfo&utm_content=thumbnail",
-       "source": "https://commons.wikimedia.org/wiki/File:Yamaha_TW-E3A_Earbuds_Customize,_Japan;_April_2021_(01).jpg",
-       "author": "MIKI Yoshihito. (#mikiyoshihito)",
-       "license": "CC BY 2.0"
+       "url": "https://live.staticflickr.com/65535/51548822927_f0aca0647b_b.jpg",
+       "source": "https://www.flickr.com/photos/60295192@N08/51548822927",
+       "author": "Fairphone",
+       "license": "CC BY-SA 2.0",
+       "file": "80c8493024265641.jpg"
+      },
+      {
+       "url": "https://live.staticflickr.com/65535/51549857553_d4a091ba6b_b.jpg",
+       "source": "https://www.flickr.com/photos/60295192@N08/51549857553",
+       "author": "Fairphone",
+       "license": "CC BY-SA 2.0",
+       "file": "4e986aa16f7f1a16.jpg"
       }
      ],
      "badges": [
@@ -1317,106 +1071,342 @@
      ]
     },
     {
-     "name": "Casque audio",
-     "description": "Casque fermé, son riche, pliable.",
-     "category": "Audio",
-     "price_xof": 18000,
+     "name": "Montre connectée",
+     "description": "Suivi santé et sport, notifications, étanche.",
+     "category": "Objets connectés",
+     "price_xof": 55000,
      "parcel_size": "small",
+     "stock": 8,
+     "images": [
+      {
+       "url": "https://live.staticflickr.com/7443/10289879613_3428c03bba_b.jpg",
+       "source": "https://www.flickr.com/photos/65265630@N03/10289879613",
+       "author": "Janitors",
+       "license": "CC BY 2.0",
+       "file": "cd8d9e7083d51297.jpg"
+      },
+      {
+       "url": "https://live.staticflickr.com/3683/10290086335_ca13172b5d_b.jpg",
+       "source": "https://www.flickr.com/photos/65265630@N03/10290086335",
+       "author": "Janitors",
+       "license": "CC BY 2.0",
+       "file": "92db33ff39a6ff78.jpg"
+      }
+     ]
+    },
+    {
+     "name": "Enceinte Bluetooth",
+     "description": "Son 360°, étanche, 12 h d'autonomie.",
+     "category": "Audio",
+     "price_xof": 42000,
+     "parcel_size": "small",
+     "stock": 10,
+     "images": [
+      {
+       "url": "https://live.staticflickr.com/4163/34243132650_149b3af667_b.jpg",
+       "source": "https://www.flickr.com/photos/26414679@N05/34243132650",
+       "author": "TAKA@P.P.R.S",
+       "license": "CC BY-SA 2.0",
+       "file": "afa7185f9fd625d8.jpg"
+      },
+      {
+       "url": "https://live.staticflickr.com/4192/34628766125_50c06c0af1_b.jpg",
+       "source": "https://www.flickr.com/photos/26414679@N05/34628766125",
+       "author": "TAKA@P.P.R.S",
+       "license": "CC BY-SA 2.0",
+       "file": "1e625bebe2b85909.jpg"
+      }
+     ]
+    },
+    {
+     "name": "Ordinateur portable 15 pouces",
+     "description": "SSD 512 Go, 16 Go de mémoire, idéal pour le travail.",
+     "category": "Informatique",
+     "price_xof": 450000,
+     "parcel_size": "medium",
      "stock": 3,
      "images": [
       {
-       "url": "https://thumb.wikimedia.org/wikipedia/commons/thumb/4/40/Headphones_1.jpg/960px-Headphones_1.jpg?utm_source=commons.wikimedia.org&utm_campaign=imageinfo&utm_content=thumbnail",
-       "source": "https://commons.wikimedia.org/wiki/File:Headphones_1.jpg",
-       "author": "No machine-readable author provided. PJ assumed (based on copyright claims).",
-       "license": "CC BY-SA 3.0"
+       "url": "https://live.staticflickr.com/186/433998194_6ab4c6dd84_b.jpg",
+       "source": "https://www.flickr.com/photos/7241810@N05/433998194",
+       "author": "ByronSA",
+       "license": "CC BY 2.0",
+       "file": "a71757e496840fe7.jpg"
       },
       {
-       "url": "https://thumb.wikimedia.org/wikipedia/commons/thumb/e/eb/Sony-WH-1000XM3-kabellose-Bluetooth-Noise-Cancelling-Kopfhoerer.2.jpg/960px-Sony-WH-1000XM3-kabellose-Bluetooth-Noise-Cancelling-Kopfhoerer.2.jpg?utm_source=commons.wikimedia.org&utm_campaign=imageinfo&utm_content=thumbnail",
-       "source": "https://commons.wikimedia.org/wiki/File:Sony-WH-1000XM3-kabellose-Bluetooth-Noise-Cancelling-Kopfhoerer.2.jpg",
-       "author": "www.digitalpush.net",
-       "license": "CC BY 4.0"
+       "url": "https://live.staticflickr.com/2533/4159467464_383c2a2f64_b.jpg",
+       "source": "https://www.flickr.com/photos/29218907@N00/4159467464",
+       "author": "acnatta",
+       "license": "CC BY 2.0",
+       "file": "82546cf5d0482061.jpg"
       }
      ]
     },
     {
-     "name": "Chargeur secteur USB",
-     "description": "Chargeur mural 10 W, prise européenne.",
-     "category": "Accessoires électroniques",
-     "price_xof": 3500,
-     "parcel_size": "small",
-     "stock": 25,
-     "images": [
-      {
-       "url": "https://thumb.wikimedia.org/wikipedia/commons/thumb/c/c9/USB_power_adapter_for_Apple_iPod%2C_Model_A1205%2C_by_Foxlink_Technology_Ltd-1048.jpg/960px-USB_power_adapter_for_Apple_iPod%2C_Model_A1205%2C_by_Foxlink_Technology_Ltd-1048.jpg?utm_source=commons.wikimedia.org&utm_campaign=imageinfo&utm_content=thumbnail",
-       "source": "https://commons.wikimedia.org/wiki/File:USB_power_adapter_for_Apple_iPod,_Model_A1205,_by_Foxlink_Technology_Ltd-1048.jpg",
-       "author": "Raimond Spekking",
-       "license": "CC BY-SA 4.0"
-      },
-      {
-       "url": "https://thumb.wikimedia.org/wikipedia/commons/thumb/4/47/USB_power_adapter_for_Apple_iPod%2C_Model_A1205%2C_by_Foxlink_Technology_Ltd-1050.jpg/960px-USB_power_adapter_for_Apple_iPod%2C_Model_A1205%2C_by_Foxlink_Technology_Ltd-1050.jpg?utm_source=commons.wikimedia.org&utm_campaign=imageinfo&utm_content=thumbnail",
-       "source": "https://commons.wikimedia.org/wiki/File:USB_power_adapter_for_Apple_iPod,_Model_A1205,_by_Foxlink_Technology_Ltd-1050.jpg",
-       "author": "Raimond Spekking",
-       "license": "CC BY-SA 4.0"
-      }
-     ]
-    },
-    {
-     "name": "Chargeur double USB",
-     "description": "Deux ports USB, charge rapide.",
-     "category": "Accessoires électroniques",
-     "price_xof": 5000,
-     "parcel_size": "small",
-     "stock": 15,
-     "images": [
-      {
-       "url": "https://thumb.wikimedia.org/wikipedia/commons/thumb/1/13/Pisen_MF-08EU_12W_USB_charger-4.jpg/960px-Pisen_MF-08EU_12W_USB_charger-4.jpg?utm_source=commons.wikimedia.org&utm_campaign=imageinfo&utm_content=thumbnail",
-       "source": "https://commons.wikimedia.org/wiki/File:Pisen_MF-08EU_12W_USB_charger-4.jpg",
-       "author": "Imgrenb",
-       "license": "CC0"
-      }
-     ]
-    },
-    {
-     "name": "Radio portable",
-     "description": "Radio FM à piles, haut-parleur puissant.",
+     "name": "Casque audio sans fil",
+     "description": "Coussinets à mémoire de forme, réduction de bruit active.",
      "category": "Audio",
-     "price_xof": 9000,
+     "price_xof": 68000,
      "parcel_size": "small",
-     "stock": 6,
+     "stock": 5,
      "images": [
       {
-       "url": "https://upload.wikimedia.org/wikipedia/commons/2/23/Radio_receiver_Olimpik-305_%28%D1%80%D0%B0%D0%B4%D0%B8%D0%BE%D0%BF%D1%80%D0%B8%D0%B5%D0%BC%D0%BD%D0%B8%D0%BA_%D0%9E%D0%BB%D0%B8%D0%BC%D0%BF%D0%B8%D0%BA-305%29.jpg?utm_source=commons.wikimedia.org&utm_campaign=imageinfo&utm_content=thumbnail_unscaled",
-       "source": "https://commons.wikimedia.org/wiki/File:Radio_receiver_Olimpik-305_(%D1%80%D0%B0%D0%B4%D0%B8%D0%BE%D0%BF%D1%80%D0%B8%D0%B5%D0%BC%D0%BD%D0%B8%D0%BA_%D0%9E%D0%BB%D0%B8%D0%BC%D0%BF%D0%B8%D0%BA-305).jpg",
-       "author": "El nomad",
-       "license": "CC0"
-      },
-      {
-       "url": "https://thumb.wikimedia.org/wikipedia/commons/thumb/7/74/Vintage_RCA_Globe_Trotter_Portable_Radio%2C_Model_7-BX-8J%2C_Broadcast_Band_Only_%28MW%29%2C_Made_In_USA%2C_5_Tubes%2C_Circa_1957_%2815526086234%29.jpg/960px-Vintage_RCA_Globe_Trotter_Portable_Radio%2C_Model_7-BX-8J%2C_Broadcast_Band_Only_%28MW%29%2C_Made_In_USA%2C_5_Tubes%2C_Circa_1957_%2815526086234%29.jpg?utm_source=commons.wikimedia.org&utm_campaign=imageinfo&utm_content=thumbnail",
-       "source": "https://commons.wikimedia.org/wiki/File:Vintage_RCA_Globe_Trotter_Portable_Radio,_Model_7-BX-8J,_Broadcast_Band_Only_(MW),_Made_In_USA,_5_Tubes,_Circa_1957_(15526086234).jpg",
-       "author": "Joe Haupt from USA",
-       "license": "CC BY-SA 2.0"
+       "url": "https://live.staticflickr.com/3779/11140908364_f55c6784c3_b.jpg",
+       "source": "https://www.flickr.com/photos/110255976@N07/11140908364",
+       "author": "blacklerphotos",
+       "license": "CC BY 2.0",
+       "file": "4b89902a558e5661.jpg"
       }
+     ],
+     "badges": [
+      "featured"
      ]
-    },
+    }
+   ]
+  },
+  {
+   "key": "deco",
+   "name": "Maison Déco Lomé",
+   "category": "Maison",
+   "description": "Décoration et art de vivre : bougies, céramiques et textiles pour la maison.",
+   "neighborhood": "Avédji",
+   "address": "Avédji Limousine, villa 18",
+   "lat": 6.1858,
+   "lng": 1.1866,
+   "owner": {
+    "first": "Kodjo",
+    "last": "Afanou",
+    "email": "deco@ivia.local",
+    "phone": "+22890000508"
+   },
+   "products": [
     {
-     "name": "Clé USB 32 Go",
-     "description": "Clé USB 3.0, garantie un an.",
-     "category": "Accessoires électroniques",
-     "price_xof": 4500,
+     "name": "Bougie parfumée",
+     "description": "Cire végétale, parfum vanille-santal, 40 h de combustion.",
+     "category": "Décoration",
+     "price_xof": 12000,
      "parcel_size": "small",
      "stock": 20,
      "images": [
       {
-       "url": "https://thumb.wikimedia.org/wikipedia/commons/thumb/6/6f/Kingston_Technology_DataTraveler_G4_USB_flash_drive_USB_3.0_32_Gb.jpg/960px-Kingston_Technology_DataTraveler_G4_USB_flash_drive_USB_3.0_32_Gb.jpg?utm_source=commons.wikimedia.org&utm_campaign=imageinfo&utm_content=thumbnail",
-       "source": "https://commons.wikimedia.org/wiki/File:Kingston_Technology_DataTraveler_G4_USB_flash_drive_USB_3.0_32_Gb.jpg",
-       "author": "Dmitry Makeev",
-       "license": "CC BY-SA 4.0"
+       "url": "https://live.staticflickr.com/7247/8169721665_ca32134809_b.jpg",
+       "source": "https://www.flickr.com/photos/89874311@N04/8169721665",
+       "author": "Earth Scents Candles",
+       "license": "CC BY 2.0",
+       "file": "a70583ee35cc49e8.jpg"
       },
       {
-       "url": "https://thumb.wikimedia.org/wikipedia/commons/thumb/1/17/SanDisk-Cruzer-USB-4GB-ThumbDrive.jpg/960px-SanDisk-Cruzer-USB-4GB-ThumbDrive.jpg?utm_source=commons.wikimedia.org&utm_campaign=imageinfo&utm_content=thumbnail",
-       "source": "https://commons.wikimedia.org/wiki/File:SanDisk-Cruzer-USB-4GB-ThumbDrive.jpg",
-       "author": "Evan-Amos",
-       "license": "Public domain"
+       "url": "https://live.staticflickr.com/7175/6511960593_7a57fd54d8_b.jpg",
+       "source": "https://www.flickr.com/photos/70961631@N05/6511960593",
+       "author": "The Greenery Nursery",
+       "license": "CC BY 2.0",
+       "file": "153cdbedf34861b6.jpg"
+      }
+     ],
+     "badges": [
+      "best_seller"
+     ]
+    },
+    {
+     "name": "Lot de 2 coussins décoratifs",
+     "description": "Housses en coton tissé, 45 × 45 cm.",
+     "category": "Décoration",
+     "price_xof": 18000,
+     "parcel_size": "small",
+     "stock": 12,
+     "images": [
+      {
+       "url": "https://live.staticflickr.com/140/331731078_8bae0c7fd6_b.jpg",
+       "source": "https://www.flickr.com/photos/51876732@N00/331731078",
+       "author": "reiner.kraft",
+       "license": "CC BY 2.0",
+       "file": "3b737d3821141aa8.jpg"
+      },
+      {
+       "url": "https://live.staticflickr.com/5093/5388058111_cbf80b7902_b.jpg",
+       "source": "https://www.flickr.com/photos/58842866@N08/5388058111",
+       "author": "tommerton2010",
+       "license": "CC BY 2.0",
+       "file": "3e057c074d6edfc1.jpg"
+      }
+     ]
+    },
+    {
+     "name": "Vase en céramique",
+     "description": "Pièce artisanale émaillée, hauteur 30 cm.",
+     "category": "Décoration",
+     "price_xof": 25000,
+     "parcel_size": "medium",
+     "stock": 6,
+     "images": [
+      {
+       "url": "https://live.staticflickr.com/3815/8939461033_2f3d77e97c_b.jpg",
+       "source": "https://www.flickr.com/photos/49889671@N03/8939461033",
+       "author": "Didriks",
+       "license": "CC BY 2.0",
+       "file": "f17eed522aa68ec6.jpg"
+      }
+     ]
+    },
+    {
+     "name": "Plaid en coton",
+     "description": "Grand plaid tissé 130 × 170 cm.",
+     "category": "Décoration",
+     "price_xof": 22000,
+     "parcel_size": "small",
+     "stock": 10,
+     "images": [
+      {
+       "url": "https://live.staticflickr.com/7488/15913459471_cb9b332f3f_b.jpg",
+       "source": "https://www.flickr.com/photos/49889671@N03/15913459471",
+       "author": "Didriks",
+       "license": "CC BY 2.0",
+       "file": "17b61242dcbf7618.jpg"
+      },
+      {
+       "url": "https://live.staticflickr.com/3931/15448104852_d70d9a0bd4_b.jpg",
+       "source": "https://www.flickr.com/photos/49889671@N03/15448104852",
+       "author": "Didriks",
+       "license": "CC BY 2.0",
+       "file": "3dbdbab81061e217.jpg"
+      }
+     ]
+    },
+    {
+     "name": "Machine à expresso",
+     "description": "Pression 15 bars, buse vapeur pour cappuccino.",
+     "category": "Arts de la table",
+     "price_xof": 135000,
+     "parcel_size": "medium",
+     "stock": 3,
+     "images": [
+      {
+       "url": "https://live.staticflickr.com/3163/2569906181_f3a87c8ba9_b.jpg",
+       "source": "https://www.flickr.com/photos/75062596@N00/2569906181",
+       "author": "Lars Plougmann",
+       "license": "CC BY-SA 2.0",
+       "file": "b3fc3866c35a652d.jpg"
+      },
+      {
+       "url": "https://live.staticflickr.com/7328/12055912764_7e21f917a7_b.jpg",
+       "source": "https://www.flickr.com/photos/37996580417@N01/12055912764",
+       "author": "gruntzooki",
+       "license": "CC BY-SA 2.0",
+       "file": "0c3c1b9f345eb52a.jpg"
+      }
+     ]
+    }
+   ]
+  },
+  {
+   "key": "sneakers",
+   "name": "Sneakers Club",
+   "category": "Mode",
+   "description": "Baskets et streetwear authentiques, nouveautés chaque semaine.",
+   "neighborhood": "Agoè",
+   "address": "Agoè Assiyéyé, centre commercial",
+   "lat": 6.2352,
+   "lng": 1.2058,
+   "owner": {
+    "first": "Elom",
+    "last": "Sossou",
+    "email": "sneakers@ivia.local",
+    "phone": "+22890000509"
+   },
+   "products": [
+    {
+     "name": "Baskets blanches en cuir",
+     "description": "Semelle cousue, cuir lisse, du 39 au 45.",
+     "category": "Chaussures",
+     "price_xof": 55000,
+     "parcel_size": "small",
+     "stock": 10,
+     "images": [
+      {
+       "url": "https://live.staticflickr.com/65535/49688016318_0c98fecf32_b.jpg",
+       "source": "https://www.flickr.com/photos/83136374@N05/49688016318",
+       "author": "ajay_suresh",
+       "license": "CC BY 2.0",
+       "file": "a800d2266164631f.jpg"
+      },
+      {
+       "url": "https://live.staticflickr.com/65535/7454989364_6a392a5422_b.jpg",
+       "source": "https://www.flickr.com/photos/80854685@N08/7454989364",
+       "author": "Mark Fischer",
+       "license": "CC BY-SA 2.0",
+       "file": "8521932ecd99c794.jpg"
+      }
+     ],
+     "badges": [
+      "best_seller"
+     ]
+    },
+    {
+     "name": "Chaussures de running",
+     "description": "Amorti réactif, mesh respirant.",
+     "category": "Chaussures",
+     "price_xof": 62000,
+     "parcel_size": "small",
+     "stock": 8,
+     "images": [
+      {
+       "url": "https://live.staticflickr.com/2610/3769610224_18245a968a_b.jpg",
+       "source": "https://www.flickr.com/photos/63051956@N00/3769610224",
+       "author": "minorissues",
+       "license": "CC BY 2.0",
+       "file": "9ea77773c71a7480.jpg"
+      },
+      {
+       "url": "https://live.staticflickr.com/3548/3785433654_1fd9f043c3_b.jpg",
+       "source": "https://www.flickr.com/photos/44124362019@N01/3785433654",
+       "author": "yoppy",
+       "license": "CC BY 2.0",
+       "file": "f0c313626890d3e7.jpg"
+      }
+     ],
+     "promo_price_xof": 52000,
+     "badges": [
+      "promotion"
+     ]
+    },
+    {
+     "name": "Casquette brodée",
+     "description": "Coton épais, réglable.",
+     "category": "Accessoires",
+     "price_xof": 12000,
+     "parcel_size": "small",
+     "stock": 25,
+     "images": [
+      {
+       "url": "https://live.staticflickr.com/5611/15600797831_ba5971f9d3_b.jpg",
+       "source": "https://www.flickr.com/photos/85546319@N04/15600797831",
+       "author": "Menswear Market",
+       "license": "CC BY 2.0",
+       "file": "4544bd01699b2f08.jpg"
+      },
+      {
+       "url": "https://live.staticflickr.com/7491/15938417431_06a05f8712_b.jpg",
+       "source": "https://www.flickr.com/photos/85546319@N04/15938417431",
+       "author": "Menswear Market",
+       "license": "CC BY 2.0",
+       "file": "1b1485033eba9980.jpg"
+      }
+     ]
+    },
+    {
+     "name": "Sac à dos urbain",
+     "description": "Compartiment ordinateur 15 pouces, déperlant.",
+     "category": "Maroquinerie",
+     "price_xof": 38000,
+     "parcel_size": "small",
+     "stock": 9,
+     "images": [
+      {
+       "url": "https://live.staticflickr.com/2628/3770457870_325823e331_b.jpg",
+       "source": "https://www.flickr.com/photos/14771153@N04/3770457870",
+       "author": "slgckgc",
+       "license": "CC BY 2.0",
+       "file": "2756dc7359c9ea4f.jpg"
       }
      ]
     }

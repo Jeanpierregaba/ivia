@@ -109,10 +109,10 @@ func run(args []string) error {
 		}
 		fmt.Println("Comptes (mot de passe commun :", s.Password, "— local uniquement) :")
 		fmt.Println("  admin            :", s.AdminEmail)
-		fmt.Println("  marchands        : marchand@, dzidudu@, mawuli@, fournil@, golfe@, tata@, akpene@, yawa@, kodjo@, tech@, ivi@ivia.local")
+		fmt.Println("  marchands        : marchand@ (concept store), akossiwa@, couture@, eclat@, delices@, comptoir@, fresh@, techavenue@, deco@, sneakers@, ivi@ivia.local")
 		fmt.Println("  acheteurs        :", s.BuyerEmail, "et afi.mensah@, yao.akakpo@, ama.dogbe@… @ivia.local")
 		fmt.Println("  livreurs         :", s.DriverEmail, "et kodjo.abalo@, essowe.tchalla@, komi.djobo@… @ivia.local")
-		fmt.Println("Produits IVI : brouillons à compléter (prix, stock) dans le back-office, Produits IVI, puis à publier.")
+		fmt.Println("Produits IVI : en vente et en tête des listes, avec des PRIX DE DÉMONSTRATION à remplacer dans le back-office (Produits IVI).")
 		return nil
 	default:
 		return errors.New(usage)

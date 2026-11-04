@@ -39,7 +39,14 @@ var demoCatalogJSON []byte
 //go:embed seedassets/ivi/*.jpg
 var iviAssets embed.FS
 
+// Photos du catalogue, redimensionnées et embarquées : le jeu se crée sans connexion.
+//
+//go:embed seedassets/demo/*.jpg
+var demoPhotos embed.FS
+
 type demoImage struct {
+	// File : photo embarquée (seedassets/demo) ; URL, Source, Author, License : crédits.
+	File    string `json:"file"`
 	URL     string `json:"url"`
 	Source  string `json:"source"`
 	Author  string `json:"author"`
@@ -81,18 +88,24 @@ var demoSubcategories = []struct {
 	parent string
 	names  []string
 }{
-	{"Alimentation", []string{"Fruits et légumes", "Épicerie", "Boulangerie", "Plats cuisinés"}},
-	{"Boissons", []string{"Eaux minérales", "Jus et boissons"}},
-	{"Mode", []string{"Pagnes", "Vêtements", "Accessoires"}},
-	{"Beauté", []string{"Soins du corps"}},
-	{"Maison", []string{"Cuisine", "Équipement"}},
-	{"Électronique", []string{"Audio", "Accessoires électroniques"}},
+	{"Alimentation", []string{"Pâtisserie", "Épicerie fine"}},
+	{"Boissons", []string{"Eaux minérales", "Jus et smoothies"}},
+	{"Mode", []string{"Vêtements", "Maroquinerie", "Accessoires", "Chaussures"}},
+	{"Beauté", []string{"Parfums", "Soins", "Maquillage"}},
+	{"Maison", []string{"Décoration", "Arts de la table"}},
+	{"Électronique", []string{"Audio", "Informatique", "Objets connectés"}},
 }
 
 // Catégorie de boutique selon la catégorie principale du catalogue.
 var demoShopCategory = map[string]string{
-	"Alimentation": "Alimentation", "Mode": "Mode et beauté", "Beauté": "Mode et beauté",
-	"Maison": "Maison", "Électronique": "Électronique et téléphonie",
+	"Alimentation": "Alimentation", "Boissons": "Alimentation", "Mode": "Mode et beauté",
+	"Beauté": "Mode et beauté", "Maison": "Maison", "Électronique": "Électronique et téléphonie",
+}
+
+// Marchands de la première version du jeu (catalogue trop ordinaire), suspendus à la relance.
+var legacyDemoMerchants = []string{
+	"dzidudu@ivia.local", "mawuli@ivia.local", "fournil@ivia.local", "golfe@ivia.local", "tata@ivia.local",
+	"akpene@ivia.local", "yawa@ivia.local", "kodjo@ivia.local", "tech@ivia.local",
 }
 
 var demoBuyers = []struct{ first, last, email, phone, hood, address string }{
@@ -124,19 +137,38 @@ var demoDrivers = []struct{ first, last, email, phone, hood, vehicle, plate, sta
 	{"Tchilabalo", "Bassah", "tchila.bassah@ivia.local", "+22890000409", "Avédji", "car", "TG-2109-AG", "pending"},
 }
 
-// IVI : boutique officielle et premiers produits (photos fournies par la marque). Les prix et
-// contenances non lisibles ne sont pas inventés : brouillons à prix « à renseigner », que l'admin
-// complète puis publie ; ils sont déjà mis en avant et prêts pour la promotion.
+// IVI : boutique officielle et premiers produits (photos fournies par la marque), en vente et
+// en tête de toutes les listes. Les prix sont des PRIX DE DÉMONSTRATION (jeu local uniquement),
+// à remplacer par les vrais prix dans le back-office (Produits IVI) ; en production, les produits
+// IVI sont créés par l'admin avec les prix réels.
 var iviProducts = []struct {
 	name, description string
 	images            []string
 	rank              int32
+	price             int64
+	promo             *int64
+	badges            []string
 }{
-	{"AWU IVI 1,5 L", "Eau minérale naturelle AWU IVI, bouteille de 1,5 L.", []string{"awu-ivi-150-1.jpg", "awu-ivi-150-2.jpg"}, 1},
-	{"AWU IVI 0,5 L", "Eau minérale naturelle AWU IVI, bouteille de 0,5 L.", []string{"awu-ivi-050-1.jpg", "awu-ivi-050-2.jpg"}, 2},
-	{"Paquet IVI 30 sachets × 500 ml", "Eau minérale naturelle IVI en sachets de 500 ml, paquet de 30.", []string{"ivi-paquet-sachets-1.jpg", "ivi-paquet-sachets-2.jpg"}, 3},
-	{"AWU IVI 0,33 L", "Eau minérale naturelle AWU IVI, bouteille de 0,33 L.", []string{"awu-ivi-033-1.jpg", "awu-ivi-033-2.jpg"}, 4},
-	{"Bonbonne IVI", "Eau minérale naturelle IVI en bonbonne, pour la maison et le bureau.", []string{"ivi-bonbonne-1.jpg", "ivi-bonbonne-2.jpg"}, 5},
+	{"AWU IVI 1,5 L", "Eau minérale naturelle AWU IVI, bouteille de 1,5 L. Le choix naturel pour une vie meilleure.",
+		[]string{"awu-ivi-150-1.jpg", "awu-ivi-150-2.jpg"}, 1, 500, ptr64(400), []string{"promotion", "best_seller"}},
+	{"Paquet IVI 30 sachets × 500 ml", "Eau minérale naturelle IVI en sachets de 500 ml, paquet de 30 : la réserve de la maison.",
+		[]string{"ivi-paquet-sachets-1.jpg", "ivi-paquet-sachets-2.jpg"}, 2, 750, ptr64(650), []string{"special_offer"}},
+	{"AWU IVI 0,5 L", "Eau minérale naturelle AWU IVI, bouteille de 0,5 L, à emporter partout.",
+		[]string{"awu-ivi-050-1.jpg", "awu-ivi-050-2.jpg"}, 3, 250, nil, []string{"featured", "best_seller"}},
+	{"Bonbonne IVI", "Eau minérale naturelle IVI en bonbonne, pour la maison et le bureau.",
+		[]string{"ivi-bonbonne-1.jpg", "ivi-bonbonne-2.jpg"}, 4, 3000, ptr64(2500), []string{"promotion"}},
+	{"AWU IVI 0,33 L", "Eau minérale naturelle AWU IVI, petite bouteille de 0,33 L.",
+		[]string{"awu-ivi-033-1.jpg", "awu-ivi-033-2.jpg"}, 5, 200, nil, []string{"featured"}},
+}
+
+func ptr64(v int64) *int64 { return &v }
+
+func imageKeysOf(p catalog.Product) []string {
+	keys := make([]string, len(p.Images))
+	for i, img := range p.Images {
+		keys[i] = img.ObjectKey
+	}
+	return keys
 }
 
 // Mentions lues sur les emballages et la communication de la marque.
@@ -218,17 +250,37 @@ func (a *App) SeedDemo(ctx context.Context, logf func(format string, args ...any
 		}
 		n := hood[def.Neighborhood]
 		catID := shopCat[demoShopCategory[def.Category]]
-		shopID, err := a.demoShop(ctx, adminID, owner.ID, shops.Input{
+		input := shops.Input{
 			Name: def.Name, Description: def.Description, Phone: def.Owner.Phone, AddressText: def.Address,
 			NeighborhoodID: &n.ID, Location: geo.Point{Lat: def.Lat, Lng: def.Lng}, CategoryID: &catID,
-		})
+		}
+		shopID, err := a.demoShop(ctx, adminID, owner.ID, input)
 		if err != nil {
 			return out, fmt.Errorf("boutique %s : %w", def.Name, err)
+		}
+		// Boutique d'un seed précédent : nom et présentation du catalogue actuel.
+		if cur, err := a.Shops.Get(ctx, shopID); err == nil && cur.Name != def.Name {
+			if _, err := a.Shops.Update(ctx, owner.ID, shopID, input); err != nil {
+				return out, fmt.Errorf("boutique %s : %w", def.Name, err)
+			}
 		}
 		out.Shops++
 		existing, err := a.Catalog.AdminList(ctx, &shopID, "", 100, 0)
 		if err != nil {
 			return out, err
+		}
+		// Produits d'un seed précédent absents du catalogue actuel : retirés de la vente.
+		for _, e := range existing {
+			if !e.IsActive || slices.ContainsFunc(def.Products, func(p demoProduct) bool { return p.Name == e.Name }) {
+				continue
+			}
+			off := false
+			if _, err := a.Catalog.Update(ctx, owner.ID, e.ID, catalog.ProductInput{
+				CategoryID: e.CategoryID, Name: e.Name, Description: e.Description, PriceXOF: e.PriceXOF,
+				ParcelSize: e.ParcelSize, IsActive: &off, ImageKeys: imageKeysOf(e),
+			}); err != nil {
+				logf("  produit %s non retiré : %v", e.Name, err)
+			}
 		}
 		for _, p := range def.Products {
 			if slices.ContainsFunc(existing, func(e catalog.Product) bool { return e.Name == p.Name }) {
@@ -236,7 +288,10 @@ func (a *App) SeedDemo(ctx context.Context, logf func(format string, args ...any
 			}
 			keys := []string{}
 			for _, img := range p.Images {
-				data, err := demoPhoto(ctx, img.URL)
+				data, err := demoPhotos.ReadFile("seedassets/demo/" + img.File)
+				if err != nil || img.File == "" {
+					data, err = demoPhoto(ctx, img.URL)
+				}
 				if err != nil {
 					out.PhotoErrors++
 					logf("  photo indisponible (%s) : %v", p.Name, err)
@@ -280,6 +335,26 @@ func (a *App) SeedDemo(ctx context.Context, logf func(format string, args ...any
 			return out, err
 		}
 		seeded = append(seeded, seededShop{ownerID: owner.ID, shopID: shopID, products: products})
+	}
+
+	// Boutiques de la première version du jeu de démonstration : suspendues (leurs commandes
+	// restent consultables), remplacées par le catalogue actuel.
+	for _, email := range legacyDemoMerchants {
+		u, err := a.Users.FindByEmail(ctx, email)
+		if err != nil {
+			continue
+		}
+		mine, err := a.Shops.ListMine(ctx, u.ID)
+		if err != nil {
+			return out, err
+		}
+		for _, sh := range mine {
+			if sh.Status == shops.StatusPublished {
+				if _, err := a.Shops.Review(ctx, adminID, sh.ID, "suspend", "Boutique de démonstration remplacée."); err != nil {
+					logf("  boutique %s non suspendue : %v", sh.Name, err)
+				}
+			}
+		}
 	}
 
 	// Boutique officielle IVI et visuels publicitaires.
@@ -439,7 +514,7 @@ func (a *App) SeedDemo(ctx context.Context, logf func(format string, args ...any
 		if len(avail) == 0 {
 			continue
 		}
-		reqID := uuid.NewSHA1(uuid.NameSpaceURL, []byte(fmt.Sprintf("ivia-demo-order-%d", i)))
+		reqID := uuid.NewSHA1(uuid.NameSpaceURL, fmt.Appendf(nil, "ivia-demo-order-v2-%d", i))
 		o, err := func() (orders.BuyerOrder, error) {
 			for j := 0; j < 1+i%2; j++ {
 				p := avail[(i+j)%len(avail)]
@@ -691,7 +766,7 @@ func (a *App) demoDriver(ctx context.Context, adminID, userID uuid.UUID, vehicle
 	return err
 }
 
-// seedIVI crée la boutique officielle IVI et ses produits (brouillons à compléter par l'admin).
+// seedIVI crée la boutique officielle IVI et ses produits, en vente et mis en avant.
 func (a *App) seedIVI(ctx context.Context, adminID uuid.UUID, hood map[string]geo.Neighborhood, shopCat, cats map[string]uuid.UUID, out *DemoSummary) (map[string]uuid.UUID, error) {
 	owner, err := a.demoProfile(ctx, "ivi@ivia.local", "IVI", "OBEDJI BLESS", "+22892042828")
 	if err != nil {
@@ -732,40 +807,56 @@ func (a *App) seedIVI(ctx context.Context, adminID uuid.UUID, hood map[string]ge
 	for _, e := range existing {
 		ids[e.Name] = e.ID
 	}
-	draft, zero := false, int32(0)
+	stock := int32(250)
+	active := true
 	for _, p := range iviProducts {
-		if _, ok := ids[p.name]; ok {
-			continue
-		}
-		keys := []string{}
-		for _, f := range p.images {
-			data, err := iviAssets.ReadFile("seedassets/ivi/" + f)
+		id, ok := ids[p.name]
+		if !ok {
+			keys := []string{}
+			for _, f := range p.images {
+				data, err := iviAssets.ReadFile("seedassets/ivi/" + f)
+				if err != nil {
+					return nil, err
+				}
+				key := "products/" + adminID.String() + "/" + uuid.NewString() + ".jpg"
+				if err := a.LocalStore.Write(storage.Public, key, data); err != nil {
+					return nil, err
+				}
+				keys = append(keys, key)
+				out.Photos++
+			}
+			created, err := a.Catalog.AdminCreate(ctx, adminID, shopID, catalog.ProductInput{
+				CategoryID: cats["Eaux minérales"], Name: p.name, Description: p.description, PriceXOF: p.price,
+				ParcelSize: catalog.ParcelMedium, StockMode: catalog.StockTracked, StockQuantity: &stock,
+				IsActive: &active, ImageKeys: keys,
+			})
 			if err != nil {
+				return nil, fmt.Errorf("produit %s : %w", p.name, err)
+			}
+			id = created.ID
+			ids[p.name] = id
+			out.Products++
+		} else if cur, err := a.Catalog.AdminGet(ctx, id); err == nil && (!cur.IsActive || cur.PriceXOF == 0) {
+			// Brouillon d'un seed précédent : prix de démonstration, mise en vente, stock.
+			if _, err := a.Catalog.AdminUpdate(ctx, adminID, id, catalog.ProductInput{
+				CategoryID: cur.CategoryID, Name: cur.Name, Description: p.description, PriceXOF: p.price,
+				ParcelSize: cur.ParcelSize, IsActive: &active, ImageKeys: imageKeysOf(cur),
+			}); err != nil {
+				return nil, fmt.Errorf("mise en vente %s : %w", p.name, err)
+			}
+			if _, err := a.Catalog.AdminSetStock(ctx, adminID, id, stock, "Jeu de démonstration"); err != nil {
 				return nil, err
 			}
-			key := "products/" + adminID.String() + "/" + uuid.NewString() + ".jpg"
-			if err := a.LocalStore.Write(storage.Public, key, data); err != nil {
-				return nil, err
-			}
-			keys = append(keys, key)
-			out.Photos++
-		}
-		created, err := a.Catalog.AdminCreate(ctx, adminID, shopID, catalog.ProductInput{
-			CategoryID: cats["Eaux minérales"], Name: p.name, Description: p.description, PriceXOF: 0,
-			ParcelSize: catalog.ParcelMedium, StockMode: catalog.StockTracked, StockQuantity: &zero,
-			IsActive: &draft, ImageKeys: keys,
-		})
-		if err != nil {
-			return nil, fmt.Errorf("produit %s : %w", p.name, err)
 		}
 		rank := p.rank
-		if _, err := a.Catalog.SetMarketing(ctx, adminID, created.ID, catalog.MarketingInput{
-			Badges: []string{"featured"}, FeaturedRank: &rank, Features: iviFeatures,
-		}); err != nil {
+		in := catalog.MarketingInput{Badges: p.badges, FeaturedRank: &rank, Features: iviFeatures, PromoPriceXOF: p.promo}
+		if p.promo != nil {
+			end := time.Now().AddDate(0, 1, 0)
+			in.PromoEndsAt = &end
+		}
+		if _, err := a.Catalog.SetMarketing(ctx, adminID, id, in); err != nil {
 			return nil, fmt.Errorf("mise en avant %s : %w", p.name, err)
 		}
-		ids[p.name] = created.ID
-		out.Products++
 	}
 	return ids, nil
 }
@@ -785,29 +876,44 @@ func (a *App) seedPromoVisuals(ctx context.Context, adminID uuid.UUID, products 
 		}
 		return nil
 	}
+	all := []string{"home_hero", "home_feed", "catalog_feed"}
 	visuals := []struct {
 		file string
 		in   promo.VisualInput
 	}{
 		{"banniere-3.jpg", promo.VisualInput{Kind: "banner", Title: "La gamme IVI", Subtitle: "Eau minérale naturelle au goût agréable",
-			Body: "Sachet 500 ml, paquet de 30, bouteilles 0,33 L, 0,5 L et 1,5 L, bonbonne.", CTALabel: "Découvrir",
-			Placements: []string{"home_hero", "catalog_feed"}, Priority: 90, Weight: 5, ExternalURL: IVIOfficialURL}},
-		{"banniere-1.jpg", promo.VisualInput{Kind: "banner", Title: "AWU IVI, l'eau minérale naturelle", Subtitle: "Autorisée par le ministère de la Santé",
-			CTALabel: "Commander", ProductID: p("AWU IVI 1,5 L"), Placements: []string{"home_hero", "home_feed"}, Priority: 80, Weight: 4}},
-		{"affiche-awu-portrait.jpg", promo.VisualInput{Kind: "modal", Title: "Hydratez-vous, vivez mieux !", Subtitle: "AWU IVI — eau minérale naturelle",
-			Body: "Faites-vous livrer l'eau AWU IVI à la maison ou au bureau.", CTALabel: "Commander maintenant",
+			Body: "Sachet 500 ml, paquet de 30, bouteilles 0,33 L, 0,5 L et 1,5 L, bonbonne.", CTALabel: "Commander",
+			ProductID: p("Paquet IVI 30 sachets × 500 ml"), Placements: all, Priority: 90, Weight: 5, ExternalURL: IVIOfficialURL}},
+		{"banniere-1.jpg", promo.VisualInput{Kind: "banner", Title: "AWU IVI 1,5 L à 400 F seulement", Subtitle: "Autorisée par le ministère de la Santé",
+			CTALabel: "Commander", ProductID: p("AWU IVI 1,5 L"), Placements: all, Priority: 95, Weight: 6, ExternalURL: IVIOfficialURL}},
+		{"banniere-2.jpg", promo.VisualInput{Kind: "monthly", Title: "Le visuel du mois : AWU IVI", Subtitle: "Toute la gamme, de 0,33 L à la bonbonne",
+			CTALabel: "Commander", ProductID: p("AWU IVI 0,5 L"), Placements: []string{"home_hero", "home_feed", "catalog_feed", "modal"},
+			Priority: 80, Weight: 4, StartsAt: &monthStart, EndsAt: &monthEnd, ExternalURL: IVIOfficialURL}},
+		{"banniere-4.jpg", promo.VisualInput{Kind: "welcome", Title: "Le choix naturel pour une vie meilleure", Subtitle: "Bienvenue sur ivia avec IVI",
+			Body: "Hydratez-vous, vivez mieux : l'eau minérale naturelle IVI livrée chez vous.", CTALabel: "Commander maintenant",
+			ProductID: p("AWU IVI 1,5 L"), ExternalURL: IVIOfficialURL, Placements: []string{"splash", "home_hero", "interstitial"}, Priority: 100, Weight: 3}},
+		{"affiche-awu-portrait.jpg", promo.VisualInput{Kind: "modal", Title: "Hydratez-vous, vivez mieux !", Subtitle: "AWU IVI 1,5 L — 400 F au lieu de 500 F",
+			Body: "Faites-vous livrer l'eau AWU IVI à la maison ou au bureau, en quelques clics.", CTALabel: "Commander maintenant",
 			ProductID: p("AWU IVI 1,5 L"), ExternalURL: IVIOfficialURL, Placements: []string{"modal"}, Priority: 85, Weight: 5}},
 		{"affiche-gamme-portrait.jpg", promo.VisualInput{Kind: "interstitial", Title: "IVI, toute la gamme livrée chez vous",
-			Subtitle: "Sachets, bouteilles et bonbonnes", CTALabel: "Voir la gamme", ProductID: p("Paquet IVI 30 sachets × 500 ml"),
-			ExternalURL: IVIOfficialURL, Placements: []string{"interstitial"}, Priority: 70, Weight: 3}},
-		{"banniere-4.jpg", promo.VisualInput{Kind: "welcome", Title: "Le choix naturel pour une vie meilleure", Subtitle: "Bienvenue sur ivia avec IVI",
-			CTALabel: "Visiter le site officiel", ExternalURL: IVIOfficialURL, Placements: []string{"splash", "interstitial"}, Priority: 95, Weight: 2}},
-		{"banniere-2.jpg", promo.VisualInput{Kind: "monthly", Title: "Le visuel du mois : AWU IVI", Subtitle: "Toute la gamme, de 0,33 L à la bonbonne",
-			CTALabel: "Commander", ProductID: p("AWU IVI 0,5 L"), Placements: []string{"home_hero", "modal"}, Priority: 75, Weight: 3,
-			StartsAt: &monthStart, EndsAt: &monthEnd}},
+			Subtitle: "Paquet de 30 sachets à 650 F", Body: "Sachets, bouteilles et bonbonnes : faites le plein d'eau minérale naturelle.",
+			CTALabel: "Commander maintenant", ProductID: p("Paquet IVI 30 sachets × 500 ml"),
+			ExternalURL: IVIOfficialURL, Placements: []string{"interstitial", "modal"}, Priority: 75, Weight: 4}},
+		{"ivi-bonbonne-2.jpg", promo.VisualInput{Kind: "poster", Title: "La bonbonne IVI pour la maison et le bureau",
+			Subtitle: "2 500 F au lieu de 3 000 F", CTALabel: "Commander", ProductID: p("Bonbonne IVI"),
+			ExternalURL: IVIOfficialURL, Placements: []string{"home_feed", "catalog_feed", "modal"}, Priority: 70, Weight: 3}},
+	}
+	// Ancien visuel du jeu de démonstration, remplacé.
+	if i := slices.IndexFunc(existing, func(e promo.Visual) bool { return e.Title == "AWU IVI, l'eau minérale naturelle" }); i >= 0 {
+		_ = a.Promo.DeleteVisual(ctx, adminID, existing[i].ID)
 	}
 	for _, v := range visuals {
-		if slices.ContainsFunc(existing, func(e promo.Visual) bool { return e.Title == v.in.Title }) {
+		if i := slices.IndexFunc(existing, func(e promo.Visual) bool { return e.Title == v.in.Title }); i >= 0 {
+			// Déjà publié : emplacements et textes mis à jour, image gardée.
+			v.in.ImageKey = existing[i].ImageKey
+			if _, err := a.Promo.UpdateVisual(ctx, adminID, existing[i].ID, v.in); err != nil {
+				return fmt.Errorf("%s : %w", v.in.Title, err)
+			}
 			continue
 		}
 		data, err := iviAssets.ReadFile("seedassets/ivi/" + v.file)
@@ -824,7 +930,13 @@ func (a *App) seedPromoVisuals(ctx context.Context, adminID uuid.UUID, products 
 		}
 		out.Visuals++
 	}
-	return nil
+	// Diffusion insistante pour la démonstration (modifiable dans Publicité > Réglages).
+	_, err = a.Promo.UpdateSettings(ctx, adminID, promo.Settings{
+		Enabled: true, BannersEnabled: true, ModalEnabled: true, InterstitialEnabled: true,
+		FirstDelaySeconds: 8, MinIntervalSeconds: 40, MaxPerSession: 10, FeedEvery: 4,
+		Rotation: "weighted", OfficialURL: IVIOfficialURL,
+	})
+	return err
 }
 
 // demoPhoto retourne une photo du catalogue, téléchargée une fois puis lue depuis le cache local.
