@@ -41,3 +41,7 @@ infra/deploy-history.log
 # Back-office
 admin/next-env.d.ts
 *.tsbuildinfo
+
+# Sources brutes de la stratégie de communication IVI (≈ 20 Mo) : les versions allégées
+# utilisées par les apps sont dans backend/internal/app/seedassets/ivi.
+admin/public/communications strategy/

@@ -189,3 +189,13 @@ WHERE o.status = ANY(sqlc.arg(statuses)::text[])
   AND (NOT sqlc.arg(locked_only)::boolean OR o.handover_attempts >= 5)
 ORDER BY o.number DESC
 LIMIT sqlc.arg(lim);
+
+-- name: ProductSales :many
+-- Ventes payées des produits donnés sur [from, to) (statistiques publicitaires).
+SELECT i.product_id, count(DISTINCT o.id)::bigint AS orders, coalesce(sum(i.quantity), 0)::bigint AS units,
+       coalesce(sum(i.line_total_xof), 0)::bigint AS revenue_xof
+FROM order_items i
+JOIN orders o ON o.id = i.order_id
+WHERE i.product_id = ANY(sqlc.arg(product_ids)::uuid[])
+  AND o.paid_at >= sqlc.arg(from_time)::timestamptz AND o.paid_at < sqlc.arg(to_time)::timestamptz
+GROUP BY i.product_id;

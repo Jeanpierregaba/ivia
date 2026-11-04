@@ -2327,10 +2327,386 @@ export interface paths {
         patch?: never;
         trace?: never;
     };
+    "/v1/products/featured": {
+        parameters: {
+            query?: never;
+            header?: never;
+            path?: never;
+            cookie?: never;
+        };
+        /** Produits mis en avant (IVI d'abord) */
+        get: operations["getProductsFeatured"];
+        put?: never;
+        post?: never;
+        delete?: never;
+        options?: never;
+        head?: never;
+        patch?: never;
+        trace?: never;
+    };
+    "/v1/promo/feed": {
+        parameters: {
+            query?: never;
+            header?: never;
+            path?: never;
+            cookie?: never;
+        };
+        /** Fil publicitaire d'une app (visuels en cours, produits mis en avant, réglages) */
+        get: operations["getPromoFeed"];
+        put?: never;
+        post?: never;
+        delete?: never;
+        options?: never;
+        head?: never;
+        patch?: never;
+        trace?: never;
+    };
+    "/v1/promo/events": {
+        parameters: {
+            query?: never;
+            header?: never;
+            path?: never;
+            cookie?: never;
+        };
+        get?: never;
+        put?: never;
+        /** Remonter des événements publicitaires (anonymes, 50 au plus) */
+        post: operations["postPromoEvents"];
+        delete?: never;
+        options?: never;
+        head?: never;
+        patch?: never;
+        trace?: never;
+    };
+    "/v1/admin/products": {
+        parameters: {
+            query?: never;
+            header?: never;
+            path?: never;
+            cookie?: never;
+        };
+        /** Produits (toutes boutiques), mis en avant d'abord */
+        get: operations["getAdminProducts"];
+        put?: never;
+        post?: never;
+        delete?: never;
+        options?: never;
+        head?: never;
+        patch?: never;
+        trace?: never;
+    };
+    "/v1/admin/products/{id}": {
+        parameters: {
+            query?: never;
+            header?: never;
+            path?: never;
+            cookie?: never;
+        };
+        /** Produit (tout état) */
+        get: operations["getAdminProductsById"];
+        put?: never;
+        post?: never;
+        delete?: never;
+        options?: never;
+        head?: never;
+        /** Modifier un produit (boutiques de la plateforme) */
+        patch: operations["patchAdminProductsById"];
+        trace?: never;
+    };
+    "/v1/admin/products/{id}/stock": {
+        parameters: {
+            query?: never;
+            header?: never;
+            path?: never;
+            cookie?: never;
+        };
+        get?: never;
+        /** Fixer la quantité en stock */
+        put: operations["putAdminProductsByIdStock"];
+        post?: never;
+        delete?: never;
+        options?: never;
+        head?: never;
+        patch?: never;
+        trace?: never;
+    };
+    "/v1/admin/products/{id}/marketing": {
+        parameters: {
+            query?: never;
+            header?: never;
+            path?: never;
+            cookie?: never;
+        };
+        get?: never;
+        /** Promotion, badges, mise en avant et caractéristiques d'un produit */
+        put: operations["putAdminProductsByIdMarketing"];
+        post?: never;
+        delete?: never;
+        options?: never;
+        head?: never;
+        patch?: never;
+        trace?: never;
+    };
+    "/v1/admin/shops/{id}/products": {
+        parameters: {
+            query?: never;
+            header?: never;
+            path?: never;
+            cookie?: never;
+        };
+        get?: never;
+        put?: never;
+        /** Ajouter un produit à une boutique (IVI) */
+        post: operations["postAdminShopsByIdProducts"];
+        delete?: never;
+        options?: never;
+        head?: never;
+        patch?: never;
+        trace?: never;
+    };
+    "/v1/admin/promo/visuals": {
+        parameters: {
+            query?: never;
+            header?: never;
+            path?: never;
+            cookie?: never;
+        };
+        /** Visuels publicitaires */
+        get: operations["getAdminPromoVisuals"];
+        put?: never;
+        /** Publier un visuel (affiche, bannière, bienvenue, mois, fenêtre, interstitiel) */
+        post: operations["postAdminPromoVisuals"];
+        delete?: never;
+        options?: never;
+        head?: never;
+        patch?: never;
+        trace?: never;
+    };
+    "/v1/admin/promo/visuals/{id}": {
+        parameters: {
+            query?: never;
+            header?: never;
+            path?: never;
+            cookie?: never;
+        };
+        /** Visuel publicitaire */
+        get: operations["getAdminPromoVisualsById"];
+        put?: never;
+        post?: never;
+        /** Supprimer un visuel (statistiques conservées) */
+        delete: operations["deleteAdminPromoVisualsById"];
+        options?: never;
+        head?: never;
+        /** Modifier un visuel */
+        patch: operations["patchAdminPromoVisualsById"];
+        trace?: never;
+    };
+    "/v1/admin/promo/settings": {
+        parameters: {
+            query?: never;
+            header?: never;
+            path?: never;
+            cookie?: never;
+        };
+        /** Réglages de diffusion */
+        get: operations["getAdminPromoSettings"];
+        /** Modifier les réglages de diffusion */
+        put: operations["putAdminPromoSettings"];
+        post?: never;
+        delete?: never;
+        options?: never;
+        head?: never;
+        patch?: never;
+        trace?: never;
+    };
+    "/v1/admin/promo/stats": {
+        parameters: {
+            query?: never;
+            header?: never;
+            path?: never;
+            cookie?: never;
+        };
+        /** Statistiques publicitaires (30 derniers jours par défaut) */
+        get: operations["getAdminPromoStats"];
+        put?: never;
+        post?: never;
+        delete?: never;
+        options?: never;
+        head?: never;
+        patch?: never;
+        trace?: never;
+    };
 }
 export type webhooks = Record<string, never>;
 export interface components {
     schemas: {
+        /** @description Visuel publicitaire publié par l'admin. */
+        PromoVisual: {
+            /** Format: uuid */
+            id: string;
+            /** @enum {string} */
+            kind: "banner" | "modal" | "interstitial" | "welcome" | "monthly" | "poster";
+            title: string;
+            subtitle: string;
+            body: string;
+            /** @description Clé promo_visual (POST /v1/uploads). */
+            image_key: string;
+            /** Format: uuid */
+            product_id: string | null;
+            cta_label: string;
+            /** @description Lien https:// (site officiel) ; vide sinon. */
+            external_url: string;
+            placements: ("home_hero" | "home_feed" | "catalog_feed" | "modal" | "interstitial" | "splash")[];
+            apps: ("buyer" | "seller" | "driver")[];
+            priority: number;
+            weight: number;
+            /** Format: date-time */
+            starts_at: string | null;
+            /** Format: date-time */
+            ends_at: string | null;
+            image_url: string;
+            is_active: boolean;
+            /** @description Actif et dans sa période de diffusion. */
+            live: boolean;
+            /** Format: date-time */
+            created_at: string;
+            /** Format: date-time */
+            updated_at: string;
+        };
+        PromoVisualInput: {
+            /** @enum {string} */
+            kind: "banner" | "modal" | "interstitial" | "welcome" | "monthly" | "poster";
+            title: string;
+            subtitle?: string;
+            body?: string;
+            /** @description Clé promo_visual (POST /v1/uploads). */
+            image_key: string;
+            /** Format: uuid */
+            product_id?: string | null;
+            cta_label?: string;
+            /** @description Lien https:// (site officiel) ; vide sinon. */
+            external_url?: string;
+            placements: ("home_hero" | "home_feed" | "catalog_feed" | "modal" | "interstitial" | "splash")[];
+            apps?: ("buyer" | "seller" | "driver")[];
+            priority?: number;
+            weight?: number;
+            /** Format: date-time */
+            starts_at?: string | null;
+            /** Format: date-time */
+            ends_at?: string | null;
+            is_active?: boolean;
+        };
+        /** @description Visuel du fil (champs de PromoVisual) avec le produit commandable s'il est en vente. */
+        PromoFeedVisual: components["schemas"]["PromoVisual"] & {
+            product: components["schemas"]["Product"] | null;
+        };
+        /** @description Réglages de diffusion ; les apps appliquent délai, intervalle, plafond et rotation. */
+        PromoSettings: {
+            enabled: boolean;
+            banners_enabled: boolean;
+            modal_enabled: boolean;
+            interstitial_enabled: boolean;
+            first_delay_seconds: number;
+            min_interval_seconds: number;
+            max_per_session: number;
+            /** @description Un produit mis en avant revient toutes les N cartes. */
+            feed_every: number;
+            /** @enum {string} */
+            rotation: "weighted" | "random" | "priority";
+            official_url: string;
+            /** Format: date-time */
+            updated_at?: string;
+        };
+        PromoFeed: {
+            settings: components["schemas"]["PromoSettings"];
+            visuals: components["schemas"]["PromoFeedVisual"][];
+            featured: components["schemas"]["Product"][];
+        };
+        /** @description Visual_id ou product_id obligatoire ; un événement invalide est ignoré. */
+        PromoEvent: {
+            /** @enum {string} */
+            kind: "impression" | "dismiss" | "click_order" | "click_product" | "click_site" | "order";
+            /** Format: uuid */
+            visual_id?: string | null;
+            /** Format: uuid */
+            product_id?: string | null;
+            placement?: string;
+        };
+        PromoEventBatch: {
+            /** @enum {string} */
+            app: "buyer" | "seller" | "driver";
+            /** @description Tiré au hasard par l'app, sans lien avec le compte. */
+            session_id: string;
+            events: components["schemas"]["PromoEvent"][];
+        };
+        PromoStats: {
+            /** Format: date */
+            from: string;
+            /** Format: date */
+            to: string;
+            /** Format: int64 */
+            impressions: number;
+            /** Format: int64 */
+            dismissals: number;
+            /** Format: int64 */
+            order_clicks: number;
+            /** Format: int64 */
+            product_clicks: number;
+            /** Format: int64 */
+            site_clicks: number;
+            /** Format: int64 */
+            orders: number;
+            /** Format: int64 */
+            sessions: number;
+            ctr_pct: number;
+            conversion_pct: number;
+            per_day: {
+                /** Format: date */
+                day?: string;
+                impressions?: number;
+                clicks?: number;
+            }[];
+            visuals: {
+                visual_id?: string;
+                title?: string;
+                kind?: string;
+                live?: boolean;
+                impressions?: number;
+                dismissals?: number;
+                clicks?: number;
+                site_clicks?: number;
+                orders?: number;
+                ctr_pct?: number;
+            }[];
+            products: {
+                product_id?: string;
+                name?: string;
+                impressions?: number;
+                views?: number;
+                order_clicks?: number;
+                ad_orders?: number;
+                paid_orders?: number;
+                units_sold?: number;
+                revenue_xof?: number;
+                featured_rank?: number | null;
+            }[];
+        };
+        /** @description Promotion et mise en avant ; null retire la promotion ou la mise en avant. */
+        ProductMarketingInput: {
+            /**
+             * Format: int64
+             * @description Inférieur au prix normal.
+             */
+            promo_price_xof?: number | null;
+            /** Format: date-time */
+            promo_starts_at?: string | null;
+            /** Format: date-time */
+            promo_ends_at?: string | null;
+            badges?: ("promotion" | "special_offer" | "featured" | "best_seller")[];
+            /** @description 1 = premier. */
+            featured_rank?: number | null;
+            features?: string[];
+        };
         Status: {
             /** @enum {string} */
             status: "ok" | "unavailable";
@@ -2585,6 +2961,21 @@ export interface components {
             created_at: string;
             /** Format: date-time */
             updated_at: string;
+            /** Format: int64 */
+            promo_price_xof: number | null;
+            /** Format: date-time */
+            promo_starts_at?: string | null;
+            /** Format: date-time */
+            promo_ends_at?: string | null;
+            promo_active: boolean;
+            /**
+             * Format: int64
+             * @description Prix facturé à l'instant (prix promotionnel pendant la promotion).
+             */
+            effective_price_xof: number;
+            badges: ("promotion" | "special_offer" | "featured" | "best_seller")[];
+            featured_rank: number | null;
+            features: string[];
         };
         /**
          * @description active : en vente ; draft : brouillon, jamais publié ; withdrawn : publié puis retiré.
@@ -2633,6 +3024,13 @@ export interface components {
             created_at: string;
         };
         ProductHit: {
+            /**
+             * Format: int64
+             * @description Prix facturé à l'instant (prix promotionnel pendant la promotion).
+             */
+            effective_price_xof?: number;
+            badges?: string[];
+            featured_rank?: number | null;
             /** Format: uuid */
             id: string;
             /** Format: uuid */
@@ -4509,7 +4907,7 @@ export interface operations {
             content: {
                 "application/json": {
                     /** @enum {string} */
-                    purpose: "product_image" | "shop_logo" | "driver_document" | "merchant_document";
+                    purpose: "product_image" | "shop_logo" | "driver_document" | "merchant_document" | "promo_visual";
                     /** @enum {string} */
                     content_type: "image/jpeg" | "image/png" | "image/webp" | "application/pdf";
                     size_bytes: number;
@@ -8519,6 +8917,567 @@ export interface operations {
                 };
                 content: {
                     "application/json": components["schemas"]["Dashboard"];
+                };
+            };
+            /** @description Erreur (voir `code`) */
+            default: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["Error"];
+                };
+            };
+        };
+    };
+    getProductsFeatured: {
+        parameters: {
+            query?: never;
+            header?: never;
+            path?: never;
+            cookie?: never;
+        };
+        requestBody?: never;
+        responses: {
+            /** @description Succès */
+            200: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": {
+                        items: components["schemas"]["Product"][];
+                    };
+                };
+            };
+            /** @description Erreur (voir `code`) */
+            default: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["Error"];
+                };
+            };
+        };
+    };
+    getPromoFeed: {
+        parameters: {
+            query?: {
+                app?: "buyer" | "seller" | "driver";
+            };
+            header?: never;
+            path?: never;
+            cookie?: never;
+        };
+        requestBody?: never;
+        responses: {
+            /** @description Succès */
+            200: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["PromoFeed"];
+                };
+            };
+            /** @description Erreur (voir `code`) */
+            default: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["Error"];
+                };
+            };
+        };
+    };
+    postPromoEvents: {
+        parameters: {
+            query?: never;
+            header?: never;
+            path?: never;
+            cookie?: never;
+        };
+        requestBody: {
+            content: {
+                "application/json": components["schemas"]["PromoEventBatch"];
+            };
+        };
+        responses: {
+            /** @description Succès */
+            200: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": {
+                        recorded: number;
+                    };
+                };
+            };
+            /** @description Erreur (voir `code`) */
+            default: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["Error"];
+                };
+            };
+        };
+    };
+    getAdminProducts: {
+        parameters: {
+            query?: {
+                shop_id?: string;
+                q?: string;
+                limit?: number;
+                offset?: number;
+            };
+            header?: never;
+            path?: never;
+            cookie?: never;
+        };
+        requestBody?: never;
+        responses: {
+            /** @description Succès */
+            200: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": {
+                        items: components["schemas"]["Product"][];
+                        next_offset?: number | null;
+                    };
+                };
+            };
+            /** @description Erreur (voir `code`) */
+            default: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["Error"];
+                };
+            };
+        };
+    };
+    getAdminProductsById: {
+        parameters: {
+            query?: never;
+            header?: never;
+            path: {
+                id: string;
+            };
+            cookie?: never;
+        };
+        requestBody?: never;
+        responses: {
+            /** @description Succès */
+            200: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["Product"];
+                };
+            };
+            /** @description Erreur (voir `code`) */
+            default: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["Error"];
+                };
+            };
+        };
+    };
+    patchAdminProductsById: {
+        parameters: {
+            query?: never;
+            header?: never;
+            path: {
+                id: string;
+            };
+            cookie?: never;
+        };
+        requestBody: {
+            content: {
+                "application/json": components["schemas"]["ProductInput"];
+            };
+        };
+        responses: {
+            /** @description Succès */
+            200: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["Product"];
+                };
+            };
+            /** @description Erreur (voir `code`) */
+            default: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["Error"];
+                };
+            };
+        };
+    };
+    putAdminProductsByIdStock: {
+        parameters: {
+            query?: never;
+            header?: never;
+            path: {
+                id: string;
+            };
+            cookie?: never;
+        };
+        requestBody: {
+            content: {
+                "application/json": {
+                    quantity: number;
+                    note?: string;
+                };
+            };
+        };
+        responses: {
+            /** @description Succès */
+            200: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["Product"];
+                };
+            };
+            /** @description Erreur (voir `code`) */
+            default: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["Error"];
+                };
+            };
+        };
+    };
+    putAdminProductsByIdMarketing: {
+        parameters: {
+            query?: never;
+            header?: never;
+            path: {
+                id: string;
+            };
+            cookie?: never;
+        };
+        requestBody: {
+            content: {
+                "application/json": components["schemas"]["ProductMarketingInput"];
+            };
+        };
+        responses: {
+            /** @description Succès */
+            200: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["Product"];
+                };
+            };
+            /** @description Erreur (voir `code`) */
+            default: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["Error"];
+                };
+            };
+        };
+    };
+    postAdminShopsByIdProducts: {
+        parameters: {
+            query?: never;
+            header?: never;
+            path: {
+                id: string;
+            };
+            cookie?: never;
+        };
+        requestBody: {
+            content: {
+                "application/json": components["schemas"]["ProductInput"];
+            };
+        };
+        responses: {
+            /** @description Succès */
+            201: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["Product"];
+                };
+            };
+            /** @description Erreur (voir `code`) */
+            default: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["Error"];
+                };
+            };
+        };
+    };
+    getAdminPromoVisuals: {
+        parameters: {
+            query?: never;
+            header?: never;
+            path?: never;
+            cookie?: never;
+        };
+        requestBody?: never;
+        responses: {
+            /** @description Succès */
+            200: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": {
+                        items: components["schemas"]["PromoVisual"][];
+                    };
+                };
+            };
+            /** @description Erreur (voir `code`) */
+            default: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["Error"];
+                };
+            };
+        };
+    };
+    postAdminPromoVisuals: {
+        parameters: {
+            query?: never;
+            header?: never;
+            path?: never;
+            cookie?: never;
+        };
+        requestBody: {
+            content: {
+                "application/json": components["schemas"]["PromoVisualInput"];
+            };
+        };
+        responses: {
+            /** @description Succès */
+            201: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["PromoVisual"];
+                };
+            };
+            /** @description Erreur (voir `code`) */
+            default: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["Error"];
+                };
+            };
+        };
+    };
+    getAdminPromoVisualsById: {
+        parameters: {
+            query?: never;
+            header?: never;
+            path: {
+                id: string;
+            };
+            cookie?: never;
+        };
+        requestBody?: never;
+        responses: {
+            /** @description Succès */
+            200: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["PromoVisual"];
+                };
+            };
+            /** @description Erreur (voir `code`) */
+            default: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["Error"];
+                };
+            };
+        };
+    };
+    deleteAdminPromoVisualsById: {
+        parameters: {
+            query?: never;
+            header?: never;
+            path: {
+                id: string;
+            };
+            cookie?: never;
+        };
+        requestBody?: never;
+        responses: {
+            /** @description Effectué */
+            204: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content?: never;
+            };
+            /** @description Erreur (voir `code`) */
+            default: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["Error"];
+                };
+            };
+        };
+    };
+    patchAdminPromoVisualsById: {
+        parameters: {
+            query?: never;
+            header?: never;
+            path: {
+                id: string;
+            };
+            cookie?: never;
+        };
+        requestBody: {
+            content: {
+                "application/json": components["schemas"]["PromoVisualInput"];
+            };
+        };
+        responses: {
+            /** @description Succès */
+            200: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["PromoVisual"];
+                };
+            };
+            /** @description Erreur (voir `code`) */
+            default: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["Error"];
+                };
+            };
+        };
+    };
+    getAdminPromoSettings: {
+        parameters: {
+            query?: never;
+            header?: never;
+            path?: never;
+            cookie?: never;
+        };
+        requestBody?: never;
+        responses: {
+            /** @description Succès */
+            200: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["PromoSettings"];
+                };
+            };
+            /** @description Erreur (voir `code`) */
+            default: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["Error"];
+                };
+            };
+        };
+    };
+    putAdminPromoSettings: {
+        parameters: {
+            query?: never;
+            header?: never;
+            path?: never;
+            cookie?: never;
+        };
+        requestBody: {
+            content: {
+                "application/json": components["schemas"]["PromoSettings"];
+            };
+        };
+        responses: {
+            /** @description Succès */
+            200: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["PromoSettings"];
+                };
+            };
+            /** @description Erreur (voir `code`) */
+            default: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["Error"];
+                };
+            };
+        };
+    };
+    getAdminPromoStats: {
+        parameters: {
+            query?: {
+                from?: string;
+                to?: string;
+            };
+            header?: never;
+            path?: never;
+            cookie?: never;
+        };
+        requestBody?: never;
+        responses: {
+            /** @description Succès */
+            200: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["PromoStats"];
                 };
             };
             /** @description Erreur (voir `code`) */

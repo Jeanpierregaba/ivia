@@ -12,12 +12,13 @@ import (
 )
 
 const searchProducts = `-- name: SearchProducts :many
-SELECT t.id, t.shop_id, t.name, t.price_xof, t.parcel_size, t.shop_name, t.neighborhood_id,
+SELECT t.id, t.shop_id, t.name, t.price_xof, t.effective_price_xof::bigint AS effective_price_xof, t.badges, t.featured_rank,
+       t.parcel_size, t.shop_name, t.neighborhood_id,
        coalesce(t.main_image_key, '')::text AS main_image_key,
        coalesce(t.in_stock, false)::boolean AS in_stock,
        coalesce(t.distance_m, -1)::float8 AS distance_m
 FROM (
-  SELECT sp.id, sp.shop_id, sp.category_id, sp.category_parent_id, sp.name, sp.price_xof, sp.parcel_size, sp.search_vector, sp.created_at, sp.shop_name, sp.neighborhood_id, sp.location, sp.main_image_key, sp.in_stock, sp.shop_category_id,
+  SELECT sp.id, sp.shop_id, sp.category_id, sp.category_parent_id, sp.name, sp.price_xof, sp.parcel_size, sp.search_vector, sp.created_at, sp.shop_name, sp.neighborhood_id, sp.location, sp.main_image_key, sp.in_stock, sp.shop_category_id, sp.effective_price_xof, sp.badges, sp.featured_rank,
          CASE WHEN $1::float8 IS NULL THEN NULL
               ELSE ST_Distance(sp.location, ST_SetSRID(ST_MakePoint($2::float8, $1::float8), 4326)::geography)
          END::float8 AS distance_m,
@@ -36,8 +37,8 @@ FROM (
          OR sp.category_id = $5::uuid OR sp.category_parent_id = $5::uuid)
     AND ($6::uuid IS NULL OR sp.shop_id = $6::uuid)
     AND ($7::uuid IS NULL OR sp.shop_category_id = $7::uuid)
-    AND ($8::bigint IS NULL OR sp.price_xof >= $8::bigint)
-    AND ($9::bigint IS NULL OR sp.price_xof <= $9::bigint)
+    AND ($8::bigint IS NULL OR sp.effective_price_xof >= $8::bigint)
+    AND ($9::bigint IS NULL OR sp.effective_price_xof <= $9::bigint)
     AND ($10::uuid IS NULL OR sp.neighborhood_id = $10::uuid)
     AND ($11::float8 IS NULL
          OR ST_DWithin(sp.location, ST_SetSRID(ST_MakePoint($2::float8, $1::float8), 4326)::geography, $11::float8))
@@ -45,8 +46,9 @@ FROM (
 ) t
 ORDER BY
   CASE WHEN $13::text = 'distance' THEN t.distance_m END ASC NULLS LAST,
-  CASE WHEN $13::text = 'price_asc' THEN t.price_xof END ASC,
-  CASE WHEN $13::text = 'price_desc' THEN t.price_xof END DESC,
+  CASE WHEN $13::text = 'price_asc' THEN t.effective_price_xof END ASC,
+  CASE WHEN $13::text = 'price_desc' THEN t.effective_price_xof END DESC,
+  CASE WHEN $13::text = 'relevance' THEN t.featured_rank END ASC NULLS LAST,
   t.score DESC,
   t.created_at DESC,
   t.id
@@ -72,22 +74,27 @@ type SearchProductsParams struct {
 }
 
 type SearchProductsRow struct {
-	ID             uuid.UUID
-	ShopID         uuid.UUID
-	Name           string
-	PriceXof       int64
-	ParcelSize     string
-	ShopName       string
-	NeighborhoodID *uuid.UUID
-	MainImageKey   string
-	InStock        bool
-	DistanceM      float64
+	ID                uuid.UUID
+	ShopID            uuid.UUID
+	Name              string
+	PriceXof          int64
+	EffectivePriceXof int64
+	Badges            []string
+	FeaturedRank      *int32
+	ParcelSize        string
+	ShopName          string
+	NeighborhoodID    *uuid.UUID
+	MainImageKey      string
+	InStock           bool
+	DistanceM         float64
 }
 
 // Pertinence : plein texte (français, sans accents) + début du dernier mot (recherche pendant la
 // frappe : « pag » trouve « pagne ») + similarité trigramme (fautes de frappe). tsprefix est
 // construit par le service (lettres et chiffres seulement, « mot1 & mot2:* »), jamais par l'app.
-// distance_m vaut -1 sans position ; main_image_key vaut ” sans photo.
+// distance_m vaut -1 sans position ; main_image_key vaut ” sans photo. Filtres et tris de prix
+// portent sur le prix effectif (promotion comprise) ; par défaut, les produits mis en avant
+// (IVI et AWU-IVI d'abord) passent devant, par rang.
 func (q *Queries) SearchProducts(ctx context.Context, arg SearchProductsParams) ([]SearchProductsRow, error) {
 	rows, err := q.db.Query(ctx, searchProducts,
 		arg.Lat,
@@ -118,6 +125,9 @@ func (q *Queries) SearchProducts(ctx context.Context, arg SearchProductsParams) 
 			&i.ShopID,
 			&i.Name,
 			&i.PriceXof,
+			&i.EffectivePriceXof,
+			&i.Badges,
+			&i.FeaturedRank,
 			&i.ParcelSize,
 			&i.ShopName,
 			&i.NeighborhoodID,

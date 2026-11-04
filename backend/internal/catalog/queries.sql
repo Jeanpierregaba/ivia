@@ -85,3 +85,28 @@ DELETE FROM product_images WHERE product_id = $1;
 
 -- name: InsertImage :exec
 INSERT INTO product_images (product_id, object_key, position) VALUES ($1, $2, $3);
+
+-- name: SetProductMarketing :exec
+-- Promotion et mise en avant d'un produit (admin) ; contrôles en base (products_promo_check…).
+UPDATE products
+SET promo_price_xof = sqlc.narg(promo_price_xof), promo_starts_at = sqlc.narg(promo_starts_at),
+    promo_ends_at = sqlc.narg(promo_ends_at), badges = sqlc.arg(badges)::text[],
+    featured_rank = sqlc.narg(featured_rank), features = sqlc.arg(features)::text[], updated_at = now()
+WHERE id = sqlc.arg(id);
+
+-- name: AdminListProducts :many
+-- Tous les produits (back-office), d'une boutique ou de toutes, avec recherche dans le nom ; les
+-- produits mis en avant d'abord.
+SELECT * FROM products
+WHERE (sqlc.narg(shop_id)::uuid IS NULL OR shop_id = sqlc.narg(shop_id)::uuid)
+  AND (sqlc.narg(q)::text IS NULL
+       OR immutable_unaccent(lower(name)) LIKE '%' || immutable_unaccent(lower(sqlc.narg(q)::text)) || '%' ESCAPE '\')
+ORDER BY featured_rank NULLS LAST, created_at DESC, id
+LIMIT sqlc.arg(lim) OFFSET sqlc.arg(off);
+
+-- name: FeaturedProducts :many
+-- Produits mis en avant en vente, par rang (la boutique publiée est vérifiée par le service).
+SELECT * FROM products
+WHERE featured_rank IS NOT NULL AND is_active
+ORDER BY featured_rank, created_at DESC
+LIMIT sqlc.arg(lim);

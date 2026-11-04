@@ -94,6 +94,17 @@ type Product struct {
 	Images      []Image    `json:"images"`
 	CreatedAt   time.Time  `json:"created_at"`
 	UpdatedAt   time.Time  `json:"updated_at"`
+
+	// Promotion et mise en avant (marketing.go). EffectivePriceXOF est le prix facturé à
+	// l'instant : le prix promotionnel pendant la promotion, le prix normal sinon.
+	PromoPriceXOF     *int64     `json:"promo_price_xof"`
+	PromoStartsAt     *time.Time `json:"promo_starts_at"`
+	PromoEndsAt       *time.Time `json:"promo_ends_at"`
+	PromoActive       bool       `json:"promo_active"`
+	EffectivePriceXOF int64      `json:"effective_price_xof"`
+	Badges            []string   `json:"badges"`
+	FeaturedRank      *int32     `json:"featured_rank"`
+	Features          []string   `json:"features"`
 }
 
 // Image est une photo d'un produit.
@@ -136,13 +147,18 @@ var errProductNotFound = apperr.NotFound("product_not_found", "Produit introuvab
 
 // validateProduct vérifie un produit. checkCategory : la catégorie doit être active (création,
 // catégorie changée, produit en vente) ; un retrait reste possible si l'admin l'a désactivée.
-func (s *Service) validateProduct(ctx context.Context, ownerID uuid.UUID, in *ProductInput, creating, checkCategory bool, currentKeys []string) error {
+// allowDraftPrice : prix à 0 (« à renseigner ») accepté pour un brouillon jamais publié.
+func (s *Service) validateProduct(ctx context.Context, ownerID uuid.UUID, in *ProductInput, creating, checkCategory, allowDraftPrice bool, currentKeys []string) error {
 	in.Name = validate.Clean(in.Name)
 	in.Description = validate.Clean(in.Description)
 	v := validate.New()
 	v.Text("name", in.Name, 2, 150)
 	v.Text("description", in.Description, 0, 5000)
-	v.Check(in.PriceXOF > 0 && in.PriceXOF <= 100_000_000, "price_xof", "Prix entre 1 et 100 000 000 FCFA.")
+	if in.PriceXOF == 0 && allowDraftPrice {
+		// Brouillon au prix à renseigner : la mise en vente l'exigera.
+	} else {
+		v.Check(in.PriceXOF > 0 && in.PriceXOF <= 100_000_000, "price_xof", "Prix entre 1 et 100 000 000 FCFA.")
+	}
 	v.Check(in.ParcelSize.Rank() > 0, "parcel_size", "Taille attendue : small, medium ou large.")
 	if creating {
 		v.Check(in.StockMode == StockTracked || in.StockMode == StockUntracked, "stock_mode", "Mode attendu : tracked ou untracked.")
@@ -180,10 +196,17 @@ func (s *Service) Create(ctx context.Context, ownerID, shopID uuid.UUID, in Prod
 	if _, err := s.shops.RequireOwned(ctx, ownerID, shopID); err != nil {
 		return Product{}, err
 	}
-	if err := s.validateProduct(ctx, ownerID, &in, true, true, nil); err != nil {
+	return s.create(ctx, ownerID, shopID, in)
+}
+
+// create crée le produit ; actorID est l'auteur des photos (marchand, ou admin pour une boutique
+// gérée par la plateforme).
+func (s *Service) create(ctx context.Context, actorID, shopID uuid.UUID, in ProductInput) (Product, error) {
+	ownerID := actorID
+	active := in.IsActive == nil || *in.IsActive
+	if err := s.validateProduct(ctx, ownerID, &in, true, true, !active, nil); err != nil {
 		return Product{}, err
 	}
-	active := in.IsActive == nil || *in.IsActive
 	var id uuid.UUID
 	err := s.db.InTx(ctx, func(ctx context.Context) error {
 		q := store.New(s.db.Conn(ctx))
@@ -217,6 +240,12 @@ func (s *Service) Update(ctx context.Context, ownerID, productID uuid.UUID, in P
 	if err != nil {
 		return Product{}, err
 	}
+	return s.update(ctx, ownerID, cur, in)
+}
+
+// update modifie le produit ; actorID est l'auteur des nouvelles photos.
+func (s *Service) update(ctx context.Context, actorID uuid.UUID, cur Product, in ProductInput) (Product, error) {
+	ownerID, productID := actorID, cur.ID
 	in.StockMode = cur.StockMode
 	if in.ImageKeys == nil {
 		in.ImageKeys = imageKeys(cur.Images)
@@ -226,10 +255,14 @@ func (s *Service) Update(ctx context.Context, ownerID, productID uuid.UUID, in P
 		active = *in.IsActive
 	}
 	checkCategory := active || in.CategoryID != cur.CategoryID
-	if err := s.validateProduct(ctx, ownerID, &in, false, checkCategory, imageKeys(cur.Images)); err != nil {
+	draft := !active && cur.PublishedAt == nil
+	if err := s.validateProduct(ctx, ownerID, &in, false, checkCategory, draft, imageKeys(cur.Images)); err != nil {
 		return Product{}, err
 	}
-	err = s.db.InTx(ctx, func(ctx context.Context) error {
+	if cur.PromoPriceXOF != nil && in.PriceXOF <= *cur.PromoPriceXOF {
+		return Product{}, apperr.Validation(map[string]string{"price_xof": "Le prix doit rester supérieur au prix promotionnel : modifiez ou retirez d'abord la promotion."})
+	}
+	err := s.db.InTx(ctx, func(ctx context.Context) error {
 		if err := store.New(s.db.Conn(ctx)).UpdateProduct(ctx, store.UpdateProductParams{
 			ID: productID, CategoryID: in.CategoryID, Name: in.Name, Description: in.Description,
 			PriceXof: in.PriceXOF, ParcelSize: string(in.ParcelSize), IsActive: active,
@@ -397,6 +430,7 @@ func (s *Service) enrich(ctx context.Context, rows []store.Product) ([]Product, 
 	for _, im := range imgs {
 		byProduct[im.ProductID] = append(byProduct[im.ProductID], Image{URL: s.uploads.PublicURL(im.ObjectKey), ObjectKey: im.ObjectKey, Position: im.Position})
 	}
+	now := time.Now()
 	out := make([]Product, len(rows))
 	for i, r := range rows {
 		p := Product{
@@ -404,6 +438,13 @@ func (s *Service) enrich(ctx context.Context, rows []store.Product) ([]Product, 
 			PriceXOF: r.PriceXof, ParcelSize: ParcelSize(r.ParcelSize), StockMode: StockMode(r.StockMode),
 			IsActive: r.IsActive, Status: statusOf(r), PublishedAt: r.PublishedAt, WithdrawnAt: r.WithdrawnAt,
 			Images: byProduct[r.ID], CreatedAt: r.CreatedAt, UpdatedAt: r.UpdatedAt,
+			PromoPriceXOF: r.PromoPriceXof, PromoStartsAt: r.PromoStartsAt, PromoEndsAt: r.PromoEndsAt,
+			Badges: nonNil(r.Badges), FeaturedRank: r.FeaturedRank, Features: nonNil(r.Features),
+		}
+		p.PromoActive = promoActive(p.PromoPriceXOF, p.PromoStartsAt, p.PromoEndsAt, now)
+		p.EffectivePriceXOF = p.PriceXOF
+		if p.PromoActive {
+			p.EffectivePriceXOF = *p.PromoPriceXOF
 		}
 		if p.Images == nil {
 			p.Images = []Image{}

@@ -19,6 +19,7 @@ func NewHandler(svc *Service) *Handler { return &Handler{svc: svc} }
 // Register enregistre les routes.
 func (h *Handler) Register(rt *httpapi.Router) {
 	rt.Public("GET /v1/categories", h.listCategories)
+	rt.Public("GET /v1/products/featured", h.featured)
 	rt.Public("GET /v1/products/{id}", h.getProduct)
 	rt.Public("GET /v1/shops/{id}/products", h.listShopProducts)
 
@@ -33,6 +34,14 @@ func (h *Handler) Register(rt *httpapi.Router) {
 	rt.Roles("GET /v1/admin/categories", h.adminListCategories, identity.RoleAdmin)
 	rt.Roles("POST /v1/admin/categories", h.createCategory, identity.RoleAdmin)
 	rt.Roles("PATCH /v1/admin/categories/{id}", h.updateCategory, identity.RoleAdmin)
+
+	// Produits des boutiques de la plateforme (IVI) et mise en avant de tout produit.
+	rt.Roles("GET /v1/admin/products", h.adminList, identity.RoleAdmin)
+	rt.Roles("GET /v1/admin/products/{id}", h.adminGet, identity.RoleAdmin)
+	rt.Roles("POST /v1/admin/shops/{id}/products", h.adminCreate, identity.RoleAdmin)
+	rt.Roles("PATCH /v1/admin/products/{id}", h.adminUpdate, identity.RoleAdmin)
+	rt.Roles("PUT /v1/admin/products/{id}/stock", h.adminSetStock, identity.RoleAdmin)
+	rt.Roles("PUT /v1/admin/products/{id}/marketing", h.adminSetMarketing, identity.RoleAdmin)
 }
 
 func principal(r *http.Request) identity.Principal { return identity.MustFromContext(r.Context()) }
@@ -221,4 +230,106 @@ func (h *Handler) updateCategory(w http.ResponseWriter, r *http.Request) error {
 		return err
 	}
 	return httpapi.OK(w, c)
+}
+
+func (h *Handler) featured(w http.ResponseWriter, r *http.Request) error {
+	items, err := h.svc.Featured(r.Context(), 20)
+	if err != nil {
+		return err
+	}
+	return httpapi.OK(w, map[string]any{"items": items})
+}
+
+func (h *Handler) adminList(w http.ResponseWriter, r *http.Request) error {
+	q := httpapi.NewQuery(r)
+	page := q.Page()
+	shopID := q.UUID("shop_id")
+	search := validate.Clean(q.String("q", 100))
+	if err := q.Err(); err != nil {
+		return err
+	}
+	items, err := h.svc.AdminList(r.Context(), shopID, search, page.FetchLimit(), int32(page.Offset))
+	if err != nil {
+		return err
+	}
+	return httpapi.OK(w, httpapi.NewList(items, page))
+}
+
+func (h *Handler) adminGet(w http.ResponseWriter, r *http.Request) error {
+	id, err := httpapi.PathUUID(r, "id")
+	if err != nil {
+		return err
+	}
+	p, err := h.svc.AdminGet(r.Context(), id)
+	if err != nil {
+		return err
+	}
+	return httpapi.OK(w, p)
+}
+
+func (h *Handler) adminCreate(w http.ResponseWriter, r *http.Request) error {
+	shopID, err := httpapi.PathUUID(r, "id")
+	if err != nil {
+		return err
+	}
+	var in ProductInput
+	if err := httpapi.Decode(r, &in); err != nil {
+		return err
+	}
+	p, err := h.svc.AdminCreate(r.Context(), principal(r).UserID, shopID, in)
+	if err != nil {
+		return err
+	}
+	return httpapi.Created(w, p)
+}
+
+func (h *Handler) adminUpdate(w http.ResponseWriter, r *http.Request) error {
+	id, err := httpapi.PathUUID(r, "id")
+	if err != nil {
+		return err
+	}
+	var in ProductInput
+	if err := httpapi.Decode(r, &in); err != nil {
+		return err
+	}
+	p, err := h.svc.AdminUpdate(r.Context(), principal(r).UserID, id, in)
+	if err != nil {
+		return err
+	}
+	return httpapi.OK(w, p)
+}
+
+func (h *Handler) adminSetStock(w http.ResponseWriter, r *http.Request) error {
+	id, err := httpapi.PathUUID(r, "id")
+	if err != nil {
+		return err
+	}
+	var in struct {
+		Quantity int32  `json:"quantity"`
+		Note     string `json:"note"`
+	}
+	if err := httpapi.Decode(r, &in); err != nil {
+		return err
+	}
+	p, err := h.svc.AdminSetStock(r.Context(), principal(r).UserID, id, in.Quantity, in.Note)
+	if err != nil {
+		return err
+	}
+	return httpapi.OK(w, p)
+}
+
+func (h *Handler) adminSetMarketing(w http.ResponseWriter, r *http.Request) error {
+	id, err := httpapi.PathUUID(r, "id")
+	if err != nil {
+		return err
+	}
+	var in MarketingInput
+	if err := httpapi.Decode(r, &in); err != nil {
+		return err
+	}
+	p, err := h.svc.SetMarketing(r.Context(), principal(r).UserID, id, in)
+	if err != nil {
+		return err
+	}
+	return httpapi.OK(w, p)
 }

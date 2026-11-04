@@ -2,8 +2,11 @@
 -- Pertinence : plein texte (français, sans accents) + début du dernier mot (recherche pendant la
 -- frappe : « pag » trouve « pagne ») + similarité trigramme (fautes de frappe). tsprefix est
 -- construit par le service (lettres et chiffres seulement, « mot1 & mot2:* »), jamais par l'app.
--- distance_m vaut -1 sans position ; main_image_key vaut '' sans photo.
-SELECT t.id, t.shop_id, t.name, t.price_xof, t.parcel_size, t.shop_name, t.neighborhood_id,
+-- distance_m vaut -1 sans position ; main_image_key vaut '' sans photo. Filtres et tris de prix
+-- portent sur le prix effectif (promotion comprise) ; par défaut, les produits mis en avant
+-- (IVI et AWU-IVI d'abord) passent devant, par rang.
+SELECT t.id, t.shop_id, t.name, t.price_xof, t.effective_price_xof::bigint AS effective_price_xof, t.badges, t.featured_rank,
+       t.parcel_size, t.shop_name, t.neighborhood_id,
        coalesce(t.main_image_key, '')::text AS main_image_key,
        coalesce(t.in_stock, false)::boolean AS in_stock,
        coalesce(t.distance_m, -1)::float8 AS distance_m
@@ -27,8 +30,8 @@ FROM (
          OR sp.category_id = sqlc.narg(category_id)::uuid OR sp.category_parent_id = sqlc.narg(category_id)::uuid)
     AND (sqlc.narg(shop_id)::uuid IS NULL OR sp.shop_id = sqlc.narg(shop_id)::uuid)
     AND (sqlc.narg(shop_category_id)::uuid IS NULL OR sp.shop_category_id = sqlc.narg(shop_category_id)::uuid)
-    AND (sqlc.narg(min_price)::bigint IS NULL OR sp.price_xof >= sqlc.narg(min_price)::bigint)
-    AND (sqlc.narg(max_price)::bigint IS NULL OR sp.price_xof <= sqlc.narg(max_price)::bigint)
+    AND (sqlc.narg(min_price)::bigint IS NULL OR sp.effective_price_xof >= sqlc.narg(min_price)::bigint)
+    AND (sqlc.narg(max_price)::bigint IS NULL OR sp.effective_price_xof <= sqlc.narg(max_price)::bigint)
     AND (sqlc.narg(neighborhood_id)::uuid IS NULL OR sp.neighborhood_id = sqlc.narg(neighborhood_id)::uuid)
     AND (sqlc.narg(radius_m)::float8 IS NULL
          OR ST_DWithin(sp.location, ST_SetSRID(ST_MakePoint(sqlc.narg(lng)::float8, sqlc.narg(lat)::float8), 4326)::geography, sqlc.narg(radius_m)::float8))
@@ -36,8 +39,9 @@ FROM (
 ) t
 ORDER BY
   CASE WHEN sqlc.arg(sort)::text = 'distance' THEN t.distance_m END ASC NULLS LAST,
-  CASE WHEN sqlc.arg(sort)::text = 'price_asc' THEN t.price_xof END ASC,
-  CASE WHEN sqlc.arg(sort)::text = 'price_desc' THEN t.price_xof END DESC,
+  CASE WHEN sqlc.arg(sort)::text = 'price_asc' THEN t.effective_price_xof END ASC,
+  CASE WHEN sqlc.arg(sort)::text = 'price_desc' THEN t.effective_price_xof END DESC,
+  CASE WHEN sqlc.arg(sort)::text = 'relevance' THEN t.featured_rank END ASC NULLS LAST,
   t.score DESC,
   t.created_at DESC,
   t.id
