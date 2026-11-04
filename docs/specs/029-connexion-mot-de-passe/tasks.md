@@ -8,14 +8,14 @@
 - [x] 2. Tests du faux serveur `FakeAuth` écrits d'abord (sous-agent test-writer, partie
       critique) et vus en échec.
 - [x] 3. `FakeAuth` fidèle au module `auth` : tests de la tâche 2 au vert.
-- [ ] 4. `app_core` : `PasswordField`, `GoogleAuth` (interface, `google_sign_in` 7.2.0, faux),
+- [x] 4. `app_core` : `PasswordField`, `GoogleAuth` (interface, `google_sign_in` 7.2.0, faux),
       `AuthFlow` (remplace `LoginFlow`), `CodeScreen` paramétré par l'usage ; tests.
-- [ ] 5. `app_core` : écran de connexion (Google si disponible, e-mail, mot de passe, « Mot de
+- [x] 5. `app_core` : écran de connexion (Google si disponible, e-mail, mot de passe, « Mot de
       passe oublié ? », « Créer un compte », aide après `invalid_credentials`, `account_locked`) ;
       tests.
-- [ ] 6. `app_core` : création de compte et mot de passe oublié (e-mail, 6 cases, nouveau mot de
+- [x] 6. `app_core` : création de compte et mot de passe oublié (e-mail, 6 cases, nouveau mot de
       passe, retours d'erreur) et `authRoutes()` ; tests.
-- [ ] 7. `app_core` : changement de mot de passe (`SessionInfo.has_password`) ; tests.
+- [x] 7. `app_core` : changement de mot de passe (`SessionInfo.has_password`) ; tests.
 - [ ] 8. Apps acheteur, marchand, livreur : `authRoutes()`, ligne « Mot de passe » de l'écran
       Compte, tests de connexion réécrits ; retrait de `EmailScreen`, `LoginFlow`,
       `requestOtp` / `verifyOtp`.

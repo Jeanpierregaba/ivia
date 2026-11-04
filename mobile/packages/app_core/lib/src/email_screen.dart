@@ -5,6 +5,7 @@ import 'package:ivia_api_client/ivia_api_client.dart';
 import 'package:ivia_ui/ivia_ui.dart';
 
 import 'app_identity.dart';
+import 'auth_draft.dart';
 import 'auth_routes.dart';
 import 'button_progress.dart';
 import 'legal_text.dart';

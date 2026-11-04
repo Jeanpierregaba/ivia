@@ -66,7 +66,3 @@ class LoginFlow extends Notifier<LoginFlowState?> {
     state = null;
   }
 }
-
-/// Adresse e-mail plausible ; le serveur reste seul juge.
-bool isPlausibleEmail(String email) =>
-    RegExp(r'^[^\s@]+@[^\s@]+\.[^\s@]+$').hasMatch(email.trim());
