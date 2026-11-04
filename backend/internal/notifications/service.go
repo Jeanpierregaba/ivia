@@ -30,6 +30,8 @@ const (
 	AppSeller App = "seller"
 	AppDriver App = "driver"
 	AppAdmin  App = "admin"
+	// AppPharmacy : app des pharmacies partenaires (module pharmacy).
+	AppPharmacy App = "pharmacy"
 )
 
 // Message est une notification à envoyer.

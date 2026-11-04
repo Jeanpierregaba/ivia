@@ -87,3 +87,6 @@ sql:
   - <<: *module
     queries: internal/promo/queries.sql
     gen: { go: { <<: *gen, out: internal/promo/store } }
+  - <<: *module
+    queries: internal/pharmacy/queries.sql
+    gen: { go: { <<: *gen, out: internal/pharmacy/store } }

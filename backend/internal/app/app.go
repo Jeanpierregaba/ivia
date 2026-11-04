@@ -22,6 +22,7 @@ import (
 	"ivia/backend/internal/notifications"
 	"ivia/backend/internal/orders"
 	"ivia/backend/internal/payments"
+	"ivia/backend/internal/pharmacy"
 	"ivia/backend/internal/platform/apperr"
 	"ivia/backend/internal/platform/config"
 	"ivia/backend/internal/platform/database"
@@ -67,6 +68,7 @@ type App struct {
 	Delivery      *delivery.Service
 	Settlements   *settlements.Service
 	Promo         *promo.Service
+	Pharmacy      *pharmacy.Service
 
 	// Implémentations factices exposées en local et dans les tests (nil sinon).
 	DevOTP      *auth.LogSender
@@ -131,16 +133,22 @@ func New(cfg config.Config, logger *slog.Logger, pool *pgxpool.Pool, opts Option
 	})
 	a.Settlements = settlements.NewService(db, a.Orders, a.Shops, a.Admin, a.Notifications)
 	a.Promo = promo.NewService(db, a.Uploads, a.Catalog, a.Orders, a.Admin)
+	a.Pharmacy = pharmacy.NewService(pharmacy.Deps{
+		DB: db, Jobs: enq, Admin: a.Admin, Users: a.Users, Geo: a.Geo, Uploads: a.Uploads, Notify: a.Notifications,
+		Payments: a.Payments, Delivery: a.Delivery, Logger: logger,
+	})
 
 	// Suppression de compte : les modules qui bloquent, puis ceux qui effacent leurs données.
 	a.Users.AddDeletionGuard(a.Orders)
 	a.Users.AddDeletionGuard(a.Delivery)
+	a.Users.AddDeletionGuard(a.Pharmacy)
 	a.Users.AddDeletionHook(a.Auth)
 	a.Users.AddDeletionHook(a.Orders)
 	a.Users.AddDeletionHook(a.Delivery)
 	a.Users.AddDeletionHook(a.Shops)
 	a.Users.AddDeletionHook(a.Cart)
 	a.Users.AddDeletionHook(a.Notifications)
+	a.Users.AddDeletionHook(a.Pharmacy)
 
 	reg := jobs.NewRegistry()
 	a.Auth.RegisterJobs(reg)
@@ -148,6 +156,7 @@ func New(cfg config.Config, logger *slog.Logger, pool *pgxpool.Pool, opts Option
 	a.Orders.RegisterJobs(reg)
 	a.Payments.RegisterJobs(reg)
 	a.Delivery.RegisterJobs(reg)
+	a.Pharmacy.RegisterJobs(reg)
 	a.Uploads.RegisterJobs(reg, logger)
 	if a.Queue, err = jobs.New(pool, reg, jobs.Options{RunWorkers: cfg.RunWorkers, PollInterval: opts.PollInterval, Logger: logger, Reporter: a.Errors}); err != nil {
 		return nil, err
@@ -178,6 +187,11 @@ func (a *App) routes() (http.Handler, []string) {
 	delivery.NewHandler(a.Delivery).Register(rt)
 	settlements.NewHandler(a.Settlements).Register(rt)
 	promo.NewHandler(a.Promo).Register(rt)
+	var devPayments *payments.FakeProvider
+	if a.Config.DevToolsEnabled() {
+		devPayments = a.FakePayment
+	}
+	pharmacy.NewHandler(a.Pharmacy, devPayments).Register(rt)
 	reports.NewHandler(a.Orders, a.Delivery, a.Payments, a.Shops, a.Users, a.Admin).Register(rt)
 
 	if a.Config.Env != config.EnvProduction { // documentation interactive : local, test, staging

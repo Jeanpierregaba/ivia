@@ -238,3 +238,34 @@ SELECT
   count(*) FILTER (WHERE suspended_at IS NOT NULL)::bigint AS suspended,
   count(*) FILTER (WHERE review_status = 'pending_review' AND suspended_at IS NULL)::bigint AS pending_review
 FROM drivers;
+
+-- ---------------------------------------------------------------- courses des autres modules
+
+-- name: FindErrandDriver :one
+-- Livreur disponible le plus proche d'un point de retrait (course pharmacie) : mêmes conditions
+-- que FindNearestDriver, hors livreurs déjà sollicités pour cette course (exclude).
+SELECT d.user_id,
+       ST_Distance(d.last_location, ST_SetSRID(ST_MakePoint(sqlc.arg(lng)::float8, sqlc.arg(lat)::float8), 4326)::geography)::float8 AS distance_m
+FROM drivers d
+WHERE d.review_status = 'approved'
+  AND d.suspended_at IS NULL
+  AND d.availability = 'available'
+  AND d.vehicle_type = 'motorbike'
+  AND d.last_location_at > now() - interval '2 minutes'
+  AND ST_DWithin(d.last_location, ST_SetSRID(ST_MakePoint(sqlc.arg(lng)::float8, sqlc.arg(lat)::float8), 4326)::geography, sqlc.arg(max_distance_m)::float8)
+  AND NOT (d.user_id = ANY(sqlc.arg(exclude)::uuid[]))
+  AND NOT EXISTS (SELECT 1 FROM delivery_offers o WHERE o.driver_id = d.user_id AND o.status = 'pending')
+  AND NOT EXISTS (SELECT 1 FROM deliveries x WHERE x.driver_id = d.user_id
+                  AND x.status IN ('assigned', 'at_shop', 'picked_up', 'at_customer', 'returning'))
+ORDER BY distance_m
+LIMIT 1
+FOR UPDATE OF d SKIP LOCKED;
+
+-- name: HasPendingOfferOrActiveDelivery :one
+SELECT (EXISTS (SELECT 1 FROM delivery_offers o WHERE o.driver_id = $1 AND o.status = 'pending')
+     OR EXISTS (SELECT 1 FROM deliveries x WHERE x.driver_id = $1
+                AND x.status IN ('assigned', 'at_shop', 'picked_up', 'at_customer', 'returning')))::bool AS busy;
+
+-- name: ReleaseBusyDriver :exec
+UPDATE drivers SET availability = 'available', updated_at = now()
+WHERE user_id = $1 AND availability = 'busy';

@@ -31,6 +31,11 @@ const (
 	MerchantDocument Purpose = "merchant_document"
 	// PromoVisual : affiche, bannière ou visuel publicitaire publié par l'admin dans les apps.
 	PromoVisual Purpose = "promo_visual"
+	// PharmacyDocument : autorisation d'ouverture, inscription à l'Ordre, pièce du titulaire.
+	PharmacyDocument Purpose = "pharmacy_document"
+	// PharmacyAlertPhoto : photo d'ordonnance ou de boîte jointe à une alerte médicament (donnée
+	// de santé : privée, lue par URL signée courte par les seules pharmacies sollicitées).
+	PharmacyAlertPhoto Purpose = "pharmacy_alert_photo"
 )
 
 // Limites imposées à la signature (SECURITY.md).
@@ -59,6 +64,9 @@ var rules = map[Purpose]rule{
 	// Déposées après la création de la boutique, qui donne le rôle marchand.
 	MerchantDocument: {prefix: "merchants", vis: storage.Private, types: documents, roles: []identity.Role{identity.RoleSeller}},
 	PromoVisual:      {prefix: "promo", vis: storage.Public, types: images, roles: []identity.Role{identity.RoleAdmin}},
+	// Déposées à l'inscription, avant la validation qui donne le rôle pharmacien.
+	PharmacyDocument:   {prefix: "pharmacies", vis: storage.Private, types: documents},
+	PharmacyAlertPhoto: {prefix: "pharmacy-alerts", vis: storage.Private, types: images},
 }
 
 // Service signe les envois et vérifie les clés.
@@ -80,7 +88,7 @@ type Upload struct {
 func (s *Service) Sign(ctx context.Context, p identity.Principal, purpose Purpose, contentType string, size int64) (Upload, error) {
 	r, ok := rules[purpose]
 	v := validate.New()
-	v.Check(ok, "purpose", "Usage inconnu : product_image, shop_logo, driver_document, merchant_document ou promo_visual.")
+	v.Check(ok, "purpose", "Usage inconnu : product_image, shop_logo, driver_document, merchant_document, promo_visual, pharmacy_document ou pharmacy_alert_photo.")
 	if ok {
 		_, typeOK := r.types[contentType]
 		v.Check(typeOK, "content_type", "Type de fichier non accepté.")
@@ -125,6 +133,18 @@ func (s *Service) PublicURL(key string) string { return s.store.PublicURL(key) }
 // PrivateURL retourne une URL de lecture temporaire d'un document privé (admins uniquement).
 func (s *Service) PrivateURL(ctx context.Context, key string) (string, error) {
 	return s.store.PresignGet(ctx, key, 10*time.Minute)
+}
+
+// Delete supprime un fichier d'un usage (sans erreur s'il n'existe plus).
+func (s *Service) Delete(ctx context.Context, purpose Purpose, key string) error {
+	r, ok := rules[purpose]
+	if !ok {
+		return fmt.Errorf("usage inconnu : %s", purpose)
+	}
+	if err := s.store.Delete(ctx, r.vis, key); err != nil {
+		return fmt.Errorf("suppression du fichier : %w", err)
+	}
+	return nil
 }
 
 // Register enregistre la route de demande d'envoi.

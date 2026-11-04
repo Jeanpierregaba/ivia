@@ -384,6 +384,53 @@ func (q *Queries) ExportDeliveries(ctx context.Context, arg ExportDeliveriesPara
 	return items, nil
 }
 
+const findErrandDriver = `-- name: FindErrandDriver :one
+
+SELECT d.user_id,
+       ST_Distance(d.last_location, ST_SetSRID(ST_MakePoint($1::float8, $2::float8), 4326)::geography)::float8 AS distance_m
+FROM drivers d
+WHERE d.review_status = 'approved'
+  AND d.suspended_at IS NULL
+  AND d.availability = 'available'
+  AND d.vehicle_type = 'motorbike'
+  AND d.last_location_at > now() - interval '2 minutes'
+  AND ST_DWithin(d.last_location, ST_SetSRID(ST_MakePoint($1::float8, $2::float8), 4326)::geography, $3::float8)
+  AND NOT (d.user_id = ANY($4::uuid[]))
+  AND NOT EXISTS (SELECT 1 FROM delivery_offers o WHERE o.driver_id = d.user_id AND o.status = 'pending')
+  AND NOT EXISTS (SELECT 1 FROM deliveries x WHERE x.driver_id = d.user_id
+                  AND x.status IN ('assigned', 'at_shop', 'picked_up', 'at_customer', 'returning'))
+ORDER BY distance_m
+LIMIT 1
+FOR UPDATE OF d SKIP LOCKED
+`
+
+type FindErrandDriverParams struct {
+	Lng          float64
+	Lat          float64
+	MaxDistanceM float64
+	Exclude      []uuid.UUID
+}
+
+type FindErrandDriverRow struct {
+	UserID    uuid.UUID
+	DistanceM float64
+}
+
+// ---------------------------------------------------------------- courses des autres modules
+// Livreur disponible le plus proche d'un point de retrait (course pharmacie) : mêmes conditions
+// que FindNearestDriver, hors livreurs déjà sollicités pour cette course (exclude).
+func (q *Queries) FindErrandDriver(ctx context.Context, arg FindErrandDriverParams) (FindErrandDriverRow, error) {
+	row := q.db.QueryRow(ctx, findErrandDriver,
+		arg.Lng,
+		arg.Lat,
+		arg.MaxDistanceM,
+		arg.Exclude,
+	)
+	var i FindErrandDriverRow
+	err := row.Scan(&i.UserID, &i.DistanceM)
+	return i, err
+}
+
 const findNearestDriver = `-- name: FindNearestDriver :one
 SELECT d.user_id,
        ST_Distance(d.last_location, ST_SetSRID(ST_MakePoint($1::float8, $2::float8), 4326)::geography)::float8 AS distance_m
@@ -533,6 +580,19 @@ func (q *Queries) GetOffer(ctx context.Context, id uuid.UUID) (DeliveryOffer, er
 		&i.CreatedAt,
 	)
 	return i, err
+}
+
+const hasPendingOfferOrActiveDelivery = `-- name: HasPendingOfferOrActiveDelivery :one
+SELECT (EXISTS (SELECT 1 FROM delivery_offers o WHERE o.driver_id = $1 AND o.status = 'pending')
+     OR EXISTS (SELECT 1 FROM deliveries x WHERE x.driver_id = $1
+                AND x.status IN ('assigned', 'at_shop', 'picked_up', 'at_customer', 'returning')))::bool AS busy
+`
+
+func (q *Queries) HasPendingOfferOrActiveDelivery(ctx context.Context, driverID uuid.UUID) (bool, error) {
+	row := q.db.QueryRow(ctx, hasPendingOfferOrActiveDelivery, driverID)
+	var busy bool
+	err := row.Scan(&busy)
+	return busy, err
 }
 
 const incrementOffers = `-- name: IncrementOffers :exec
@@ -955,6 +1015,16 @@ func (q *Queries) Reinstate(ctx context.Context, userID uuid.UUID) (int64, error
 		return 0, err
 	}
 	return result.RowsAffected(), nil
+}
+
+const releaseBusyDriver = `-- name: ReleaseBusyDriver :exec
+UPDATE drivers SET availability = 'available', updated_at = now()
+WHERE user_id = $1 AND availability = 'busy'
+`
+
+func (q *Queries) ReleaseBusyDriver(ctx context.Context, userID uuid.UUID) error {
+	_, err := q.db.Exec(ctx, releaseBusyDriver, userID)
+	return err
 }
 
 const respondOffer = `-- name: RespondOffer :execrows

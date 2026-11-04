@@ -130,7 +130,37 @@ type Service struct {
 	audit    *admin.Service
 	notify   *notifications.Service
 	logger   *slog.Logger
+	// external : paiements tenus par d'autres modules (préfixe de référence → module).
+	external map[string]ExternalPayments
 }
+
+// ExternalPayments est un module qui tient ses propres paiements chez le même prestataire (alerte
+// médicament) : les événements de ses références lui sont transmis après enregistrement dans
+// payment_events (même idempotence, même vérification de signature).
+type ExternalPayments interface {
+	// ApplyProviderEvent applique un événement vérifié. Rejouable sans effet en double.
+	ApplyProviderEvent(ctx context.Context, ev Event) error
+}
+
+// AddExternal déclare un module propriétaire des références commençant par prefix + "_".
+func (s *Service) AddExternal(prefix string, h ExternalPayments) {
+	if s.external == nil {
+		s.external = map[string]ExternalPayments{}
+	}
+	s.external[prefix+"_"] = h
+}
+
+// RecordVerified enregistre l'état obtenu en revérifiant une référence auprès du prestataire
+// (module externe) ; il est appliqué comme un webhook.
+func (s *Service) RecordVerified(ctx context.Context, ev Event) error {
+	if ev.EventID == "" {
+		ev.EventID = "verify:" + ev.Reference + ":" + string(ev.Status)
+	}
+	return s.record(ctx, "verify", ev)
+}
+
+// NewReference génère une référence de paiement avec le préfixe d'un module externe.
+func NewReference(prefix string) string { return newReference(prefix) }
 
 // NewService crée le service.
 func NewService(db *database.DB, enq jobs.Enqueuer, provider Provider, ord *orders.Service, audit *admin.Service, notify *notifications.Service, logger *slog.Logger) *Service {
@@ -329,6 +359,14 @@ func (s *Service) processEvent(ctx context.Context, eventID int64) error {
 	}
 	pay, err := q.GetPaymentByReference(ctx, ev.Reference)
 	if database.IsNoRows(err) {
+		for prefix, h := range s.external {
+			if strings.HasPrefix(ev.Reference, prefix) {
+				return h.ApplyProviderEvent(ctx, Event{
+					EventID: ev.EventID, Reference: ev.Reference, Status: ProviderStatus(ev.Status),
+					AmountXOF: ev.AmountXof, Currency: ev.Currency,
+				})
+			}
+		}
 		s.logger.Warn("événement de paiement pour une référence inconnue", "event_id", eventID)
 		return nil
 	}
