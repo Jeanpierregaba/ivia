@@ -72,10 +72,9 @@ void main() {
     picker = _FakePicker();
     location = _FakeLocation();
     server = FakeApiServer()
-      ..on('POST', '/v1/auth/otp', (_) => FakeResponse.json(202, otpBody))
       ..on(
         'POST',
-        '/v1/auth/verify',
+        '/v1/auth/login',
         (_) => FakeResponse.json(200, {
           ...sessionBody(),
           'user': _user(consent: false),
@@ -176,11 +175,13 @@ void main() {
   }
 
   Future<void> login(WidgetTester tester) async {
-    await tester.enterText(find.byType(TextField), _email);
-    await tapText(tester, 'Recevoir le code');
-    await tester.enterText(find.byType(TextField), '481902');
-    await tester.pump();
-    await tapText(tester, 'Vérifier le code');
+    Finder input(String label) => find.descendant(
+      of: find.widgetWithText(IviaFieldLabel, label),
+      matching: find.byType(TextField),
+    );
+    await tester.enterText(input('Adresse e-mail'), _email);
+    await tester.enterText(input('Mot de passe'), 'pagne-wax-2026');
+    await tapText(tester, 'Se connecter');
   }
 
   Finder field(String label) => find.descendant(
@@ -284,15 +285,11 @@ void main() {
       tester,
     ) async {
       await launchApp(tester);
-      await tester.enterText(find.byType(TextField), _email);
-      await tapText(tester, 'Recevoir le code');
       expect(
-        find.textContaining('Même compte sur toutes les apps ivia'),
+        find.textContaining('Vous avez déjà un compte ivia'),
         findsOneWidget,
       );
-      await tester.enterText(find.byType(TextField), '481902');
-      await tester.pump();
-      await tapText(tester, 'Vérifier le code');
+      await login(tester);
 
       expect(find.text('Créez votre boutique'), findsOneWidget);
       expect(find.text('Étape 1 sur 2'), findsOneWidget);
@@ -339,7 +336,7 @@ void main() {
     ) async {
       server.on(
         'POST',
-        '/v1/auth/verify',
+        '/v1/auth/login',
         (_) => FakeResponse.json(200, {...sessionBody(), 'user': _user()}),
       );
       await launchApp(tester);
@@ -589,34 +586,48 @@ void main() {
       tester,
     ) async {
       onboardingSeen();
-      server.on(
-        'POST',
-        '/v1/dev/otp',
-        (_) => FakeResponse.json(200, {'code': '481902'}),
-      );
+      server
+        ..on(
+          'POST',
+          '/v1/auth/signup/code',
+          (_) => FakeResponse.json(202, otpBody),
+        )
+        ..on(
+          'POST',
+          '/v1/dev/otp',
+          (_) => FakeResponse.json(200, {'code': '481902'}),
+        );
       await launchApp(tester, devCode: true);
-      await tester.enterText(find.byType(TextField), _email);
+      await tapText(tester, 'Créer un compte');
+      await tester.enterText(field('Adresse e-mail'), _email);
       await tapText(tester, 'Recevoir le code');
       await tester.pumpAndSettle();
       expect(server.calls('POST', '/v1/dev/otp').single.body, {
         'recipient': _email,
       });
-      expect(
-        (server.calls('POST', '/v1/auth/verify').single.body! as Map)['code'],
-        '481902',
-      );
-      expect(find.text('Créez votre boutique'), findsOneWidget);
+      // Code saisi tout seul : écran du mot de passe.
+      expect(find.text('Choisissez un mot de passe'), findsOneWidget);
     });
 
     testWidgets('sans le drapeau de développement : code demandé', (
       tester,
     ) async {
       onboardingSeen();
+      server.on(
+        'POST',
+        '/v1/auth/signup/code',
+        (_) => FakeResponse.json(202, otpBody),
+      );
       await launchApp(tester);
-      await tester.enterText(find.byType(TextField), _email);
+      await tapText(tester, 'Créer un compte');
+      await tester.enterText(field('Adresse e-mail'), _email);
       await tapText(tester, 'Recevoir le code');
       expect(server.calls('POST', '/v1/dev/otp'), isEmpty);
       expect(find.text('Vérifiez vos e-mails'), findsOneWidget);
+      expect(
+        find.textContaining('Même compte sur toutes les apps ivia'),
+        findsOneWidget,
+      );
     });
 
     testWidgets('retour sur le formulaire : déconnexion', (tester) async {

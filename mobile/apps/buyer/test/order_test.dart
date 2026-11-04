@@ -595,22 +595,20 @@ void main() {
   testWidgets('autre compte : commandes du compte connecté seulement', (
     tester,
   ) async {
-    app.server
-      ..on('POST', '/v1/auth/otp', (_) => FakeResponse.json(202, otpBody))
-      ..on(
-        'POST',
-        '/v1/auth/verify',
-        (_) => FakeResponse.json(200, {
-          'token': 'jeton-kofi',
-          'expires_at': '2026-12-30T08:00:00Z',
-          'is_new_user': false,
-          'user': {
-            ...userBody(complete: true, email: 'kofi@test.tg'),
-            'id': '9e8d7c6b-5a49-4382-a170-6b5c4d3e2f10',
-            'first_name': 'Kofi',
-          },
-        }),
-      );
+    app.server.on(
+      'POST',
+      '/v1/auth/login',
+      (_) => FakeResponse.json(200, {
+        'token': 'jeton-kofi',
+        'expires_at': '2026-12-30T08:00:00Z',
+        'is_new_user': false,
+        'user': {
+          ...userBody(complete: true, email: 'kofi@test.tg'),
+          'id': '9e8d7c6b-5a49-4382-a170-6b5c4d3e2f10',
+          'first_name': 'Kofi',
+        },
+      }),
+    );
     app.orders.seed(afi, [(riz, 1)], status: 'preparing');
     await openOrders(tester);
     final container = app.container(tester);
@@ -623,11 +621,13 @@ void main() {
     expect(container.read(myOrdersViewProvider).value!.items, isEmpty);
 
     // Kofi se connecte sur le même téléphone : aucune commande d'Awa.
-    await tester.enterText(find.byType(TextField), 'kofi@test.tg');
-    await tapText(tester, 'Recevoir le code');
-    await tester.enterText(find.byType(TextField), '481902');
-    await tester.pump();
-    await tapText(tester, 'Vérifier le code');
+    Finder input(String label) => find.descendant(
+      of: find.widgetWithText(IviaFieldLabel, label),
+      matching: find.byType(TextField),
+    );
+    await tester.enterText(input('Adresse e-mail'), 'kofi@test.tg');
+    await tester.enterText(input('Mot de passe'), 'pagne-wax-2026');
+    await tapText(tester, 'Se connecter');
     await tester.pumpAndSettle();
     await tester.tap(find.byIcon(Icons.receipt_long_outlined));
     await tester.pumpAndSettle();

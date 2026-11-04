@@ -1103,18 +1103,14 @@ void main() {
       await tester.tap(find.byIcon(Icons.person_outline));
       await tester.pumpAndSettle();
       await tapText(tester, 'Se déconnecter');
-      server
-        ..on('POST', '/v1/auth/otp', (_) => FakeResponse.json(202, otpBody))
-        ..on(
-          'POST',
-          '/v1/auth/verify',
-          (_) => FakeResponse.json(200, {...sessionBody(), 'user': seller()}),
-        );
-      await tester.enterText(find.byType(TextField), 'afi@test.tg');
-      await tapText(tester, 'Recevoir le code');
-      await tester.enterText(find.byType(TextField), '481902');
-      await tester.pump();
-      await tapText(tester, 'Vérifier le code');
+      server.on(
+        'POST',
+        '/v1/auth/login',
+        (_) => FakeResponse.json(200, {...sessionBody(), 'user': seller()}),
+      );
+      await tester.enterText(field('Adresse e-mail'), 'afi@test.tg');
+      await tester.enterText(field('Mot de passe'), 'pagne-wax-2026');
+      await tapText(tester, 'Se connecter');
       await tester.tap(find.byIcon(Icons.grid_view_rounded));
       await tester.pumpAndSettle();
       expect(lastList().query['status'], 'active');

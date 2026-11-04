@@ -16,7 +16,7 @@
 - [x] 6. `app_core` : création de compte et mot de passe oublié (e-mail, 6 cases, nouveau mot de
       passe, retours d'erreur) et `authRoutes()` ; tests.
 - [x] 7. `app_core` : changement de mot de passe (`SessionInfo.has_password`) ; tests.
-- [ ] 8. Apps acheteur, marchand, livreur : `authRoutes()`, ligne « Mot de passe » de l'écran
+- [x] 8. Apps acheteur, marchand, livreur : `authRoutes()`, ligne « Mot de passe » de l'écran
       Compte, tests de connexion réécrits ; retrait de `EmailScreen`, `LoginFlow`,
       `requestOtp` / `verifyOtp`.
 - [ ] 9. Police à 200 % sur 320 dp et lecteur d'écran ; `docs/DESIGN.md`, `AGENTS.md`,

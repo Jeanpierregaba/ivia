@@ -26,6 +26,9 @@ void main() {
       Routes.onboarding,
     );
     expect(go(const AuthSignedOut(), Routes.home), Routes.login);
+    // Connexion : /login et ses sous-écrans seulement.
+    expect(go(const AuthSignedOut(), AuthRoutes.signupCode), isNull);
+    expect(go(const AuthSignedOut(), AuthRoutes.forgotPassword), isNull);
     expect(go(const AuthOffline(), Routes.home), Routes.offline);
   });
 

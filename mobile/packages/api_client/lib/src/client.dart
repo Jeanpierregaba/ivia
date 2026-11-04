@@ -87,31 +87,6 @@ class IviaApiClient {
   @visibleForTesting
   Dio get debugDio => _dio;
 
-  /// Envoie un code à 6 chiffres par e-mail. Même réponse que le compte
-  /// existe ou non.
-  Future<OtpRequested> requestOtp(String email) async {
-    final json = await _send(
-      'POST',
-      '/v1/auth/otp',
-      data: {'channel': 'email', 'recipient': normalizeEmail(email)},
-    );
-    return OtpRequested.fromJson(json);
-  }
-
-  /// Vérifie le code et ouvre une session (crée le compte au besoin).
-  Future<Session> verifyOtp(String email, String code) async {
-    final json = await _send(
-      'POST',
-      '/v1/auth/verify',
-      data: {
-        'channel': 'email',
-        'recipient': normalizeEmail(email),
-        'code': code,
-      },
-    );
-    return Session.fromJson(json);
-  }
-
   /// Modes de connexion ouverts (Google masqué sans configuration).
   Future<AuthProviders> authProviders() async =>
       AuthProviders.fromJson(await _send('GET', '/v1/auth/providers'));

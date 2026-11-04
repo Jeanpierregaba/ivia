@@ -23,7 +23,6 @@ abstract final class Routes {
   static const splash = '/';
   static const onboarding = '/onboarding';
   static const login = AuthRoutes.login;
-  static const code = AuthRoutes.code;
 
   /// « Faisons connaissance » : profil à compléter après la connexion.
   static const welcome = '/welcome';
@@ -34,6 +33,7 @@ abstract final class Routes {
   static const search = '/search';
   static const orders = '/orders';
   static const profile = '/profile';
+  static const profilePassword = '/profile/password';
 
   // Fiches, par-dessus la barre du bas.
   static const shops = '/shops';
@@ -66,7 +66,7 @@ String? redirectFor(
   final allowed = switch (auth) {
     AuthStarting() => const [Routes.splash],
     AuthSignedOut() when !onboardingSeen => const [Routes.onboarding],
-    AuthSignedOut() => const [Routes.login, Routes.code],
+    AuthSignedOut() => const [Routes.login],
     AuthNeedsProfile() => const [Routes.welcome],
     AuthSignedIn() => const [
       Routes.home,
@@ -110,17 +110,7 @@ final routerProvider = Provider<GoRouter>((ref) {
         path: Routes.onboarding,
         builder: (context, state) => const OnboardingScreen(),
       ),
-      GoRoute(
-        path: Routes.login,
-        builder: (context, state) => const EmailScreen(),
-        routes: [
-          // Sous /login : le retour depuis le code revient à l'e-mail.
-          GoRoute(
-            path: 'code',
-            builder: (context, state) => const CodeScreen(),
-          ),
-        ],
-      ),
+      ...authRoutes(),
       GoRoute(
         path: Routes.welcome,
         builder: (context, state) => const ProfileScreen(),
@@ -140,6 +130,14 @@ final routerProvider = Provider<GoRouter>((ref) {
                   path: path,
                   builder: (context, state) => screen,
                   routes: [
+                    // Changement de mot de passe au-dessus de la barre.
+                    if (path == Routes.profile)
+                      GoRoute(
+                        path: 'password',
+                        parentNavigatorKey: rootKey,
+                        builder: (context, state) =>
+                            const ChangePasswordScreen(),
+                      ),
                     // Suivi au-dessus de la barre du bas ; « retour » revient
                     // à l'onglet Commandes.
                     if (path == Routes.orders)

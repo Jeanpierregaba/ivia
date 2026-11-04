@@ -20,17 +20,6 @@ void main() {
     );
   });
 
-  test('requestOtp : canal e-mail, adresse nettoyée, délais lus', () async {
-    server.on('POST', '/v1/auth/otp', (_) => FakeResponse.json(202, otpBody));
-    final otp = await client.requestOtp('  Awa.Mensah@Gmail.com ');
-    expect(server.last.body, {
-      'channel': 'email',
-      'recipient': 'awa.mensah@gmail.com',
-    });
-    expect(otp.resendAfter, const Duration(seconds: 60));
-    expect(otp.expiresIn, const Duration(minutes: 10));
-  });
-
   group('connexion par mot de passe (ADR 0011)', () {
     test('modes de connexion et état de la session', () async {
       server
@@ -168,17 +157,21 @@ void main() {
     });
   });
 
-  test('verifyOtp : session, nouveau compte et profil', () async {
+  test('création de compte : session, nouveau compte et profil', () async {
     server.on(
       'POST',
-      '/v1/auth/verify',
-      (_) => FakeResponse.json(200, sessionBody()),
+      '/v1/auth/signup',
+      (_) => FakeResponse.json(201, sessionBody()),
     );
-    final session = await client.verifyOtp('awa@test.tg', '481902');
+    final session = await client.signup(
+      '  Awa@Test.tg ',
+      '481902',
+      'pagne-wax-2026',
+    );
     expect(server.last.body, {
-      'channel': 'email',
-      'recipient': 'awa@test.tg',
+      'email': 'awa@test.tg',
       'code': '481902',
+      'password': 'pagne-wax-2026',
     });
     expect(session.token, 'jeton-secret');
     expect(session.isNewUser, isTrue);
@@ -268,11 +261,11 @@ void main() {
   test('401 sans jeton (code faux) : pas de signalement', () async {
     server.on(
       'POST',
-      '/v1/auth/verify',
+      '/v1/auth/signup',
       (_) => FakeResponse.error(401, 'otp_invalid', 'Code incorrect.'),
     );
     await expectLater(
-      client.verifyOtp('a@b.tg', '000000'),
+      client.signup('a@b.tg', '000000', 'pagne-wax-2026'),
       throwsA(isA<ApiException>().having((e) => e.code, 'code', 'otp_invalid')),
     );
     expect(unauthorized, 0);

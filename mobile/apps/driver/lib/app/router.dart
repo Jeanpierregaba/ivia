@@ -17,7 +17,6 @@ abstract final class Routes {
   static const splash = '/';
   static const onboarding = '/onboarding';
   static const login = AuthRoutes.login;
-  static const code = AuthRoutes.code;
   static const offline = '/offline';
   static const dossierNew = '/dossier/new';
   static const dossierEdit = '/dossier/edit';
@@ -25,6 +24,7 @@ abstract final class Routes {
   static const dossierSummary = '/dossier/summary';
   static const dossierBlocked = '/dossier/blocked';
   static const home = '/home';
+  static const homePassword = '/home/password';
 }
 
 /// Écrans permis selon la session et le dossier ; le premier est la
@@ -38,11 +38,16 @@ String? redirectFor(
   final allowed = switch (auth) {
     AuthStarting() => const [Routes.splash],
     AuthSignedOut() when !onboardingSeen => const [Routes.onboarding],
-    AuthSignedOut() => const [Routes.login, Routes.code],
+    AuthSignedOut() => const [Routes.login],
     AuthOffline() => const [Routes.offline],
     AuthSignedIn() || AuthNeedsProfile() => _dossierScreens(dossier),
   };
-  return allowed.contains(location) ? null : allowed.first;
+  // Écrans de connexion : `/login` et ses sous-écrans (création, mot de
+  // passe oublié) ; les autres écrans sont exacts.
+  final ok = allowed.any(
+    (a) => location == a || (a == Routes.login && location.startsWith('$a/')),
+  );
+  return ok ? null : allowed.first;
 }
 
 List<String> _dossierScreens(AsyncValue<DriverDossier?> dossier) {
@@ -62,7 +67,7 @@ List<String> _dossierScreens(AsyncValue<DriverDossier?> dossier) {
       Routes.dossierEdit,
     ],
     DriverReview.rejected => const [Routes.dossierBlocked, Routes.dossierEdit],
-    DriverReview.approved => const [Routes.home],
+    DriverReview.approved => const [Routes.home, Routes.homePassword],
   };
 }
 
@@ -92,16 +97,7 @@ final routerProvider = Provider<GoRouter>((ref) {
         path: Routes.onboarding,
         builder: (context, state) => const OnboardingScreen(),
       ),
-      GoRoute(
-        path: Routes.login,
-        builder: (context, state) => const EmailScreen(),
-        routes: [
-          GoRoute(
-            path: 'code',
-            builder: (context, state) => const CodeScreen(),
-          ),
-        ],
-      ),
+      ...authRoutes(),
       GoRoute(
         path: Routes.offline,
         builder: (context, state) => const OfflineScreen(),
@@ -129,6 +125,12 @@ final routerProvider = Provider<GoRouter>((ref) {
       GoRoute(
         path: Routes.home,
         builder: (context, state) => const HomePlaceholderScreen(),
+        routes: [
+          GoRoute(
+            path: 'password',
+            builder: (context, state) => const ChangePasswordScreen(),
+          ),
+        ],
       ),
     ],
   );

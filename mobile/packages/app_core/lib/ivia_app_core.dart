@@ -1,4 +1,5 @@
-/// Session et connexion par code e-mail, communes aux 3 apps ivia.
+/// Session et connexion (mot de passe, Google, codes reçus par e-mail),
+/// communes aux 3 apps ivia.
 ///
 /// Chaque app fournit son identité (`appIdentityProvider`), son client
 /// (`apiClientProvider`) et sa table de redirection.
@@ -15,16 +16,13 @@ export 'src/auth_router.dart';
 export 'src/auth_routes.dart';
 export 'src/button_progress.dart';
 export 'src/change_password_screen.dart';
-export 'src/code_screen.dart';
 export 'src/document_photo_row.dart';
-export 'src/email_screen.dart';
 export 'src/first_launch.dart';
 export 'src/form_fields.dart';
 export 'src/formats.dart';
 export 'src/google_auth.dart';
 export 'src/legal_text.dart';
 export 'src/location.dart';
-export 'src/login_flow.dart';
 export 'src/login_screen.dart';
 export 'src/messages.dart';
 export 'src/offline_screen.dart';

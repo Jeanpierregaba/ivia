@@ -3,9 +3,6 @@
 abstract final class AuthRoutes {
   static const login = '/login';
 
-  /// Ancienne connexion par code (001), retirée avec ses écrans (029).
-  static const code = '/login/code';
-
   static const signup = '/login/signup';
   static const signupCode = '/login/signup/code';
   static const signupPassword = '/login/signup/password';

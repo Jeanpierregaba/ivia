@@ -18,6 +18,7 @@ import 'package:shared_preferences/shared_preferences.dart';
 
 const _firstTitle = "Trouvez ce qu'il vous faut, tout près.";
 const _email = 'awa@test.tg';
+const _password = 'pagne-wax-2026';
 
 class _DeniedLocation implements LocationService {
   const _DeniedLocation();
@@ -37,11 +38,15 @@ void main() {
     SharedPreferences.setMockInitialValues({});
     FlutterSecureStorage.setMockInitialValues({});
     server = FakeApiServer()
-      ..on('POST', '/v1/auth/otp', (_) => FakeResponse.json(202, otpBody))
       ..on(
         'POST',
-        '/v1/auth/verify',
-        (_) => FakeResponse.json(200, sessionBody()),
+        '/v1/auth/signup/code',
+        (_) => FakeResponse.json(202, otpBody),
+      )
+      ..on(
+        'POST',
+        '/v1/auth/signup',
+        (_) => FakeResponse.json(201, sessionBody()),
       )
       ..on(
         'PATCH',
@@ -104,15 +109,25 @@ void main() {
   void onboardingSeen() =>
       SharedPreferences.setMockInitialValues({'onboarding_seen': true});
 
+  Finder input(String label) => find.descendant(
+    of: find.widgetWithText(IviaFieldLabel, label),
+    matching: find.byType(TextField),
+  );
+
+  /// Création de compte : « Créer un compte », e-mail, « Recevoir le code ».
   Future<void> enterEmail(WidgetTester tester, [String email = _email]) async {
-    await tester.enterText(find.byType(TextField), email);
+    await tapText(tester, 'Créer un compte');
+    await tester.enterText(input('Adresse e-mail'), email);
     await tapText(tester, 'Recevoir le code');
   }
 
+  /// Code, « Continuer », puis mot de passe et « Créer mon compte ».
   Future<void> enterCode(WidgetTester tester, [String code = '481902']) async {
+    // Six chiffres : l'écran du mot de passe s'ouvre tout seul.
     await tester.enterText(find.byType(TextField), code);
-    await tester.pump();
-    await tapText(tester, 'Vérifier le code');
+    await tester.pumpAndSettle();
+    await tester.enterText(input('Mot de passe'), _password);
+    await tapText(tester, 'Créer mon compte');
   }
 
   /// L'écran du code a un compte à rebours : on le laisse finir.
@@ -247,7 +262,7 @@ void main() {
       await enterEmail(tester, '  Awa@Test.tg ');
       expect(find.text('Vérifiez vos e-mails'), findsOneWidget);
       expect(find.textContaining(_email, findRichText: true), findsOneWidget);
-      expect(server.last.body, {'channel': 'email', 'recipient': _email});
+      expect(server.last.body, {'email': _email});
 
       await enterCode(tester);
       expect(find.text('Faisons connaissance'), findsOneWidget);
@@ -280,7 +295,7 @@ void main() {
     testWidgets('compte déjà complet : accueil directement', (tester) async {
       server.on(
         'POST',
-        '/v1/auth/verify',
+        '/v1/auth/signup',
         (_) => FakeResponse.json(200, sessionBody(complete: true)),
       );
       await launchApp(tester);
@@ -315,7 +330,11 @@ void main() {
     testWidgets('réseau coupé : message, bouton de nouveau actif', (
       tester,
     ) async {
-      server.on('POST', '/v1/auth/otp', (_) => FakeResponse.networkError());
+      server.on(
+        'POST',
+        '/v1/auth/signup/code',
+        (_) => FakeResponse.networkError(),
+      );
       await launchApp(tester);
       await enterEmail(tester);
       expect(find.textContaining('Pas de connexion internet'), findsOneWidget);
@@ -326,7 +345,7 @@ void main() {
     testWidgets('trop de demandes : message du serveur', (tester) async {
       server.on(
         'POST',
-        '/v1/auth/otp',
+        '/v1/auth/signup/code',
         (_) => FakeResponse.error(
           429,
           'otp_rate_limited',
@@ -336,13 +355,13 @@ void main() {
       await launchApp(tester);
       await enterEmail(tester);
       expect(find.textContaining('Patientez une minute'), findsOneWidget);
-      expect(find.text('Bienvenue sur ivia'), findsOneWidget);
+      expect(find.text('Recevoir le code'), findsOneWidget);
     });
 
     testWidgets('code faux : message, cases vidées', (tester) async {
       server.on(
         'POST',
-        '/v1/auth/verify',
+        '/v1/auth/signup',
         (_) => FakeResponse.error(401, 'otp_invalid', 'Code incorrect.'),
       );
       await launchApp(tester);
@@ -380,7 +399,7 @@ void main() {
 
       await finishCountdown(tester);
       await tapText(tester, 'Renvoyer le code');
-      expect(server.calls('POST', '/v1/auth/otp'), hasLength(2));
+      expect(server.calls('POST', '/v1/auth/signup/code'), hasLength(2));
       expect(find.textContaining('1:00', findRichText: true), findsOneWidget);
       await finishCountdown(tester);
     });
@@ -391,8 +410,11 @@ void main() {
         await launchApp(tester);
         await enterEmail(tester);
         await tapText(tester, "Modifier l'adresse");
-        expect(find.text('Bienvenue sur ivia'), findsOneWidget);
-        expect(find.text(_email), findsOneWidget);
+        expect(find.text('Recevoir le code'), findsOneWidget);
+        expect(
+          tester.widget<TextField>(input('Adresse e-mail')).controller!.text,
+          _email,
+        );
       },
     );
   });
@@ -409,7 +431,7 @@ void main() {
       ) async {
         server.on(
           'POST',
-          '/v1/auth/verify',
+          '/v1/auth/signup',
           (_) => FakeResponse.error(400, code, message),
         );
         await launchApp(tester);
@@ -427,27 +449,29 @@ void main() {
       await launchApp(tester);
       await enterEmail(tester);
       await tester.enterText(find.byType(TextField), '481 902');
-      await tester.pump();
-      await tapText(tester, 'Vérifier le code');
-      expect(server.calls('POST', '/v1/auth/verify').single.body, {
-        'channel': 'email',
-        'recipient': _email,
+      await tester.pumpAndSettle();
+      await tester.enterText(input('Mot de passe'), _password);
+      await tapText(tester, 'Créer mon compte');
+      expect(server.calls('POST', '/v1/auth/signup').single.body, {
+        'email': _email,
         'code': '481902',
+        'password': _password,
       });
     });
 
     testWidgets('double appui : une seule demande de code', (tester) async {
       final reply = Completer<FakeResponse>();
-      server.on('POST', '/v1/auth/otp', (_) => reply.future);
+      server.on('POST', '/v1/auth/signup/code', (_) => reply.future);
       await launchApp(tester);
-      await tester.enterText(find.byType(TextField), _email);
+      await tapText(tester, 'Créer un compte');
+      await tester.enterText(input('Adresse e-mail'), _email);
       await tester.tap(find.text('Recevoir le code'));
       await tester.pump();
       await tester.tap(find.byType(FilledButton), warnIfMissed: false);
       await tester.pump();
       reply.complete(FakeResponse.json(202, otpBody));
       await tester.pumpAndSettle();
-      expect(server.calls('POST', '/v1/auth/otp'), hasLength(1));
+      expect(server.calls('POST', '/v1/auth/signup/code'), hasLength(1));
       expect(find.text('Vérifiez vos e-mails'), findsOneWidget);
       await finishCountdown(tester);
     });
@@ -456,17 +480,18 @@ void main() {
       tester,
     ) async {
       final reply = Completer<FakeResponse>();
-      server.on('POST', '/v1/auth/verify', (_) => reply.future);
+      server.on('POST', '/v1/auth/signup', (_) => reply.future);
       await launchApp(tester);
       await enterEmail(tester);
       await tester.enterText(find.byType(TextField), '481902');
-      await tester.pump();
-      await tester.tap(find.text('Vérifier le code'));
+      await tester.pumpAndSettle();
+      await tester.enterText(input('Mot de passe'), _password);
+      await tester.tap(find.text('Créer mon compte'));
       await tester.pump();
       await tester.tap(find.byType(FilledButton), warnIfMissed: false);
-      reply.complete(FakeResponse.json(200, sessionBody()));
+      reply.complete(FakeResponse.json(201, sessionBody()));
       await tester.pumpAndSettle();
-      expect(server.calls('POST', '/v1/auth/verify'), hasLength(1));
+      expect(server.calls('POST', '/v1/auth/signup'), hasLength(1));
       expect(find.text('Faisons connaissance'), findsOneWidget);
     });
 

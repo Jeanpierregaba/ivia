@@ -6,8 +6,8 @@ const buyerIdentity = AppIdentity(
   brand: IviaAppBrand.buyer,
   loginTitle: 'Bienvenue sur ivia',
   loginBody:
-      'Connectez-vous ou créez votre compte avec votre e-mail. '
-      'Pas de mot de passe : nous vous envoyons un code.',
+      'Connectez-vous avec votre e-mail et votre mot de passe, ou créez '
+      'votre compte.',
   codeHint: _codeHint,
 );
 

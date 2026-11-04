@@ -1,7 +1,10 @@
 import 'package:flutter/material.dart';
 import 'package:flutter_riverpod/flutter_riverpod.dart';
+import 'package:go_router/go_router.dart';
 import 'package:ivia_app_core/ivia_app_core.dart';
 import 'package:ivia_ui/ivia_ui.dart';
+
+import '../../app/router.dart';
 
 /// Profil : identité, ouverture d'une boutique, déconnexion. Adresses,
 /// informations personnelles et suppression du compte arrivent avec la 002.
@@ -70,6 +73,16 @@ class ProfileTabScreen extends ConsumerWidget {
                   showDragHandle: true,
                   builder: (context) => const _SellerInfo(),
                 ),
+              ),
+            ],
+          ),
+          const SizedBox(height: IviaSpacing.lg),
+          _Card(
+            children: [
+              _Row(
+                title: 'Mot de passe',
+                subtitle: 'Changer votre mot de passe',
+                onTap: () => context.push(Routes.profilePassword),
               ),
             ],
           ),

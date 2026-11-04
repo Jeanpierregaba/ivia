@@ -76,10 +76,9 @@ void main() {
     serverVehicle = 'motorbike';
     var upload = 0;
     server = FakeApiServer()
-      ..on('POST', '/v1/auth/otp', (_) => FakeResponse.json(202, otpBody))
       ..on(
         'POST',
-        '/v1/auth/verify',
+        '/v1/auth/login',
         (_) => FakeResponse.json(200, {
           ...sessionBody(),
           'user': _user(complete: false),
@@ -179,11 +178,13 @@ void main() {
       SharedPreferences.setMockInitialValues({'onboarding_seen': true});
 
   Future<void> login(WidgetTester tester) async {
-    await tester.enterText(find.byType(TextField), _email);
-    await tapText(tester, 'Recevoir le code');
-    await tester.enterText(find.byType(TextField), '481902');
-    await tester.pump();
-    await tapText(tester, 'Vérifier le code');
+    Finder input(String label) => find.descendant(
+      of: find.widgetWithText(IviaFieldLabel, label),
+      matching: find.byType(TextField),
+    );
+    await tester.enterText(input('Adresse e-mail'), _email);
+    await tester.enterText(input('Mot de passe'), 'pagne-wax-2026');
+    await tapText(tester, 'Se connecter');
   }
 
   Future<void> signedInWith(Map<String, dynamic> user) async {
@@ -354,7 +355,7 @@ void main() {
     testWidgets('profil complet : aucun champ de profil', (tester) async {
       server.on(
         'POST',
-        '/v1/auth/verify',
+        '/v1/auth/login',
         (_) => FakeResponse.json(200, {...sessionBody(), 'user': _user()}),
       );
       await launchApp(tester);
