@@ -4,6 +4,8 @@ import type { NextConfig } from "next";
 const nextConfig: NextConfig = {
   output: "standalone",
   poweredByHeader: false,
+  // Images publicitaires et photos de produits envoyées par les Server Actions (5 Mo chacune).
+  experimental: { serverActions: { bodySizeLimit: "24mb" } },
   async headers() {
     return [
       {

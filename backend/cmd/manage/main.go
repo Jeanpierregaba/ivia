@@ -2,6 +2,7 @@
 //
 //	go run ./cmd/manage grant-admin <email>   donne le rôle admin (crée le compte au besoin)
 //	go run ./cmd/manage seed-dev              données de démonstration (local uniquement)
+//	go run ./cmd/manage seed-demo             jeu de démonstration complet (local uniquement)
 //	go run ./cmd/manage migrate               applique les migrations sans démarrer l'API
 package main
 
@@ -12,6 +13,7 @@ import (
 	"io"
 	"log/slog"
 	"os"
+	"time"
 
 	"ivia/backend/internal/app"
 	"ivia/backend/internal/platform/config"
@@ -21,6 +23,8 @@ import (
 const usage = `usage : manage <commande>
   grant-admin <email>   donne le rôle admin (crée le compte au besoin)
   seed-dev              crée des données de démonstration (local uniquement)
+  seed-demo             jeu complet : boutiques, catalogue photographié, IVI, publicité,
+                        acheteurs, livreurs, commandes à tous les statuts (local uniquement)
   migrate               applique les migrations`
 
 func main() {
@@ -38,8 +42,9 @@ func run(args []string) error {
 	if err != nil {
 		return err
 	}
-	// La ligne de commande n'exécute aucune tâche de fond : elle ne fait que les créer.
-	cfg.RunWorkers = false
+	// La ligne de commande n'exécute aucune tâche de fond (elle ne fait que les créer), sauf
+	// seed-demo qui fait avancer ses commandes (paiement confirmé, livreur sollicité).
+	cfg.RunWorkers = args[0] == "seed-demo"
 	logger := slog.New(slog.NewTextHandler(io.Discard, nil))
 	ctx := context.Background()
 
@@ -85,6 +90,29 @@ func run(args []string) error {
 		fmt.Println("  acheteur :", s.BuyerEmail)
 		fmt.Println("  livreur  :", s.DriverEmail)
 		fmt.Println("  mot de passe des quatre comptes :", s.Password, "(local uniquement)")
+		return nil
+	case "seed-demo":
+		a, err := app.New(cfg, logger, pool, app.Options{PollInterval: 100 * time.Millisecond})
+		if err != nil {
+			return err
+		}
+		s, err := a.SeedDemo(ctx, func(format string, args ...any) { fmt.Printf(format+"\n", args...) })
+		if err != nil {
+			return err
+		}
+		fmt.Println()
+		fmt.Printf("Jeu de démonstration prêt : %d boutiques, %d produits ajoutés, %d photos, %d visuels, %d acheteurs, %d livreurs.\n",
+			s.Shops, s.Products, s.Photos, s.Visuals, s.Buyers, s.Drivers)
+		fmt.Printf("Commandes : %d (tous les statuts ; une relance complète sans doublon).\n", s.Orders)
+		if s.PhotoErrors > 0 {
+			fmt.Printf("Attention : %d photos n'ont pas pu être téléchargées (connexion ?). Relancez pour compléter.\n", s.PhotoErrors)
+		}
+		fmt.Println("Comptes (mot de passe commun :", s.Password, "— local uniquement) :")
+		fmt.Println("  admin            :", s.AdminEmail)
+		fmt.Println("  marchands        : marchand@, dzidudu@, mawuli@, fournil@, golfe@, tata@, akpene@, yawa@, kodjo@, tech@, ivi@ivia.local")
+		fmt.Println("  acheteurs        :", s.BuyerEmail, "et afi.mensah@, yao.akakpo@, ama.dogbe@… @ivia.local")
+		fmt.Println("  livreurs         :", s.DriverEmail, "et kodjo.abalo@, essowe.tchalla@, komi.djobo@… @ivia.local")
+		fmt.Println("Produits IVI : brouillons à compléter (prix, stock) dans le back-office, Produits IVI, puis à publier.")
 		return nil
 	default:
 		return errors.New(usage)

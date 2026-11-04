@@ -8,6 +8,8 @@ import {
   Download,
   LayoutGrid,
   LogOut,
+  Megaphone,
+  Package,
   ReceiptText,
   ScrollText,
   Settings2,
@@ -46,6 +48,13 @@ const sections: { title: string; items: Item[] }[] = [
     items: [
       { href: "/shops", label: "Boutiques", icon: Store, count: "shops" },
       { href: "/drivers", label: "Livreurs", icon: Truck, count: "drivers" },
+    ],
+  },
+  {
+    title: "Marketing",
+    items: [
+      { href: "/promo", label: "Publicité", icon: Megaphone },
+      { href: "/products", label: "Produits IVI", icon: Package },
     ],
   },
   {
