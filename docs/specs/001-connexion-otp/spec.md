@@ -1,5 +1,9 @@
 # 001 — Connexion par code e-mail (app acheteur)
 
+> **Remplacée en partie par la [029](../029-connexion-mot-de-passe/spec.md)** (ADR 0011) : la
+> connexion se fait par mot de passe ou Google ; le code reçu par e-mail ne sert plus qu'à créer
+> le compte et au mot de passe oublié. « Faisons connaissance » et le démarrage restent valables.
+
 ## Objectif
 
 Permettre à un acheteur de se connecter ou de créer son compte sans mot de passe, avec un code à

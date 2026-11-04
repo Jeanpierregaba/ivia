@@ -495,4 +495,78 @@ void main() {
       expect(auth.passwordOf('awa@test.tg'), _goodPassword);
     });
   });
+
+  group('police à 200 % sur 320 dp et lecteur d\'écran', () {
+    void large(WidgetTester tester) {
+      tester.view.physicalSize = const Size(320, 640);
+      tester.view.devicePixelRatio = 1;
+      tester.platformDispatcher.textScaleFactorTestValue = 2;
+      addTearDown(tester.view.reset);
+      addTearDown(tester.platformDispatcher.clearTextScaleFactorTestValue);
+    }
+
+    testWidgets('connexion avec Google, erreur et aide : rien ne déborde', (
+      tester,
+    ) async {
+      large(tester);
+      auth
+        ..google = true
+        ..addAccount('awa@test.tg');
+      google.available = true;
+      await launch(tester);
+      expect(tester.takeException(), isNull);
+      expect(find.text('Continuer avec Google'), findsOneWidget);
+      await tester.enterText(field('Adresse e-mail'), 'awa@test.tg');
+      await tester.enterText(field('Mot de passe'), 'mauvais-mot-de-passe');
+      await tapText(tester, 'Se connecter');
+      expect(tester.takeException(), isNull);
+      expect(find.textContaining('Vous vous connectiez'), findsOneWidget);
+    });
+
+    testWidgets('création : e-mail, code, mot de passe refusé', (tester) async {
+      large(tester);
+      await launch(tester);
+      await tapText(tester, 'Créer un compte');
+      expect(tester.takeException(), isNull);
+      await tester.enterText(field('Adresse e-mail'), 'ama@test.tg');
+      await tapText(tester, 'Recevoir le code');
+      expect(tester.takeException(), isNull);
+      await tester.enterText(
+        find.descendant(
+          of: find.byType(IviaCodeInput),
+          matching: find.byType(TextField),
+        ),
+        auth.lastCode('ama@test.tg', 'signup')!,
+      );
+      await tester.pumpAndSettle();
+      expect(tester.takeException(), isNull);
+      await tester.enterText(field('Mot de passe'), 'court');
+      await tapText(tester, 'Créer mon compte');
+      expect(tester.takeException(), isNull);
+      expect(
+        find.text('Le mot de passe doit faire au moins 10 caractères.'),
+        findsOneWidget,
+      );
+    });
+
+    testWidgets('lecteur d\'écran : champs étiquetés, erreur annoncée', (
+      tester,
+    ) async {
+      final semantics = tester.ensureSemantics();
+      auth.addAccount('awa@test.tg');
+      await launch(tester);
+      expect(
+        tester.getSemantics(find.byTooltip('Afficher le mot de passe')),
+        isSemantics(isButton: true),
+      );
+      await tester.enterText(field('Adresse e-mail'), 'awa@test.tg');
+      await tester.enterText(field('Mot de passe'), 'mauvais-mot-de-passe');
+      await tapText(tester, 'Se connecter');
+      expect(
+        tester.getSemantics(find.text('E-mail ou mot de passe incorrect.')),
+        isSemantics(isLiveRegion: true),
+      );
+      semantics.dispose();
+    });
+  });
 }
