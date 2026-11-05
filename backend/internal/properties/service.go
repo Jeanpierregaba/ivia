@@ -100,12 +100,12 @@ func (s *Service) Seed(ctx context.Context, in Seed) (bool, error) {
 	q := store.New(s.db.Pool)
 	n, err := q.CountPropertyPhotos(ctx, store.CountPropertyPhotosParams{Title: in.Title, Neighborhood: in.Neighborhood})
 	if err == nil && n > 0 {
-		in.PhotoKeys = nil
+		return true, nil // déjà publiée avec ses photos
 	}
 	if _, err := q.UpsertProperty(ctx, in); err != nil {
 		return false, fmt.Errorf("annonce de démonstration : %w", err)
 	}
-	return err == nil && n > 0, nil
+	return false, nil
 }
 
 // Register enregistre les routes publiques.

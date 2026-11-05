@@ -49,7 +49,7 @@ func (a *App) seedDemoProperties(ctx context.Context, svc *properties.Service) (
 		if _, err := svc.Seed(ctx, properties.Seed{
 			Title: d.title, Kind: d.kind, PropertyType: d.ptype, PriceXof: d.price, Bedrooms: d.beds, SurfaceM2: d.surface,
 			Neighborhood: d.hood, AddressText: d.addr, Lat: d.lat, Lng: d.lng, Description: d.desc,
-			PhotoKeys: []string{key}, ContactName: "Agence ivia Immo", ContactPhone: "+22899309945",
+			PhotoKeys: []string{key}, ContactName: "Agence ivia Immo", ContactPhone: "+22890000300",
 		}); err != nil {
 			return n, err
 		}

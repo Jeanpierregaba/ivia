@@ -133,6 +133,16 @@ final class IviaAppBrand {
     link: IviaColors.cobaltBlue,
     highlight: IviaColors.cobaltBlue,
   );
+
+  /// App pharmacie : vert pharmacie (croix verte), logotype Berkeley.
+  static const pharmacy = IviaAppBrand._(
+    accent: IviaColors.success,
+    accentSoft: IviaColors.successSoft,
+    logoOnLight: IviaLogoColor.berkeley,
+    action: IviaColors.success,
+    link: IviaColors.success,
+    highlight: IviaColors.success,
+  );
 }
 
 /// Porte la marque de l'app dans le thème.

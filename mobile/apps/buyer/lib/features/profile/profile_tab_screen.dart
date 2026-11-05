@@ -209,6 +209,8 @@ class ProfileTabScreen extends ConsumerWidget {
         ),
       );
 
+  static const _supportPhone = String.fromEnvironment('IVIA_SUPPORT_PHONE');
+
   static void _contact(BuildContext context) => showModalBottomSheet<void>(
     context: context,
     showDragHandle: true,
@@ -216,19 +218,22 @@ class ProfileTabScreen extends ConsumerWidget {
       child: Column(
         mainAxisSize: MainAxisSize.min,
         children: [
-          ListTile(
-            leading: const Icon(Icons.chat_outlined),
-            title: const Text('Écrire sur WhatsApp'),
-            onTap: () => launchUrl(
-              Uri.parse('https://wa.me/22899309945'),
-              mode: LaunchMode.externalApplication,
+          // Numéro du service client fourni au build (IVIA_SUPPORT_PHONE, ex. 22890000000).
+          if (_supportPhone.isNotEmpty) ...[
+            ListTile(
+              leading: const Icon(Icons.chat_outlined),
+              title: const Text('Écrire sur WhatsApp'),
+              onTap: () => launchUrl(
+                Uri.parse('https://wa.me/$_supportPhone'),
+                mode: LaunchMode.externalApplication,
+              ),
             ),
-          ),
-          ListTile(
-            leading: const Icon(Icons.call_outlined),
-            title: const Text('Appeler le service client'),
-            onTap: () => launchUrl(Uri.parse('tel:+22899309945')),
-          ),
+            ListTile(
+              leading: const Icon(Icons.call_outlined),
+              title: const Text('Appeler le service client'),
+              onTap: () => launchUrl(Uri.parse('tel:+$_supportPhone')),
+            ),
+          ],
           ListTile(
             leading: const Icon(Icons.mail_outline),
             title: const Text('support@ivia.tg'),

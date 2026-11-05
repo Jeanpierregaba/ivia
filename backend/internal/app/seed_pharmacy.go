@@ -10,6 +10,7 @@ import (
 	"ivia/backend/internal/pharmacy"
 	"ivia/backend/internal/platform/httpapi"
 	"ivia/backend/internal/platform/identity"
+	"ivia/backend/internal/users"
 )
 
 // Pharmacies de démonstration (local uniquement) : validées, ouvertes et de garde autour de Tokoin,
@@ -38,6 +39,13 @@ func (a *App) seedDemoPharmacies(ctx context.Context) (int, error) {
 		u, _, err := a.Users.FindOrCreateByEmail(ctx, d.email)
 		if err != nil {
 			return n, err
+		}
+		if !u.ProfileComplete {
+			// Numéro personnel du titulaire (91 80 02 01…) pour se connecter à l'app pharmacie.
+			first, phone, accept := "Pharmacien", "+2289180"+d.phone[len(d.phone)-4:], true
+			if u, err = a.Users.UpdateProfile(ctx, u.ID, users.ProfileInput{FirstName: &first, Phone: &phone, AcceptPrivacyPolicy: &accept}); err != nil {
+				return n, fmt.Errorf("profil pharmacien : %w", err)
+			}
 		}
 		if err := a.Users.GrantRole(ctx, u.ID, identity.RolePharmacist, nil); err != nil {
 			return n, fmt.Errorf("rôle pharmacien : %w", err)

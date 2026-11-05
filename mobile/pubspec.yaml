@@ -10,6 +10,7 @@ workspace:
   - apps/buyer
   - apps/seller
   - apps/driver
+  - apps/pharmacy
   - packages/api_client
   - packages/app_core
   - packages/ui
