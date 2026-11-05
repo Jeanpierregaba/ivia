@@ -4,6 +4,7 @@ import (
 	"context"
 	"crypto/subtle"
 	"fmt"
+	"math"
 	"slices"
 	"time"
 
@@ -20,66 +21,118 @@ import (
 	"ivia/backend/internal/platform/validate"
 )
 
-// ReserveInput : le client choisit une réponse et le mode de remise.
-type ReserveInput struct {
-	ResponseID  uuid.UUID `json:"response_id"`
-	Fulfillment string    `json:"fulfillment"`
-	// Quantity : par défaut celle de l'alerte, plafonnée au stock annoncé.
-	Quantity int32 `json:"quantity"`
-	// AddressID : adresse de livraison enregistrée (livraison seulement).
-	AddressID *uuid.UUID `json:"address_id"`
+// Qui met fin à une réservation (décide des remboursements et des messages).
+type endedBy int
+
+const (
+	byBuyer endedBy = iota
+	byPharmacy
+	bySystem
+)
+
+// Estimations de temps affichées au client (« ≈ 25 min », « 8 min à pied »).
+const (
+	walkMetersPerMinute = 80  // 4,8 km/h
+	motoMetersPerMinute = 333 // 20 km/h en ville
+	deliveryOverheadMin = 15  // préparation et trajet du livreur vers la pharmacie
+	// maxDeliveryM : distance maximale pharmacie → client pour une livraison ivia.
+	maxDeliveryM = 20_000
+)
+
+func walkMinutes(m int64) int32 { return int32(math.Ceil(float64(m) / walkMetersPerMinute)) }
+func deliveryETA(m int64) int32 {
+	return deliveryOverheadMin + int32(math.Ceil(float64(m)/motoMetersPerMinute))
+}
+func reservationNumber(n *int64) string {
+	if n == nil {
+		return ""
+	}
+	return fmt.Sprintf("M-%d", *n)
 }
 
-// Reservation est une réservation vue par le client.
+// Timeline : étapes datées d'une réservation (suivi de livraison).
+type Timeline struct {
+	UnlockedAt  time.Time  `json:"unlocked_at"`
+	PaidAt      *time.Time `json:"paid_at"`
+	PreparedAt  *time.Time `json:"prepared_at"`
+	PickedUpAt  *time.Time `json:"picked_up_at"`
+	DeliveredAt *time.Time `json:"delivered_at"`
+}
+
+// Reservation est la pharmacie débloquée vue par le client : produits mis de côté, code de
+// retrait, choix « Me faire livrer » ou « J'y vais ».
 type Reservation struct {
-	ID             uuid.UUID `json:"id"`
-	AlertID        uuid.UUID `json:"alert_id"`
-	Fulfillment    string    `json:"fulfillment"`
-	Status         string    `json:"status"`
-	ProductName    string    `json:"product_name"`
-	Quantity       int32     `json:"quantity"`
-	UnitPriceXOF   int64     `json:"unit_price_xof"`
-	ItemsXOF       int64     `json:"items_xof"`
-	DeliveryFeeXOF int64     `json:"delivery_fee_xof"`
-	TotalXOF       int64     `json:"total_xof"`
+	ID          uuid.UUID      `json:"id"`
+	Number      string         `json:"number"`
+	AlertID     uuid.UUID      `json:"alert_id"`
+	Fulfillment string         `json:"fulfillment"`
+	Status      string         `json:"status"`
+	Lines       []ResponseLine `json:"lines"`
+	// ItemsXOF : total des produits disponibles (payé sur place pour un retrait).
+	ItemsXOF       int64 `json:"items_xof"`
+	DeliveryFeeXOF int64 `json:"delivery_fee_xof"`
+	TotalXOF       int64 `json:"total_xof"`
 	// PayInApp : livraison à payer dans l'app (le retrait se paie à la pharmacie).
 	PayInApp bool `json:"pay_in_app"`
+	// PrescriptionRequired : original de l'ordonnance à présenter (pharmacien ou livreur).
+	PrescriptionRequired bool `json:"prescription_required"`
 	// HandoverCode : à donner au pharmacien (retrait) ou au livreur (livraison). Client seulement.
-	HandoverCode    string          `json:"handover_code,omitempty"`
+	HandoverCode string `json:"handover_code,omitempty"`
+	// ExpiresAt : produits mis de côté jusqu'à cette heure (retrait) ou délai de paiement.
+	ExpiresAt *time.Time `json:"expires_at"`
+	// CourierOffersSent : livreurs sollicités pendant la recherche (du plus proche au plus loin).
+	CourierOffersSent int64 `json:"courier_offers_sent"`
+	// DistanceM et WalkMinutes : depuis la position de l'alerte jusqu'à la pharmacie.
+	DistanceM       int64           `json:"distance_m"`
+	WalkMinutes     int32           `json:"walk_minutes"`
 	DeliveryAddress string          `json:"delivery_address"`
-	ExpiresAt       *time.Time      `json:"expires_at"`
+	DeliveryETA     *int32          `json:"delivery_eta_minutes"`
 	CancelReason    string          `json:"cancel_reason"`
 	Pharmacy        PharmacyContact `json:"pharmacy"`
 	Courier         *CourierContact `json:"courier"`
+	Timeline        Timeline        `json:"timeline"`
 	CreatedAt       time.Time       `json:"created_at"`
 	CompletedAt     *time.Time      `json:"completed_at"`
 }
 
 // PharmacyReservation est une réservation vue par la pharmacie (prénom du client seulement).
 type PharmacyReservation struct {
-	ID             uuid.UUID       `json:"id"`
-	AlertID        uuid.UUID       `json:"alert_id"`
-	Fulfillment    string          `json:"fulfillment"`
-	Status         string          `json:"status"`
-	ProductName    string          `json:"product_name"`
-	Quantity       int32           `json:"quantity"`
-	UnitPriceXOF   int64           `json:"unit_price_xof"`
-	ItemsXOF       int64           `json:"items_xof"`
-	CommissionXOF  int64           `json:"commission_xof"`
-	PharmacyDueXOF int64           `json:"pharmacy_due_xof"`
-	BuyerFirstName string          `json:"buyer_first_name"`
-	ExpiresAt      *time.Time      `json:"expires_at"`
-	CancelReason   string          `json:"cancel_reason"`
-	Courier        *CourierContact `json:"courier"`
-	CreatedAt      time.Time       `json:"created_at"`
-	CompletedAt    *time.Time      `json:"completed_at"`
+	ID                   uuid.UUID       `json:"id"`
+	Number               string          `json:"number"`
+	AlertID              uuid.UUID       `json:"alert_id"`
+	Fulfillment          string          `json:"fulfillment"`
+	Status               string          `json:"status"`
+	Lines                []ResponseLine  `json:"lines"`
+	ItemsXOF             int64           `json:"items_xof"`
+	CommissionXOF        int64           `json:"commission_xof"`
+	PharmacyDueXOF       int64           `json:"pharmacy_due_xof"`
+	PrescriptionRequired bool            `json:"prescription_required"`
+	BuyerFirstName       string          `json:"buyer_first_name"`
+	ExpiresAt            *time.Time      `json:"expires_at"`
+	PreparedAt           *time.Time      `json:"prepared_at"`
+	CancelReason         string          `json:"cancel_reason"`
+	Courier              *CourierContact `json:"courier"`
+	CreatedAt            time.Time       `json:"created_at"`
+	CompletedAt          *time.Time      `json:"completed_at"`
 }
 
-// CourierContact : le livreur ivia d'une livraison en cours.
+// CourierContact : le livreur ivia d'une livraison (téléphone pendant la course seulement).
 type CourierContact struct {
-	FirstName string `json:"first_name"`
-	Phone     string `json:"phone"`
-	Status    string `json:"status"`
+	FirstName    string `json:"first_name"`
+	Phone        string `json:"phone"`
+	VehicleType  string `json:"vehicle_type"`
+	VehiclePlate string `json:"vehicle_plate"`
+	Status       string `json:"status"`
+}
+
+// DeliveryQuote : frais et délai d'une livraison vers une adresse, avant de la choisir.
+type DeliveryQuote struct {
+	DistanceM      int64  `json:"distance_m"`
+	VehicleType    string `json:"vehicle_type"`
+	DeliveryFeeXOF int64  `json:"delivery_fee_xof"`
+	ItemsXOF       int64  `json:"items_xof"`
+	TotalXOF       int64  `json:"total_xof"`
+	ETAMinutes     int32  `json:"eta_minutes"`
 }
 
 // Earnings : sommes dues à une pharmacie (livraisons payées dans l'app) et reversements.
@@ -103,135 +156,64 @@ type Payout struct {
 
 var errReservationNotFound = apperr.NotFound("reservation_not_found", "Réservation introuvable.")
 
-// Reserve réserve le médicament chez une pharmacie qui a répondu (alerte débloquée).
-func (s *Service) Reserve(ctx context.Context, buyerID, alertID uuid.UUID, in ReserveInput) (Reservation, error) {
-	v := validate.New()
-	v.Check(in.Fulfillment == Pickup || in.Fulfillment == Delivery, "fulfillment", "Valeur attendue : pickup ou delivery.")
-	v.Check(in.Quantity >= 0 && in.Quantity <= 20, "quantity", "Entre 1 et 20.")
-	v.Check(in.Fulfillment != Delivery || in.AddressID != nil, "address_id", "Adresse de livraison obligatoire.")
-	if err := v.Err(); err != nil {
-		return Reservation{}, err
-	}
+// holdProducts crée la mise de côté d'une réponse débloquée : retrait par défaut, code de
+// retrait, expiration après la durée de mise de côté. Dans une transaction.
+func (s *Service) holdProducts(ctx context.Context, a store.GetAlertRow, resp store.PharmacyResponse, unlockPaymentID *uuid.UUID) (uuid.UUID, error) {
 	q := s.q(ctx)
-	a, err := q.GetAlert(ctx, alertID)
-	if database.IsNoRows(err) || (err == nil && a.BuyerID != buyerID) {
-		return Reservation{}, errAlertNotFound
-	}
-	if err != nil {
-		return Reservation{}, fmt.Errorf("lecture de l'alerte : %w", err)
-	}
-	if a.UnlockedAt == nil {
-		return Reservation{}, apperr.Conflict("unlock_required", "Débloquez d'abord les pharmacies qui ont répondu.")
-	}
-	resp, err := q.GetResponse(ctx, in.ResponseID)
-	if database.IsNoRows(err) || (err == nil && resp.AlertID != alertID) {
-		return Reservation{}, apperr.Validation(map[string]string{"response_id": "Réponse introuvable pour cette alerte."})
-	}
-	if err != nil {
-		return Reservation{}, fmt.Errorf("lecture de la réponse : %w", err)
-	}
-	if resp.Status != "active" {
-		return Reservation{}, apperr.Conflict("response_withdrawn", "Cette pharmacie n'a plus le produit. Choisissez-en une autre.")
-	}
-	if in.Fulfillment == Delivery && (a.Kind == KindPrescription || resp.PrescriptionRequired) {
-		return Reservation{}, apperr.Unprocessable("prescription_pickup_only",
-			"Médicament sur ordonnance : retrait en pharmacie uniquement, ordonnance à présenter.")
-	}
-	qty := in.Quantity
-	if qty == 0 {
-		qty = min(a.Quantity, resp.QuantityAvailable)
-	}
-	if qty > resp.QuantityAvailable {
-		return Reservation{}, apperr.Validation(map[string]string{"quantity": fmt.Sprintf("La pharmacie n'en a que %d.", resp.QuantityAvailable)})
-	}
-	ph, err := q.GetPharmacy(ctx, resp.PharmacyID)
-	if err != nil {
-		return Reservation{}, fmt.Errorf("lecture de la pharmacie : %w", err)
-	}
-	if ph.SuspendedAt != nil {
-		return Reservation{}, apperr.Conflict("response_withdrawn", "Cette pharmacie n'est plus disponible. Choisissez-en une autre.")
-	}
 	settings, err := s.Settings(ctx)
 	if err != nil {
-		return Reservation{}, err
+		return uuid.Nil, err
 	}
-	platform, err := s.admin.Settings(ctx)
+	lines, err := s.responseLines(ctx, resp.ID)
 	if err != nil {
-		return Reservation{}, err
+		return uuid.Nil, err
+	}
+	var items int64
+	rx := false
+	for _, l := range lines {
+		items += l.LineTotalXOF
+		rx = rx || (l.Available && l.PrescriptionRequired)
+	}
+	photos, err := q.ListAlertPhotos(ctx, a.ID)
+	if err != nil {
+		return uuid.Nil, fmt.Errorf("photos de l'alerte : %w", err)
+	}
+	for _, p := range photos {
+		rx = rx || p.Kind == PhotoPrescription
 	}
 	code, err := newCode()
 	if err != nil {
-		return Reservation{}, err
+		return uuid.Nil, err
 	}
-	items := resp.UnitPriceXof * int64(qty)
-	p := store.CreateReservationParams{
-		AlertID: alertID, ResponseID: resp.ID, PharmacyID: ph.ID, BuyerID: buyerID, Fulfillment: in.Fulfillment,
-		Quantity: qty, UnitPriceXof: resp.UnitPriceXof, ItemsXof: items, TotalXof: items, HandoverCode: code,
-	}
-	var expires time.Time
-	if in.Fulfillment == Pickup {
-		p.Status = ResReserved
-		expires = time.Now().Add(time.Duration(settings.PickupHoldMinutes) * time.Minute)
-	} else {
-		addr, err := s.users.GetAddress(ctx, buyerID, *in.AddressID)
-		if err != nil {
-			return Reservation{}, err
-		}
-		dist, err := s.geo.DistanceMeters(ctx, geo.Point{Lat: ph.Lat, Lng: ph.Lng}, addr.Location)
-		if err != nil {
-			return Reservation{}, err
-		}
-		if dist > int64(maxDeliveryM) {
-			return Reservation{}, apperr.Unprocessable("too_far", "Cette pharmacie est trop loin pour une livraison : choisissez le retrait ou une pharmacie plus proche.")
-		}
-		fee := orders.DeliveryFee(platform, orders.VehicleMotorbike, dist)
-		commission := orders.Commission(items, platform.CommissionRateBP)
-		p.Status = ResAwaitingPayment
-		p.DeliveryFeeXof, p.CommissionXof, p.PharmacyDueXof, p.TotalXof = fee, commission, items-commission, items+fee
-		p.DeliveryAddress = addr.AddressText
-		p.DeliveryInstructions = addr.Instructions
-		p.HasLocation, p.Lat, p.Lng = true, addr.Location.Lat, addr.Location.Lng
-		expires = time.Now().Add(platform.PaymentTimeout())
-	}
-	p.ExpiresAt = &expires
-
-	var id uuid.UUID
-	err = s.db.InTx(ctx, func(ctx context.Context) error {
-		q := s.q(ctx)
-		cur, err := q.LockAlert(ctx, alertID)
-		if err != nil {
-			return fmt.Errorf("verrou de l'alerte : %w", err)
-		}
-		if !slices.Contains(openAlert, cur.Status) {
-			return apperr.Conflict("alert_closed", "Cette alerte est terminée.")
-		}
-		id, err = q.CreateReservation(ctx, p)
-		if database.IsUniqueViolation(err, "pharmacy_reservations_one_active_per_alert") {
-			return apperr.Conflict("reservation_exists", "Une réservation est déjà en cours pour cette alerte.")
-		}
-		if err != nil {
-			return fmt.Errorf("création de la réservation : %w", err)
-		}
-		if err := s.jobs.Enqueue(ctx, ExpireReservationArgs{ReservationID: id}, jobs.At(expires)); err != nil {
-			return err
-		}
-		if in.Fulfillment == Pickup {
-			return s.notify.Notify(ctx, notifications.Message{
-				UserID: ph.OwnerID, App: notifications.AppPharmacy, Kind: "pharmacy_reservation",
-				Title: "Retrait réservé", Body: fmt.Sprintf("%d × %s mis de côté : le client passe le récupérer.", qty, resp.ProductName),
-				Data: map[string]string{"reservation_id": id.String()},
-			})
-		}
-		return nil
+	expires := time.Now().Add(time.Duration(settings.PickupHoldMinutes) * time.Minute)
+	id, err := q.CreateReservation(ctx, store.CreateReservationParams{
+		AlertID: a.ID, ResponseID: resp.ID, PharmacyID: resp.PharmacyID, BuyerID: a.BuyerID, Fulfillment: Pickup,
+		Status: ResReserved, Quantity: 1, UnitPriceXof: items, ItemsXof: items, TotalXof: items, HandoverCode: code,
+		ExpiresAt: &expires, UnlockPaymentID: unlockPaymentID, PrescriptionRequired: rx,
 	})
-	if err != nil {
-		return Reservation{}, err
+	if database.IsUniqueViolation(err, "pharmacy_reservations_one_active_per_response") {
+		return uuid.Nil, apperr.Conflict("reservation_exists", "Ces produits sont déjà mis de côté pour vous.")
 	}
-	return s.GetReservation(ctx, buyerID, id)
+	if err != nil {
+		return uuid.Nil, fmt.Errorf("mise de côté : %w", err)
+	}
+	if err := s.jobs.Enqueue(ctx, ExpireReservationArgs{ReservationID: id}, jobs.At(expires)); err != nil {
+		return uuid.Nil, err
+	}
+	ph, err := q.GetPharmacy(ctx, resp.PharmacyID)
+	if err != nil {
+		return uuid.Nil, fmt.Errorf("lecture de la pharmacie : %w", err)
+	}
+	if err := s.notify.Notify(ctx, notifications.Message{
+		UserID: ph.OwnerID, App: notifications.AppPharmacy, Kind: "pharmacy_reservation",
+		Title: "Produits à mettre de côté",
+		Body:  fmt.Sprintf("Un client a choisi votre pharmacie : gardez ses produits %d min.", settings.PickupHoldMinutes),
+		Data:  map[string]string{"reservation_id": id.String()},
+	}); err != nil {
+		return uuid.Nil, err
+	}
+	return id, nil
 }
-
-// maxDeliveryM : distance maximale pharmacie → client pour une livraison ivia.
-const maxDeliveryM = 20_000
 
 func (s *Service) reservationRow(ctx context.Context, id uuid.UUID) (store.GetReservationRow, error) {
 	r, err := s.q(ctx).GetReservation(ctx, id)
@@ -244,62 +226,100 @@ func (s *Service) reservationRow(ctx context.Context, id uuid.UUID) (store.GetRe
 	return r, nil
 }
 
-func (s *Service) courierOf(ctx context.Context, reservationID uuid.UUID) (*CourierContact, error) {
+func (s *Service) buyerReservation(ctx context.Context, buyerID, id uuid.UUID) (store.GetReservationRow, error) {
+	r, err := s.reservationRow(ctx, id)
+	if err == nil && r.BuyerID != buyerID {
+		return r, errReservationNotFound
+	}
+	return r, err
+}
+
+// courierOf retourne le livreur de la dernière course (nil sans course) et sa course.
+func (s *Service) courierOf(ctx context.Context, reservationID uuid.UUID) (*CourierContact, *store.PharmacyDelivery, error) {
 	d, err := s.q(ctx).LatestDeliveryForReservation(ctx, reservationID)
 	if database.IsNoRows(err) {
-		return nil, nil
+		return nil, nil, nil
 	}
 	if err != nil {
-		return nil, fmt.Errorf("livraison de la réservation : %w", err)
+		return nil, nil, fmt.Errorf("livraison de la réservation : %w", err)
 	}
 	if d.Status == "cancelled" {
-		return nil, nil
+		return nil, &d, nil
 	}
 	c, err := s.users.Contact(ctx, d.DriverID)
 	if err != nil {
-		return nil, err
+		return nil, nil, err
 	}
 	out := &CourierContact{FirstName: c.FirstName, Status: d.Status}
+	if drv, err := s.drivers.Me(ctx, d.DriverID); err == nil {
+		out.VehicleType, out.VehiclePlate = drv.VehicleType, drv.VehiclePlate
+	}
 	if d.Status == "assigned" || d.Status == "picked_up" {
 		out.Phone = c.Phone // numéro donné seulement pendant la course
 	}
-	return out, nil
+	return out, &d, nil
+}
+
+func pharmacyContact(ph store.GetPharmacyRow) PharmacyContact {
+	return PharmacyContact{
+		ID: ph.ID, Name: ph.Name, Phone: ph.Phone, AddressText: ph.AddressText, Location: geo.Point{Lat: ph.Lat, Lng: ph.Lng},
+		OnDuty: ph.OnDuty, Open24h: ph.Open24h, DutyUntil: dutyUntil(ph.DutyUntil),
+	}
 }
 
 // GetReservation retourne une réservation du client.
 func (s *Service) GetReservation(ctx context.Context, buyerID, id uuid.UUID) (Reservation, error) {
-	r, err := s.reservationRow(ctx, id)
+	r, err := s.buyerReservation(ctx, buyerID, id)
 	if err != nil {
 		return Reservation{}, err
 	}
-	if r.BuyerID != buyerID {
-		return Reservation{}, errReservationNotFound
-	}
 	q := s.q(ctx)
-	resp, err := q.GetResponse(ctx, r.ResponseID)
+	lines, err := s.responseLines(ctx, r.ResponseID)
 	if err != nil {
-		return Reservation{}, fmt.Errorf("lecture de la réponse : %w", err)
+		return Reservation{}, err
 	}
 	ph, err := q.GetPharmacy(ctx, r.PharmacyID)
 	if err != nil {
 		return Reservation{}, fmt.Errorf("lecture de la pharmacie : %w", err)
 	}
-	courier, err := s.courierOf(ctx, r.ID)
+	a, err := q.GetAlert(ctx, r.AlertID)
+	if err != nil {
+		return Reservation{}, fmt.Errorf("lecture de l'alerte : %w", err)
+	}
+	dist, err := s.geo.DistanceMeters(ctx, geo.Point{Lat: a.Lat, Lng: a.Lng}, geo.Point{Lat: ph.Lat, Lng: ph.Lng})
+	if err != nil {
+		return Reservation{}, err
+	}
+	courier, d, err := s.courierOf(ctx, r.ID)
 	if err != nil {
 		return Reservation{}, err
 	}
 	out := Reservation{
-		ID: r.ID, AlertID: r.AlertID, Fulfillment: r.Fulfillment, Status: r.Status, ProductName: resp.ProductName,
-		Quantity: r.Quantity, UnitPriceXOF: r.UnitPriceXof, ItemsXOF: r.ItemsXof, DeliveryFeeXOF: r.DeliveryFeeXof,
-		TotalXOF: r.TotalXof, PayInApp: r.Fulfillment == Delivery, DeliveryAddress: r.DeliveryAddress, ExpiresAt: r.ExpiresAt,
-		CancelReason: r.CancelReason, Courier: courier, CreatedAt: r.CreatedAt, CompletedAt: r.CompletedAt,
-		Pharmacy: PharmacyContact{
-			ID: ph.ID, Name: ph.Name, Phone: ph.Phone, AddressText: ph.AddressText,
-			Location: geo.Point{Lat: ph.Lat, Lng: ph.Lng}, OnDuty: ph.OnDuty,
-		},
+		ID: r.ID, Number: reservationNumber(r.Number), AlertID: r.AlertID, Fulfillment: r.Fulfillment, Status: r.Status,
+		Lines: lines, ItemsXOF: r.ItemsXof, DeliveryFeeXOF: r.DeliveryFeeXof, TotalXOF: r.TotalXof, PayInApp: r.Fulfillment == Delivery,
+		PrescriptionRequired: r.PrescriptionRequired, ExpiresAt: r.ExpiresAt, DistanceM: dist, WalkMinutes: walkMinutes(dist),
+		DeliveryAddress: r.DeliveryAddress, CancelReason: r.CancelReason, Pharmacy: pharmacyContact(ph), Courier: courier,
+		Timeline: Timeline{UnlockedAt: r.CreatedAt, PaidAt: r.PaidAt, PreparedAt: r.PreparedAt}, CreatedAt: r.CreatedAt,
+		CompletedAt: r.CompletedAt,
 	}
-	if slices.Contains(activeReservation, r.Status) && r.Status != ResAwaitingPayment {
+	if d != nil && d.Status != "cancelled" {
+		out.Timeline.PickedUpAt, out.Timeline.DeliveredAt = d.PickedUpAt, d.DeliveredAt
+	}
+	if r.Fulfillment == Delivery {
+		toClient, err := s.geo.DistanceMeters(ctx, geo.Point{Lat: ph.Lat, Lng: ph.Lng}, geo.Point{Lat: r.DeliveryLat, Lng: r.DeliveryLng})
+		if err != nil {
+			return Reservation{}, err
+		}
+		eta := deliveryETA(toClient)
+		out.DeliveryETA = &eta
+	}
+	if slices.Contains([]string{ResReserved, ResPaid, ResCourierAssigned, ResPickedUp}, r.Status) {
 		out.HandoverCode = r.HandoverCode
+	}
+	if r.Fulfillment == Delivery {
+		if out.CourierOffersSent, err = q.CountCourierOffers(ctx, r.ID); err != nil {
+			return Reservation{}, fmt.Errorf("livreurs sollicités : %w", err)
+		}
 	}
 	return out, nil
 }
@@ -321,24 +341,174 @@ func (s *Service) ListReservations(ctx context.Context, buyerID uuid.UUID, limit
 	return out, nil
 }
 
-func (s *Service) pharmacyReservationView(ctx context.Context, r store.GetReservationRow) (PharmacyReservation, error) {
-	resp, err := s.q(ctx).GetResponse(ctx, r.ResponseID)
+// quote calcule les frais de livraison vers une adresse du client.
+func (s *Service) quote(ctx context.Context, buyerID uuid.UUID, r store.GetReservationRow, addressID uuid.UUID) (DeliveryQuote, quoteDetail, error) {
+	addr, err := s.users.GetAddress(ctx, buyerID, addressID)
 	if err != nil {
-		return PharmacyReservation{}, fmt.Errorf("lecture de la réponse : %w", err)
+		return DeliveryQuote{}, quoteDetail{}, err
+	}
+	ph, err := s.q(ctx).GetPharmacy(ctx, r.PharmacyID)
+	if err != nil {
+		return DeliveryQuote{}, quoteDetail{}, fmt.Errorf("lecture de la pharmacie : %w", err)
+	}
+	dist, err := s.geo.DistanceMeters(ctx, geo.Point{Lat: ph.Lat, Lng: ph.Lng}, addr.Location)
+	if err != nil {
+		return DeliveryQuote{}, quoteDetail{}, err
+	}
+	if dist > maxDeliveryM {
+		return DeliveryQuote{}, quoteDetail{}, apperr.Unprocessable("too_far",
+			"Cette pharmacie est trop loin pour une livraison : allez-y vous-même ou choisissez une pharmacie plus proche.")
+	}
+	platform, err := s.admin.Settings(ctx)
+	if err != nil {
+		return DeliveryQuote{}, quoteDetail{}, err
+	}
+	settings, err := s.Settings(ctx)
+	if err != nil {
+		return DeliveryQuote{}, quoteDetail{}, err
+	}
+	fee := orders.DeliveryFee(platform, orders.VehicleMotorbike, dist)
+	// Pas de commission par défaut : le forfait de déblocage rémunère ivia.
+	commission := orders.Commission(r.ItemsXof, settings.ProductCommissionBP)
+	return DeliveryQuote{
+			DistanceM: dist, VehicleType: string(orders.VehicleMotorbike), DeliveryFeeXOF: fee, ItemsXOF: r.ItemsXof,
+			TotalXOF: r.ItemsXof + fee, ETAMinutes: deliveryETA(dist),
+		}, quoteDetail{commission: commission, address: addr.AddressText, instructions: addr.Instructions, lat: addr.Location.Lat, lng: addr.Location.Lng},
+		nil
+}
+
+type quoteDetail struct {
+	commission            int64
+	address, instructions string
+	lat, lng              float64
+}
+
+// DeliveryQuote retourne les frais et le délai d'une livraison (écran « Comment récupérer vos
+// produits ? »).
+func (s *Service) DeliveryQuote(ctx context.Context, buyerID, id, addressID uuid.UUID) (DeliveryQuote, error) {
+	r, err := s.buyerReservation(ctx, buyerID, id)
+	if err != nil {
+		return DeliveryQuote{}, err
+	}
+	q, _, err := s.quote(ctx, buyerID, r, addressID)
+	return q, err
+}
+
+// ChooseDelivery : « Livreur ivia ». La recherche du livreur part tout de suite : la course est
+// proposée aux livreurs disponibles les plus proches de la pharmacie, du plus proche au plus loin.
+// Dès qu'un livreur accepte, le client paie produits et livraison (POST /pay) ; le livreur va
+// ensuite à la pharmacie. Possible sur ordonnance : le livreur vérifie l'original à la remise.
+func (s *Service) ChooseDelivery(ctx context.Context, buyerID, id, addressID uuid.UUID) (Reservation, error) {
+	r, err := s.buyerReservation(ctx, buyerID, id)
+	if err != nil {
+		return Reservation{}, err
+	}
+	if r.Status != ResReserved {
+		return Reservation{}, apperr.Conflict("invalid_transition", "Le mode de remise ne peut plus être changé.")
+	}
+	quote, d, err := s.quote(ctx, buyerID, r, addressID)
+	if err != nil {
+		return Reservation{}, err
+	}
+	err = s.db.InTx(ctx, func(ctx context.Context) error {
+		n, err := s.q(ctx).ChooseDelivery(ctx, store.ChooseDeliveryParams{
+			ID: id, DeliveryFeeXof: quote.DeliveryFeeXOF, CommissionXof: d.commission, PharmacyDueXof: r.ItemsXof - d.commission,
+			DeliveryAddress: d.address, DeliveryInstructions: d.instructions, Lat: d.lat, Lng: d.lng,
+		})
+		if err != nil {
+			return fmt.Errorf("choix de la livraison : %w", err)
+		}
+		if n == 0 {
+			return apperr.Conflict("invalid_transition", "Le mode de remise ne peut plus être changé.")
+		}
+		// Recherche immédiate : livreurs disponibles les plus proches de la pharmacie, l'un après l'autre.
+		return s.jobs.Enqueue(ctx, AssignCourierArgs{ReservationID: id}, nil)
+	})
+	if err != nil {
+		return Reservation{}, err
+	}
+	return s.GetReservation(ctx, buyerID, id)
+}
+
+// ChoosePickup : « J'y vais » (retour au retrait tant que la livraison n'est pas payée) : la
+// recherche s'arrête et le livreur qui avait accepté est libéré.
+func (s *Service) ChoosePickup(ctx context.Context, buyerID, id uuid.UUID) (Reservation, error) {
+	r, err := s.buyerReservation(ctx, buyerID, id)
+	if err != nil {
+		return Reservation{}, err
+	}
+	if r.Status == ResReserved {
+		return s.GetReservation(ctx, buyerID, id)
+	}
+	if _, err := s.q(ctx).PendingOrderPayment(ctx, &id); err == nil {
+		return Reservation{}, apperr.Conflict("payment_in_progress", "Un paiement est en cours : validez-le ou annulez-le d'abord.")
+	} else if !database.IsNoRows(err) {
+		return Reservation{}, fmt.Errorf("paiement en cours : %w", err)
+	}
+	err = s.db.InTx(ctx, func(ctx context.Context) error {
+		q := s.q(ctx)
+		if _, err := q.LockReservation(ctx, id); err != nil {
+			return fmt.Errorf("verrou de la réservation : %w", err)
+		}
+		n, err := q.ChoosePickup(ctx, id)
+		if err != nil {
+			return fmt.Errorf("choix du retrait : %w", err)
+		}
+		if n == 0 {
+			return apperr.Conflict("invalid_transition", "La livraison est déjà payée.")
+		}
+		return s.stopCourier(ctx, id, "Le client passe lui-même à la pharmacie.")
+	})
+	if err != nil {
+		return Reservation{}, err
+	}
+	return s.GetReservation(ctx, buyerID, id)
+}
+
+// stopCourier annule les propositions de course et libère le livreur engagé. Dans une transaction.
+func (s *Service) stopCourier(ctx context.Context, reservationID uuid.UUID, why string) error {
+	q := s.q(ctx)
+	if err := q.CancelCourierOffers(ctx, reservationID); err != nil {
+		return fmt.Errorf("propositions de course : %w", err)
+	}
+	d, err := q.ActiveDeliveryForReservation(ctx, reservationID)
+	if database.IsNoRows(err) {
+		return nil
+	}
+	if err != nil {
+		return fmt.Errorf("course en cours : %w", err)
+	}
+	if _, err := q.SetDeliveryStatus(ctx, store.SetDeliveryStatusParams{ID: d.ID, NewStatus: "cancelled", FromStatuses: []string{"assigned", "picked_up"}}); err != nil {
+		return fmt.Errorf("annulation de la course : %w", err)
+	}
+	if err := s.drivers.ReleaseFromErrand(ctx, d.DriverID); err != nil {
+		return err
+	}
+	return s.notify.Notify(ctx, notifications.Message{
+		UserID: d.DriverID, App: notifications.AppDriver, Kind: "pharmacy_mission_cancelled",
+		Title: "Course annulée", Body: why + " Vous êtes de nouveau disponible.",
+		Data: map[string]string{"delivery_id": d.ID.String()},
+	})
+}
+
+func (s *Service) pharmacyReservationView(ctx context.Context, r store.GetReservationRow) (PharmacyReservation, error) {
+	lines, err := s.responseLines(ctx, r.ResponseID)
+	if err != nil {
+		return PharmacyReservation{}, err
 	}
 	buyer, err := s.users.Contact(ctx, r.BuyerID)
 	if err != nil {
 		return PharmacyReservation{}, err
 	}
-	courier, err := s.courierOf(ctx, r.ID)
+	courier, _, err := s.courierOf(ctx, r.ID)
 	if err != nil {
 		return PharmacyReservation{}, err
 	}
 	return PharmacyReservation{
-		ID: r.ID, AlertID: r.AlertID, Fulfillment: r.Fulfillment, Status: r.Status, ProductName: resp.ProductName,
-		Quantity: r.Quantity, UnitPriceXOF: r.UnitPriceXof, ItemsXOF: r.ItemsXof, CommissionXOF: r.CommissionXof,
-		PharmacyDueXOF: r.PharmacyDueXof, BuyerFirstName: buyer.FirstName, ExpiresAt: r.ExpiresAt,
-		CancelReason: r.CancelReason, Courier: courier, CreatedAt: r.CreatedAt, CompletedAt: r.CompletedAt,
+		ID: r.ID, Number: reservationNumber(r.Number), AlertID: r.AlertID, Fulfillment: r.Fulfillment, Status: r.Status,
+		Lines: lines, ItemsXOF: r.ItemsXof, CommissionXOF: r.CommissionXof, PharmacyDueXOF: r.PharmacyDueXof,
+		PrescriptionRequired: r.PrescriptionRequired, BuyerFirstName: buyer.FirstName, ExpiresAt: r.ExpiresAt,
+		PreparedAt: r.PreparedAt, CancelReason: r.CancelReason, Courier: courier, CreatedAt: r.CreatedAt, CompletedAt: r.CompletedAt,
 	}, nil
 }
 
@@ -393,6 +563,35 @@ func (s *Service) PharmacyGetReservation(ctx context.Context, ownerID, id uuid.U
 	return s.pharmacyReservationView(ctx, r)
 }
 
+// MarkPrepared : la pharmacie a préparé les produits (« Préparée par la pharmacie »).
+func (s *Service) MarkPrepared(ctx context.Context, ownerID, id uuid.UUID) (PharmacyReservation, error) {
+	r, _, err := s.ownReservation(ctx, ownerID, id)
+	if err != nil {
+		return PharmacyReservation{}, err
+	}
+	err = s.db.InTx(ctx, func(ctx context.Context) error {
+		n, err := s.q(ctx).MarkPrepared(ctx, id)
+		if err != nil {
+			return fmt.Errorf("préparation : %w", err)
+		}
+		if n == 0 {
+			return apperr.Conflict("invalid_transition", "Déjà préparée, ou réservation terminée.")
+		}
+		body := "Vos produits sont prêts à la pharmacie."
+		if r.Fulfillment == Delivery {
+			body = "Vos produits sont prêts : le livreur va les récupérer."
+		}
+		return s.notify.Notify(ctx, notifications.Message{
+			UserID: r.BuyerID, App: notifications.AppBuyer, Kind: "pharmacy_prepared", Title: "Commande préparée", Body: body,
+			Data: map[string]string{"reservation_id": r.ID.String()},
+		})
+	})
+	if err != nil {
+		return PharmacyReservation{}, err
+	}
+	return s.PharmacyGetReservation(ctx, ownerID, id)
+}
+
 // CompletePickup : le client est à la pharmacie et donne son code ; il paie sur place.
 func (s *Service) CompletePickup(ctx context.Context, ownerID, id uuid.UUID, code string) (PharmacyReservation, error) {
 	r, _, err := s.ownReservation(ctx, ownerID, id)
@@ -411,7 +610,7 @@ func (s *Service) CompletePickup(ctx context.Context, ownerID, id uuid.UUID, cod
 		}
 		return s.notify.Notify(ctx, notifications.Message{
 			UserID: r.BuyerID, App: notifications.AppBuyer, Kind: "pharmacy_completed",
-			Title: "Médicament retiré", Body: "Merci d'avoir utilisé l'alerte médicament ivia. Prompt rétablissement !",
+			Title: "Produits retirés", Body: "Merci d'avoir utilisé l'alerte médicament ivia. Prompt rétablissement !",
 			Data: map[string]string{"reservation_id": r.ID.String()},
 		})
 	})
@@ -442,17 +641,14 @@ func (s *Service) complete(ctx context.Context, r store.GetReservationRow, from 
 	return q.ExpirePendingTargets(ctx, r.AlertID)
 }
 
-// CancelReservation : le client annule (avant que le livreur ait le médicament). Une livraison
-// déjà payée est remboursée.
+// CancelReservation : le client annule (avant que le livreur ait les produits). Une livraison
+// déjà payée est remboursée ; le forfait de déblocage reste acquis.
 func (s *Service) CancelReservation(ctx context.Context, buyerID, id uuid.UUID, reason string) (Reservation, error) {
-	r, err := s.reservationRow(ctx, id)
+	r, err := s.buyerReservation(ctx, buyerID, id)
 	if err != nil {
 		return Reservation{}, err
 	}
-	if r.BuyerID != buyerID {
-		return Reservation{}, errReservationNotFound
-	}
-	if !slices.Contains([]string{ResReserved, ResAwaitingPayment, ResPaid}, r.Status) {
+	if !slices.Contains([]string{ResReserved, ResCourierSearch, ResAwaitingPayment, ResPaid}, r.Status) {
 		return Reservation{}, apperr.Conflict("not_cancellable", "Un livreur est déjà en route : la réservation ne peut plus être annulée.")
 	}
 	reason = validate.Clean(reason)
@@ -460,15 +656,15 @@ func (s *Service) CancelReservation(ctx context.Context, buyerID, id uuid.UUID, 
 		reason = "Annulée par le client."
 	}
 	if err := s.db.InTx(ctx, func(ctx context.Context) error {
-		return s.endReservation(ctx, r, ResCancelled, reason, true)
+		return s.endReservation(ctx, r, ResCancelled, reason, byBuyer)
 	}); err != nil {
 		return Reservation{}, err
 	}
 	return s.GetReservation(ctx, buyerID, id)
 }
 
-// PharmacyCancelReservation : la pharmacie n'a finalement plus le produit (avant la remise au
-// livreur). Sa réponse est retirée ; le client peut réserver ailleurs, remboursé s'il avait payé.
+// PharmacyCancelReservation : la pharmacie n'a finalement plus les produits (avant la remise au
+// livreur). Sa réponse est retirée ; le client est remboursé du forfait et de ce qu'il a payé.
 func (s *Service) PharmacyCancelReservation(ctx context.Context, ownerID, id uuid.UUID, reason string) (PharmacyReservation, error) {
 	r, _, err := s.ownReservation(ctx, ownerID, id)
 	if err != nil {
@@ -480,11 +676,11 @@ func (s *Service) PharmacyCancelReservation(ctx context.Context, ownerID, id uui
 	if err := v.Err(); err != nil {
 		return PharmacyReservation{}, err
 	}
-	if !slices.Contains([]string{ResReserved, ResAwaitingPayment, ResPaid, ResCourierAssigned}, r.Status) {
-		return PharmacyReservation{}, apperr.Conflict("not_cancellable", "Le médicament a déjà été remis : la réservation ne peut plus être annulée.")
+	if !slices.Contains([]string{ResReserved, ResCourierSearch, ResAwaitingPayment, ResPaid, ResCourierAssigned}, r.Status) {
+		return PharmacyReservation{}, apperr.Conflict("not_cancellable", "Les produits ont déjà été remis : la réservation ne peut plus être annulée.")
 	}
 	err = s.db.InTx(ctx, func(ctx context.Context) error {
-		if err := s.endReservation(ctx, r, ResCancelled, "Annulée par la pharmacie : "+reason, false); err != nil {
+		if err := s.endReservation(ctx, r, ResCancelled, "Annulée par la pharmacie : "+reason, byPharmacy); err != nil {
 			return err
 		}
 		return s.q(ctx).WithdrawResponse(ctx, r.ResponseID)
@@ -495,20 +691,20 @@ func (s *Service) PharmacyCancelReservation(ctx context.Context, ownerID, id uui
 	return s.PharmacyGetReservation(ctx, ownerID, id)
 }
 
-// expireReservation : retrait non effectué ou livraison non payée dans le délai (tâche).
+// expireReservation : mise de côté écoulée sans retrait ni livraison payée (tâche).
 func (s *Service) expireReservation(ctx context.Context, id uuid.UUID) error {
 	r, err := s.reservationRow(ctx, id)
 	if err != nil {
 		return err
 	}
-	if r.Status != ResReserved && r.Status != ResAwaitingPayment {
+	if !slices.Contains([]string{ResReserved, ResCourierSearch, ResAwaitingPayment}, r.Status) {
 		return nil
 	}
 	if r.ExpiresAt != nil && time.Now().Before(*r.ExpiresAt) {
 		return nil
 	}
 	return s.db.InTx(ctx, func(ctx context.Context) error {
-		err := s.endReservation(ctx, r, ResExpired, "Délai dépassé.", false)
+		err := s.endReservation(ctx, r, ResExpired, "Délai de mise de côté dépassé.", bySystem)
 		if apperr.IsCode(err, "invalid_transition") {
 			return nil // payée ou retirée entre-temps
 		}
@@ -517,16 +713,17 @@ func (s *Service) expireReservation(ctx context.Context, id uuid.UUID) error {
 }
 
 // endReservation annule ou expire une réservation en cours : propositions de course annulées,
-// livreur libéré, remboursement si la livraison était payée, parties prévenues. Dans une transaction.
-func (s *Service) endReservation(ctx context.Context, r store.GetReservationRow, to, reason string, byBuyer bool) error {
+// livreur libéré, remboursements (livraison payée ; forfait si la pharmacie annule), parties
+// prévenues. Dans une transaction.
+func (s *Service) endReservation(ctx context.Context, r store.GetReservationRow, to, reason string, by endedBy) error {
 	q := s.q(ctx)
 	cur, err := q.LockReservation(ctx, r.ID)
 	if err != nil {
 		return fmt.Errorf("verrou de la réservation : %w", err)
 	}
-	from := []string{ResReserved, ResAwaitingPayment, ResPaid, ResCourierAssigned}
+	from := []string{ResReserved, ResCourierSearch, ResAwaitingPayment, ResPaid, ResCourierAssigned}
 	if to == ResExpired {
-		from = []string{ResReserved, ResAwaitingPayment}
+		from = []string{ResReserved, ResCourierSearch, ResAwaitingPayment}
 	}
 	n, err := q.SetReservationStatus(ctx, store.SetReservationStatusParams{ID: r.ID, NewStatus: to, Reason: reason, FromStatuses: from})
 	if err != nil {
@@ -535,57 +732,59 @@ func (s *Service) endReservation(ctx context.Context, r store.GetReservationRow,
 	if n == 0 {
 		return apperr.Conflict("invalid_transition", "Cette réservation n'est plus annulable.")
 	}
-	if err := q.CancelCourierOffers(ctx, r.ID); err != nil {
-		return fmt.Errorf("propositions de course : %w", err)
+	if err := s.stopCourier(ctx, r.ID, "La course pharmacie a été annulée."); err != nil {
+		return err
 	}
-	if d, err := q.ActiveDeliveryForReservation(ctx, r.ID); err == nil {
-		if _, err := q.SetDeliveryStatus(ctx, store.SetDeliveryStatusParams{ID: d.ID, NewStatus: "cancelled", FromStatuses: []string{"assigned", "picked_up"}}); err != nil {
-			return fmt.Errorf("annulation de la course : %w", err)
-		}
-		if err := s.drivers.ReleaseFromErrand(ctx, d.DriverID); err != nil {
-			return err
-		}
-		if err := s.notify.Notify(ctx, notifications.Message{
-			UserID: d.DriverID, App: notifications.AppDriver, Kind: "pharmacy_mission_cancelled",
-			Title: "Course annulée", Body: "La course pharmacie a été annulée. Vous êtes de nouveau disponible.",
-			Data: map[string]string{"delivery_id": d.ID.String()},
-		}); err != nil {
-			return err
-		}
-	} else if !database.IsNoRows(err) {
-		return fmt.Errorf("course en cours : %w", err)
-	}
-	// Payée : remboursement automatique.
+	refunded := false
+	// Livraison payée : remboursée.
 	if slices.Contains([]string{ResPaid, ResCourierAssigned}, cur) {
 		pay, err := q.SucceededOrderPayment(ctx, &r.ID)
 		if err == nil {
 			if err := s.startRefund(ctx, nil, pay, reason); err != nil {
 				return err
 			}
+			refunded = true
 		} else if !database.IsNoRows(err) {
 			return fmt.Errorf("paiement de la réservation : %w", err)
+		}
+	}
+	// La pharmacie annule : le forfait de déblocage est remboursé.
+	if by == byPharmacy && r.UnlockPaymentID != nil {
+		pay, err := q.GetPayment(ctx, *r.UnlockPaymentID)
+		if err != nil {
+			return fmt.Errorf("paiement du déblocage : %w", err)
+		}
+		if pay.Status == PaySucceeded {
+			if err := s.startRefund(ctx, nil, pay, "Pharmacie débloquée qui a annulé : "+reason); err != nil {
+				return err
+			}
+			refunded = true
 		}
 	}
 	ph, err := q.GetPharmacy(ctx, r.PharmacyID)
 	if err != nil {
 		return fmt.Errorf("lecture de la pharmacie : %w", err)
 	}
-	if byBuyer {
-		if cur == ResAwaitingPayment {
-			return nil // la pharmacie n'avait encore rien préparé
-		}
+	if by == byBuyer {
 		return s.notify.Notify(ctx, notifications.Message{
 			UserID: ph.OwnerID, App: notifications.AppPharmacy, Kind: "pharmacy_reservation_cancelled",
-			Title: "Réservation annulée", Body: "Le client a annulé sa réservation.",
+			Title: "Réservation annulée", Body: "Le client a annulé : vous pouvez remettre ses produits en rayon.",
 			Data: map[string]string{"reservation_id": r.ID.String()},
 		})
 	}
-	title, body := "Réservation annulée", "La pharmacie n'a plus le produit. Choisissez une autre pharmacie dans votre alerte."
+	title, body := "Réservation annulée", "La pharmacie n'a plus vos produits. Débloquez une autre pharmacie qui a répondu."
 	if to == ResExpired {
-		title, body = "Réservation expirée", "Le délai est dépassé. Vous pouvez réserver à nouveau depuis votre alerte."
+		title, body = "Mise de côté terminée", "Le délai est dépassé : les produits ne sont plus réservés."
+		if err := s.notify.Notify(ctx, notifications.Message{
+			UserID: ph.OwnerID, App: notifications.AppPharmacy, Kind: "pharmacy_reservation_expired",
+			Title: "Mise de côté terminée", Body: "Le client n'est pas venu : vous pouvez remettre les produits en rayon.",
+			Data: map[string]string{"reservation_id": r.ID.String()},
+		}); err != nil {
+			return err
+		}
 	}
-	if slices.Contains([]string{ResPaid, ResCourierAssigned}, cur) {
-		body += " Votre paiement vous est remboursé."
+	if refunded {
+		body += " Vous êtes remboursé."
 	}
 	return s.notify.Notify(ctx, notifications.Message{
 		UserID: r.BuyerID, App: notifications.AppBuyer, Kind: "pharmacy_reservation_" + to, Title: title, Body: body,

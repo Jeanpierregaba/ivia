@@ -37,6 +37,9 @@ type Pharmacy struct {
 	OpeningHours   string     `json:"opening_hours"`
 	IsOpen         bool       `json:"is_open"`
 	OnDuty         bool       `json:"on_duty"`
+	Open24h        bool       `json:"open_24h"`
+	// DutyUntil : fin de la garde en cours selon le planning (nul hors garde planifiée).
+	DutyUntil *time.Time `json:"duty_until"`
 	// Status résume : pending_review, approved, rejected ou suspended.
 	Status           string     `json:"status"`
 	ReviewStatus     string     `json:"review_status"`
@@ -118,7 +121,7 @@ func (s *Service) pharmacyView(ctx context.Context, id uuid.UUID, withURLs bool)
 	p := Pharmacy{
 		ID: r.ID, Name: r.Name, LicenseNumber: r.LicenseNumber, Phone: r.Phone, AddressText: r.AddressText,
 		NeighborhoodID: r.NeighborhoodID, Location: geo.Point{Lat: r.Lat, Lng: r.Lng}, OpeningHours: r.OpeningHours,
-		IsOpen: r.IsOpen, OnDuty: r.OnDuty, Status: pharmacyStatus(r), ReviewStatus: r.ReviewStatus, ReviewNote: r.ReviewNote,
+		IsOpen: r.IsOpen, OnDuty: r.OnDuty, Open24h: r.Open24h, DutyUntil: dutyUntil(r.DutyUntil), Status: pharmacyStatus(r), ReviewStatus: r.ReviewStatus, ReviewNote: r.ReviewNote,
 		ReviewedAt: r.ReviewedAt, SuspendedAt: r.SuspendedAt, SuspensionReason: r.SuspensionReason,
 		Documents: make([]Document, 0, len(docs)), MissingDocuments: []string{}, CreatedAt: r.CreatedAt, UpdatedAt: r.UpdatedAt,
 	}
@@ -274,14 +277,21 @@ func (s *Service) UpdateContact(ctx context.Context, ownerID uuid.UUID, in Conta
 	return p, err
 }
 
-// SetOpenStatus ouvre ou ferme la pharmacie, et la déclare de garde ou non. Seule une pharmacie
-// ouverte ou de garde reçoit les alertes.
-func (s *Service) SetOpenStatus(ctx context.Context, ownerID uuid.UUID, isOpen, onDuty bool) (Pharmacy, error) {
+// OpenStatusInput : ouverture, garde déclarée et ouverture 24 h/24.
+type OpenStatusInput struct {
+	IsOpen  bool `json:"is_open"`
+	OnDuty  bool `json:"on_duty"`
+	Open24h bool `json:"open_24h"`
+}
+
+// SetOpenStatus ouvre ou ferme la pharmacie, la déclare de garde ou ouverte 24 h/24. Reçoivent
+// les alertes : les pharmacies ouvertes, de garde (déclarée ou planifiée) ou ouvertes 24 h/24.
+func (s *Service) SetOpenStatus(ctx context.Context, ownerID uuid.UUID, in OpenStatusInput) (Pharmacy, error) {
 	r, err := s.requireActivePharmacy(ctx, ownerID)
 	if err != nil {
 		return Pharmacy{}, err
 	}
-	if err := s.q(ctx).SetOpenStatus(ctx, store.SetOpenStatusParams{ID: r.ID, IsOpen: isOpen, OnDuty: onDuty}); err != nil {
+	if err := s.q(ctx).SetOpenStatus(ctx, store.SetOpenStatusParams{ID: r.ID, IsOpen: in.IsOpen, OnDuty: in.OnDuty, Open24h: in.Open24h}); err != nil {
 		return Pharmacy{}, fmt.Errorf("ouverture de la pharmacie : %w", err)
 	}
 	p, _, err := s.pharmacyView(ctx, r.ID, false)

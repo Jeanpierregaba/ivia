@@ -68,7 +68,7 @@ type RefundArgs struct {
 // Kind implémente river.JobArgs.
 func (RefundArgs) Kind() string { return "pharmacy.refund" }
 
-// PurgePhotosArgs : suppression quotidienne des photos d'ordonnance et de boîte arrivées à échéance.
+// PurgePhotosArgs : suppression horaire des photos d'ordonnance et de boîte arrivées à échéance.
 type PurgePhotosArgs struct{}
 
 // Kind implémente river.JobArgs.
@@ -109,25 +109,48 @@ func (s *Service) RegisterJobs(reg *jobs.Registry) {
 	add(reg, func(ctx context.Context, a RefundArgs) error { return s.executeRefund(ctx, a.PaymentID) })
 	add(reg, func(ctx context.Context, _ PurgePhotosArgs) error { return s.PurgePhotos(ctx) })
 	reg.AddPeriodic(2*time.Minute, func() river.JobArgs { return RecheckPaymentsArgs{} })
-	reg.AddPeriodic(24*time.Hour, func() river.JobArgs { return PurgePhotosArgs{} })
+	reg.AddPeriodic(time.Hour, func() river.JobArgs { return PurgePhotosArgs{} })
 }
 
-// PurgePhotos supprime les photos d'alerte plus anciennes que la durée de conservation (comptée
-// depuis la fin de l'alerte, ou sa création si elle n'est pas terminée).
+// PurgePhotos supprime les photos d'alerte (ordonnances, boîtes) plus anciennes que la durée de
+// conservation, comptée depuis le lancement de l'alerte (24 h par défaut).
 func (s *Service) PurgePhotos(ctx context.Context) error {
 	settings, err := s.Settings(ctx)
 	if err != nil {
 		return err
 	}
-	before := time.Now().AddDate(0, 0, -int(settings.PhotoRetentionDays))
-	rows, err := s.q(ctx).AlertPhotosToPurge(ctx, &before)
+	before := time.Now().Add(-time.Duration(settings.PhotoRetentionHours) * time.Hour)
+	q := s.q(ctx)
+	rows, err := q.AlertPhotosDue(ctx, before)
 	if err != nil {
 		return fmt.Errorf("photos à supprimer : %w", err)
 	}
 	for _, r := range rows {
+		if err := s.purgeAlertPhoto(ctx, r.ID, r.ObjectKey); err != nil {
+			return err
+		}
+	}
+	// Photos des alertes antérieures à 00028 (une photo par alerte).
+	legacy, err := q.AlertPhotosToPurge(ctx, &before)
+	if err != nil {
+		return fmt.Errorf("photos à supprimer : %w", err)
+	}
+	for _, r := range legacy {
 		if err := s.purgePhoto(ctx, r.ID, r.PhotoKey); err != nil {
 			return err
 		}
+	}
+	return nil
+}
+
+func (s *Service) purgeAlertPhoto(ctx context.Context, photoID uuid.UUID, key *string) error {
+	if key != nil {
+		if err := s.uploads.Delete(ctx, uploads.PharmacyAlertPhoto, *key); err != nil {
+			return err
+		}
+	}
+	if err := s.q(ctx).MarkAlertPhotoPurged(ctx, photoID); err != nil {
+		return fmt.Errorf("photo supprimée : %w", err)
 	}
 	return nil
 }
@@ -167,6 +190,15 @@ func (s *Service) OnAccountDeleted(ctx context.Context, userID uuid.UUID) error 
 	}
 	for _, p := range photos {
 		if err := s.purgePhoto(ctx, p.ID, p.PhotoKey); err != nil {
+			return err
+		}
+	}
+	current, err := q.BuyerAlertPhotos(ctx, userID)
+	if err != nil {
+		return fmt.Errorf("photos du client : %w", err)
+	}
+	for _, p := range current {
+		if err := s.purgeAlertPhoto(ctx, p.ID, p.ObjectKey); err != nil {
 			return err
 		}
 	}

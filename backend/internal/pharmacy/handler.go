@@ -6,6 +6,7 @@ import (
 
 	"github.com/google/uuid"
 
+	"ivia/backend/internal/geo"
 	"ivia/backend/internal/payments"
 	"ivia/backend/internal/platform/apperr"
 	"ivia/backend/internal/platform/httpapi"
@@ -17,30 +18,46 @@ import (
 // plusieurs pharmacies).
 const AlertsPerUserPerHour = 10
 
+// CodeAttemptsPerWindow : essais de code de remise (retrait ou livraison) par réservation et par
+// quart d'heure ; le code n'a que 4 chiffres.
+const CodeAttemptsPerWindow = 5
+
 // Handler expose les routes du module.
 type Handler struct {
 	svc    *Service
 	alerts *ratelimit.Limiter
+	codes  *ratelimit.Limiter
 	// fake : faux prestataire, exposé en développement local seulement (nil sinon).
 	fake *payments.FakeProvider
 }
 
 // NewHandler crée le handler. fake non nul ajoute la route de simulation des paiements (local).
 func NewHandler(svc *Service, fake *payments.FakeProvider) *Handler {
-	return &Handler{svc: svc, alerts: ratelimit.New(AlertsPerUserPerHour, time.Hour), fake: fake}
+	return &Handler{
+		svc: svc, alerts: ratelimit.New(AlertsPerUserPerHour, time.Hour), codes: ratelimit.New(CodeAttemptsPerWindow, 15*time.Minute),
+		fake: fake,
+	}
 }
 
 // Register enregistre les routes.
 func (h *Handler) Register(rt *httpapi.Router) {
+	// Public : pharmacies de garde (accueil, « De garde maintenant »).
+	rt.Public("GET /v1/pharmacies/on-duty", h.onDuty)
+
 	// Client (app acheteur).
+	rt.Auth("GET /v1/medicines", h.searchMedicines)
+	rt.Auth("GET /v1/medicine-alerts/preview", h.preview)
 	rt.Auth("POST /v1/medicine-alerts", h.createAlert)
 	rt.Auth("GET /v1/medicine-alerts", h.listAlerts)
 	rt.Auth("GET /v1/medicine-alerts/{id}", h.getAlert)
 	rt.Auth("POST /v1/medicine-alerts/{id}/cancel", h.cancelAlert)
-	rt.Auth("POST /v1/medicine-alerts/{id}/unlock", h.unlock)
-	rt.Auth("POST /v1/medicine-alerts/{id}/reservations", h.reserve)
+	rt.Auth("POST /v1/medicine-alerts/{id}/relaunch", h.relaunch)
+	rt.Auth("POST /v1/medicine-alerts/{id}/responses/{responseId}/unlock", h.unlock)
 	rt.Auth("GET /v1/medicine-reservations", h.listReservations)
 	rt.Auth("GET /v1/medicine-reservations/{id}", h.getReservation)
+	rt.Auth("GET /v1/medicine-reservations/{id}/delivery-quote", h.deliveryQuote)
+	rt.Auth("POST /v1/medicine-reservations/{id}/delivery", h.chooseDelivery)
+	rt.Auth("POST /v1/medicine-reservations/{id}/pickup", h.choosePickup)
 	rt.Auth("POST /v1/medicine-reservations/{id}/pay", h.payReservation)
 	rt.Auth("POST /v1/medicine-reservations/{id}/cancel", h.cancelReservation)
 	rt.Auth("GET /v1/medicine-payments/{id}", h.getPayment)
@@ -55,6 +72,7 @@ func (h *Handler) Register(rt *httpapi.Router) {
 	rt.Auth("PATCH /v1/pharmacy/me", h.updateContact)
 	rt.Auth("POST /v1/pharmacy/me/documents", h.addDocument)
 	ph := identity.RolePharmacist
+	rt.Roles("GET /v1/pharmacy/me/duty-shifts", h.myDutyShifts, ph)
 	rt.Roles("PUT /v1/pharmacy/me/status", h.setStatus, ph)
 	rt.Roles("GET /v1/pharmacy/inbox", h.inbox, ph)
 	rt.Roles("GET /v1/pharmacy/inbox/{id}", h.inboxGet, ph)
@@ -62,6 +80,7 @@ func (h *Handler) Register(rt *httpapi.Router) {
 	rt.Roles("POST /v1/pharmacy/inbox/{id}/decline", h.decline, ph)
 	rt.Roles("GET /v1/pharmacy/reservations", h.pharmacyReservations, ph)
 	rt.Roles("GET /v1/pharmacy/reservations/{id}", h.pharmacyReservation, ph)
+	rt.Roles("POST /v1/pharmacy/reservations/{id}/prepared", h.prepared, ph)
 	rt.Roles("POST /v1/pharmacy/reservations/{id}/complete", h.completePickup, ph)
 	rt.Roles("POST /v1/pharmacy/reservations/{id}/cancel", h.pharmacyCancel, ph)
 	rt.Roles("GET /v1/pharmacy/earnings", h.earnings, ph)
@@ -84,6 +103,12 @@ func (h *Handler) Register(rt *httpapi.Router) {
 	rt.Roles("POST /v1/admin/pharmacies/{id}/review", h.adminReview, ad)
 	rt.Roles("GET /v1/admin/pharmacies/{id}/earnings", h.adminEarnings, ad)
 	rt.Roles("POST /v1/admin/pharmacies/{id}/payouts", h.adminPayout, ad)
+	rt.Roles("GET /v1/admin/pharmacies/{id}/duty-shifts", h.adminDutyShifts, ad)
+	rt.Roles("POST /v1/admin/pharmacies/{id}/duty-shifts", h.adminAddDutyShift, ad)
+	rt.Roles("DELETE /v1/admin/pharmacy-duty-shifts/{id}", h.adminDeleteDutyShift, ad)
+	rt.Roles("GET /v1/admin/medicines", h.adminMedicines, ad)
+	rt.Roles("POST /v1/admin/medicines", h.adminCreateMedicine, ad)
+	rt.Roles("PATCH /v1/admin/medicines/{id}", h.adminUpdateMedicine, ad)
 	rt.Roles("GET /v1/admin/medicine-alerts", h.adminAlerts, ad)
 	rt.Roles("GET /v1/admin/medicine-alerts/{id}", h.adminAlert, ad)
 	rt.Roles("GET /v1/admin/medicine-payments", h.adminPayments, ad)
@@ -174,20 +199,116 @@ func (h *Handler) unlock(w http.ResponseWriter, r *http.Request) error {
 	if err := httpapi.Decode(r, &in); err != nil {
 		return err
 	}
-	v, err := withID(r, func(id uuid.UUID) (any, error) { return h.svc.Unlock(r.Context(), me(r), id, in) })
+	responseID, err := httpapi.PathUUID(r, "responseId")
+	if err != nil {
+		return err
+	}
+	v, err := withID(r, func(id uuid.UUID) (any, error) { return h.svc.Unlock(r.Context(), me(r), id, responseID, in) })
 	return ok(w, v, err)
 }
 
-func (h *Handler) reserve(w http.ResponseWriter, r *http.Request) error {
-	var in ReserveInput
+func (h *Handler) relaunch(w http.ResponseWriter, r *http.Request) error {
+	var in RelaunchInput
 	if err := httpapi.Decode(r, &in); err != nil {
 		return err
 	}
-	v, err := withID(r, func(id uuid.UUID) (any, error) { return h.svc.Reserve(r.Context(), me(r), id, in) })
+	if allowed, retry := h.alerts.Allow(me(r).String()); !allowed {
+		return apperr.TooManyRequests("rate_limited", "Trop d'alertes lancées. Réessayez plus tard.", retry)
+	}
+	v, err := withID(r, func(id uuid.UUID) (any, error) { return h.svc.Relaunch(r.Context(), me(r), id, in) })
 	if err != nil {
 		return err
 	}
 	return httpapi.Created(w, v)
+}
+
+// position lit address_id ou lat/lng dans la requête.
+func position(q *httpapi.Query) (*uuid.UUID, *geo.Point) {
+	addressID := q.UUID("address_id")
+	lat, lng := q.Float("lat", -90, 90), q.Float("lng", -180, 180)
+	if lat != nil && lng != nil {
+		return addressID, &geo.Point{Lat: *lat, Lng: *lng}
+	}
+	return addressID, nil
+}
+
+func (h *Handler) preview(w http.ResponseWriter, r *http.Request) error {
+	q := httpapi.NewQuery(r)
+	addressID, loc := position(q)
+	if err := q.Err(); err != nil {
+		return err
+	}
+	v, err := h.svc.Preview(r.Context(), me(r), addressID, loc)
+	return ok(w, v, err)
+}
+
+func (h *Handler) onDuty(w http.ResponseWriter, r *http.Request) error {
+	q := httpapi.NewQuery(r)
+	q.Require("lat")
+	q.Require("lng")
+	_, loc := position(q)
+	radius := q.Int64("radius_m", 500, 50_000)
+	limit := q.Int64("limit", 1, 50)
+	if err := q.Err(); err != nil {
+		return err
+	}
+	rad, lim := int32(10_000), int32(20)
+	if radius != nil {
+		rad = int32(*radius)
+	}
+	if limit != nil {
+		lim = int32(*limit)
+	}
+	items, err := h.svc.OnDuty(r.Context(), *loc, rad, lim)
+	return ok(w, map[string]any{"items": items}, err)
+}
+
+func (h *Handler) searchMedicines(w http.ResponseWriter, r *http.Request) error {
+	q := httpapi.NewQuery(r)
+	text := q.String("q", 80)
+	if err := q.Err(); err != nil {
+		return err
+	}
+	items, err := h.svc.SearchMedicines(r.Context(), text, 15)
+	return ok(w, map[string]any{"items": items}, err)
+}
+
+func (h *Handler) deliveryQuote(w http.ResponseWriter, r *http.Request) error {
+	q := httpapi.NewQuery(r)
+	q.Require("address_id")
+	addressID := q.UUID("address_id")
+	if err := q.Err(); err != nil {
+		return err
+	}
+	v, err := withID(r, func(id uuid.UUID) (any, error) { return h.svc.DeliveryQuote(r.Context(), me(r), id, *addressID) })
+	return ok(w, v, err)
+}
+
+func (h *Handler) chooseDelivery(w http.ResponseWriter, r *http.Request) error {
+	var in struct {
+		AddressID uuid.UUID `json:"address_id"`
+	}
+	if err := httpapi.Decode(r, &in); err != nil {
+		return err
+	}
+	if in.AddressID == uuid.Nil {
+		return apperr.Validation(map[string]string{"address_id": "Adresse de livraison obligatoire."})
+	}
+	v, err := withID(r, func(id uuid.UUID) (any, error) { return h.svc.ChooseDelivery(r.Context(), me(r), id, in.AddressID) })
+	return ok(w, v, err)
+}
+
+func (h *Handler) choosePickup(w http.ResponseWriter, r *http.Request) error {
+	v, err := withID(r, func(id uuid.UUID) (any, error) { return h.svc.ChoosePickup(r.Context(), me(r), id) })
+	return ok(w, v, err)
+}
+
+// codeAllowed limite les essais de code par réservation ou par course.
+func (h *Handler) codeAllowed(id uuid.UUID) error {
+	if allowed, retry := h.codes.Allow(id.String()); !allowed {
+		return apperr.TooManyRequests("too_many_attempts", "Trop de codes essayés. Réessayez dans quelques minutes.", retry)
+	}
+	return nil
 }
 
 func (h *Handler) listReservations(w http.ResponseWriter, r *http.Request) error {
@@ -289,15 +410,22 @@ func (h *Handler) addDocument(w http.ResponseWriter, r *http.Request) error {
 }
 
 func (h *Handler) setStatus(w http.ResponseWriter, r *http.Request) error {
-	var in struct {
-		IsOpen bool `json:"is_open"`
-		OnDuty bool `json:"on_duty"`
-	}
+	var in OpenStatusInput
 	if err := httpapi.Decode(r, &in); err != nil {
 		return err
 	}
-	p, err := h.svc.SetOpenStatus(r.Context(), me(r), in.IsOpen, in.OnDuty)
+	p, err := h.svc.SetOpenStatus(r.Context(), me(r), in)
 	return ok(w, p, err)
+}
+
+func (h *Handler) myDutyShifts(w http.ResponseWriter, r *http.Request) error {
+	items, err := h.svc.MyDutyShifts(r.Context(), me(r))
+	return ok(w, map[string]any{"items": items}, err)
+}
+
+func (h *Handler) prepared(w http.ResponseWriter, r *http.Request) error {
+	v, err := withID(r, func(id uuid.UUID) (any, error) { return h.svc.MarkPrepared(r.Context(), me(r), id) })
+	return ok(w, v, err)
 }
 
 func (h *Handler) inbox(w http.ResponseWriter, r *http.Request) error {
@@ -355,7 +483,12 @@ func (h *Handler) completePickup(w http.ResponseWriter, r *http.Request) error {
 	if err := httpapi.Decode(r, &in); err != nil {
 		return err
 	}
-	v, err := withID(r, func(id uuid.UUID) (any, error) { return h.svc.CompletePickup(r.Context(), me(r), id, in.Code) })
+	v, err := withID(r, func(id uuid.UUID) (any, error) {
+		if err := h.codeAllowed(id); err != nil {
+			return nil, err
+		}
+		return h.svc.CompletePickup(r.Context(), me(r), id, in.Code)
+	})
 	return ok(w, v, err)
 }
 
@@ -418,11 +551,19 @@ func (h *Handler) pickedUp(w http.ResponseWriter, r *http.Request) error {
 }
 
 func (h *Handler) delivered(w http.ResponseWriter, r *http.Request) error {
-	var in codeInput
+	var in struct {
+		Code                string `json:"code"`
+		PrescriptionChecked bool   `json:"prescription_checked"`
+	}
 	if err := httpapi.Decode(r, &in); err != nil {
 		return err
 	}
-	v, err := withID(r, func(id uuid.UUID) (any, error) { return h.svc.CourierDeliver(r.Context(), me(r), id, in.Code) })
+	v, err := withID(r, func(id uuid.UUID) (any, error) {
+		if err := h.codeAllowed(id); err != nil {
+			return nil, err
+		}
+		return h.svc.CourierDeliver(r.Context(), me(r), id, in.Code, in.PrescriptionChecked)
+	})
 	return ok(w, v, err)
 }
 
@@ -496,6 +637,75 @@ func (h *Handler) adminPayout(w http.ResponseWriter, r *http.Request) error {
 		return err
 	}
 	return httpapi.Created(w, v)
+}
+
+func (h *Handler) adminDutyShifts(w http.ResponseWriter, r *http.Request) error {
+	v, err := withID(r, func(id uuid.UUID) (any, error) {
+		items, err := h.svc.AdminDutyShifts(r.Context(), id)
+		return map[string]any{"items": items}, err
+	})
+	return ok(w, v, err)
+}
+
+func (h *Handler) adminAddDutyShift(w http.ResponseWriter, r *http.Request) error {
+	var in DutyShiftInput
+	if err := httpapi.Decode(r, &in); err != nil {
+		return err
+	}
+	v, err := withID(r, func(id uuid.UUID) (any, error) { return h.svc.AddDutyShift(r.Context(), me(r), id, in) })
+	if err != nil {
+		return err
+	}
+	return httpapi.Created(w, v)
+}
+
+func (h *Handler) adminDeleteDutyShift(w http.ResponseWriter, r *http.Request) error {
+	var in reasonInput
+	if err := httpapi.Decode(r, &in); err != nil {
+		return err
+	}
+	id, err := httpapi.PathUUID(r, "id")
+	if err != nil {
+		return err
+	}
+	if err := h.svc.DeleteDutyShift(r.Context(), me(r), id, in.Reason); err != nil {
+		return err
+	}
+	return httpapi.NoContent(w)
+}
+
+func (h *Handler) adminMedicines(w http.ResponseWriter, r *http.Request) error {
+	p, q, err := page(r)
+	if err != nil {
+		return err
+	}
+	text := q.String("q", 80)
+	if err := q.Err(); err != nil {
+		return err
+	}
+	items, err := h.svc.AdminListMedicines(r.Context(), text, p.FetchLimit(), int32(p.Offset))
+	return ok(w, httpapi.NewList(items, p), err)
+}
+
+func (h *Handler) adminCreateMedicine(w http.ResponseWriter, r *http.Request) error {
+	var in MedicineInput
+	if err := httpapi.Decode(r, &in); err != nil {
+		return err
+	}
+	m, err := h.svc.CreateMedicine(r.Context(), me(r), in)
+	if err != nil {
+		return err
+	}
+	return httpapi.Created(w, m)
+}
+
+func (h *Handler) adminUpdateMedicine(w http.ResponseWriter, r *http.Request) error {
+	var in MedicineInput
+	if err := httpapi.Decode(r, &in); err != nil {
+		return err
+	}
+	v, err := withID(r, func(id uuid.UUID) (any, error) { return h.svc.UpdateMedicine(r.Context(), me(r), id, in) })
+	return ok(w, v, err)
 }
 
 func (h *Handler) adminAlerts(w http.ResponseWriter, r *http.Request) error {

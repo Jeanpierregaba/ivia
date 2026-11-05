@@ -5849,9 +5849,148 @@ paths:
             application/json:
               schema:
                 "$ref": "#/components/schemas/Error"
+  "/v1/pharmacies/on-duty":
+    get:
+      summary: "Pharmacies de garde, ouvertes 24 h/24 ou ouvertes, les plus proches d'abord (accueil)"
+      tags:
+        - Pharmacie
+      operationId: getPharmaciesOnDuty
+      security: []
+      parameters:
+        - name: lat
+          in: query
+          required: true
+          schema:
+            type: number
+            format: double
+            minimum: -90
+            maximum: 90
+        - name: lng
+          in: query
+          required: true
+          schema:
+            type: number
+            format: double
+            minimum: -180
+            maximum: 180
+        - name: radius_m
+          in: query
+          required: false
+          schema:
+            type: integer
+            minimum: 500
+            maximum: 50000
+            default: 10000
+        - name: limit
+          in: query
+          required: false
+          schema:
+            type: integer
+            minimum: 1
+            maximum: 50
+            default: 20
+      responses:
+        "200":
+          description: "Succès"
+          content:
+            application/json:
+              schema:
+                type: object
+                properties:
+                  items:
+                    type: array
+                    items:
+                      "$ref": "#/components/schemas/OnDutyPharmacy"
+                required:
+                  - items
+        default:
+          description: "Erreur (voir `code`)"
+          content:
+            application/json:
+              schema:
+                "$ref": "#/components/schemas/Error"
+  "/v1/medicines":
+    get:
+      summary: "Rechercher un médicament dans la base (2 lettres au moins, 15 résultats)"
+      tags:
+        - Alerte médicament
+      operationId: getMedicines
+      parameters:
+        - name: q
+          in: query
+          required: false
+          schema:
+            type: string
+            maxLength: 80
+      x-roles:
+        - any
+      responses:
+        "200":
+          description: "Succès"
+          content:
+            application/json:
+              schema:
+                type: object
+                properties:
+                  items:
+                    type: array
+                    items:
+                      "$ref": "#/components/schemas/Medicine"
+                required:
+                  - items
+        default:
+          description: "Erreur (voir `code`)"
+          content:
+            application/json:
+              schema:
+                "$ref": "#/components/schemas/Error"
+  "/v1/medicine-alerts/preview":
+    get:
+      summary: "Pharmacies joignables par rayon, forfait et délais, avant de lancer l'alerte (address_id ou lat/lng)"
+      tags:
+        - Alerte médicament
+      operationId: getMedicineAlertsPreview
+      parameters:
+        - name: address_id
+          in: query
+          required: false
+          schema:
+            type: string
+            format: uuid
+        - name: lat
+          in: query
+          required: false
+          schema:
+            type: number
+            format: double
+            minimum: -90
+            maximum: 90
+        - name: lng
+          in: query
+          required: false
+          schema:
+            type: number
+            format: double
+            minimum: -180
+            maximum: 180
+      x-roles:
+        - any
+      responses:
+        "200":
+          description: "Succès"
+          content:
+            application/json:
+              schema:
+                "$ref": "#/components/schemas/MedicineAlertPreview"
+        default:
+          description: "Erreur (voir `code`)"
+          content:
+            application/json:
+              schema:
+                "$ref": "#/components/schemas/Error"
   "/v1/medicine-alerts":
     post:
-      summary: "Lancer une alerte médicament (photo d'ordonnance, photo de la boîte ou nom)"
+      summary: "Lancer une alerte : produits (base ou saisie libre) et/ou photos d'ordonnance ou de boîte"
       tags:
         - Alerte médicament
       operationId: postMedicineAlerts
@@ -5927,7 +6066,7 @@ paths:
                 "$ref": "#/components/schemas/Error"
   "/v1/medicine-alerts/{id}":
     get:
-      summary: "Alerte et réponses classées par distance (pharmacies masquées avant déblocage)"
+      summary: "Alerte, compteurs (contactées, vues, réponses) et réponses classées par distance"
       tags:
         - Alerte médicament
       operationId: getMedicineAlertsById
@@ -5981,14 +6120,54 @@ paths:
             application/json:
               schema:
                 "$ref": "#/components/schemas/Error"
-  "/v1/medicine-alerts/{id}/unlock":
+  "/v1/medicine-alerts/{id}/relaunch":
     post:
-      summary: "Débloquer l'identité des pharmacies (forfait payé une fois par alerte)"
+      summary: "Relancer une alerte terminée (autre rayon, produits modifiables, photos reprises)"
       tags:
         - Alerte médicament
-      operationId: postMedicineAlertsByIdUnlock
+      operationId: postMedicineAlertsByIdRelaunch
       parameters:
         - name: id
+          in: path
+          required: true
+          schema:
+            type: string
+            format: uuid
+      x-roles:
+        - any
+      requestBody:
+        required: true
+        content:
+          application/json:
+            schema:
+              "$ref": "#/components/schemas/MedicineRelaunchInput"
+      responses:
+        "201":
+          description: "Succès"
+          content:
+            application/json:
+              schema:
+                "$ref": "#/components/schemas/MedicineAlert"
+        default:
+          description: "Erreur (voir `code`)"
+          content:
+            application/json:
+              schema:
+                "$ref": "#/components/schemas/Error"
+  "/v1/medicine-alerts/{id}/responses/{responseId}/unlock":
+    post:
+      summary: "Débloquer UNE pharmacie (forfait par pharmacie) : identité visible et produits mis de côté"
+      tags:
+        - Alerte médicament
+      operationId: postMedicineAlertsByIdResponsesByResponseIdUnlock
+      parameters:
+        - name: id
+          in: path
+          required: true
+          schema:
+            type: string
+            format: uuid
+        - name: responseId
           in: path
           required: true
           schema:
@@ -6009,40 +6188,6 @@ paths:
             application/json:
               schema:
                 "$ref": "#/components/schemas/MedicineUnlockResult"
-        default:
-          description: "Erreur (voir `code`)"
-          content:
-            application/json:
-              schema:
-                "$ref": "#/components/schemas/Error"
-  "/v1/medicine-alerts/{id}/reservations":
-    post:
-      summary: "Réserver chez une pharmacie : retrait (obligatoire sur ordonnance) ou livraison ivia"
-      tags:
-        - Alerte médicament
-      operationId: postMedicineAlertsByIdReservations
-      parameters:
-        - name: id
-          in: path
-          required: true
-          schema:
-            type: string
-            format: uuid
-      x-roles:
-        - any
-      requestBody:
-        required: true
-        content:
-          application/json:
-            schema:
-              "$ref": "#/components/schemas/MedicineReserveInput"
-      responses:
-        "201":
-          description: "Succès"
-          content:
-            application/json:
-              schema:
-                "$ref": "#/components/schemas/MedicineReservation"
         default:
           description: "Erreur (voir `code`)"
           content:
@@ -6101,7 +6246,7 @@ paths:
                 "$ref": "#/components/schemas/Error"
   "/v1/medicine-reservations/{id}":
     get:
-      summary: "Réservation (code de remise compris)"
+      summary: "Réservation : produits, distance, suivi, code de remise"
       tags:
         - Alerte médicament
       operationId: getMedicineReservationsById
@@ -6127,9 +6272,105 @@ paths:
             application/json:
               schema:
                 "$ref": "#/components/schemas/Error"
+  "/v1/medicine-reservations/{id}/delivery-quote":
+    get:
+      summary: "Devis de livraison ivia vers une adresse (aucun engagement)"
+      tags:
+        - Alerte médicament
+      operationId: getMedicineReservationsByIdDeliveryQuote
+      parameters:
+        - name: id
+          in: path
+          required: true
+          schema:
+            type: string
+            format: uuid
+        - name: address_id
+          in: query
+          required: true
+          schema:
+            type: string
+            format: uuid
+      x-roles:
+        - any
+      responses:
+        "200":
+          description: "Succès"
+          content:
+            application/json:
+              schema:
+                "$ref": "#/components/schemas/MedicineDeliveryQuote"
+        default:
+          description: "Erreur (voir `code`)"
+          content:
+            application/json:
+              schema:
+                "$ref": "#/components/schemas/Error"
+  "/v1/medicine-reservations/{id}/delivery":
+    post:
+      summary: "Choisir la livraison ivia : lance la recherche du livreur le plus proche (paiement après acceptation)"
+      tags:
+        - Alerte médicament
+      operationId: postMedicineReservationsByIdDelivery
+      parameters:
+        - name: id
+          in: path
+          required: true
+          schema:
+            type: string
+            format: uuid
+      x-roles:
+        - any
+      requestBody:
+        required: true
+        content:
+          application/json:
+            schema:
+              "$ref": "#/components/schemas/MedicineDeliveryInput"
+      responses:
+        "200":
+          description: "Succès"
+          content:
+            application/json:
+              schema:
+                "$ref": "#/components/schemas/MedicineReservation"
+        default:
+          description: "Erreur (voir `code`)"
+          content:
+            application/json:
+              schema:
+                "$ref": "#/components/schemas/Error"
+  "/v1/medicine-reservations/{id}/pickup":
+    post:
+      summary: "Revenir au retrait sur place (arrête la recherche de livreur)"
+      tags:
+        - Alerte médicament
+      operationId: postMedicineReservationsByIdPickup
+      parameters:
+        - name: id
+          in: path
+          required: true
+          schema:
+            type: string
+            format: uuid
+      x-roles:
+        - any
+      responses:
+        "200":
+          description: "Succès"
+          content:
+            application/json:
+              schema:
+                "$ref": "#/components/schemas/MedicineReservation"
+        default:
+          description: "Erreur (voir `code`)"
+          content:
+            application/json:
+              schema:
+                "$ref": "#/components/schemas/Error"
   "/v1/medicine-reservations/{id}/pay":
     post:
-      summary: "Payer une livraison (médicament et frais de livraison)"
+      summary: "Payer produits et livraison, une fois le livreur trouvé (statut awaiting_payment)"
       tags:
         - Alerte médicament
       operationId: postMedicineReservationsByIdPay
@@ -6197,7 +6438,7 @@ paths:
                 "$ref": "#/components/schemas/Error"
   "/v1/medicine-payments/{id}":
     get:
-      summary: "Paiement (déblocage ou livraison)"
+      summary: "Paiement (déblocage ou commande livrée)"
       tags:
         - Alerte médicament
       operationId: getMedicinePaymentsById
@@ -6391,9 +6632,37 @@ paths:
             application/json:
               schema:
                 "$ref": "#/components/schemas/Error"
+  "/v1/pharmacy/me/duty-shifts":
+    get:
+      summary: "Mon planning de garde (à venir et en cours)"
+      tags:
+        - Pharmacie
+      operationId: getPharmacyMeDutyShifts
+      x-roles:
+        - pharmacist
+      responses:
+        "200":
+          description: "Succès"
+          content:
+            application/json:
+              schema:
+                type: object
+                properties:
+                  items:
+                    type: array
+                    items:
+                      "$ref": "#/components/schemas/PharmacyDutyShift"
+                required:
+                  - items
+        default:
+          description: "Erreur (voir `code`)"
+          content:
+            application/json:
+              schema:
+                "$ref": "#/components/schemas/Error"
   "/v1/pharmacy/me/status":
     put:
-      summary: "Ouvrir, fermer, déclarer de garde (seules les pharmacies ouvertes ou de garde reçoivent les alertes)"
+      summary: "Ouvrir, fermer, déclarer de garde ou 24 h/24 (seules ces pharmacies reçoivent les alertes)"
       tags:
         - Pharmacie
       operationId: putPharmacyMeStatus
@@ -6476,7 +6745,7 @@ paths:
                 "$ref": "#/components/schemas/Error"
   "/v1/pharmacy/inbox/{id}":
     get:
-      summary: "Alerte reçue, avec lien temporaire vers la photo"
+      summary: "Alerte reçue (marquée vue), avec liens temporaires vers les photos"
       tags:
         - Pharmacie
       operationId: getPharmacyInboxById
@@ -6504,7 +6773,7 @@ paths:
                 "$ref": "#/components/schemas/Error"
   "/v1/pharmacy/inbox/{id}/respond":
     post:
-      summary: "Répondre : produit disponible, prix, quantité"
+      summary: "Répondre ligne par ligne : disponible, quantité, prix (modifiable tant que non débloquée)"
       tags:
         - Pharmacie
       operationId: postPharmacyInboxByIdRespond
@@ -6538,7 +6807,7 @@ paths:
                 "$ref": "#/components/schemas/Error"
   "/v1/pharmacy/inbox/{id}/decline":
     post:
-      summary: "Indisponible (retire une réponse déjà donnée)"
+      summary: "Indisponible (retire une réponse non débloquée)"
       tags:
         - Pharmacie
       operationId: postPharmacyInboxByIdDecline
@@ -6648,9 +6917,37 @@ paths:
             application/json:
               schema:
                 "$ref": "#/components/schemas/Error"
+  "/v1/pharmacy/reservations/{id}/prepared":
+    post:
+      summary: "Commande préparée (visible du client et du livreur)"
+      tags:
+        - Pharmacie
+      operationId: postPharmacyReservationsByIdPrepared
+      parameters:
+        - name: id
+          in: path
+          required: true
+          schema:
+            type: string
+            format: uuid
+      x-roles:
+        - pharmacist
+      responses:
+        "200":
+          description: "Succès"
+          content:
+            application/json:
+              schema:
+                "$ref": "#/components/schemas/PharmacyReservation"
+        default:
+          description: "Erreur (voir `code`)"
+          content:
+            application/json:
+              schema:
+                "$ref": "#/components/schemas/Error"
   "/v1/pharmacy/reservations/{id}/complete":
     post:
-      summary: "Remettre au client contre son code (retrait payé sur place)"
+      summary: "Remettre au client contre son code (retrait payé sur place, sans commission)"
       tags:
         - Pharmacie
       operationId: postPharmacyReservationsByIdComplete
@@ -6684,7 +6981,7 @@ paths:
                 "$ref": "#/components/schemas/Error"
   "/v1/pharmacy/reservations/{id}/cancel":
     post:
-      summary: "Annuler (produit plus disponible) ; client remboursé s'il avait payé"
+      summary: "Annuler (produit plus disponible) : client remboursé, forfait de déblocage compris"
       tags:
         - Pharmacie
       operationId: postPharmacyReservationsByIdCancel
@@ -6767,7 +7064,7 @@ paths:
                 "$ref": "#/components/schemas/Error"
   "/v1/driver/pharmacy-offers/{id}/accept":
     post:
-      summary: "Accepter la course (le livreur passe occupé)"
+      summary: "Accepter la course : le client est invité à payer"
       tags:
         - Livreur
       operationId: postDriverPharmacyOffersByIdAccept
@@ -6795,7 +7092,7 @@ paths:
                 "$ref": "#/components/schemas/Error"
   "/v1/driver/pharmacy-offers/{id}/decline":
     post:
-      summary: "Refuser la course"
+      summary: "Refuser la course (proposée au livreur suivant)"
       tags:
         - Livreur
       operationId: postDriverPharmacyOffersByIdDecline
@@ -6897,7 +7194,7 @@ paths:
                 "$ref": "#/components/schemas/Error"
   "/v1/driver/pharmacy-missions/{id}/picked-up":
     post:
-      summary: "Médicament récupéré à la pharmacie"
+      summary: "Commande récupérée à la pharmacie (refusé tant que le client n'a pas payé)"
       tags:
         - Livreur
       operationId: postDriverPharmacyMissionsByIdPickedUp
@@ -6925,7 +7222,7 @@ paths:
                 "$ref": "#/components/schemas/Error"
   "/v1/driver/pharmacy-missions/{id}/delivered":
     post:
-      summary: "Remis au client contre son code"
+      summary: "Remis au client contre son code (ordonnance vérifiée si exigée)"
       tags:
         - Livreur
       operationId: postDriverPharmacyMissionsByIdDelivered
@@ -6943,7 +7240,7 @@ paths:
         content:
           application/json:
             schema:
-              "$ref": "#/components/schemas/HandoverCode"
+              "$ref": "#/components/schemas/PharmacyDeliveredInput"
       responses:
         "200":
           description: "Succès"
@@ -6959,7 +7256,7 @@ paths:
                 "$ref": "#/components/schemas/Error"
   "/v1/driver/pharmacy-missions/{id}/withdraw":
     post:
-      summary: "Se désister avant la récupération"
+      summary: "Se désister avant la récupération (recherche relancée)"
       tags:
         - Livreur
       operationId: postDriverPharmacyMissionsByIdWithdraw
@@ -7176,6 +7473,220 @@ paths:
             application/json:
               schema:
                 "$ref": "#/components/schemas/PharmacyEarnings"
+        default:
+          description: "Erreur (voir `code`)"
+          content:
+            application/json:
+              schema:
+                "$ref": "#/components/schemas/Error"
+  "/v1/admin/pharmacies/{id}/duty-shifts":
+    get:
+      summary: "Planning de garde d'une pharmacie"
+      tags:
+        - Admin
+      operationId: getAdminPharmaciesByIdDutyShifts
+      parameters:
+        - name: id
+          in: path
+          required: true
+          schema:
+            type: string
+            format: uuid
+      x-roles:
+        - admin
+      responses:
+        "200":
+          description: "Succès"
+          content:
+            application/json:
+              schema:
+                type: object
+                properties:
+                  items:
+                    type: array
+                    items:
+                      "$ref": "#/components/schemas/PharmacyDutyShift"
+                required:
+                  - items
+        default:
+          description: "Erreur (voir `code`)"
+          content:
+            application/json:
+              schema:
+                "$ref": "#/components/schemas/Error"
+    post:
+      summary: "Ajouter un créneau de garde (8 jours au plus, journalisé)"
+      tags:
+        - Admin
+      operationId: postAdminPharmaciesByIdDutyShifts
+      parameters:
+        - name: id
+          in: path
+          required: true
+          schema:
+            type: string
+            format: uuid
+      x-roles:
+        - admin
+      requestBody:
+        required: true
+        content:
+          application/json:
+            schema:
+              "$ref": "#/components/schemas/PharmacyDutyShiftInput"
+      responses:
+        "201":
+          description: "Succès"
+          content:
+            application/json:
+              schema:
+                "$ref": "#/components/schemas/PharmacyDutyShift"
+        default:
+          description: "Erreur (voir `code`)"
+          content:
+            application/json:
+              schema:
+                "$ref": "#/components/schemas/Error"
+  "/v1/admin/pharmacy-duty-shifts/{id}":
+    delete:
+      summary: "Supprimer un créneau de garde (journalisé)"
+      tags:
+        - Admin
+      operationId: deleteAdminPharmacyDutyShiftsById
+      parameters:
+        - name: id
+          in: path
+          required: true
+          schema:
+            type: string
+            format: uuid
+      x-roles:
+        - admin
+      requestBody:
+        required: true
+        content:
+          application/json:
+            schema:
+              "$ref": "#/components/schemas/Reason"
+      responses:
+        "204":
+          description: "Effectué"
+        default:
+          description: "Erreur (voir `code`)"
+          content:
+            application/json:
+              schema:
+                "$ref": "#/components/schemas/Error"
+  "/v1/admin/medicines":
+    get:
+      summary: "Base de médicaments"
+      tags:
+        - Admin
+      operationId: getAdminMedicines
+      parameters:
+        - name: q
+          in: query
+          required: false
+          schema:
+            type: string
+            maxLength: 80
+        - name: limit
+          in: query
+          required: false
+          schema:
+            type: integer
+            minimum: 1
+            maximum: 100
+            default: 20
+        - name: offset
+          in: query
+          required: false
+          schema:
+            type: integer
+            minimum: 0
+            maximum: 10000
+            default: 0
+      x-roles:
+        - admin
+      responses:
+        "200":
+          description: "Succès"
+          content:
+            application/json:
+              schema:
+                type: object
+                properties:
+                  items:
+                    type: array
+                    items:
+                      "$ref": "#/components/schemas/Medicine"
+                  next_offset:
+                    type:
+                      - integer
+                      - "null"
+                required:
+                  - items
+                  - next_offset
+        default:
+          description: "Erreur (voir `code`)"
+          content:
+            application/json:
+              schema:
+                "$ref": "#/components/schemas/Error"
+    post:
+      summary: "Ajouter un médicament à la base (journalisé)"
+      tags:
+        - Admin
+      operationId: postAdminMedicines
+      x-roles:
+        - admin
+      requestBody:
+        required: true
+        content:
+          application/json:
+            schema:
+              "$ref": "#/components/schemas/MedicineInput"
+      responses:
+        "201":
+          description: "Succès"
+          content:
+            application/json:
+              schema:
+                "$ref": "#/components/schemas/Medicine"
+        default:
+          description: "Erreur (voir `code`)"
+          content:
+            application/json:
+              schema:
+                "$ref": "#/components/schemas/Error"
+  "/v1/admin/medicines/{id}":
+    patch:
+      summary: "Modifier ou désactiver un médicament (journalisé)"
+      tags:
+        - Admin
+      operationId: patchAdminMedicinesById
+      parameters:
+        - name: id
+          in: path
+          required: true
+          schema:
+            type: string
+            format: uuid
+      x-roles:
+        - admin
+      requestBody:
+        required: true
+        content:
+          application/json:
+            schema:
+              "$ref": "#/components/schemas/MedicineInput"
+      responses:
+        "200":
+          description: "Succès"
+          content:
+            application/json:
+              schema:
+                "$ref": "#/components/schemas/Medicine"
         default:
           description: "Erreur (voir `code`)"
           content:
@@ -10887,7 +11398,7 @@ components:
         - created_at
     Pharmacy:
       type: object
-      description: "Dossier d'une pharmacie (titulaire et admin)."
+      description: "Dossier d'une pharmacie (titulaire et admin). duty_until : fin de la garde planifiée en cours."
       properties:
         id:
           type: string
@@ -10913,6 +11424,13 @@ components:
           type: boolean
         on_duty:
           type: boolean
+        open_24h:
+          type: boolean
+        duty_until:
+          type:
+            - string
+            - "null"
+          format: date-time
         status:
           type: string
           enum:
@@ -10965,6 +11483,8 @@ components:
         - opening_hours
         - is_open
         - on_duty
+        - open_24h
+        - duty_until
         - status
         - review_status
         - review_note
@@ -11003,6 +11523,13 @@ components:
           type: boolean
         on_duty:
           type: boolean
+        open_24h:
+          type: boolean
+        duty_until:
+          type:
+            - string
+            - "null"
+          format: date-time
         status:
           type: string
           enum:
@@ -11062,6 +11589,8 @@ components:
         - opening_hours
         - is_open
         - on_duty
+        - open_24h
+        - duty_until
         - status
         - review_status
         - review_note
@@ -11141,6 +11670,8 @@ components:
           type: boolean
         on_duty:
           type: boolean
+        open_24h:
+          type: boolean
       required:
         - is_open
         - on_duty
@@ -11159,31 +11690,191 @@ components:
           type: string
       required:
         - decision
-    MedicineAlertInput:
+    OnDutyPharmacy:
       type: object
-      description: "Position : address_id ou location. Photo (POST /v1/uploads, usage pharmacy_alert_photo) obligatoire sauf pour kind=name."
+      description: "Pharmacie joignable maintenant (accueil)."
+      properties:
+        id:
+          type: string
+          format: uuid
+        name:
+          type: string
+        phone:
+          type: string
+        address_text:
+          type: string
+        location:
+          "$ref": "#/components/schemas/Point"
+        distance_m:
+          type: integer
+          format: int32
+        open_24h:
+          type: boolean
+        is_open:
+          type: boolean
+        on_duty:
+          type: boolean
+        duty_until:
+          type:
+            - string
+            - "null"
+          format: date-time
+      required:
+        - id
+        - name
+        - phone
+        - address_text
+        - location
+        - distance_m
+        - open_24h
+        - is_open
+        - on_duty
+        - duty_until
+    PharmacyDutyShift:
+      type: object
+      description: "Créneau de garde planifié."
+      properties:
+        id:
+          type: string
+          format: uuid
+        pharmacy_id:
+          type: string
+          format: uuid
+        starts_at:
+          type: string
+          format: date-time
+        ends_at:
+          type: string
+          format: date-time
+        created_at:
+          type: string
+          format: date-time
+      required:
+        - id
+        - pharmacy_id
+        - starts_at
+        - ends_at
+        - created_at
+    PharmacyDutyShiftInput:
+      type: object
+      description: "8 jours au plus, fin dans le futur."
+      properties:
+        starts_at:
+          type: string
+          format: date-time
+        ends_at:
+          type: string
+          format: date-time
+        reason:
+          type: string
+      required:
+        - starts_at
+        - ends_at
+    Medicine:
+      type: object
+      description: "Médicament de la base ; label = nom et dosage."
+      properties:
+        id:
+          type: string
+          format: uuid
+        name:
+          type: string
+        dosage:
+          type: string
+        form:
+          type: string
+        active_ingredient:
+          type: string
+        label:
+          type: string
+        is_active:
+          type: boolean
+      required:
+        - id
+        - name
+        - dosage
+        - form
+        - active_ingredient
+        - label
+        - is_active
+    MedicineInput:
+      type: object
+      properties:
+        name:
+          type: string
+          minLength: 2
+          maxLength: 120
+        dosage:
+          type: string
+          maxLength: 60
+        form:
+          type: string
+          maxLength: 60
+        active_ingredient:
+          type: string
+          maxLength: 120
+        is_active:
+          type: boolean
+      required:
+        - name
+    MedicineAlertItemInput:
+      type: object
+      description: "Produit recherché : choisi dans la base (medicine_id) ou saisi librement (name)."
+      properties:
+        medicine_id:
+          type:
+            - string
+            - "null"
+          format: uuid
+        name:
+          type: string
+          maxLength: 160
+          description: "Repris de la base si medicine_id est donné."
+        form:
+          type: string
+          maxLength: 60
+        quantity:
+          type: integer
+          minimum: 1
+          maximum: 20
+      required:
+        - quantity
+    MedicineAlertPhotoInput:
+      type: object
+      description: "Photo envoyée avec POST /v1/uploads (usage pharmacy_alert_photo)."
       properties:
         kind:
           type: string
           enum:
             - prescription
-            - box_photo
-            - name
-        medicine_name:
+            - box
+        object_key:
           type: string
-          maxLength: 120
-        quantity:
-          type: integer
-          minimum: 1
-          maximum: 20
-          default: 1
+      required:
+        - kind
+        - object_key
+    MedicineAlertInput:
+      type: object
+      description: "Au moins un produit ou une photo. Position : address_id ou location. radius_m parmi les rayons proposés."
+      properties:
+        items:
+          type: array
+          maxItems: 20
+          items:
+            "$ref": "#/components/schemas/MedicineAlertItemInput"
+        photos:
+          type: array
+          maxItems: 10
+          items:
+            "$ref": "#/components/schemas/MedicineAlertPhotoInput"
         note:
           type: string
           maxLength: 300
-        photo_key:
-          type:
-            - string
-            - "null"
+        generic_accepted:
+          type: boolean
+        radius_m:
+          type: integer
+          format: int32
         address_id:
           type:
             - string
@@ -11194,7 +11885,177 @@ components:
             - "$ref": "#/components/schemas/Point"
             - type: "null"
       required:
+        - radius_m
+    MedicineRelaunchInput:
+      type: object
+      description: "Champs absents : repris de l'alerte d'origine (photos comprises)."
+      properties:
+        radius_m:
+          type: integer
+          format: int32
+        items:
+          type:
+            - array
+            - "null"
+          maxItems: 20
+          items:
+            "$ref": "#/components/schemas/MedicineAlertItemInput"
+        note:
+          type:
+            - string
+            - "null"
+        generic_accepted:
+          type:
+            - boolean
+            - "null"
+      required:
+        - radius_m
+    MedicineRadiusCount:
+      type: object
+      properties:
+        radius_m:
+          type: integer
+          format: int32
+        pharmacies:
+          type: integer
+          format: int64
+      required:
+        - radius_m
+        - pharmacies
+    MedicineAlertPreview:
+      type: object
+      description: "Avant de lancer l'alerte : pharmacies joignables par rayon et règles en vigueur."
+      properties:
+        default_radius_m:
+          type: integer
+          format: int32
+        radii:
+          type: array
+          items:
+            "$ref": "#/components/schemas/MedicineRadiusCount"
+        unlock_fee_xof:
+          type: integer
+          format: int64
+        response_window_minutes:
+          type: integer
+          format: int32
+        pickup_hold_minutes:
+          type: integer
+          format: int32
+        photo_retention_hours:
+          type: integer
+          format: int32
+      required:
+        - default_radius_m
+        - radii
+        - unlock_fee_xof
+        - response_window_minutes
+        - pickup_hold_minutes
+        - photo_retention_hours
+    MedicineAlertItem:
+      type: object
+      properties:
+        id:
+          type: string
+          format: uuid
+        position:
+          type: integer
+          format: int32
+        medicine_id:
+          type:
+            - string
+            - "null"
+          format: uuid
+        name:
+          type: string
+        form:
+          type: string
+        quantity:
+          type: integer
+          format: int32
+      required:
+        - id
+        - position
+        - medicine_id
+        - name
+        - form
+        - quantity
+    MedicineAlertPhoto:
+      type: object
+      description: "url : lien de 10 minutes, absent une fois la photo purgée."
+      properties:
+        id:
+          type: string
+          format: uuid
+        kind:
+          type: string
+          enum:
+            - prescription
+            - box
+        position:
+          type: integer
+          format: int32
+        url:
+          type: string
+        purged:
+          type: boolean
+      required:
+        - id
         - kind
+        - position
+        - purged
+    MedicineAlertStats:
+      type: object
+      properties:
+        notified:
+          type: integer
+          format: int64
+        seen:
+          type: integer
+          format: int64
+        responded:
+          type: integer
+          format: int64
+      required:
+        - notified
+        - seen
+        - responded
+    MedicineResponseLine:
+      type: object
+      description: "Ligne de réponse d'une pharmacie."
+      properties:
+        id:
+          type: string
+          format: uuid
+        alert_item_id:
+          type:
+            - string
+            - "null"
+          format: uuid
+        name:
+          type: string
+        quantity:
+          type: integer
+          format: int32
+        unit_price_xof:
+          type: integer
+          format: int64
+        line_total_xof:
+          type: integer
+          format: int64
+        available:
+          type: boolean
+        prescription_required:
+          type: boolean
+      required:
+        - id
+        - alert_item_id
+        - name
+        - quantity
+        - unit_price_xof
+        - line_total_xof
+        - available
+        - prescription_required
     PharmacyContact:
       type: object
       description: "Identité d'une pharmacie, visible après déblocage."
@@ -11212,6 +12073,13 @@ components:
           "$ref": "#/components/schemas/Point"
         on_duty:
           type: boolean
+        open_24h:
+          type: boolean
+        duty_until:
+          type:
+            - string
+            - "null"
+          format: date-time
       required:
         - id
         - name
@@ -11219,9 +12087,11 @@ components:
         - address_text
         - location
         - on_duty
+        - open_24h
+        - duty_until
     MedicineAlertResponse:
       type: object
-      description: "Réponse classée par distance ; avant déblocage, pharmacy est nul, label vaut « Pharmacie N » et note est vide."
+      description: "Réponse classée par distance ; tant qu'elle n'est pas débloquée, pharmacy est nul, label vaut « Pharmacie N » et note est vide."
       properties:
         id:
           type: string
@@ -11234,17 +12104,22 @@ components:
         distance_m:
           type: integer
           format: int32
-        product_name:
-          type: string
-        unit_price_xof:
-          type: integer
-          format: int64
-        quantity_available:
+        lines:
+          type: array
+          items:
+            "$ref": "#/components/schemas/MedicineResponseLine"
+        available_count:
           type: integer
           format: int32
-        prescription_required:
+        line_count:
+          type: integer
+          format: int32
+        all_available:
           type: boolean
-        delivery_allowed:
+        total_xof:
+          type: integer
+          format: int64
+        prescription_required:
           type: boolean
         note:
           type: string
@@ -11253,30 +12128,40 @@ components:
           enum:
             - active
             - withdrawn
+        unlocked:
+          type: boolean
+        responded_at:
+          type: string
+          format: date-time
+        reservation_id:
+          type:
+            - string
+            - "null"
+          format: uuid
         pharmacy:
           oneOf:
             - "$ref": "#/components/schemas/PharmacyContact"
             - type: "null"
-        created_at:
-          type: string
-          format: date-time
       required:
         - id
         - rank
         - label
         - distance_m
-        - product_name
-        - unit_price_xof
-        - quantity_available
+        - lines
+        - available_count
+        - line_count
+        - all_available
+        - total_xof
         - prescription_required
-        - delivery_allowed
         - note
         - status
+        - unlocked
+        - responded_at
+        - reservation_id
         - pharmacy
-        - created_at
     MedicineAlert:
       type: object
-      description: "Alerte vue par le client."
+      description: "Alerte vue par le client ; unlock_fee_xof est dû pour chaque pharmacie débloquée."
       properties:
         id:
           type: string
@@ -11287,14 +12172,18 @@ components:
             - prescription
             - box_photo
             - name
-        medicine_name:
-          type: string
-        quantity:
-          type: integer
-          format: int32
+            - mixed
+        items:
+          type: array
+          items:
+            "$ref": "#/components/schemas/MedicineAlertItem"
+        photos:
+          type: array
+          items:
+            "$ref": "#/components/schemas/MedicineAlertPhoto"
         note:
           type: string
-        has_photo:
+        generic_accepted:
           type: boolean
         status:
           type: string
@@ -11313,19 +12202,16 @@ components:
         search_ends_at:
           type: string
           format: date-time
-        unlocked:
-          type: boolean
+        stats:
+          "$ref": "#/components/schemas/MedicineAlertStats"
         unlock_fee_xof:
-          type: integer
-          format: int64
-        pharmacies_notified:
           type: integer
           format: int64
         responses:
           type: array
           items:
             "$ref": "#/components/schemas/MedicineAlertResponse"
-        reservation_id:
+        relaunched_from:
           type:
             - string
             - "null"
@@ -11333,23 +12219,28 @@ components:
         created_at:
           type: string
           format: date-time
+        closed_at:
+          type:
+            - string
+            - "null"
+          format: date-time
       required:
         - id
         - kind
-        - medicine_name
-        - quantity
+        - items
+        - photos
         - note
-        - has_photo
+        - generic_accepted
         - status
         - location
         - radius_m
         - search_ends_at
-        - unlocked
+        - stats
         - unlock_fee_xof
-        - pharmacies_notified
         - responses
-        - reservation_id
+        - relaunched_from
         - created_at
+        - closed_at
     AdminMedicineAlert:
       type: object
       description: "Alerte (pharmacies visibles) avec le client et les paiements."
@@ -11363,14 +12254,18 @@ components:
             - prescription
             - box_photo
             - name
-        medicine_name:
-          type: string
-        quantity:
-          type: integer
-          format: int32
+            - mixed
+        items:
+          type: array
+          items:
+            "$ref": "#/components/schemas/MedicineAlertItem"
+        photos:
+          type: array
+          items:
+            "$ref": "#/components/schemas/MedicineAlertPhoto"
         note:
           type: string
-        has_photo:
+        generic_accepted:
           type: boolean
         status:
           type: string
@@ -11389,25 +12284,27 @@ components:
         search_ends_at:
           type: string
           format: date-time
-        unlocked:
-          type: boolean
+        stats:
+          "$ref": "#/components/schemas/MedicineAlertStats"
         unlock_fee_xof:
-          type: integer
-          format: int64
-        pharmacies_notified:
           type: integer
           format: int64
         responses:
           type: array
           items:
             "$ref": "#/components/schemas/MedicineAlertResponse"
-        reservation_id:
+        relaunched_from:
           type:
             - string
             - "null"
           format: uuid
         created_at:
           type: string
+          format: date-time
+        closed_at:
+          type:
+            - string
+            - "null"
           format: date-time
         buyer_id:
           type: string
@@ -11419,20 +12316,20 @@ components:
       required:
         - id
         - kind
-        - medicine_name
-        - quantity
+        - items
+        - photos
         - note
-        - has_photo
+        - generic_accepted
         - status
         - location
         - radius_m
         - search_ends_at
-        - unlocked
+        - stats
         - unlock_fee_xof
-        - pharmacies_notified
         - responses
-        - reservation_id
+        - relaunched_from
         - created_at
+        - closed_at
         - buyer_id
         - payments
     PharmacyOwnResponse:
@@ -11441,16 +12338,13 @@ components:
         id:
           type: string
           format: uuid
-        product_name:
-          type: string
-        unit_price_xof:
+        lines:
+          type: array
+          items:
+            "$ref": "#/components/schemas/MedicineResponseLine"
+        total_xof:
           type: integer
           format: int64
-        quantity_available:
-          type: integer
-          format: int32
-        prescription_required:
-          type: boolean
         note:
           type: string
         status:
@@ -11458,17 +12352,18 @@ components:
           enum:
             - active
             - withdrawn
+        unlocked:
+          type: boolean
       required:
         - id
-        - product_name
-        - unit_price_xof
-        - quantity_available
-        - prescription_required
+        - lines
+        - total_xof
         - note
         - status
+        - unlocked
     PharmacyInboxItem:
       type: object
-      description: "Alerte reçue par une pharmacie : jamais d'identité ni de position du client. photo_url : lien de 10 minutes (détail seulement)."
+      description: "Alerte reçue par une pharmacie : jamais d'identité ni de position du client. photos : liens de 10 minutes (détail seulement)."
       properties:
         alert_id:
           type: string
@@ -11479,16 +12374,21 @@ components:
             - prescription
             - box_photo
             - name
-        medicine_name:
-          type: string
-        quantity:
+            - mixed
+        items:
+          type: array
+          items:
+            "$ref": "#/components/schemas/MedicineAlertItem"
+        photos:
+          type: array
+          items:
+            "$ref": "#/components/schemas/MedicineAlertPhoto"
+        photo_count:
           type: integer
           format: int32
         note:
           type: string
-        photo_url:
-          type: string
-        has_photo:
+        generic_accepted:
           type: boolean
         distance_m:
           type: integer
@@ -11512,6 +12412,8 @@ components:
         search_ends_at:
           type: string
           format: date-time
+        seen:
+          type: boolean
         my_response:
           oneOf:
             - "$ref": "#/components/schemas/PharmacyOwnResponse"
@@ -11522,65 +12424,63 @@ components:
       required:
         - alert_id
         - kind
-        - medicine_name
-        - quantity
+        - items
+        - photos
+        - photo_count
         - note
-        - has_photo
+        - generic_accepted
         - distance_m
         - status
         - alert_status
         - search_ends_at
+        - seen
         - my_response
         - received_at
-    PharmacyResponseInput:
+    PharmacyResponseLineInput:
       type: object
+      description: "Prix obligatoire pour une ligne disponible."
       properties:
-        product_name:
-          type: string
-          minLength: 2
-          maxLength: 120
-        unit_price_xof:
-          type: integer
-          format: int64
-          minimum: 1
-        quantity_available:
-          type: integer
-          minimum: 1
-          maximum: 1000
-        prescription_required:
-          type: boolean
-        note:
-          type: string
-          maxLength: 300
-      required:
-        - product_name
-        - unit_price_xof
-        - quantity_available
-    MedicineReserveInput:
-      type: object
-      description: "Livraison impossible sur ordonnance ; address_id obligatoire pour une livraison."
-      properties:
-        response_id:
-          type: string
-          format: uuid
-        fulfillment:
-          type: string
-          enum:
-            - pickup
-            - delivery
-        quantity:
-          type: integer
-          minimum: 0
-          maximum: 20
-          description: "0 ou absent : quantité de l'alerte."
-        address_id:
+        alert_item_id:
           type:
             - string
             - "null"
           format: uuid
+        name:
+          type: string
+          minLength: 2
+          maxLength: 160
+        quantity:
+          type: integer
+          minimum: 1
+          maximum: 100
+        unit_price_xof:
+          type: integer
+          format: int64
+          minimum: 0
+          maximum: 10000000
+        available:
+          type: boolean
+        prescription_required:
+          type: boolean
       required:
-        - response_id
-        - fulfillment
+        - name
+        - quantity
+        - available
+    PharmacyResponseInput:
+      type: object
+      description: "Au moins une ligne disponible ; sinon, refuser l'alerte."
+      properties:
+        lines:
+          type: array
+          minItems: 1
+          maxItems: 30
+          items:
+            "$ref": "#/components/schemas/PharmacyResponseLineInput"
+        note:
+          type: string
+          maxLength: 300
+      required:
+        - lines
     CourierContact:
       type: object
       description: "Livreur ivia ; téléphone seulement pendant la course."
@@ -11588,6 +12488,10 @@ components:
         first_name:
           type: string
         phone:
+          type: string
+        vehicle_type:
+          type: string
+        vehicle_plate:
           type: string
         status:
           type: string
@@ -11598,14 +12502,51 @@ components:
       required:
         - first_name
         - phone
+        - vehicle_type
+        - vehicle_plate
         - status
+    MedicineTimeline:
+      type: object
+      description: "Étapes de la commande."
+      properties:
+        unlocked_at:
+          type: string
+          format: date-time
+        paid_at:
+          type:
+            - string
+            - "null"
+          format: date-time
+        prepared_at:
+          type:
+            - string
+            - "null"
+          format: date-time
+        picked_up_at:
+          type:
+            - string
+            - "null"
+          format: date-time
+        delivered_at:
+          type:
+            - string
+            - "null"
+          format: date-time
+      required:
+        - unlocked_at
+        - paid_at
+        - prepared_at
+        - picked_up_at
+        - delivered_at
     MedicineReservation:
       type: object
-      description: "Réservation vue par le client ; handover_code à donner au pharmacien (retrait) ou au livreur (livraison)."
+      description: "Réservation créée au déblocage. handover_code (4 chiffres) à donner au pharmacien ou au livreur ; absent pendant la recherche de livreur et l'attente de paiement."
       properties:
         id:
           type: string
           format: uuid
+        number:
+          type: string
         alert_id:
           type: string
           format: uuid
@@ -11618,6 +12559,7 @@ components:
           type: string
           enum:
             - reserved
+            - courier_search
             - awaiting_payment
             - paid
             - courier_assigned
@@ -11625,14 +12567,10 @@ components:
             - completed
             - expired
             - cancelled
-        product_name:
-          type: string
-        quantity:
-          type: integer
-          format: int32
-        unit_price_xof:
-          type: integer
-          format: int64
+        lines:
+          type: array
+          items:
+            "$ref": "#/components/schemas/MedicineResponseLine"
         items_xof:
           type: integer
           format: int64
@@ -11644,15 +12582,31 @@ components:
           format: int64
         pay_in_app:
           type: boolean
+        prescription_required:
+          type: boolean
         handover_code:
-          type: string
-        delivery_address:
           type: string
         expires_at:
           type:
             - string
             - "null"
           format: date-time
+        courier_offers_sent:
+          type: integer
+          format: int64
+        distance_m:
+          type: integer
+          format: int64
+        walk_minutes:
+          type: integer
+          format: int32
+        delivery_address:
+          type: string
+        delivery_eta_minutes:
+          type:
+            - integer
+            - "null"
+          format: int32
         cancel_reason:
           type: string
         pharmacy:
@@ -11661,6 +12615,8 @@ components:
           oneOf:
             - "$ref": "#/components/schemas/CourierContact"
             - type: "null"
+        timeline:
+          "$ref": "#/components/schemas/MedicineTimeline"
         created_at:
           type: string
           format: date-time
@@ -11671,23 +12627,64 @@ components:
           format: date-time
       required:
         - id
+        - number
         - alert_id
         - fulfillment
         - status
-        - product_name
-        - quantity
-        - unit_price_xof
+        - lines
         - items_xof
         - delivery_fee_xof
         - total_xof
         - pay_in_app
-        - delivery_address
+        - prescription_required
         - expires_at
+        - courier_offers_sent
+        - distance_m
+        - walk_minutes
+        - delivery_address
+        - delivery_eta_minutes
         - cancel_reason
         - pharmacy
         - courier
+        - timeline
         - created_at
         - completed_at
+    MedicineDeliveryQuote:
+      type: object
+      description: "Devis indicatif ; le prix est figé au choix de la livraison."
+      properties:
+        distance_m:
+          type: integer
+          format: int64
+        vehicle_type:
+          type: string
+        delivery_fee_xof:
+          type: integer
+          format: int64
+        items_xof:
+          type: integer
+          format: int64
+        total_xof:
+          type: integer
+          format: int64
+        eta_minutes:
+          type: integer
+          format: int32
+      required:
+        - distance_m
+        - vehicle_type
+        - delivery_fee_xof
+        - items_xof
+        - total_xof
+        - eta_minutes
+    MedicineDeliveryInput:
+      type: object
+      properties:
+        address_id:
+          type: string
+          format: uuid
+      required:
+        - address_id
     PharmacyReservation:
       type: object
       description: "Réservation vue par la pharmacie (prénom du client seulement, jamais son code)."
@@ -11695,6 +12692,8 @@ components:
         id:
           type: string
           format: uuid
+        number:
+          type: string
         alert_id:
           type: string
           format: uuid
@@ -11707,6 +12706,7 @@ components:
           type: string
           enum:
             - reserved
+            - courier_search
             - awaiting_payment
             - paid
             - courier_assigned
@@ -11714,14 +12714,10 @@ components:
             - completed
             - expired
             - cancelled
-        product_name:
-          type: string
-        quantity:
-          type: integer
-          format: int32
-        unit_price_xof:
-          type: integer
-          format: int64
+        lines:
+          type: array
+          items:
+            "$ref": "#/components/schemas/MedicineResponseLine"
         items_xof:
           type: integer
           format: int64
@@ -11731,9 +12727,16 @@ components:
         pharmacy_due_xof:
           type: integer
           format: int64
+        prescription_required:
+          type: boolean
         buyer_first_name:
           type: string
         expires_at:
+          type:
+            - string
+            - "null"
+          format: date-time
+        prepared_at:
           type:
             - string
             - "null"
@@ -11754,17 +12757,18 @@ components:
           format: date-time
       required:
         - id
+        - number
         - alert_id
         - fulfillment
         - status
-        - product_name
-        - quantity
-        - unit_price_xof
+        - lines
         - items_xof
         - commission_xof
         - pharmacy_due_xof
+        - prescription_required
         - buyer_first_name
         - expires_at
+        - prepared_at
         - cancel_reason
         - courier
         - created_at
@@ -11793,7 +12797,7 @@ components:
         - created_at
     PharmacyEarnings:
       type: object
-      description: "Sommes dues (livraisons payées dans l'app, commission déduite) ; les retraits se paient sur place."
+      description: "Sommes dues (livraisons payées dans l'app) ; les retraits se paient sur place."
       properties:
         due_xof:
           type: integer
@@ -11854,7 +12858,7 @@ components:
         - phone
     MedicinePayment:
       type: object
-      description: "Paiement du module pharmacie."
+      description: "Paiement du module pharmacie (déblocage d'une pharmacie ou commande livrée)."
       properties:
         id:
           type: string
@@ -11918,7 +12922,7 @@ components:
         - updated_at
     MedicineUnlockResult:
       type: object
-      description: "payment est nul si le déblocage est gratuit (forfait réglé à 0)."
+      description: "payment est nul si le déblocage est gratuit ; reservation_id est rempli une fois la pharmacie débloquée."
       properties:
         alert:
           "$ref": "#/components/schemas/MedicineAlert"
@@ -11926,9 +12930,15 @@ components:
           oneOf:
             - "$ref": "#/components/schemas/MedicinePayment"
             - type: "null"
+        reservation_id:
+          type:
+            - string
+            - "null"
+          format: uuid
       required:
         - alert
         - payment
+        - reservation_id
     SimulateOutcome:
       type: object
       properties:
@@ -11944,12 +12954,23 @@ components:
       properties:
         code:
           type: string
-          pattern: "^[0-9]{6}$"
+          pattern: "^[0-9]{4,6}$"
+      required:
+        - code
+    PharmacyDeliveredInput:
+      type: object
+      description: "prescription_checked obligatoire à true si la commande exige une ordonnance."
+      properties:
+        code:
+          type: string
+          pattern: "^[0-9]{4,6}$"
+        prescription_checked:
+          type: boolean
       required:
         - code
     PharmacyCourierOffer:
       type: object
-      description: "Course pharmacie proposée au livreur."
+      description: "Course pharmacie proposée au livreur (le plus proche d'abord)."
       properties:
         id:
           type: string
@@ -12003,7 +13024,7 @@ components:
         - instructions
     PharmacyCourierMission:
       type: object
-      description: "Course vue par le livreur ; client nul hors course en cours."
+      description: "Course vue par le livreur ; client nul hors course en cours. Récupération refusée tant que le client n'a pas payé."
       properties:
         id:
           type: string
@@ -12011,6 +13032,8 @@ components:
         reservation_id:
           type: string
           format: uuid
+        number:
+          type: string
         status:
           type: string
           enum:
@@ -12021,11 +13044,17 @@ components:
         fee_xof:
           type: integer
           format: int64
-        product_name:
-          type: string
-        quantity:
-          type: integer
-          format: int32
+        lines:
+          type: array
+          items:
+            "$ref": "#/components/schemas/MedicineResponseLine"
+        prescription_check_required:
+          type: boolean
+        prepared_at:
+          type:
+            - string
+            - "null"
+          format: date-time
         pharmacy:
           "$ref": "#/components/schemas/PharmacyMissionPOI"
         client:
@@ -12048,10 +13077,12 @@ components:
       required:
         - id
         - reservation_id
+        - number
         - status
         - fee_xof
-        - product_name
-        - quantity
+        - lines
+        - prescription_check_required
+        - prepared_at
         - pharmacy
         - client
         - assigned_at
@@ -12072,10 +13103,22 @@ components:
           type: integer
           minimum: 500
           maximum: 50000
+          description: "Rayon proposé par défaut (parmi radius_options_m)."
         max_radius_m:
           type: integer
           minimum: 500
           maximum: 50000
+        radius_options_m:
+          type: array
+          minItems: 1
+          maxItems: 5
+          items:
+            type: integer
+            minimum: 500
+            maximum: 50000
+        auto_widen:
+          type: boolean
+          description: "Élargir seul la recherche faute de réponses (sinon, le client relance)."
         target_responses:
           type: integer
           minimum: 1
@@ -12092,10 +13135,15 @@ components:
           type: integer
           minimum: 15
           maximum: 1440
-        photo_retention_days:
+        photo_retention_hours:
           type: integer
           minimum: 1
-          maximum: 365
+          maximum: 8760
+        product_commission_bp:
+          type: integer
+          minimum: 0
+          maximum: 5000
+          description: "Commission sur les produits livrés, en points de base (0 : aucune)."
         updated_at:
           type: string
           format: date-time
@@ -12104,11 +13152,14 @@ components:
         - unlock_fee_xof
         - search_radius_m
         - max_radius_m
+        - radius_options_m
+        - auto_widen
         - target_responses
         - widen_after_minutes
         - response_window_minutes
         - pickup_hold_minutes
-        - photo_retention_days
+        - photo_retention_hours
+        - product_commission_bp
         - updated_at
     PharmacySettingsInput:
       type: object
@@ -12125,10 +13176,22 @@ components:
           type: integer
           minimum: 500
           maximum: 50000
+          description: "Rayon proposé par défaut (parmi radius_options_m)."
         max_radius_m:
           type: integer
           minimum: 500
           maximum: 50000
+        radius_options_m:
+          type: array
+          minItems: 1
+          maxItems: 5
+          items:
+            type: integer
+            minimum: 500
+            maximum: 50000
+        auto_widen:
+          type: boolean
+          description: "Élargir seul la recherche faute de réponses (sinon, le client relance)."
         target_responses:
           type: integer
           minimum: 1
@@ -12145,10 +13208,15 @@ components:
           type: integer
           minimum: 15
           maximum: 1440
-        photo_retention_days:
+        photo_retention_hours:
           type: integer
           minimum: 1
-          maximum: 365
+          maximum: 8760
+        product_commission_bp:
+          type: integer
+          minimum: 0
+          maximum: 5000
+          description: "Commission sur les produits livrés, en points de base (0 : aucune)."
         reason:
           type: string
     PharmacyOverview:

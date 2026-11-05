@@ -3,21 +3,23 @@
 // retrait ou en livraison par un livreur ivia, reversements aux pharmacies.
 //
 // Règles :
-//   - une alerte n'est diffusée qu'aux pharmacies validées, non suspendues, ouvertes ou de garde,
-//     dans le rayon de recherche (élargi une fois si les réponses manquent) ;
-//   - la recherche se ferme dès que le nombre de réponses visé est atteint, sinon à la fin de la
-//     fenêtre de réponse ;
-//   - l'identité des pharmacies (nom, adresse, téléphone, position) n'est donnée au client
-//     qu'après le déblocage forfaitaire, payé une fois par alerte et valable pour toutes ses
-//     réponses (y compris celles qui arrivent après) ;
-//   - sur ordonnance (alerte par photo d'ordonnance ou produit signalé « sur ordonnance »), seul
-//     le retrait en pharmacie est possible : jamais de livreur ivia ;
+//   - une alerte combine des produits saisis (base des médicaments ou texte libre) et des photos
+//     (pages d'ordonnance, boîtes) ; son lancement est gratuit ;
+//   - elle part aux pharmacies validées, non suspendues et de garde (planning en vigueur,
+//     24 h/24, ou déclarées ouvertes / de garde) dans le rayon choisi par le client ;
+//   - les pharmacies répondent ligne par ligne (disponible ou non, prix) pendant la fenêtre de
+//     réponse ; le client voit les réponses anonymes, classées par distance ;
+//   - le forfait débloque UNE pharmacie (nom, adresse, téléphone, position) et met ses produits
+//     de côté avec un code de retrait ; en débloquer une autre se paie à nouveau ; le forfait est
+//     remboursé si la pharmacie annule ;
+//   - le client va chercher ses produits (paiement sur place) ou se fait livrer par un livreur
+//     ivia (produits et livraison payés dans l'app) ; sur ordonnance, le livreur vérifie l'original ;
 //   - un paiement n'est réussi que sur un événement vérifié du prestataire (même circuit que les
 //     commandes : payments.ExternalPayments) ;
 //   - le client, la pharmacie et le livreur ne voient chacun que ce dont ils ont besoin : la
 //     pharmacie ne connaît jamais l'identité du client avant la réservation (prénom seulement) ;
 //   - les photos d'ordonnance (données de santé) sont privées, lues par URL signée de 10 minutes
-//     par les seules pharmacies sollicitées, et supprimées après la durée de conservation.
+//     par les seules pharmacies sollicitées, et supprimées après la durée de conservation (24 h).
 package pharmacy
 
 import (
@@ -26,6 +28,7 @@ import (
 	"fmt"
 	"log/slog"
 	"math/big"
+	"slices"
 	"time"
 
 	"github.com/google/uuid"
@@ -59,6 +62,13 @@ const (
 	KindPrescription = "prescription"
 	KindBoxPhoto     = "box_photo"
 	KindName         = "name"
+	KindMixed        = "mixed"
+)
+
+// Types de photo d'une alerte.
+const (
+	PhotoPrescription = "prescription"
+	PhotoBox          = "box"
 )
 
 // Statuts d'une alerte.
@@ -76,7 +86,10 @@ const (
 	Pickup   = "pickup"
 	Delivery = "delivery"
 
-	ResReserved        = "reserved"
+	ResReserved = "reserved"
+	// ResCourierSearch : « Livreur ivia » choisi, recherche du livreur (avant le paiement).
+	ResCourierSearch = "courier_search"
+	// ResAwaitingPayment : un livreur a accepté ; le client paie produits et livraison.
 	ResAwaitingPayment = "awaiting_payment"
 	ResPaid            = "paid"
 	ResCourierAssigned = "courier_assigned"
@@ -87,7 +100,7 @@ const (
 )
 
 // activeReservation : statuts d'une réservation en cours.
-var activeReservation = []string{ResReserved, ResAwaitingPayment, ResPaid, ResCourierAssigned, ResPickedUp}
+var activeReservation = []string{ResReserved, ResCourierSearch, ResAwaitingPayment, ResPaid, ResCourierAssigned, ResPickedUp}
 
 // Règles fixes (les autres sont dans pharmacy_settings, réglables par l'admin).
 const (
@@ -101,29 +114,41 @@ const (
 
 // Settings : réglages du module.
 type Settings struct {
-	Enabled               bool      `json:"enabled"`
-	UnlockFeeXOF          int64     `json:"unlock_fee_xof"`
-	SearchRadiusM         int32     `json:"search_radius_m"`
-	MaxRadiusM            int32     `json:"max_radius_m"`
-	TargetResponses       int32     `json:"target_responses"`
-	WidenAfterMinutes     int32     `json:"widen_after_minutes"`
-	ResponseWindowMinutes int32     `json:"response_window_minutes"`
-	PickupHoldMinutes     int32     `json:"pickup_hold_minutes"`
-	PhotoRetentionDays    int32     `json:"photo_retention_days"`
-	UpdatedAt             time.Time `json:"updated_at"`
+	Enabled               bool  `json:"enabled"`
+	UnlockFeeXOF          int64 `json:"unlock_fee_xof"`
+	SearchRadiusM         int32 `json:"search_radius_m"`
+	MaxRadiusM            int32 `json:"max_radius_m"`
+	TargetResponses       int32 `json:"target_responses"`
+	WidenAfterMinutes     int32 `json:"widen_after_minutes"`
+	ResponseWindowMinutes int32 `json:"response_window_minutes"`
+	PickupHoldMinutes     int32 `json:"pickup_hold_minutes"`
+	PhotoRetentionHours   int32 `json:"photo_retention_hours"`
+	// RadiusOptionsM : rayons proposés au client ; SearchRadiusM est celui par défaut.
+	RadiusOptionsM []int32 `json:"radius_options_m"`
+	// AutoWiden : élargit seul la recherche au rayon maximal si les réponses manquent.
+	AutoWiden bool `json:"auto_widen"`
+	// ProductCommissionBP : commission ivia sur les médicaments livrés (points de base). 0 par
+	// défaut : ivia est rémunéré par le forfait de déblocage ; jamais de commission sur un retrait.
+	ProductCommissionBP int32     `json:"product_commission_bp"`
+	UpdatedAt           time.Time `json:"updated_at"`
+	// photoRetentionDays : ancienne colonne (00027), conservée telle quelle.
+	photoRetentionDays int32
 }
 
 // SettingsPatch modifie les réglages (champs absents : inchangés).
 type SettingsPatch struct {
-	Enabled               *bool  `json:"enabled"`
-	UnlockFeeXOF          *int64 `json:"unlock_fee_xof"`
-	SearchRadiusM         *int32 `json:"search_radius_m"`
-	MaxRadiusM            *int32 `json:"max_radius_m"`
-	TargetResponses       *int32 `json:"target_responses"`
-	WidenAfterMinutes     *int32 `json:"widen_after_minutes"`
-	ResponseWindowMinutes *int32 `json:"response_window_minutes"`
-	PickupHoldMinutes     *int32 `json:"pickup_hold_minutes"`
-	PhotoRetentionDays    *int32 `json:"photo_retention_days"`
+	Enabled               *bool    `json:"enabled"`
+	UnlockFeeXOF          *int64   `json:"unlock_fee_xof"`
+	SearchRadiusM         *int32   `json:"search_radius_m"`
+	MaxRadiusM            *int32   `json:"max_radius_m"`
+	TargetResponses       *int32   `json:"target_responses"`
+	WidenAfterMinutes     *int32   `json:"widen_after_minutes"`
+	ResponseWindowMinutes *int32   `json:"response_window_minutes"`
+	PickupHoldMinutes     *int32   `json:"pickup_hold_minutes"`
+	PhotoRetentionHours   *int32   `json:"photo_retention_hours"`
+	RadiusOptionsM        *[]int32 `json:"radius_options_m"`
+	AutoWiden             *bool    `json:"auto_widen"`
+	ProductCommissionBP   *int32   `json:"product_commission_bp"`
 }
 
 // Service gère le module.
@@ -192,7 +217,11 @@ func (s *Service) UpdateSettings(ctx context.Context, adminID uuid.UUID, p Setti
 			TargetResponses: pick(p.TargetResponses, cur.TargetResponses), WidenAfterMinutes: pick(p.WidenAfterMinutes, cur.WidenAfterMinutes),
 			ResponseWindowMinutes: pick(p.ResponseWindowMinutes, cur.ResponseWindowMinutes),
 			PickupHoldMinutes:     pick(p.PickupHoldMinutes, cur.PickupHoldMinutes),
-			PhotoRetentionDays:    pick(p.PhotoRetentionDays, cur.PhotoRetentionDays),
+			PhotoRetentionDays:    cur.photoRetentionDays,
+			PhotoRetentionHours:   pick(p.PhotoRetentionHours, cur.PhotoRetentionHours),
+			RadiusOptionsM:        pick(p.RadiusOptionsM, cur.RadiusOptionsM),
+			AutoWiden:             pick(p.AutoWiden, cur.AutoWiden),
+			ProductCommissionBp:   pick(p.ProductCommissionBP, cur.ProductCommissionBP),
 		}
 		v := validate.New()
 		v.Check(next.UnlockFeeXof >= 0 && next.UnlockFeeXof <= 100_000, "unlock_fee_xof", "Entre 0 et 100 000 FCFA.")
@@ -202,7 +231,13 @@ func (s *Service) UpdateSettings(ctx context.Context, adminID uuid.UUID, p Setti
 		v.Check(next.WidenAfterMinutes >= 1 && next.WidenAfterMinutes <= 60, "widen_after_minutes", "Entre 1 et 60 minutes.")
 		v.Check(next.ResponseWindowMinutes >= 2 && next.ResponseWindowMinutes <= 120, "response_window_minutes", "Entre 2 et 120 minutes.")
 		v.Check(next.PickupHoldMinutes >= 15 && next.PickupHoldMinutes <= 1440, "pickup_hold_minutes", "Entre 15 minutes et 24 heures.")
-		v.Check(next.PhotoRetentionDays >= 1 && next.PhotoRetentionDays <= 365, "photo_retention_days", "Entre 1 et 365 jours.")
+		v.Check(next.ProductCommissionBp >= 0 && next.ProductCommissionBp <= 5000, "product_commission_bp",
+			"Entre 0 et 5 000 points de base (50 %).")
+		v.Check(next.PhotoRetentionHours >= 1 && next.PhotoRetentionHours <= 8760, "photo_retention_hours", "Entre 1 heure et 1 an.")
+		v.Check(validRadiusOptions(next.RadiusOptionsM, next.MaxRadiusM), "radius_options_m",
+			"1 à 5 rayons croissants, entre 500 m et le rayon maximal.")
+		v.Check(slices.Contains(next.RadiusOptionsM, next.SearchRadiusM), "search_radius_m",
+			"Le rayon par défaut doit faire partie des rayons proposés.")
 		if err := v.Err(); err != nil {
 			return err
 		}
@@ -223,8 +258,29 @@ func toSettings(r store.PharmacySetting) Settings {
 	return Settings{
 		Enabled: r.Enabled, UnlockFeeXOF: r.UnlockFeeXof, SearchRadiusM: r.SearchRadiusM, MaxRadiusM: r.MaxRadiusM,
 		TargetResponses: r.TargetResponses, WidenAfterMinutes: r.WidenAfterMinutes, ResponseWindowMinutes: r.ResponseWindowMinutes,
-		PickupHoldMinutes: r.PickupHoldMinutes, PhotoRetentionDays: r.PhotoRetentionDays, UpdatedAt: r.UpdatedAt,
+		PickupHoldMinutes: r.PickupHoldMinutes, PhotoRetentionHours: r.PhotoRetentionHours, RadiusOptionsM: r.RadiusOptionsM,
+		AutoWiden: r.AutoWiden, ProductCommissionBP: r.ProductCommissionBp, UpdatedAt: r.UpdatedAt, photoRetentionDays: r.PhotoRetentionDays,
 	}
+}
+
+func validRadiusOptions(opts []int32, maxRadius int32) bool {
+	if len(opts) == 0 || len(opts) > 5 {
+		return false
+	}
+	for i, o := range opts {
+		if o < 500 || o > maxRadius || (i > 0 && o <= opts[i-1]) {
+			return false
+		}
+	}
+	return true
+}
+
+// dutyUntil convertit la fin de garde lue en base (« epoch » quand aucune garde n'est en cours).
+func dutyUntil(t time.Time) *time.Time {
+	if t.Year() < 2000 {
+		return nil
+	}
+	return &t
 }
 
 func pick[T any](p *T, def T) T {
@@ -234,13 +290,13 @@ func pick[T any](p *T, def T) T {
 	return def
 }
 
-// newCode tire un code de remise à 6 chiffres.
+// newCode tire un code de remise à 4 chiffres (essais limités par le handler).
 func newCode() (string, error) {
-	n, err := rand.Int(rand.Reader, big.NewInt(1_000_000))
+	n, err := rand.Int(rand.Reader, big.NewInt(10_000))
 	if err != nil {
 		return "", fmt.Errorf("tirage du code : %w", err)
 	}
-	return fmt.Sprintf("%06d", n.Int64()), nil
+	return fmt.Sprintf("%04d", n.Int64()), nil
 }
 
 var errPharmacyNotFound = apperr.NotFound("pharmacy_not_found", "Pharmacie introuvable.")

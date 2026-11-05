@@ -2536,6 +2536,57 @@ export interface paths {
         patch?: never;
         trace?: never;
     };
+    "/v1/pharmacies/on-duty": {
+        parameters: {
+            query?: never;
+            header?: never;
+            path?: never;
+            cookie?: never;
+        };
+        /** Pharmacies de garde, ouvertes 24 h/24 ou ouvertes, les plus proches d'abord (accueil) */
+        get: operations["getPharmaciesOnDuty"];
+        put?: never;
+        post?: never;
+        delete?: never;
+        options?: never;
+        head?: never;
+        patch?: never;
+        trace?: never;
+    };
+    "/v1/medicines": {
+        parameters: {
+            query?: never;
+            header?: never;
+            path?: never;
+            cookie?: never;
+        };
+        /** Rechercher un médicament dans la base (2 lettres au moins, 15 résultats) */
+        get: operations["getMedicines"];
+        put?: never;
+        post?: never;
+        delete?: never;
+        options?: never;
+        head?: never;
+        patch?: never;
+        trace?: never;
+    };
+    "/v1/medicine-alerts/preview": {
+        parameters: {
+            query?: never;
+            header?: never;
+            path?: never;
+            cookie?: never;
+        };
+        /** Pharmacies joignables par rayon, forfait et délais, avant de lancer l'alerte (address_id ou lat/lng) */
+        get: operations["getMedicineAlertsPreview"];
+        put?: never;
+        post?: never;
+        delete?: never;
+        options?: never;
+        head?: never;
+        patch?: never;
+        trace?: never;
+    };
     "/v1/medicine-alerts": {
         parameters: {
             query?: never;
@@ -2546,7 +2597,7 @@ export interface paths {
         /** Mes alertes médicament */
         get: operations["getMedicineAlerts"];
         put?: never;
-        /** Lancer une alerte médicament (photo d'ordonnance, photo de la boîte ou nom) */
+        /** Lancer une alerte : produits (base ou saisie libre) et/ou photos d'ordonnance ou de boîte */
         post: operations["postMedicineAlerts"];
         delete?: never;
         options?: never;
@@ -2561,7 +2612,7 @@ export interface paths {
             path?: never;
             cookie?: never;
         };
-        /** Alerte et réponses classées par distance (pharmacies masquées avant déblocage) */
+        /** Alerte, compteurs (contactées, vues, réponses) et réponses classées par distance */
         get: operations["getMedicineAlertsById"];
         put?: never;
         post?: never;
@@ -2588,7 +2639,7 @@ export interface paths {
         patch?: never;
         trace?: never;
     };
-    "/v1/medicine-alerts/{id}/unlock": {
+    "/v1/medicine-alerts/{id}/relaunch": {
         parameters: {
             query?: never;
             header?: never;
@@ -2597,15 +2648,15 @@ export interface paths {
         };
         get?: never;
         put?: never;
-        /** Débloquer l'identité des pharmacies (forfait payé une fois par alerte) */
-        post: operations["postMedicineAlertsByIdUnlock"];
+        /** Relancer une alerte terminée (autre rayon, produits modifiables, photos reprises) */
+        post: operations["postMedicineAlertsByIdRelaunch"];
         delete?: never;
         options?: never;
         head?: never;
         patch?: never;
         trace?: never;
     };
-    "/v1/medicine-alerts/{id}/reservations": {
+    "/v1/medicine-alerts/{id}/responses/{responseId}/unlock": {
         parameters: {
             query?: never;
             header?: never;
@@ -2614,8 +2665,8 @@ export interface paths {
         };
         get?: never;
         put?: never;
-        /** Réserver chez une pharmacie : retrait (obligatoire sur ordonnance) ou livraison ivia */
-        post: operations["postMedicineAlertsByIdReservations"];
+        /** Débloquer UNE pharmacie (forfait par pharmacie) : identité visible et produits mis de côté */
+        post: operations["postMedicineAlertsByIdResponsesByResponseIdUnlock"];
         delete?: never;
         options?: never;
         head?: never;
@@ -2646,10 +2697,61 @@ export interface paths {
             path?: never;
             cookie?: never;
         };
-        /** Réservation (code de remise compris) */
+        /** Réservation : produits, distance, suivi, code de remise */
         get: operations["getMedicineReservationsById"];
         put?: never;
         post?: never;
+        delete?: never;
+        options?: never;
+        head?: never;
+        patch?: never;
+        trace?: never;
+    };
+    "/v1/medicine-reservations/{id}/delivery-quote": {
+        parameters: {
+            query?: never;
+            header?: never;
+            path?: never;
+            cookie?: never;
+        };
+        /** Devis de livraison ivia vers une adresse (aucun engagement) */
+        get: operations["getMedicineReservationsByIdDeliveryQuote"];
+        put?: never;
+        post?: never;
+        delete?: never;
+        options?: never;
+        head?: never;
+        patch?: never;
+        trace?: never;
+    };
+    "/v1/medicine-reservations/{id}/delivery": {
+        parameters: {
+            query?: never;
+            header?: never;
+            path?: never;
+            cookie?: never;
+        };
+        get?: never;
+        put?: never;
+        /** Choisir la livraison ivia : lance la recherche du livreur le plus proche (paiement après acceptation) */
+        post: operations["postMedicineReservationsByIdDelivery"];
+        delete?: never;
+        options?: never;
+        head?: never;
+        patch?: never;
+        trace?: never;
+    };
+    "/v1/medicine-reservations/{id}/pickup": {
+        parameters: {
+            query?: never;
+            header?: never;
+            path?: never;
+            cookie?: never;
+        };
+        get?: never;
+        put?: never;
+        /** Revenir au retrait sur place (arrête la recherche de livreur) */
+        post: operations["postMedicineReservationsByIdPickup"];
         delete?: never;
         options?: never;
         head?: never;
@@ -2665,7 +2767,7 @@ export interface paths {
         };
         get?: never;
         put?: never;
-        /** Payer une livraison (médicament et frais de livraison) */
+        /** Payer produits et livraison, une fois le livreur trouvé (statut awaiting_payment) */
         post: operations["postMedicineReservationsByIdPay"];
         delete?: never;
         options?: never;
@@ -2697,7 +2799,7 @@ export interface paths {
             path?: never;
             cookie?: never;
         };
-        /** Paiement (déblocage ou livraison) */
+        /** Paiement (déblocage ou commande livrée) */
         get: operations["getMedicinePaymentsById"];
         put?: never;
         post?: never;
@@ -2793,6 +2895,23 @@ export interface paths {
         patch?: never;
         trace?: never;
     };
+    "/v1/pharmacy/me/duty-shifts": {
+        parameters: {
+            query?: never;
+            header?: never;
+            path?: never;
+            cookie?: never;
+        };
+        /** Mon planning de garde (à venir et en cours) */
+        get: operations["getPharmacyMeDutyShifts"];
+        put?: never;
+        post?: never;
+        delete?: never;
+        options?: never;
+        head?: never;
+        patch?: never;
+        trace?: never;
+    };
     "/v1/pharmacy/me/status": {
         parameters: {
             query?: never;
@@ -2801,7 +2920,7 @@ export interface paths {
             cookie?: never;
         };
         get?: never;
-        /** Ouvrir, fermer, déclarer de garde (seules les pharmacies ouvertes ou de garde reçoivent les alertes) */
+        /** Ouvrir, fermer, déclarer de garde ou 24 h/24 (seules ces pharmacies reçoivent les alertes) */
         put: operations["putPharmacyMeStatus"];
         post?: never;
         delete?: never;
@@ -2834,7 +2953,7 @@ export interface paths {
             path?: never;
             cookie?: never;
         };
-        /** Alerte reçue, avec lien temporaire vers la photo */
+        /** Alerte reçue (marquée vue), avec liens temporaires vers les photos */
         get: operations["getPharmacyInboxById"];
         put?: never;
         post?: never;
@@ -2853,7 +2972,7 @@ export interface paths {
         };
         get?: never;
         put?: never;
-        /** Répondre : produit disponible, prix, quantité */
+        /** Répondre ligne par ligne : disponible, quantité, prix (modifiable tant que non débloquée) */
         post: operations["postPharmacyInboxByIdRespond"];
         delete?: never;
         options?: never;
@@ -2870,7 +2989,7 @@ export interface paths {
         };
         get?: never;
         put?: never;
-        /** Indisponible (retire une réponse déjà donnée) */
+        /** Indisponible (retire une réponse non débloquée) */
         post: operations["postPharmacyInboxByIdDecline"];
         delete?: never;
         options?: never;
@@ -2912,6 +3031,23 @@ export interface paths {
         patch?: never;
         trace?: never;
     };
+    "/v1/pharmacy/reservations/{id}/prepared": {
+        parameters: {
+            query?: never;
+            header?: never;
+            path?: never;
+            cookie?: never;
+        };
+        get?: never;
+        put?: never;
+        /** Commande préparée (visible du client et du livreur) */
+        post: operations["postPharmacyReservationsByIdPrepared"];
+        delete?: never;
+        options?: never;
+        head?: never;
+        patch?: never;
+        trace?: never;
+    };
     "/v1/pharmacy/reservations/{id}/complete": {
         parameters: {
             query?: never;
@@ -2921,7 +3057,7 @@ export interface paths {
         };
         get?: never;
         put?: never;
-        /** Remettre au client contre son code (retrait payé sur place) */
+        /** Remettre au client contre son code (retrait payé sur place, sans commission) */
         post: operations["postPharmacyReservationsByIdComplete"];
         delete?: never;
         options?: never;
@@ -2938,7 +3074,7 @@ export interface paths {
         };
         get?: never;
         put?: never;
-        /** Annuler (produit plus disponible) ; client remboursé s'il avait payé */
+        /** Annuler (produit plus disponible) : client remboursé, forfait de déblocage compris */
         post: operations["postPharmacyReservationsByIdCancel"];
         delete?: never;
         options?: never;
@@ -2989,7 +3125,7 @@ export interface paths {
         };
         get?: never;
         put?: never;
-        /** Accepter la course (le livreur passe occupé) */
+        /** Accepter la course : le client est invité à payer */
         post: operations["postDriverPharmacyOffersByIdAccept"];
         delete?: never;
         options?: never;
@@ -3006,7 +3142,7 @@ export interface paths {
         };
         get?: never;
         put?: never;
-        /** Refuser la course */
+        /** Refuser la course (proposée au livreur suivant) */
         post: operations["postDriverPharmacyOffersByIdDecline"];
         delete?: never;
         options?: never;
@@ -3057,7 +3193,7 @@ export interface paths {
         };
         get?: never;
         put?: never;
-        /** Médicament récupéré à la pharmacie */
+        /** Commande récupérée à la pharmacie (refusé tant que le client n'a pas payé) */
         post: operations["postDriverPharmacyMissionsByIdPickedUp"];
         delete?: never;
         options?: never;
@@ -3074,7 +3210,7 @@ export interface paths {
         };
         get?: never;
         put?: never;
-        /** Remis au client contre son code */
+        /** Remis au client contre son code (ordonnance vérifiée si exigée) */
         post: operations["postDriverPharmacyMissionsByIdDelivered"];
         delete?: never;
         options?: never;
@@ -3091,7 +3227,7 @@ export interface paths {
         };
         get?: never;
         put?: never;
-        /** Se désister avant la récupération */
+        /** Se désister avant la récupération (recherche relancée) */
         post: operations["postDriverPharmacyMissionsByIdWithdraw"];
         delete?: never;
         options?: never;
@@ -3182,6 +3318,76 @@ export interface paths {
         options?: never;
         head?: never;
         patch?: never;
+        trace?: never;
+    };
+    "/v1/admin/pharmacies/{id}/duty-shifts": {
+        parameters: {
+            query?: never;
+            header?: never;
+            path?: never;
+            cookie?: never;
+        };
+        /** Planning de garde d'une pharmacie */
+        get: operations["getAdminPharmaciesByIdDutyShifts"];
+        put?: never;
+        /** Ajouter un créneau de garde (8 jours au plus, journalisé) */
+        post: operations["postAdminPharmaciesByIdDutyShifts"];
+        delete?: never;
+        options?: never;
+        head?: never;
+        patch?: never;
+        trace?: never;
+    };
+    "/v1/admin/pharmacy-duty-shifts/{id}": {
+        parameters: {
+            query?: never;
+            header?: never;
+            path?: never;
+            cookie?: never;
+        };
+        get?: never;
+        put?: never;
+        post?: never;
+        /** Supprimer un créneau de garde (journalisé) */
+        delete: operations["deleteAdminPharmacyDutyShiftsById"];
+        options?: never;
+        head?: never;
+        patch?: never;
+        trace?: never;
+    };
+    "/v1/admin/medicines": {
+        parameters: {
+            query?: never;
+            header?: never;
+            path?: never;
+            cookie?: never;
+        };
+        /** Base de médicaments */
+        get: operations["getAdminMedicines"];
+        put?: never;
+        /** Ajouter un médicament à la base (journalisé) */
+        post: operations["postAdminMedicines"];
+        delete?: never;
+        options?: never;
+        head?: never;
+        patch?: never;
+        trace?: never;
+    };
+    "/v1/admin/medicines/{id}": {
+        parameters: {
+            query?: never;
+            header?: never;
+            path?: never;
+            cookie?: never;
+        };
+        get?: never;
+        put?: never;
+        post?: never;
+        delete?: never;
+        options?: never;
+        head?: never;
+        /** Modifier ou désactiver un médicament (journalisé) */
+        patch: operations["patchAdminMedicinesById"];
         trace?: never;
     };
     "/v1/admin/medicine-alerts": {
@@ -4760,7 +4966,7 @@ export interface components {
             /** Format: date-time */
             created_at: string;
         };
-        /** @description Dossier d'une pharmacie (titulaire et admin). */
+        /** @description Dossier d'une pharmacie (titulaire et admin). duty_until : fin de la garde planifiée en cours. */
         Pharmacy: {
             /** Format: uuid */
             id: string;
@@ -4774,6 +4980,9 @@ export interface components {
             opening_hours: string;
             is_open: boolean;
             on_duty: boolean;
+            open_24h: boolean;
+            /** Format: date-time */
+            duty_until: string | null;
             /** @enum {string} */
             status: "pending_review" | "approved" | "rejected" | "suspended";
             /** @enum {string} */
@@ -4805,6 +5014,9 @@ export interface components {
             opening_hours: string;
             is_open: boolean;
             on_duty: boolean;
+            open_24h: boolean;
+            /** Format: date-time */
+            duty_until: string | null;
             /** @enum {string} */
             status: "pending_review" | "approved" | "rejected" | "suspended";
             /** @enum {string} */
@@ -4849,6 +5061,7 @@ export interface components {
         PharmacyOpenStatus: {
             is_open: boolean;
             on_duty: boolean;
+            open_24h?: boolean;
         };
         /** @description Motif obligatoire pour refuser ou suspendre. */
         PharmacyReviewInput: {
@@ -4856,18 +5069,162 @@ export interface components {
             decision: "approve" | "reject" | "suspend" | "reinstate";
             reason?: string;
         };
-        /** @description Position : address_id ou location. Photo (POST /v1/uploads, usage pharmacy_alert_photo) obligatoire sauf pour kind=name. */
-        MedicineAlertInput: {
-            /** @enum {string} */
-            kind: "prescription" | "box_photo" | "name";
-            medicine_name?: string;
-            /** @default 1 */
+        /** @description Pharmacie joignable maintenant (accueil). */
+        OnDutyPharmacy: {
+            /** Format: uuid */
+            id: string;
+            name: string;
+            phone: string;
+            address_text: string;
+            location: components["schemas"]["Point"];
+            /** Format: int32 */
+            distance_m: number;
+            open_24h: boolean;
+            is_open: boolean;
+            on_duty: boolean;
+            /** Format: date-time */
+            duty_until: string | null;
+        };
+        /** @description Créneau de garde planifié. */
+        PharmacyDutyShift: {
+            /** Format: uuid */
+            id: string;
+            /** Format: uuid */
+            pharmacy_id: string;
+            /** Format: date-time */
+            starts_at: string;
+            /** Format: date-time */
+            ends_at: string;
+            /** Format: date-time */
+            created_at: string;
+        };
+        /** @description 8 jours au plus, fin dans le futur. */
+        PharmacyDutyShiftInput: {
+            /** Format: date-time */
+            starts_at: string;
+            /** Format: date-time */
+            ends_at: string;
+            reason?: string;
+        };
+        /** @description Médicament de la base ; label = nom et dosage. */
+        Medicine: {
+            /** Format: uuid */
+            id: string;
+            name: string;
+            dosage: string;
+            form: string;
+            active_ingredient: string;
+            label: string;
+            is_active: boolean;
+        };
+        MedicineInput: {
+            name: string;
+            dosage?: string;
+            form?: string;
+            active_ingredient?: string;
+            is_active?: boolean;
+        };
+        /** @description Produit recherché : choisi dans la base (medicine_id) ou saisi librement (name). */
+        MedicineAlertItemInput: {
+            /** Format: uuid */
+            medicine_id?: string | null;
+            /** @description Repris de la base si medicine_id est donné. */
+            name?: string;
+            form?: string;
             quantity: number;
+        };
+        /** @description Photo envoyée avec POST /v1/uploads (usage pharmacy_alert_photo). */
+        MedicineAlertPhotoInput: {
+            /** @enum {string} */
+            kind: "prescription" | "box";
+            object_key: string;
+        };
+        /** @description Au moins un produit ou une photo. Position : address_id ou location. radius_m parmi les rayons proposés. */
+        MedicineAlertInput: {
+            items?: components["schemas"]["MedicineAlertItemInput"][];
+            photos?: components["schemas"]["MedicineAlertPhotoInput"][];
             note?: string;
-            photo_key?: string | null;
+            generic_accepted?: boolean;
+            /** Format: int32 */
+            radius_m: number;
             /** Format: uuid */
             address_id?: string | null;
             location?: components["schemas"]["Point"] | null;
+        };
+        /** @description Champs absents : repris de l'alerte d'origine (photos comprises). */
+        MedicineRelaunchInput: {
+            /** Format: int32 */
+            radius_m: number;
+            items?: components["schemas"]["MedicineAlertItemInput"][] | null;
+            note?: string | null;
+            generic_accepted?: boolean | null;
+        };
+        MedicineRadiusCount: {
+            /** Format: int32 */
+            radius_m: number;
+            /** Format: int64 */
+            pharmacies: number;
+        };
+        /** @description Avant de lancer l'alerte : pharmacies joignables par rayon et règles en vigueur. */
+        MedicineAlertPreview: {
+            /** Format: int32 */
+            default_radius_m: number;
+            radii: components["schemas"]["MedicineRadiusCount"][];
+            /** Format: int64 */
+            unlock_fee_xof: number;
+            /** Format: int32 */
+            response_window_minutes: number;
+            /** Format: int32 */
+            pickup_hold_minutes: number;
+            /** Format: int32 */
+            photo_retention_hours: number;
+        };
+        MedicineAlertItem: {
+            /** Format: uuid */
+            id: string;
+            /** Format: int32 */
+            position: number;
+            /** Format: uuid */
+            medicine_id: string | null;
+            name: string;
+            form: string;
+            /** Format: int32 */
+            quantity: number;
+        };
+        /** @description url : lien de 10 minutes, absent une fois la photo purgée. */
+        MedicineAlertPhoto: {
+            /** Format: uuid */
+            id: string;
+            /** @enum {string} */
+            kind: "prescription" | "box";
+            /** Format: int32 */
+            position: number;
+            url?: string;
+            purged: boolean;
+        };
+        MedicineAlertStats: {
+            /** Format: int64 */
+            notified: number;
+            /** Format: int64 */
+            seen: number;
+            /** Format: int64 */
+            responded: number;
+        };
+        /** @description Ligne de réponse d'une pharmacie. */
+        MedicineResponseLine: {
+            /** Format: uuid */
+            id: string;
+            /** Format: uuid */
+            alert_item_id: string | null;
+            name: string;
+            /** Format: int32 */
+            quantity: number;
+            /** Format: int64 */
+            unit_price_xof: number;
+            /** Format: int64 */
+            line_total_xof: number;
+            available: boolean;
+            prescription_required: boolean;
         };
         /** @description Identité d'une pharmacie, visible après déblocage. */
         PharmacyContact: {
@@ -4878,8 +5235,11 @@ export interface components {
             address_text: string;
             location: components["schemas"]["Point"];
             on_duty: boolean;
+            open_24h: boolean;
+            /** Format: date-time */
+            duty_until: string | null;
         };
-        /** @description Réponse classée par distance ; avant déblocage, pharmacy est nul, label vaut « Pharmacie N » et note est vide. */
+        /** @description Réponse classée par distance ; tant qu'elle n'est pas débloquée, pharmacy est nul, label vaut « Pharmacie N » et note est vide. */
         MedicineAlertResponse: {
             /** Format: uuid */
             id: string;
@@ -4888,31 +5248,35 @@ export interface components {
             label: string;
             /** Format: int32 */
             distance_m: number;
-            product_name: string;
-            /** Format: int64 */
-            unit_price_xof: number;
+            lines: components["schemas"]["MedicineResponseLine"][];
             /** Format: int32 */
-            quantity_available: number;
+            available_count: number;
+            /** Format: int32 */
+            line_count: number;
+            all_available: boolean;
+            /** Format: int64 */
+            total_xof: number;
             prescription_required: boolean;
-            delivery_allowed: boolean;
             note: string;
             /** @enum {string} */
             status: "active" | "withdrawn";
-            pharmacy: components["schemas"]["PharmacyContact"] | null;
+            unlocked: boolean;
             /** Format: date-time */
-            created_at: string;
+            responded_at: string;
+            /** Format: uuid */
+            reservation_id: string | null;
+            pharmacy: components["schemas"]["PharmacyContact"] | null;
         };
-        /** @description Alerte vue par le client. */
+        /** @description Alerte vue par le client ; unlock_fee_xof est dû pour chaque pharmacie débloquée. */
         MedicineAlert: {
             /** Format: uuid */
             id: string;
             /** @enum {string} */
-            kind: "prescription" | "box_photo" | "name";
-            medicine_name: string;
-            /** Format: int32 */
-            quantity: number;
+            kind: "prescription" | "box_photo" | "name" | "mixed";
+            items: components["schemas"]["MedicineAlertItem"][];
+            photos: components["schemas"]["MedicineAlertPhoto"][];
             note: string;
-            has_photo: boolean;
+            generic_accepted: boolean;
             /** @enum {string} */
             status: "searching" | "answered" | "no_response" | "unlocked" | "fulfilled" | "cancelled";
             location: components["schemas"]["Point"];
@@ -4920,28 +5284,27 @@ export interface components {
             radius_m: number;
             /** Format: date-time */
             search_ends_at: string;
-            unlocked: boolean;
+            stats: components["schemas"]["MedicineAlertStats"];
             /** Format: int64 */
             unlock_fee_xof: number;
-            /** Format: int64 */
-            pharmacies_notified: number;
             responses: components["schemas"]["MedicineAlertResponse"][];
             /** Format: uuid */
-            reservation_id: string | null;
+            relaunched_from: string | null;
             /** Format: date-time */
             created_at: string;
+            /** Format: date-time */
+            closed_at: string | null;
         };
         /** @description Alerte (pharmacies visibles) avec le client et les paiements. */
         AdminMedicineAlert: {
             /** Format: uuid */
             id: string;
             /** @enum {string} */
-            kind: "prescription" | "box_photo" | "name";
-            medicine_name: string;
-            /** Format: int32 */
-            quantity: number;
+            kind: "prescription" | "box_photo" | "name" | "mixed";
+            items: components["schemas"]["MedicineAlertItem"][];
+            photos: components["schemas"]["MedicineAlertPhoto"][];
             note: string;
-            has_photo: boolean;
+            generic_accepted: boolean;
             /** @enum {string} */
             status: "searching" | "answered" | "no_response" | "unlocked" | "fulfilled" | "cancelled";
             location: components["schemas"]["Point"];
@@ -4949,16 +5312,16 @@ export interface components {
             radius_m: number;
             /** Format: date-time */
             search_ends_at: string;
-            unlocked: boolean;
+            stats: components["schemas"]["MedicineAlertStats"];
             /** Format: int64 */
             unlock_fee_xof: number;
-            /** Format: int64 */
-            pharmacies_notified: number;
             responses: components["schemas"]["MedicineAlertResponse"][];
             /** Format: uuid */
-            reservation_id: string | null;
+            relaunched_from: string | null;
             /** Format: date-time */
             created_at: string;
+            /** Format: date-time */
+            closed_at: string | null;
             /** Format: uuid */
             buyer_id: string;
             payments: components["schemas"]["MedicinePayment"][];
@@ -4966,28 +5329,26 @@ export interface components {
         PharmacyOwnResponse: {
             /** Format: uuid */
             id: string;
-            product_name: string;
+            lines: components["schemas"]["MedicineResponseLine"][];
             /** Format: int64 */
-            unit_price_xof: number;
-            /** Format: int32 */
-            quantity_available: number;
-            prescription_required: boolean;
+            total_xof: number;
             note: string;
             /** @enum {string} */
             status: "active" | "withdrawn";
+            unlocked: boolean;
         };
-        /** @description Alerte reçue par une pharmacie : jamais d'identité ni de position du client. photo_url : lien de 10 minutes (détail seulement). */
+        /** @description Alerte reçue par une pharmacie : jamais d'identité ni de position du client. photos : liens de 10 minutes (détail seulement). */
         PharmacyInboxItem: {
             /** Format: uuid */
             alert_id: string;
             /** @enum {string} */
-            kind: "prescription" | "box_photo" | "name";
-            medicine_name: string;
+            kind: "prescription" | "box_photo" | "name" | "mixed";
+            items: components["schemas"]["MedicineAlertItem"][];
+            photos: components["schemas"]["MedicineAlertPhoto"][];
             /** Format: int32 */
-            quantity: number;
+            photo_count: number;
             note: string;
-            photo_url?: string;
-            has_photo: boolean;
+            generic_accepted: boolean;
             /** Format: int32 */
             distance_m: number;
             /** @enum {string} */
@@ -4996,51 +5357,61 @@ export interface components {
             alert_status: "searching" | "answered" | "no_response" | "unlocked" | "fulfilled" | "cancelled";
             /** Format: date-time */
             search_ends_at: string;
+            seen: boolean;
             my_response: components["schemas"]["PharmacyOwnResponse"] | null;
             /** Format: date-time */
             received_at: string;
         };
-        PharmacyResponseInput: {
-            product_name: string;
+        /** @description Prix obligatoire pour une ligne disponible. */
+        PharmacyResponseLineInput: {
+            /** Format: uuid */
+            alert_item_id?: string | null;
+            name: string;
+            quantity: number;
             /** Format: int64 */
-            unit_price_xof: number;
-            quantity_available: number;
+            unit_price_xof?: number;
+            available: boolean;
             prescription_required?: boolean;
-            note?: string;
         };
-        /** @description Livraison impossible sur ordonnance ; address_id obligatoire pour une livraison. */
-        MedicineReserveInput: {
-            /** Format: uuid */
-            response_id: string;
-            /** @enum {string} */
-            fulfillment: "pickup" | "delivery";
-            /** @description 0 ou absent : quantité de l'alerte. */
-            quantity?: number;
-            /** Format: uuid */
-            address_id?: string | null;
+        /** @description Au moins une ligne disponible ; sinon, refuser l'alerte. */
+        PharmacyResponseInput: {
+            lines: components["schemas"]["PharmacyResponseLineInput"][];
+            note?: string;
         };
         /** @description Livreur ivia ; téléphone seulement pendant la course. */
         CourierContact: {
             first_name: string;
             phone: string;
+            vehicle_type: string;
+            vehicle_plate: string;
             /** @enum {string} */
             status: "assigned" | "picked_up" | "delivered";
         };
-        /** @description Réservation vue par le client ; handover_code à donner au pharmacien (retrait) ou au livreur (livraison). */
+        /** @description Étapes de la commande. */
+        MedicineTimeline: {
+            /** Format: date-time */
+            unlocked_at: string;
+            /** Format: date-time */
+            paid_at: string | null;
+            /** Format: date-time */
+            prepared_at: string | null;
+            /** Format: date-time */
+            picked_up_at: string | null;
+            /** Format: date-time */
+            delivered_at: string | null;
+        };
+        /** @description Réservation créée au déblocage. handover_code (4 chiffres) à donner au pharmacien ou au livreur ; absent pendant la recherche de livreur et l'attente de paiement. */
         MedicineReservation: {
             /** Format: uuid */
             id: string;
+            number: string;
             /** Format: uuid */
             alert_id: string;
             /** @enum {string} */
             fulfillment: "pickup" | "delivery";
             /** @enum {string} */
-            status: "reserved" | "awaiting_payment" | "paid" | "courier_assigned" | "picked_up" | "completed" | "expired" | "cancelled";
-            product_name: string;
-            /** Format: int32 */
-            quantity: number;
-            /** Format: int64 */
-            unit_price_xof: number;
+            status: "reserved" | "courier_search" | "awaiting_payment" | "paid" | "courier_assigned" | "picked_up" | "completed" | "expired" | "cancelled";
+            lines: components["schemas"]["MedicineResponseLine"][];
             /** Format: int64 */
             items_xof: number;
             /** Format: int64 */
@@ -5048,42 +5419,70 @@ export interface components {
             /** Format: int64 */
             total_xof: number;
             pay_in_app: boolean;
+            prescription_required: boolean;
             handover_code?: string;
-            delivery_address: string;
             /** Format: date-time */
             expires_at: string | null;
+            /** Format: int64 */
+            courier_offers_sent: number;
+            /** Format: int64 */
+            distance_m: number;
+            /** Format: int32 */
+            walk_minutes: number;
+            delivery_address: string;
+            /** Format: int32 */
+            delivery_eta_minutes: number | null;
             cancel_reason: string;
             pharmacy: components["schemas"]["PharmacyContact"];
             courier: components["schemas"]["CourierContact"] | null;
+            timeline: components["schemas"]["MedicineTimeline"];
             /** Format: date-time */
             created_at: string;
             /** Format: date-time */
             completed_at: string | null;
         };
+        /** @description Devis indicatif ; le prix est figé au choix de la livraison. */
+        MedicineDeliveryQuote: {
+            /** Format: int64 */
+            distance_m: number;
+            vehicle_type: string;
+            /** Format: int64 */
+            delivery_fee_xof: number;
+            /** Format: int64 */
+            items_xof: number;
+            /** Format: int64 */
+            total_xof: number;
+            /** Format: int32 */
+            eta_minutes: number;
+        };
+        MedicineDeliveryInput: {
+            /** Format: uuid */
+            address_id: string;
+        };
         /** @description Réservation vue par la pharmacie (prénom du client seulement, jamais son code). */
         PharmacyReservation: {
             /** Format: uuid */
             id: string;
+            number: string;
             /** Format: uuid */
             alert_id: string;
             /** @enum {string} */
             fulfillment: "pickup" | "delivery";
             /** @enum {string} */
-            status: "reserved" | "awaiting_payment" | "paid" | "courier_assigned" | "picked_up" | "completed" | "expired" | "cancelled";
-            product_name: string;
-            /** Format: int32 */
-            quantity: number;
-            /** Format: int64 */
-            unit_price_xof: number;
+            status: "reserved" | "courier_search" | "awaiting_payment" | "paid" | "courier_assigned" | "picked_up" | "completed" | "expired" | "cancelled";
+            lines: components["schemas"]["MedicineResponseLine"][];
             /** Format: int64 */
             items_xof: number;
             /** Format: int64 */
             commission_xof: number;
             /** Format: int64 */
             pharmacy_due_xof: number;
+            prescription_required: boolean;
             buyer_first_name: string;
             /** Format: date-time */
             expires_at: string | null;
+            /** Format: date-time */
+            prepared_at: string | null;
             cancel_reason: string;
             courier: components["schemas"]["CourierContact"] | null;
             /** Format: date-time */
@@ -5101,7 +5500,7 @@ export interface components {
             /** Format: date-time */
             created_at: string;
         };
-        /** @description Sommes dues (livraisons payées dans l'app, commission déduite) ; les retraits se paient sur place. */
+        /** @description Sommes dues (livraisons payées dans l'app) ; les retraits se paient sur place. */
         PharmacyEarnings: {
             /** Format: int64 */
             due_xof: number;
@@ -5127,7 +5526,7 @@ export interface components {
             operator: "flooz" | "tmoney";
             phone: string;
         };
-        /** @description Paiement du module pharmacie. */
+        /** @description Paiement du module pharmacie (déblocage d'une pharmacie ou commande livrée). */
         MedicinePayment: {
             /** Format: uuid */
             id: string;
@@ -5152,10 +5551,12 @@ export interface components {
             /** Format: date-time */
             updated_at: string;
         };
-        /** @description payment est nul si le déblocage est gratuit (forfait réglé à 0). */
+        /** @description payment est nul si le déblocage est gratuit ; reservation_id est rempli une fois la pharmacie débloquée. */
         MedicineUnlockResult: {
             alert: components["schemas"]["MedicineAlert"];
             payment: components["schemas"]["MedicinePayment"] | null;
+            /** Format: uuid */
+            reservation_id: string | null;
         };
         SimulateOutcome: {
             /** @enum {string} */
@@ -5164,7 +5565,12 @@ export interface components {
         HandoverCode: {
             code: string;
         };
-        /** @description Course pharmacie proposée au livreur. */
+        /** @description prescription_checked obligatoire à true si la commande exige une ordonnance. */
+        PharmacyDeliveredInput: {
+            code: string;
+            prescription_checked?: boolean;
+        };
+        /** @description Course pharmacie proposée au livreur (le plus proche d'abord). */
         PharmacyCourierOffer: {
             /** Format: uuid */
             id: string;
@@ -5188,19 +5594,21 @@ export interface components {
             location: components["schemas"]["Point"];
             instructions: string;
         };
-        /** @description Course vue par le livreur ; client nul hors course en cours. */
+        /** @description Course vue par le livreur ; client nul hors course en cours. Récupération refusée tant que le client n'a pas payé. */
         PharmacyCourierMission: {
             /** Format: uuid */
             id: string;
             /** Format: uuid */
             reservation_id: string;
+            number: string;
             /** @enum {string} */
             status: "assigned" | "picked_up" | "delivered" | "cancelled";
             /** Format: int64 */
             fee_xof: number;
-            product_name: string;
-            /** Format: int32 */
-            quantity: number;
+            lines: components["schemas"]["MedicineResponseLine"][];
+            prescription_check_required: boolean;
+            /** Format: date-time */
+            prepared_at: string | null;
             pharmacy: components["schemas"]["PharmacyMissionPOI"];
             client: components["schemas"]["PharmacyMissionPOI"] | null;
             /** Format: date-time */
@@ -5215,13 +5623,19 @@ export interface components {
             enabled: boolean;
             /** Format: int64 */
             unlock_fee_xof: number;
+            /** @description Rayon proposé par défaut (parmi radius_options_m). */
             search_radius_m: number;
             max_radius_m: number;
+            radius_options_m: number[];
+            /** @description Élargir seul la recherche faute de réponses (sinon, le client relance). */
+            auto_widen: boolean;
             target_responses: number;
             widen_after_minutes: number;
             response_window_minutes: number;
             pickup_hold_minutes: number;
-            photo_retention_days: number;
+            photo_retention_hours: number;
+            /** @description Commission sur les produits livrés, en points de base (0 : aucune). */
+            product_commission_bp: number;
             /** Format: date-time */
             updated_at: string;
         };
@@ -5230,13 +5644,19 @@ export interface components {
             enabled?: boolean;
             /** Format: int64 */
             unlock_fee_xof?: number;
+            /** @description Rayon proposé par défaut (parmi radius_options_m). */
             search_radius_m?: number;
             max_radius_m?: number;
+            radius_options_m?: number[];
+            /** @description Élargir seul la recherche faute de réponses (sinon, le client relance). */
+            auto_widen?: boolean;
             target_responses?: number;
             widen_after_minutes?: number;
             response_window_minutes?: number;
             pickup_hold_minutes?: number;
-            photo_retention_days?: number;
+            photo_retention_hours?: number;
+            /** @description Commission sur les produits livrés, en points de base (0 : aucune). */
+            product_commission_bp?: number;
             reason?: string;
         };
         PharmacyOverview: {
@@ -10751,6 +11171,108 @@ export interface operations {
             };
         };
     };
+    getPharmaciesOnDuty: {
+        parameters: {
+            query: {
+                lat: number;
+                lng: number;
+                radius_m?: number;
+                limit?: number;
+            };
+            header?: never;
+            path?: never;
+            cookie?: never;
+        };
+        requestBody?: never;
+        responses: {
+            /** @description Succès */
+            200: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": {
+                        items: components["schemas"]["OnDutyPharmacy"][];
+                    };
+                };
+            };
+            /** @description Erreur (voir `code`) */
+            default: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["Error"];
+                };
+            };
+        };
+    };
+    getMedicines: {
+        parameters: {
+            query?: {
+                q?: string;
+            };
+            header?: never;
+            path?: never;
+            cookie?: never;
+        };
+        requestBody?: never;
+        responses: {
+            /** @description Succès */
+            200: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": {
+                        items: components["schemas"]["Medicine"][];
+                    };
+                };
+            };
+            /** @description Erreur (voir `code`) */
+            default: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["Error"];
+                };
+            };
+        };
+    };
+    getMedicineAlertsPreview: {
+        parameters: {
+            query?: {
+                address_id?: string;
+                lat?: number;
+                lng?: number;
+            };
+            header?: never;
+            path?: never;
+            cookie?: never;
+        };
+        requestBody?: never;
+        responses: {
+            /** @description Succès */
+            200: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["MedicineAlertPreview"];
+                };
+            };
+            /** @description Erreur (voir `code`) */
+            default: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["Error"];
+                };
+            };
+        };
+    };
     getMedicineAlerts: {
         parameters: {
             query?: {
@@ -10881,12 +11403,48 @@ export interface operations {
             };
         };
     };
-    postMedicineAlertsByIdUnlock: {
+    postMedicineAlertsByIdRelaunch: {
         parameters: {
             query?: never;
             header?: never;
             path: {
                 id: string;
+            };
+            cookie?: never;
+        };
+        requestBody: {
+            content: {
+                "application/json": components["schemas"]["MedicineRelaunchInput"];
+            };
+        };
+        responses: {
+            /** @description Succès */
+            201: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["MedicineAlert"];
+                };
+            };
+            /** @description Erreur (voir `code`) */
+            default: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["Error"];
+                };
+            };
+        };
+    };
+    postMedicineAlertsByIdResponsesByResponseIdUnlock: {
+        parameters: {
+            query?: never;
+            header?: never;
+            path: {
+                id: string;
+                responseId: string;
             };
             cookie?: never;
         };
@@ -10903,41 +11461,6 @@ export interface operations {
                 };
                 content: {
                     "application/json": components["schemas"]["MedicineUnlockResult"];
-                };
-            };
-            /** @description Erreur (voir `code`) */
-            default: {
-                headers: {
-                    [name: string]: unknown;
-                };
-                content: {
-                    "application/json": components["schemas"]["Error"];
-                };
-            };
-        };
-    };
-    postMedicineAlertsByIdReservations: {
-        parameters: {
-            query?: never;
-            header?: never;
-            path: {
-                id: string;
-            };
-            cookie?: never;
-        };
-        requestBody: {
-            content: {
-                "application/json": components["schemas"]["MedicineReserveInput"];
-            };
-        };
-        responses: {
-            /** @description Succès */
-            201: {
-                headers: {
-                    [name: string]: unknown;
-                };
-                content: {
-                    "application/json": components["schemas"]["MedicineReservation"];
                 };
             };
             /** @description Erreur (voir `code`) */
@@ -10987,6 +11510,105 @@ export interface operations {
         };
     };
     getMedicineReservationsById: {
+        parameters: {
+            query?: never;
+            header?: never;
+            path: {
+                id: string;
+            };
+            cookie?: never;
+        };
+        requestBody?: never;
+        responses: {
+            /** @description Succès */
+            200: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["MedicineReservation"];
+                };
+            };
+            /** @description Erreur (voir `code`) */
+            default: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["Error"];
+                };
+            };
+        };
+    };
+    getMedicineReservationsByIdDeliveryQuote: {
+        parameters: {
+            query: {
+                address_id: string;
+            };
+            header?: never;
+            path: {
+                id: string;
+            };
+            cookie?: never;
+        };
+        requestBody?: never;
+        responses: {
+            /** @description Succès */
+            200: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["MedicineDeliveryQuote"];
+                };
+            };
+            /** @description Erreur (voir `code`) */
+            default: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["Error"];
+                };
+            };
+        };
+    };
+    postMedicineReservationsByIdDelivery: {
+        parameters: {
+            query?: never;
+            header?: never;
+            path: {
+                id: string;
+            };
+            cookie?: never;
+        };
+        requestBody: {
+            content: {
+                "application/json": components["schemas"]["MedicineDeliveryInput"];
+            };
+        };
+        responses: {
+            /** @description Succès */
+            200: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["MedicineReservation"];
+                };
+            };
+            /** @description Erreur (voir `code`) */
+            default: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["Error"];
+                };
+            };
+        };
+    };
+    postMedicineReservationsByIdPickup: {
         parameters: {
             query?: never;
             header?: never;
@@ -11314,6 +11936,37 @@ export interface operations {
             };
         };
     };
+    getPharmacyMeDutyShifts: {
+        parameters: {
+            query?: never;
+            header?: never;
+            path?: never;
+            cookie?: never;
+        };
+        requestBody?: never;
+        responses: {
+            /** @description Succès */
+            200: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": {
+                        items: components["schemas"]["PharmacyDutyShift"][];
+                    };
+                };
+            };
+            /** @description Erreur (voir `code`) */
+            default: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["Error"];
+                };
+            };
+        };
+    };
     putPharmacyMeStatus: {
         parameters: {
             query?: never;
@@ -11517,6 +12170,37 @@ export interface operations {
         };
     };
     getPharmacyReservationsById: {
+        parameters: {
+            query?: never;
+            header?: never;
+            path: {
+                id: string;
+            };
+            cookie?: never;
+        };
+        requestBody?: never;
+        responses: {
+            /** @description Succès */
+            200: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["PharmacyReservation"];
+                };
+            };
+            /** @description Erreur (voir `code`) */
+            default: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["Error"];
+                };
+            };
+        };
+    };
+    postPharmacyReservationsByIdPrepared: {
         parameters: {
             query?: never;
             header?: never;
@@ -11845,7 +12529,7 @@ export interface operations {
         };
         requestBody: {
             content: {
-                "application/json": components["schemas"]["HandoverCode"];
+                "application/json": components["schemas"]["PharmacyDeliveredInput"];
             };
         };
         responses: {
@@ -12059,6 +12743,211 @@ export interface operations {
                 };
                 content: {
                     "application/json": components["schemas"]["PharmacyEarnings"];
+                };
+            };
+            /** @description Erreur (voir `code`) */
+            default: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["Error"];
+                };
+            };
+        };
+    };
+    getAdminPharmaciesByIdDutyShifts: {
+        parameters: {
+            query?: never;
+            header?: never;
+            path: {
+                id: string;
+            };
+            cookie?: never;
+        };
+        requestBody?: never;
+        responses: {
+            /** @description Succès */
+            200: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": {
+                        items: components["schemas"]["PharmacyDutyShift"][];
+                    };
+                };
+            };
+            /** @description Erreur (voir `code`) */
+            default: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["Error"];
+                };
+            };
+        };
+    };
+    postAdminPharmaciesByIdDutyShifts: {
+        parameters: {
+            query?: never;
+            header?: never;
+            path: {
+                id: string;
+            };
+            cookie?: never;
+        };
+        requestBody: {
+            content: {
+                "application/json": components["schemas"]["PharmacyDutyShiftInput"];
+            };
+        };
+        responses: {
+            /** @description Succès */
+            201: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["PharmacyDutyShift"];
+                };
+            };
+            /** @description Erreur (voir `code`) */
+            default: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["Error"];
+                };
+            };
+        };
+    };
+    deleteAdminPharmacyDutyShiftsById: {
+        parameters: {
+            query?: never;
+            header?: never;
+            path: {
+                id: string;
+            };
+            cookie?: never;
+        };
+        requestBody: {
+            content: {
+                "application/json": components["schemas"]["Reason"];
+            };
+        };
+        responses: {
+            /** @description Effectué */
+            204: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content?: never;
+            };
+            /** @description Erreur (voir `code`) */
+            default: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["Error"];
+                };
+            };
+        };
+    };
+    getAdminMedicines: {
+        parameters: {
+            query?: {
+                q?: string;
+                limit?: number;
+                offset?: number;
+            };
+            header?: never;
+            path?: never;
+            cookie?: never;
+        };
+        requestBody?: never;
+        responses: {
+            /** @description Succès */
+            200: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": {
+                        items: components["schemas"]["Medicine"][];
+                        next_offset: number | null;
+                    };
+                };
+            };
+            /** @description Erreur (voir `code`) */
+            default: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["Error"];
+                };
+            };
+        };
+    };
+    postAdminMedicines: {
+        parameters: {
+            query?: never;
+            header?: never;
+            path?: never;
+            cookie?: never;
+        };
+        requestBody: {
+            content: {
+                "application/json": components["schemas"]["MedicineInput"];
+            };
+        };
+        responses: {
+            /** @description Succès */
+            201: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["Medicine"];
+                };
+            };
+            /** @description Erreur (voir `code`) */
+            default: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["Error"];
+                };
+            };
+        };
+    };
+    patchAdminMedicinesById: {
+        parameters: {
+            query?: never;
+            header?: never;
+            path: {
+                id: string;
+            };
+            cookie?: never;
+        };
+        requestBody: {
+            content: {
+                "application/json": components["schemas"]["MedicineInput"];
+            };
+        };
+        responses: {
+            /** @description Succès */
+            200: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["Medicine"];
                 };
             };
             /** @description Erreur (voir `code`) */

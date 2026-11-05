@@ -4,6 +4,7 @@ import (
 	"context"
 	"errors"
 	"fmt"
+	"slices"
 	"time"
 
 	"github.com/google/uuid"
@@ -51,10 +52,12 @@ type Payment struct {
 	UpdatedAt     time.Time  `json:"updated_at"`
 }
 
-// UnlockResult : alerte après la demande de déblocage, et le paiement à valider (nul si gratuit).
+// UnlockResult : alerte après la demande de déblocage, paiement à valider (nul si gratuit) et
+// réservation (mise de côté) dès que le déblocage est acquis.
 type UnlockResult struct {
-	Alert   Alert    `json:"alert"`
-	Payment *Payment `json:"payment"`
+	Alert         Alert      `json:"alert"`
+	Payment       *Payment   `json:"payment"`
+	ReservationID *uuid.UUID `json:"reservation_id"`
 }
 
 var errPaymentNotFound = apperr.NotFound("payment_not_found", "Paiement introuvable.")
@@ -77,9 +80,9 @@ func validatePayInput(in PayInput) (string, error) {
 	return phone, v.Err()
 }
 
-// Unlock débloque l'identité des pharmacies qui ont répondu : paiement forfaitaire, une fois par
-// alerte. Gratuit si le forfait est réglé à 0.
-func (s *Service) Unlock(ctx context.Context, buyerID, alertID uuid.UUID, in PayInput) (UnlockResult, error) {
+// Unlock débloque UNE pharmacie qui a répondu (forfait payé via l'agrégateur, gratuit s'il est
+// réglé à 0) : son identité devient visible et ses produits sont mis de côté.
+func (s *Service) Unlock(ctx context.Context, buyerID, alertID, responseID uuid.UUID, in PayInput) (UnlockResult, error) {
 	q := s.q(ctx)
 	a, err := q.GetAlert(ctx, alertID)
 	if database.IsNoRows(err) || (err == nil && a.BuyerID != buyerID) {
@@ -88,56 +91,106 @@ func (s *Service) Unlock(ctx context.Context, buyerID, alertID uuid.UUID, in Pay
 	if err != nil {
 		return UnlockResult{}, fmt.Errorf("lecture de l'alerte : %w", err)
 	}
-	if a.UnlockedAt != nil {
-		return UnlockResult{}, apperr.Conflict("already_unlocked", "Les pharmacies de cette alerte sont déjà débloquées.")
-	}
-	if a.Status == AlertCancelled || a.Status == AlertFulfilled || a.Status == AlertNoResponse {
+	if !slices.Contains(openAlert, a.Status) {
 		return UnlockResult{}, apperr.Conflict("alert_closed", "Cette alerte est terminée.")
 	}
-	n, err := q.CountActiveResponses(ctx, alertID)
-	if err != nil {
-		return UnlockResult{}, fmt.Errorf("décompte des réponses : %w", err)
+	resp, err := q.GetResponse(ctx, responseID)
+	if database.IsNoRows(err) || (err == nil && resp.AlertID != alertID) {
+		return UnlockResult{}, apperr.NotFound("response_not_found", "Réponse introuvable pour cette alerte.")
 	}
-	if n == 0 {
-		return UnlockResult{}, apperr.Conflict("no_response_yet", "Aucune pharmacie n'a encore répondu : le déblocage n'est pas encore utile.")
+	if err != nil {
+		return UnlockResult{}, fmt.Errorf("lecture de la réponse : %w", err)
+	}
+	if resp.UnlockedAt != nil {
+		return UnlockResult{}, apperr.Conflict("already_unlocked", "Cette pharmacie est déjà débloquée.")
+	}
+	if resp.Status != "active" {
+		return UnlockResult{}, apperr.Conflict("response_withdrawn", "Cette pharmacie n'a plus vos produits. Choisissez-en une autre.")
 	}
 	settings, err := s.Settings(ctx)
 	if err != nil {
 		return UnlockResult{}, err
 	}
-	var pay *Payment
+	out := UnlockResult{}
 	if settings.UnlockFeeXOF == 0 {
-		if _, err := q.MarkUnlocked(ctx, alertID); err != nil {
-			return UnlockResult{}, fmt.Errorf("déblocage : %w", err)
+		err := s.db.InTx(ctx, func(ctx context.Context) error {
+			rid, err := s.unlockResponse(ctx, responseID, nil)
+			out.ReservationID = rid
+			return err
+		})
+		if err != nil {
+			return UnlockResult{}, err
 		}
+	} else if cur, err := q.PendingUnlockPayment(ctx, &responseID); err == nil {
+		p := toPayment(cur)
+		out.Payment = &p
+	} else if !database.IsNoRows(err) {
+		return UnlockResult{}, fmt.Errorf("paiement en cours : %w", err)
 	} else {
-		if cur, err := q.PendingUnlockPayment(ctx, alertID); err == nil {
-			p := toPayment(cur)
-			pay = &p
-		} else if !database.IsNoRows(err) {
-			return UnlockResult{}, fmt.Errorf("paiement en cours : %w", err)
-		} else {
-			phone, err := validatePayInput(in)
-			if err != nil {
-				return UnlockResult{}, err
-			}
-			p, err := s.initiate(ctx, store.CreatePaymentParams{
-				Purpose: "unlock", AlertID: alertID, BuyerID: buyerID, AmountXof: settings.UnlockFeeXOF,
-				Operator: in.Operator, PayerPhone: phone,
-			}, "Déblocage alerte médicament", "pharmacy_payments_one_pending_unlock", func(ctx context.Context) (store.PharmacyPayment, error) {
-				return s.q(ctx).PendingUnlockPayment(ctx, alertID)
-			})
-			if err != nil {
-				return UnlockResult{}, err
-			}
-			pay = &p
+		phone, err := validatePayInput(in)
+		if err != nil {
+			return UnlockResult{}, err
 		}
+		p, err := s.initiate(ctx, store.CreatePaymentParams{
+			Purpose: "unlock", AlertID: alertID, ResponseID: &responseID, BuyerID: buyerID, AmountXof: settings.UnlockFeeXOF,
+			Operator: in.Operator, PayerPhone: phone,
+		}, "Déblocage alerte médicament", "pharmacy_payments_one_pending_unlock_per_response", func(ctx context.Context) (store.PharmacyPayment, error) {
+			return s.q(ctx).PendingUnlockPayment(ctx, &responseID)
+		})
+		if err != nil {
+			return UnlockResult{}, err
+		}
+		out.Payment = &p
 	}
-	al, err := s.GetAlert(ctx, buyerID, alertID)
-	if err != nil {
+	if out.Alert, err = s.GetAlert(ctx, buyerID, alertID); err != nil {
 		return UnlockResult{}, err
 	}
-	return UnlockResult{Alert: al, Payment: pay}, nil
+	return out, nil
+}
+
+// unlockResponse rend la réponse visible et met les produits de côté. Retourne nil (sans erreur)
+// si la pharmacie n'est plus disponible ou déjà débloquée : le paiement est alors remboursé par
+// l'appelant. Dans une transaction.
+func (s *Service) unlockResponse(ctx context.Context, responseID uuid.UUID, paymentID *uuid.UUID) (*uuid.UUID, error) {
+	q := s.q(ctx)
+	resp, err := q.GetResponse(ctx, responseID)
+	if err != nil {
+		return nil, fmt.Errorf("lecture de la réponse : %w", err)
+	}
+	cur, err := q.LockAlert(ctx, resp.AlertID)
+	if err != nil {
+		return nil, fmt.Errorf("verrou de l'alerte : %w", err)
+	}
+	ph, err := q.GetPharmacy(ctx, resp.PharmacyID)
+	if err != nil {
+		return nil, fmt.Errorf("lecture de la pharmacie : %w", err)
+	}
+	if resp.Status != "active" || ph.SuspendedAt != nil || !slices.Contains(openAlert, cur.Status) {
+		return nil, nil
+	}
+	n, err := q.MarkResponseUnlocked(ctx, responseID)
+	if err != nil {
+		return nil, fmt.Errorf("déblocage : %w", err)
+	}
+	if n == 0 {
+		return nil, nil // déjà débloquée (second paiement)
+	}
+	if _, err := q.MarkUnlocked(ctx, resp.AlertID); err != nil {
+		return nil, fmt.Errorf("alerte débloquée : %w", err)
+	}
+	a, err := q.GetAlert(ctx, resp.AlertID)
+	if err != nil {
+		return nil, fmt.Errorf("lecture de l'alerte : %w", err)
+	}
+	rid, err := s.holdProducts(ctx, a, resp, paymentID)
+	if err != nil {
+		return nil, err
+	}
+	return &rid, s.notify.Notify(ctx, notifications.Message{
+		UserID: a.BuyerID, App: notifications.AppBuyer, Kind: "pharmacy_unlocked",
+		Title: "Pharmacie débloquée", Body: ph.Name + " met vos produits de côté. Faites-vous livrer ou passez les chercher.",
+		Data: map[string]string{"alert_id": a.ID.String(), "reservation_id": rid.String()},
+	})
 }
 
 // PayReservation lance le paiement d'une livraison (médicament + frais de livraison).
@@ -152,6 +205,9 @@ func (s *Service) PayReservation(ctx context.Context, buyerID, reservationID uui
 	}
 	if r.BuyerID != buyerID {
 		return Payment{}, errReservationNotFound
+	}
+	if r.Status == ResCourierSearch {
+		return Payment{}, apperr.Conflict("courier_not_found_yet", "Nous cherchons encore un livreur : vous paierez dès qu'il aura accepté.")
 	}
 	if r.Status != ResAwaitingPayment || (r.ExpiresAt != nil && time.Now().After(*r.ExpiresAt)) {
 		return Payment{}, apperr.Conflict("not_payable", "Cette réservation n'attend pas de paiement.")
@@ -297,19 +353,18 @@ func (s *Service) applySuccess(ctx context.Context, paymentID uuid.UUID) error {
 		}
 		pay.Status = PaySucceeded
 		if pay.Purpose == "unlock" {
-			n, err := q.MarkUnlocked(ctx, pay.AlertID)
+			if pay.ResponseID == nil {
+				return s.startRefund(ctx, nil, pay, "Déblocage sans pharmacie choisie.")
+			}
+			rid, err := s.unlockResponse(ctx, *pay.ResponseID, &pay.ID)
 			if err != nil {
-				return fmt.Errorf("déblocage : %w", err)
+				return err
 			}
-			if n == 0 {
-				// Déjà débloquée (deux paiements) : le second est remboursé.
-				return s.startRefund(ctx, nil, pay, "Déblocage payé deux fois.")
+			if rid == nil {
+				// Déjà débloquée, pharmacie indisponible ou alerte terminée : remboursé.
+				return s.startRefund(ctx, nil, pay, "Déblocage impossible : pharmacie indisponible ou déjà débloquée.")
 			}
-			return s.notify.Notify(ctx, notifications.Message{
-				UserID: pay.BuyerID, App: notifications.AppBuyer, Kind: "pharmacy_unlocked",
-				Title: "Pharmacies débloquées", Body: "Noms, adresses et téléphones des pharmacies sont visibles. Réservez votre médicament.",
-				Data: map[string]string{"alert_id": pay.AlertID.String()},
-			})
+			return nil
 		}
 		// Livraison : la réservation doit encore attendre son paiement, sinon remboursement.
 		rid := *pay.ReservationID
@@ -320,7 +375,7 @@ func (s *Service) applySuccess(ctx context.Context, paymentID uuid.UUID) error {
 		if cur != ResAwaitingPayment {
 			return s.startRefund(ctx, nil, pay, "Paiement reçu pour une réservation annulée ou expirée.")
 		}
-		if _, err := q.SetReservationStatus(ctx, store.SetReservationStatusParams{ID: rid, NewStatus: ResPaid, FromStatuses: []string{ResAwaitingPayment}}); err != nil {
+		if _, err := q.SetReservationStatus(ctx, store.SetReservationStatusParams{ID: rid, NewStatus: ResCourierAssigned, FromStatuses: []string{ResAwaitingPayment}}); err != nil {
 			return fmt.Errorf("réservation payée : %w", err)
 		}
 		r, err := q.GetReservation(ctx, rid)
@@ -333,19 +388,30 @@ func (s *Service) applySuccess(ctx context.Context, paymentID uuid.UUID) error {
 		}
 		if err := s.notify.Notify(ctx, notifications.Message{
 			UserID: ph.OwnerID, App: notifications.AppPharmacy, Kind: "pharmacy_delivery_paid",
-			Title: "Livraison payée", Body: fmt.Sprintf("Préparez %d article(s) : un livreur ivia arrive.", r.Quantity),
+			Title: "Livraison payée", Body: "Préparez la commande " + reservationNumber(r.Number) + " : le livreur ivia arrive.",
 			Data: map[string]string{"reservation_id": rid.String()},
 		}); err != nil {
 			return err
 		}
 		if err := s.notify.Notify(ctx, notifications.Message{
 			UserID: r.BuyerID, App: notifications.AppBuyer, Kind: "pharmacy_delivery_paid",
-			Title: "Paiement reçu", Body: "Nous cherchons un livreur pour vous apporter votre médicament.",
+			Title: "Paiement reçu", Body: "Votre livreur part chercher vos produits à la pharmacie.",
 			Data: map[string]string{"reservation_id": rid.String()},
 		}); err != nil {
 			return err
 		}
-		return s.jobs.Enqueue(ctx, AssignCourierArgs{ReservationID: rid}, nil)
+		d, err := q.ActiveDeliveryForReservation(ctx, rid)
+		if database.IsNoRows(err) {
+			return nil
+		}
+		if err != nil {
+			return fmt.Errorf("course de la réservation : %w", err)
+		}
+		return s.notify.Notify(ctx, notifications.Message{
+			UserID: d.DriverID, App: notifications.AppDriver, Kind: "pharmacy_mission_paid",
+			Title: "Client a payé", Body: "Allez récupérer la commande " + reservationNumber(r.Number) + " à la pharmacie.",
+			Data: map[string]string{"delivery_id": d.ID.String()},
+		})
 	})
 }
 

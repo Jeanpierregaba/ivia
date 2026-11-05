@@ -1,6 +1,6 @@
 # Progression du projet ivia
 
-> Fichier tenu à jour à chaque étape. Dernière mise à jour : **2026-11-04**.
+> Fichier tenu à jour à chaque étape. Dernière mise à jour : **2026-11-05**.
 > Détail des tâches : [`TASKS.md`](TASKS.md) · journal des sessions : [`docs/SESSION-LOG.md`](docs/SESSION-LOG.md).
 
 ## En un coup d'œil
@@ -12,14 +12,14 @@
 | Apps mobiles (Flutter)      |  **~50 %** | Acheteur jusqu'à la commande en retrait, catalogue marchand, dossier livreur ; paiement et livraison à faire |
 | Infrastructure / mise en ligne | **~60 %** | Images Docker, Compose, Caddy, sauvegardes, CI prêts ; serveurs à louer |
 | Publicité IVI / marketing   |  **~90 %** | API, back-office, jeu de démo et app acheteur faits ; reste à saisir les prix IVI |
-| Module pharmacie (029)      |  **~40 %** | Diagrammes et backend complets (API, paiements, livreurs, tests) ; apps pharmacie et acheteur, écrans du back-office à faire |
+| Module pharmacie (029)      |  **~45 %** | Backend aligné sur les maquettes P01–P14 (déblocage par pharmacie, livreur trouvé avant paiement, sans commission) ; apps et écrans du back-office à faire |
 | Démarches hors code         |  **~10 %** | Société, agrégateur de paiement, Play Store, Meta, domaine                 |
 
 ---
 
 ## 1. Backend — fait
 
-Go 1.27, PostgreSQL 18 + PostGIS, tâches de fond River, 27 migrations, documentation interactive
+Go 1.27, PostgreSQL 18 + PostGIS, tâches de fond River, 28 migrations, documentation interactive
 (Swagger) sur `/docs`, contrat OpenAPI vérifié par les tests.
 
 **Comptes et connexion**
@@ -61,15 +61,19 @@ Go 1.27, PostgreSQL 18 + PostGIS, tâches de fond River, 27 migrations, document
 - Réglages de diffusion : délai avant la première fenêtre, intervalle minimal, plafond par session, rotation pondérée/aléatoire/par priorité, coupure générale.
 - Statistiques : affichages, clics, fermetures, clics vers le site officiel, commandes après clic, conversion, ventes payées par produit promu. Événements anonymes (aucune donnée personnelle), limités par adresse IP.
 
-**Alerte médicament (module pharmacie, spec 029)** — nouveau
-- Pharmacies : inscription dans l'app pharmacie, pièces (autorisation d'ouverture, inscription à l'Ordre, pièce du titulaire) dans le stockage privé, validation par l'admin qui donne le rôle pharmacien ; ouverture, fermeture et garde ; suspension.
-- Alerte du client : photo de l'ordonnance, photo de la boîte ou nom ; diffusion aux pharmacies validées, ouvertes ou de garde dans un rayon de 5 km, élargi à 10 km si les réponses manquent ; fermeture dès 3 réponses ou au bout de 10 minutes ; réponses classées par distance.
-- Identités des pharmacies masquées jusqu'au **déblocage forfaitaire de 100 F** payé par Mobile Money (même prestataire et mêmes garanties que les commandes), valable pour toute l'alerte.
-- Réservation : **retrait** (obligatoire sur ordonnance, code à 6 chiffres, paiement sur place) ou **livraison par un livreur ivia** (médicament et livraison payés dans l'app, frais au barème moto, commission ivia déduite, remise contre le code du client). Un livreur en course pharmacie ne reçoit aucune commande, et inversement.
-- Rupture de stock côté pharmacie, annulation, expiration : remboursement automatique si la livraison était payée ; le client réserve ailleurs sans repayer.
+**Alerte médicament (module pharmacie, spec 029)** — mis à jour d'après les maquettes P01 à P14
+- Pharmacies : inscription dans l'app pharmacie, pièces (autorisation d'ouverture, inscription à l'Ordre, pièce du titulaire) dans le stockage privé, validation par l'admin qui donne le rôle pharmacien ; ouverte, fermée, de garde ou **24 h/24** ; **planning de garde** saisi par l'admin ; suspension.
+- Alerte du client : **liste de produits** (base de médicaments avec autocomplétion, ou saisie libre ; forme, quantité), photos d'ordonnance ou de boîte, « générique accepté », note. Rayon **au choix (2, 5 ou 10 km)** avec le nombre de pharmacies joignables affiché avant l'envoi ; **relance** avec un autre rayon (photos reprises).
+- Réponses ligne par ligne (disponible, quantité, prix, ordonnance), fenêtre de 20 minutes, compteurs « contactées, vues, réponses », classement par distance.
+- **Déblocage par pharmacie** (100 F chacune, Mobile Money) : identité révélée et produits **mis de côté 1 heure** (réservation « M-n », code à 4 chiffres).
+- **Aucune commission sur les produits** : le forfait de déblocage suffit ; la pharmacie reçoit le prix complet.
+- **Retrait sur place** (paiement à la pharmacie) ou **livreur ivia** : la recherche du livreur le plus proche démarre dès le choix ; **le client ne paie (produits + livraison) qu'une fois le livreur trouvé**, et le livreur ne récupère la commande qu'après ce paiement. Livraison permise sur ordonnance, avec vérification de l'ordonnance par le livreur à la remise.
+- Commande préparée signalée par la pharmacie, suivi (déblocage, paiement, préparation, récupération, remise), distance et temps à pied ou délai de livraison.
+- Annulation par la pharmacie : client remboursé, **forfait de déblocage compris** ; annulation après paiement remboursée ; codes limités à 5 essais par quart d'heure.
+- Pharmacies de garde à proximité en accès public (accueil) ; base de médicaments gérée dans le back-office.
 - Solde dû à chaque pharmacie, reversements enregistrés par l'admin (journalisés, plafonnés au solde) ; indicateurs ; tous les chiffres réglables dans le back-office.
-- Données de santé : photos d'ordonnance privées, lues par lien de 10 minutes par les seules pharmacies sollicitées, supprimées 30 jours après l'alerte ; la pharmacie ne voit jamais l'identité du client (prénom seulement à la réservation).
-- 47 routes documentées dans le contrat OpenAPI, tests de bout en bout (livraison complète, ordonnance en retrait seul, rupture avec remboursement).
+- Données de santé : photos privées, lues par lien de 10 minutes par les seules pharmacies sollicitées, **supprimées 24 heures** après l'alerte ; la pharmacie ne voit jamais l'identité du client (prénom seulement à la réservation).
+- 61 routes documentées dans le contrat OpenAPI, tests de bout en bout (livraison complète avec recherche du livreur avant paiement, ordonnance vérifiée à la livraison, retrait, relance, annulation remboursée).
 
 **Jeu de démonstration** (`manage seed-demo`, local uniquement, relançable sans doublon)
 - Catalogue haut de gamme : 10 boutiques dans 10 quartiers (concept store, maroquinerie, couture wax de cérémonie, parfums et beauté, pâtisserie fine, épicerie fine, bar à smoothies, high-tech, décoration, sneakers), 52 produits avec 91 vraies photos sous licence libre **embarquées dans le dépôt** (aucune connexion nécessaire, crédits conservés), sous-catégories, promotions et badges. Les boutiques de la première version (marché, épicerie de base…) sont suspendues à la relance.
@@ -126,13 +130,13 @@ Next.js 16, TypeScript strict, Tailwind 4, même langage visuel que les apps (lo
 
 **Back-office**
 - [ ] Tests navigateur (Playwright) des parcours admin.
-- [ ] Écrans du module pharmacie : dossiers des pharmacies, alertes, paiements et remboursements, reversements, réglages (l'API est prête).
+- [ ] Écrans du module pharmacie : dossiers des pharmacies, planning de garde, base de médicaments, alertes, paiements et remboursements, reversements, réglages (l'API est prête).
 
 **Module pharmacie**
 - [ ] App pharmacie (Flutter) : inscription et pièces, ouverture et garde, alertes reçues, réponses, réservations, solde.
-- [ ] App acheteur : écrans de l'alerte médicament (photo, suivi, déblocage, réservation, code de remise).
-- [ ] App livreur : courses pharmacie.
-- [ ] Maquettes des écrans de la pharmacie (fichiers webp) : à renvoyer, ils ne sont pas parvenus.
+- [ ] App acheteur : écrans de l'alerte médicament (maquettes P01 à P14 : produits et photos, rayon, suivi, déblocage, retrait ou livreur ivia, paiement, code de remise).
+- [ ] App livreur : courses pharmacie (attendre le paiement du client, vérification de l'ordonnance).
+- [ ] Accueil acheteur (maquette A01) : flux d'accueil `/v1/home` (8 services, bannières gérées dans le back-office, boutiques proches, pharmacies de garde) ; restaurants, immobilier, taxi et conciergerie n'ont pas encore de module.
 
 **Publicité IVI**
 - [ ] **Remplacer les prix de démonstration des 5 produits IVI** par les vrais prix (back-office, Produits IVI).

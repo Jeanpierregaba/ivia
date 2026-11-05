@@ -13,7 +13,7 @@ import (
 )
 
 const activeDeliveryForDriver = `-- name: ActiveDeliveryForDriver :one
-SELECT id, reservation_id, driver_id, offer_id, status, fee_xof, assigned_at, picked_up_at, delivered_at, ended_at, created_at, updated_at FROM pharmacy_deliveries WHERE driver_id = $1 AND status IN ('assigned', 'picked_up')
+SELECT id, reservation_id, driver_id, offer_id, status, fee_xof, assigned_at, picked_up_at, delivered_at, ended_at, created_at, updated_at, prescription_checked FROM pharmacy_deliveries WHERE driver_id = $1 AND status IN ('assigned', 'picked_up')
 `
 
 func (q *Queries) ActiveDeliveryForDriver(ctx context.Context, driverID uuid.UUID) (PharmacyDelivery, error) {
@@ -32,12 +32,13 @@ func (q *Queries) ActiveDeliveryForDriver(ctx context.Context, driverID uuid.UUI
 		&i.EndedAt,
 		&i.CreatedAt,
 		&i.UpdatedAt,
+		&i.PrescriptionChecked,
 	)
 	return i, err
 }
 
 const activeDeliveryForReservation = `-- name: ActiveDeliveryForReservation :one
-SELECT id, reservation_id, driver_id, offer_id, status, fee_xof, assigned_at, picked_up_at, delivered_at, ended_at, created_at, updated_at FROM pharmacy_deliveries WHERE reservation_id = $1 AND status IN ('assigned', 'picked_up')
+SELECT id, reservation_id, driver_id, offer_id, status, fee_xof, assigned_at, picked_up_at, delivered_at, ended_at, created_at, updated_at, prescription_checked FROM pharmacy_deliveries WHERE reservation_id = $1 AND status IN ('assigned', 'picked_up')
 `
 
 func (q *Queries) ActiveDeliveryForReservation(ctx context.Context, reservationID uuid.UUID) (PharmacyDelivery, error) {
@@ -56,20 +57,136 @@ func (q *Queries) ActiveDeliveryForReservation(ctx context.Context, reservationI
 		&i.EndedAt,
 		&i.CreatedAt,
 		&i.UpdatedAt,
+		&i.PrescriptionChecked,
 	)
 	return i, err
 }
 
-const activeReservationForAlert = `-- name: ActiveReservationForAlert :one
+const activeReservationsForAlert = `-- name: ActiveReservationsForAlert :many
 SELECT id FROM pharmacy_reservations
-WHERE alert_id = $1 AND status IN ('reserved', 'awaiting_payment', 'paid', 'courier_assigned', 'picked_up')
+WHERE alert_id = $1 AND status IN ('reserved', 'courier_search', 'awaiting_payment', 'paid', 'courier_assigned', 'picked_up')
+ORDER BY created_at
 `
 
-func (q *Queries) ActiveReservationForAlert(ctx context.Context, alertID uuid.UUID) (uuid.UUID, error) {
-	row := q.db.QueryRow(ctx, activeReservationForAlert, alertID)
-	var id uuid.UUID
-	err := row.Scan(&id)
-	return id, err
+func (q *Queries) ActiveReservationsForAlert(ctx context.Context, alertID uuid.UUID) ([]uuid.UUID, error) {
+	rows, err := q.db.Query(ctx, activeReservationsForAlert, alertID)
+	if err != nil {
+		return nil, err
+	}
+	defer rows.Close()
+	items := []uuid.UUID{}
+	for rows.Next() {
+		var id uuid.UUID
+		if err := rows.Scan(&id); err != nil {
+			return nil, err
+		}
+		items = append(items, id)
+	}
+	if err := rows.Err(); err != nil {
+		return nil, err
+	}
+	return items, nil
+}
+
+const adminListMedicines = `-- name: AdminListMedicines :many
+SELECT id, name, dosage, form, active_ingredient, is_active, created_at, updated_at FROM medicines
+WHERE ($1::text = '' OR immutable_unaccent(lower(name || ' ' || dosage || ' ' || active_ingredient)) LIKE '%' || immutable_unaccent(lower($1::text)) || '%')
+ORDER BY name, dosage
+LIMIT $3 OFFSET $2
+`
+
+type AdminListMedicinesParams struct {
+	Q   string
+	Off int32
+	Lim int32
+}
+
+func (q *Queries) AdminListMedicines(ctx context.Context, arg AdminListMedicinesParams) ([]Medicine, error) {
+	rows, err := q.db.Query(ctx, adminListMedicines, arg.Q, arg.Off, arg.Lim)
+	if err != nil {
+		return nil, err
+	}
+	defer rows.Close()
+	items := []Medicine{}
+	for rows.Next() {
+		var i Medicine
+		if err := rows.Scan(
+			&i.ID,
+			&i.Name,
+			&i.Dosage,
+			&i.Form,
+			&i.ActiveIngredient,
+			&i.IsActive,
+			&i.CreatedAt,
+			&i.UpdatedAt,
+		); err != nil {
+			return nil, err
+		}
+		items = append(items, i)
+	}
+	if err := rows.Err(); err != nil {
+		return nil, err
+	}
+	return items, nil
+}
+
+const alertPhotoKeysIn = `-- name: AlertPhotoKeysIn :many
+SELECT object_key::text AS object_key FROM pharmacy_alert_photos WHERE object_key = ANY($1::text[])
+UNION ALL
+SELECT photo_key::text FROM pharmacy_alerts WHERE photo_key = ANY($1::text[])
+`
+
+func (q *Queries) AlertPhotoKeysIn(ctx context.Context, keys []string) ([]string, error) {
+	rows, err := q.db.Query(ctx, alertPhotoKeysIn, keys)
+	if err != nil {
+		return nil, err
+	}
+	defer rows.Close()
+	items := []string{}
+	for rows.Next() {
+		var object_key string
+		if err := rows.Scan(&object_key); err != nil {
+			return nil, err
+		}
+		items = append(items, object_key)
+	}
+	if err := rows.Err(); err != nil {
+		return nil, err
+	}
+	return items, nil
+}
+
+const alertPhotosDue = `-- name: AlertPhotosDue :many
+SELECT ph.id, ph.object_key FROM pharmacy_alert_photos ph
+JOIN pharmacy_alerts a ON a.id = ph.alert_id
+WHERE ph.object_key IS NOT NULL AND a.created_at < $1
+LIMIT 200
+`
+
+type AlertPhotosDueRow struct {
+	ID        uuid.UUID
+	ObjectKey *string
+}
+
+// Photos à supprimer : alertes lancées avant le seuil (durée de conservation).
+func (q *Queries) AlertPhotosDue(ctx context.Context, before time.Time) ([]AlertPhotosDueRow, error) {
+	rows, err := q.db.Query(ctx, alertPhotosDue, before)
+	if err != nil {
+		return nil, err
+	}
+	defer rows.Close()
+	items := []AlertPhotosDueRow{}
+	for rows.Next() {
+		var i AlertPhotosDueRow
+		if err := rows.Scan(&i.ID, &i.ObjectKey); err != nil {
+			return nil, err
+		}
+		items = append(items, i)
+	}
+	if err := rows.Err(); err != nil {
+		return nil, err
+	}
+	return items, nil
 }
 
 const alertPhotosToPurge = `-- name: AlertPhotosToPurge :many
@@ -94,6 +211,57 @@ func (q *Queries) AlertPhotosToPurge(ctx context.Context, before *time.Time) ([]
 	for rows.Next() {
 		var i AlertPhotosToPurgeRow
 		if err := rows.Scan(&i.ID, &i.PhotoKey); err != nil {
+			return nil, err
+		}
+		items = append(items, i)
+	}
+	if err := rows.Err(); err != nil {
+		return nil, err
+	}
+	return items, nil
+}
+
+const alertStats = `-- name: AlertStats :one
+SELECT count(*)::bigint AS notified,
+       count(*) FILTER (WHERE t.seen_at IS NOT NULL OR t.status IN ('responded', 'declined'))::bigint AS seen,
+       count(*) FILTER (WHERE t.status = 'responded')::bigint AS responded
+FROM pharmacy_alert_targets t WHERE t.alert_id = $1
+`
+
+type AlertStatsRow struct {
+	Notified  int64
+	Seen      int64
+	Responded int64
+}
+
+func (q *Queries) AlertStats(ctx context.Context, alertID uuid.UUID) (AlertStatsRow, error) {
+	row := q.db.QueryRow(ctx, alertStats, alertID)
+	var i AlertStatsRow
+	err := row.Scan(&i.Notified, &i.Seen, &i.Responded)
+	return i, err
+}
+
+const buyerAlertPhotos = `-- name: BuyerAlertPhotos :many
+SELECT ph.id, ph.object_key FROM pharmacy_alert_photos ph
+JOIN pharmacy_alerts a ON a.id = ph.alert_id
+WHERE a.buyer_id = $1 AND ph.object_key IS NOT NULL
+`
+
+type BuyerAlertPhotosRow struct {
+	ID        uuid.UUID
+	ObjectKey *string
+}
+
+func (q *Queries) BuyerAlertPhotos(ctx context.Context, buyerID uuid.UUID) ([]BuyerAlertPhotosRow, error) {
+	rows, err := q.db.Query(ctx, buyerAlertPhotos, buyerID)
+	if err != nil {
+		return nil, err
+	}
+	defer rows.Close()
+	items := []BuyerAlertPhotosRow{}
+	for rows.Next() {
+		var i BuyerAlertPhotosRow
+		if err := rows.Scan(&i.ID, &i.ObjectKey); err != nil {
 			return nil, err
 		}
 		items = append(items, i)
@@ -143,6 +311,59 @@ func (q *Queries) CancelCourierOffers(ctx context.Context, reservationID uuid.UU
 	return err
 }
 
+const chooseDelivery = `-- name: ChooseDelivery :execrows
+UPDATE pharmacy_reservations SET fulfillment = 'delivery', status = 'courier_search',
+  delivery_fee_xof = $1, commission_xof = $2,
+  pharmacy_due_xof = $3, total_xof = items_xof + $1,
+  delivery_address = $4, delivery_instructions = $5,
+  delivery_location = ST_SetSRID(ST_MakePoint($6::float8, $7::float8), 4326)::geography,
+  updated_at = now()
+WHERE id = $8 AND status = 'reserved'
+`
+
+type ChooseDeliveryParams struct {
+	DeliveryFeeXof       int64
+	CommissionXof        int64
+	PharmacyDueXof       int64
+	DeliveryAddress      string
+	DeliveryInstructions string
+	Lng                  float64
+	Lat                  float64
+	ID                   uuid.UUID
+}
+
+func (q *Queries) ChooseDelivery(ctx context.Context, arg ChooseDeliveryParams) (int64, error) {
+	result, err := q.db.Exec(ctx, chooseDelivery,
+		arg.DeliveryFeeXof,
+		arg.CommissionXof,
+		arg.PharmacyDueXof,
+		arg.DeliveryAddress,
+		arg.DeliveryInstructions,
+		arg.Lng,
+		arg.Lat,
+		arg.ID,
+	)
+	if err != nil {
+		return 0, err
+	}
+	return result.RowsAffected(), nil
+}
+
+const choosePickup = `-- name: ChoosePickup :execrows
+UPDATE pharmacy_reservations SET fulfillment = 'pickup', status = 'reserved', delivery_fee_xof = 0, commission_xof = 0,
+  pharmacy_due_xof = 0, total_xof = items_xof, delivery_address = '', delivery_instructions = '', delivery_location = NULL,
+  updated_at = now()
+WHERE id = $1 AND status IN ('courier_search', 'awaiting_payment')
+`
+
+func (q *Queries) ChoosePickup(ctx context.Context, id uuid.UUID) (int64, error) {
+	result, err := q.db.Exec(ctx, choosePickup, id)
+	if err != nil {
+		return 0, err
+	}
+	return result.RowsAffected(), nil
+}
+
 const countActiveReservationsOf = `-- name: CountActiveReservationsOf :one
 SELECT count(*)::bigint FROM pharmacy_reservations r
 WHERE r.status IN ('paid', 'courier_assigned', 'picked_up')
@@ -179,6 +400,27 @@ func (q *Queries) CountCourierOffers(ctx context.Context, reservationID uuid.UUI
 	return column_1, err
 }
 
+const countReachablePharmacies = `-- name: CountReachablePharmacies :one
+SELECT count(*)::bigint FROM pharmacies p
+WHERE p.review_status = 'approved' AND p.suspended_at IS NULL
+  AND (p.open_24h OR p.is_open OR p.on_duty OR EXISTS (
+        SELECT 1 FROM pharmacy_duty_shifts s WHERE s.pharmacy_id = p.id AND s.starts_at <= now() AND s.ends_at > now()))
+  AND ST_DWithin(p.location, ST_SetSRID(ST_MakePoint($1::float8, $2::float8), 4326)::geography, $3::float8)
+`
+
+type CountReachablePharmaciesParams struct {
+	Lng     float64
+	Lat     float64
+	RadiusM float64
+}
+
+func (q *Queries) CountReachablePharmacies(ctx context.Context, arg CountReachablePharmaciesParams) (int64, error) {
+	row := q.db.QueryRow(ctx, countReachablePharmacies, arg.Lng, arg.Lat, arg.RadiusM)
+	var column_1 int64
+	err := row.Scan(&column_1)
+	return column_1, err
+}
+
 const countTargets = `-- name: CountTargets :one
 SELECT count(*)::bigint FROM pharmacy_alert_targets WHERE alert_id = $1
 `
@@ -192,24 +434,25 @@ func (q *Queries) CountTargets(ctx context.Context, alertID uuid.UUID) (int64, e
 
 const createAlert = `-- name: CreateAlert :one
 
-INSERT INTO pharmacy_alerts (buyer_id, kind, medicine_name, quantity, note, photo_key, location, radius_m, search_ends_at)
-VALUES ($1, $2, $3, $4, $5, $6,
-        ST_SetSRID(ST_MakePoint($7::float8, $8::float8), 4326)::geography,
-        $9, $10)
+INSERT INTO pharmacy_alerts (buyer_id, kind, medicine_name, quantity, note, location, radius_m, search_ends_at,
+                             generic_accepted, relaunched_from)
+VALUES ($1, $2, $3, 1, $4,
+        ST_SetSRID(ST_MakePoint($5::float8, $6::float8), 4326)::geography,
+        $7, $8, $9, $10)
 RETURNING id
 `
 
 type CreateAlertParams struct {
-	BuyerID      uuid.UUID
-	Kind         string
-	MedicineName string
-	Quantity     int32
-	Note         string
-	PhotoKey     *string
-	Lng          float64
-	Lat          float64
-	RadiusM      int32
-	SearchEndsAt time.Time
+	BuyerID         uuid.UUID
+	Kind            string
+	MedicineName    string
+	Note            string
+	Lng             float64
+	Lat             float64
+	RadiusM         int32
+	SearchEndsAt    time.Time
+	GenericAccepted bool
+	RelaunchedFrom  *uuid.UUID
 }
 
 // ---------------------------------------------------------------- alertes
@@ -218,13 +461,13 @@ func (q *Queries) CreateAlert(ctx context.Context, arg CreateAlertParams) (uuid.
 		arg.BuyerID,
 		arg.Kind,
 		arg.MedicineName,
-		arg.Quantity,
 		arg.Note,
-		arg.PhotoKey,
 		arg.Lng,
 		arg.Lat,
 		arg.RadiusM,
 		arg.SearchEndsAt,
+		arg.GenericAccepted,
+		arg.RelaunchedFrom,
 	)
 	var id uuid.UUID
 	err := row.Scan(&id)
@@ -268,7 +511,7 @@ func (q *Queries) CreateCourierOffer(ctx context.Context, arg CreateCourierOffer
 
 const createDelivery = `-- name: CreateDelivery :one
 INSERT INTO pharmacy_deliveries (reservation_id, driver_id, offer_id, fee_xof) VALUES ($1, $2, $3, $4)
-RETURNING id, reservation_id, driver_id, offer_id, status, fee_xof, assigned_at, picked_up_at, delivered_at, ended_at, created_at, updated_at
+RETURNING id, reservation_id, driver_id, offer_id, status, fee_xof, assigned_at, picked_up_at, delivered_at, ended_at, created_at, updated_at, prescription_checked
 `
 
 type CreateDeliveryParams struct {
@@ -299,22 +542,24 @@ func (q *Queries) CreateDelivery(ctx context.Context, arg CreateDeliveryParams) 
 		&i.EndedAt,
 		&i.CreatedAt,
 		&i.UpdatedAt,
+		&i.PrescriptionChecked,
 	)
 	return i, err
 }
 
 const createPayment = `-- name: CreatePayment :one
 
-INSERT INTO pharmacy_payments (purpose, alert_id, reservation_id, buyer_id, provider, reference, amount_xof, operator, payer_phone)
-VALUES ($1, $2, $3, $4, $5,
-        $6, $7, $8, $9)
-RETURNING id, purpose, alert_id, reservation_id, buyer_id, provider, reference, provider_ref, amount_xof, currency, operator, payer_phone, status, failure_reason, succeeded_at, refund_reference, created_at, updated_at
+INSERT INTO pharmacy_payments (purpose, alert_id, reservation_id, response_id, buyer_id, provider, reference, amount_xof, operator, payer_phone)
+VALUES ($1, $2, $3, $4, $5, $6,
+        $7, $8, $9, $10)
+RETURNING id, purpose, alert_id, reservation_id, buyer_id, provider, reference, provider_ref, amount_xof, currency, operator, payer_phone, status, failure_reason, succeeded_at, refund_reference, created_at, updated_at, response_id
 `
 
 type CreatePaymentParams struct {
 	Purpose       string
 	AlertID       uuid.UUID
 	ReservationID *uuid.UUID
+	ResponseID    *uuid.UUID
 	BuyerID       uuid.UUID
 	Provider      string
 	Reference     string
@@ -329,6 +574,7 @@ func (q *Queries) CreatePayment(ctx context.Context, arg CreatePaymentParams) (P
 		arg.Purpose,
 		arg.AlertID,
 		arg.ReservationID,
+		arg.ResponseID,
 		arg.BuyerID,
 		arg.Provider,
 		arg.Reference,
@@ -356,6 +602,7 @@ func (q *Queries) CreatePayment(ctx context.Context, arg CreatePaymentParams) (P
 		&i.RefundReference,
 		&i.CreatedAt,
 		&i.UpdatedAt,
+		&i.ResponseID,
 	)
 	return i, err
 }
@@ -403,14 +650,14 @@ const createReservation = `-- name: CreateReservation :one
 
 INSERT INTO pharmacy_reservations (alert_id, response_id, pharmacy_id, buyer_id, fulfillment, status, quantity,
   unit_price_xof, items_xof, delivery_fee_xof, commission_xof, total_xof, pharmacy_due_xof, handover_code,
-  delivery_address, delivery_location, delivery_instructions, expires_at)
+  delivery_address, delivery_location, delivery_instructions, expires_at, unlock_payment_id, prescription_required)
 VALUES ($1, $2, $3, $4, $5,
   $6, $7, $8, $9, $10,
   $11, $12, $13, $14,
   $15,
   CASE WHEN $16::bool
        THEN ST_SetSRID(ST_MakePoint($17::float8, $18::float8), 4326)::geography END,
-  $19, $20)
+  $19, $20, $21, $22)
 RETURNING id
 `
 
@@ -435,6 +682,8 @@ type CreateReservationParams struct {
 	Lat                  float64
 	DeliveryInstructions string
 	ExpiresAt            *time.Time
+	UnlockPaymentID      *uuid.UUID
+	PrescriptionRequired bool
 }
 
 // ---------------------------------------------------------------- réservations
@@ -460,6 +709,8 @@ func (q *Queries) CreateReservation(ctx context.Context, arg CreateReservationPa
 		arg.Lat,
 		arg.DeliveryInstructions,
 		arg.ExpiresAt,
+		arg.UnlockPaymentID,
+		arg.PrescriptionRequired,
 	)
 	var id uuid.UUID
 	err := row.Scan(&id)
@@ -472,6 +723,33 @@ DELETE FROM pharmacy_documents WHERE pharmacy_id = $1
 
 func (q *Queries) DeleteDocumentsOf(ctx context.Context, pharmacyID uuid.UUID) error {
 	_, err := q.db.Exec(ctx, deleteDocumentsOf, pharmacyID)
+	return err
+}
+
+const deleteDutyShift = `-- name: DeleteDutyShift :one
+DELETE FROM pharmacy_duty_shifts WHERE id = $1 RETURNING id, pharmacy_id, starts_at, ends_at, created_by, created_at
+`
+
+func (q *Queries) DeleteDutyShift(ctx context.Context, id uuid.UUID) (PharmacyDutyShift, error) {
+	row := q.db.QueryRow(ctx, deleteDutyShift, id)
+	var i PharmacyDutyShift
+	err := row.Scan(
+		&i.ID,
+		&i.PharmacyID,
+		&i.StartsAt,
+		&i.EndsAt,
+		&i.CreatedBy,
+		&i.CreatedAt,
+	)
+	return i, err
+}
+
+const deleteResponseLines = `-- name: DeleteResponseLines :exec
+DELETE FROM pharmacy_response_lines WHERE response_id = $1
+`
+
+func (q *Queries) DeleteResponseLines(ctx context.Context, responseID uuid.UUID) error {
+	_, err := q.db.Exec(ctx, deleteResponseLines, responseID)
 	return err
 }
 
@@ -525,7 +803,9 @@ const findReachablePharmacies = `-- name: FindReachablePharmacies :many
 SELECT p.id, p.owner_id,
        ST_Distance(p.location, ST_SetSRID(ST_MakePoint($1::float8, $2::float8), 4326)::geography)::float8 AS distance_m
 FROM pharmacies p
-WHERE p.review_status = 'approved' AND p.suspended_at IS NULL AND (p.is_open OR p.on_duty)
+WHERE p.review_status = 'approved' AND p.suspended_at IS NULL
+  AND (p.open_24h OR p.is_open OR p.on_duty OR EXISTS (
+        SELECT 1 FROM pharmacy_duty_shifts s WHERE s.pharmacy_id = p.id AND s.starts_at <= now() AND s.ends_at > now()))
   AND ST_DWithin(p.location, ST_SetSRID(ST_MakePoint($1::float8, $2::float8), 4326)::geography, $3::float8)
   AND NOT EXISTS (SELECT 1 FROM pharmacy_alert_targets t WHERE t.alert_id = $4 AND t.pharmacy_id = p.id)
 ORDER BY distance_m
@@ -545,7 +825,8 @@ type FindReachablePharmaciesRow struct {
 	DistanceM float64
 }
 
-// Pharmacies validées, non suspendues, ouvertes ou de garde, dans le rayon, pas encore sollicitées.
+// Pharmacies validées, non suspendues, de garde (planning en vigueur, 24 h/24, ou déclarées
+// ouvertes / de garde), dans le rayon, pas encore sollicitées.
 func (q *Queries) FindReachablePharmacies(ctx context.Context, arg FindReachablePharmaciesParams) ([]FindReachablePharmaciesRow, error) {
 	rows, err := q.db.Query(ctx, findReachablePharmacies,
 		arg.Lng,
@@ -574,29 +855,32 @@ func (q *Queries) FindReachablePharmacies(ctx context.Context, arg FindReachable
 const getAlert = `-- name: GetAlert :one
 SELECT a.id, a.buyer_id, a.kind, a.medicine_name, a.quantity, a.note, a.photo_key, a.photo_purged_at,
        ST_Y(a.location::geometry)::float8 AS lat, ST_X(a.location::geometry)::float8 AS lng,
-       a.radius_m, a.status, a.search_ends_at, a.widened_at, a.closed_at, a.unlocked_at, a.created_at, a.updated_at
+       a.radius_m, a.status, a.search_ends_at, a.widened_at, a.closed_at, a.unlocked_at, a.created_at, a.updated_at,
+       a.generic_accepted, a.relaunched_from
 FROM pharmacy_alerts a WHERE a.id = $1
 `
 
 type GetAlertRow struct {
-	ID            uuid.UUID
-	BuyerID       uuid.UUID
-	Kind          string
-	MedicineName  string
-	Quantity      int32
-	Note          string
-	PhotoKey      *string
-	PhotoPurgedAt *time.Time
-	Lat           float64
-	Lng           float64
-	RadiusM       int32
-	Status        string
-	SearchEndsAt  time.Time
-	WidenedAt     *time.Time
-	ClosedAt      *time.Time
-	UnlockedAt    *time.Time
-	CreatedAt     time.Time
-	UpdatedAt     time.Time
+	ID              uuid.UUID
+	BuyerID         uuid.UUID
+	Kind            string
+	MedicineName    string
+	Quantity        int32
+	Note            string
+	PhotoKey        *string
+	PhotoPurgedAt   *time.Time
+	Lat             float64
+	Lng             float64
+	RadiusM         int32
+	Status          string
+	SearchEndsAt    time.Time
+	WidenedAt       *time.Time
+	ClosedAt        *time.Time
+	UnlockedAt      *time.Time
+	CreatedAt       time.Time
+	UpdatedAt       time.Time
+	GenericAccepted bool
+	RelaunchedFrom  *uuid.UUID
 }
 
 func (q *Queries) GetAlert(ctx context.Context, id uuid.UUID) (GetAlertRow, error) {
@@ -621,12 +905,14 @@ func (q *Queries) GetAlert(ctx context.Context, id uuid.UUID) (GetAlertRow, erro
 		&i.UnlockedAt,
 		&i.CreatedAt,
 		&i.UpdatedAt,
+		&i.GenericAccepted,
+		&i.RelaunchedFrom,
 	)
 	return i, err
 }
 
 const getDelivery = `-- name: GetDelivery :one
-SELECT id, reservation_id, driver_id, offer_id, status, fee_xof, assigned_at, picked_up_at, delivered_at, ended_at, created_at, updated_at FROM pharmacy_deliveries WHERE id = $1
+SELECT id, reservation_id, driver_id, offer_id, status, fee_xof, assigned_at, picked_up_at, delivered_at, ended_at, created_at, updated_at, prescription_checked FROM pharmacy_deliveries WHERE id = $1
 `
 
 func (q *Queries) GetDelivery(ctx context.Context, id uuid.UUID) (PharmacyDelivery, error) {
@@ -645,12 +931,33 @@ func (q *Queries) GetDelivery(ctx context.Context, id uuid.UUID) (PharmacyDelive
 		&i.EndedAt,
 		&i.CreatedAt,
 		&i.UpdatedAt,
+		&i.PrescriptionChecked,
+	)
+	return i, err
+}
+
+const getMedicine = `-- name: GetMedicine :one
+SELECT id, name, dosage, form, active_ingredient, is_active, created_at, updated_at FROM medicines WHERE id = $1
+`
+
+func (q *Queries) GetMedicine(ctx context.Context, id uuid.UUID) (Medicine, error) {
+	row := q.db.QueryRow(ctx, getMedicine, id)
+	var i Medicine
+	err := row.Scan(
+		&i.ID,
+		&i.Name,
+		&i.Dosage,
+		&i.Form,
+		&i.ActiveIngredient,
+		&i.IsActive,
+		&i.CreatedAt,
+		&i.UpdatedAt,
 	)
 	return i, err
 }
 
 const getPayment = `-- name: GetPayment :one
-SELECT id, purpose, alert_id, reservation_id, buyer_id, provider, reference, provider_ref, amount_xof, currency, operator, payer_phone, status, failure_reason, succeeded_at, refund_reference, created_at, updated_at FROM pharmacy_payments WHERE id = $1
+SELECT id, purpose, alert_id, reservation_id, buyer_id, provider, reference, provider_ref, amount_xof, currency, operator, payer_phone, status, failure_reason, succeeded_at, refund_reference, created_at, updated_at, response_id FROM pharmacy_payments WHERE id = $1
 `
 
 func (q *Queries) GetPayment(ctx context.Context, id uuid.UUID) (PharmacyPayment, error) {
@@ -675,12 +982,13 @@ func (q *Queries) GetPayment(ctx context.Context, id uuid.UUID) (PharmacyPayment
 		&i.RefundReference,
 		&i.CreatedAt,
 		&i.UpdatedAt,
+		&i.ResponseID,
 	)
 	return i, err
 }
 
 const getPaymentByReference = `-- name: GetPaymentByReference :one
-SELECT id, purpose, alert_id, reservation_id, buyer_id, provider, reference, provider_ref, amount_xof, currency, operator, payer_phone, status, failure_reason, succeeded_at, refund_reference, created_at, updated_at FROM pharmacy_payments WHERE reference = $1
+SELECT id, purpose, alert_id, reservation_id, buyer_id, provider, reference, provider_ref, amount_xof, currency, operator, payer_phone, status, failure_reason, succeeded_at, refund_reference, created_at, updated_at, response_id FROM pharmacy_payments WHERE reference = $1
 `
 
 func (q *Queries) GetPaymentByReference(ctx context.Context, reference string) (PharmacyPayment, error) {
@@ -705,6 +1013,7 @@ func (q *Queries) GetPaymentByReference(ctx context.Context, reference string) (
 		&i.RefundReference,
 		&i.CreatedAt,
 		&i.UpdatedAt,
+		&i.ResponseID,
 	)
 	return i, err
 }
@@ -713,7 +1022,9 @@ const getPharmacy = `-- name: GetPharmacy :one
 SELECT p.id, p.owner_id, p.name, p.license_number, p.phone, p.address_text, p.neighborhood_id,
        ST_Y(p.location::geometry)::float8 AS lat, ST_X(p.location::geometry)::float8 AS lng,
        p.opening_hours, p.is_open, p.on_duty, p.review_status, p.review_note, p.reviewed_at,
-       p.suspended_at, p.suspension_reason, p.created_at, p.updated_at
+       p.suspended_at, p.suspension_reason, p.created_at, p.updated_at, p.open_24h,
+       coalesce((SELECT max(s.ends_at) FROM pharmacy_duty_shifts s
+         WHERE s.pharmacy_id = p.id AND s.starts_at <= now() AND s.ends_at > now()), 'epoch')::timestamptz AS duty_until
 FROM pharmacies p WHERE p.id = $1
 `
 
@@ -737,6 +1048,8 @@ type GetPharmacyRow struct {
 	SuspensionReason string
 	CreatedAt        time.Time
 	UpdatedAt        time.Time
+	Open24h          bool
+	DutyUntil        time.Time
 }
 
 func (q *Queries) GetPharmacy(ctx context.Context, id uuid.UUID) (GetPharmacyRow, error) {
@@ -762,6 +1075,8 @@ func (q *Queries) GetPharmacy(ctx context.Context, id uuid.UUID) (GetPharmacyRow
 		&i.SuspensionReason,
 		&i.CreatedAt,
 		&i.UpdatedAt,
+		&i.Open24h,
+		&i.DutyUntil,
 	)
 	return i, err
 }
@@ -772,7 +1087,8 @@ SELECT r.id, r.alert_id, r.response_id, r.pharmacy_id, r.buyer_id, r.fulfillment
        r.handover_code, r.delivery_address,
        coalesce(ST_Y(r.delivery_location::geometry), 0)::float8 AS delivery_lat,
        coalesce(ST_X(r.delivery_location::geometry), 0)::float8 AS delivery_lng,
-       r.delivery_instructions, r.expires_at, r.cancel_reason, r.completed_at, r.created_at, r.updated_at
+       r.delivery_instructions, r.expires_at, r.cancel_reason, r.completed_at, r.created_at, r.updated_at,
+       r.number, r.unlock_payment_id, r.prescription_required, r.paid_at, r.prepared_at
 FROM pharmacy_reservations r WHERE r.id = $1
 `
 
@@ -801,6 +1117,11 @@ type GetReservationRow struct {
 	CompletedAt          *time.Time
 	CreatedAt            time.Time
 	UpdatedAt            time.Time
+	Number               *int64
+	UnlockPaymentID      *uuid.UUID
+	PrescriptionRequired bool
+	PaidAt               *time.Time
+	PreparedAt           *time.Time
 }
 
 func (q *Queries) GetReservation(ctx context.Context, id uuid.UUID) (GetReservationRow, error) {
@@ -831,12 +1152,17 @@ func (q *Queries) GetReservation(ctx context.Context, id uuid.UUID) (GetReservat
 		&i.CompletedAt,
 		&i.CreatedAt,
 		&i.UpdatedAt,
+		&i.Number,
+		&i.UnlockPaymentID,
+		&i.PrescriptionRequired,
+		&i.PaidAt,
+		&i.PreparedAt,
 	)
 	return i, err
 }
 
 const getResponse = `-- name: GetResponse :one
-SELECT id, alert_id, pharmacy_id, product_name, unit_price_xof, quantity_available, prescription_required, note, distance_m, status, created_at, updated_at FROM pharmacy_responses WHERE id = $1
+SELECT id, alert_id, pharmacy_id, product_name, unit_price_xof, quantity_available, prescription_required, note, distance_m, status, created_at, updated_at, total_xof, available_count, line_count, unlocked_at FROM pharmacy_responses WHERE id = $1
 `
 
 func (q *Queries) GetResponse(ctx context.Context, id uuid.UUID) (PharmacyResponse, error) {
@@ -855,6 +1181,10 @@ func (q *Queries) GetResponse(ctx context.Context, id uuid.UUID) (PharmacyRespon
 		&i.Status,
 		&i.CreatedAt,
 		&i.UpdatedAt,
+		&i.TotalXof,
+		&i.AvailableCount,
+		&i.LineCount,
+		&i.UnlockedAt,
 	)
 	return i, err
 }
@@ -862,7 +1192,7 @@ func (q *Queries) GetResponse(ctx context.Context, id uuid.UUID) (PharmacyRespon
 const getSettings = `-- name: GetSettings :one
 
 
-SELECT id, enabled, unlock_fee_xof, search_radius_m, max_radius_m, target_responses, widen_after_minutes, response_window_minutes, pickup_hold_minutes, photo_retention_days, updated_at FROM pharmacy_settings WHERE id
+SELECT id, enabled, unlock_fee_xof, search_radius_m, max_radius_m, target_responses, widen_after_minutes, response_window_minutes, pickup_hold_minutes, photo_retention_days, updated_at, radius_options_m, photo_retention_hours, auto_widen, product_commission_bp FROM pharmacy_settings WHERE id
 `
 
 // Requêtes du module pharmacy (tables pharmacy_*, pharmacies).
@@ -882,12 +1212,16 @@ func (q *Queries) GetSettings(ctx context.Context) (PharmacySetting, error) {
 		&i.PickupHoldMinutes,
 		&i.PhotoRetentionDays,
 		&i.UpdatedAt,
+		&i.RadiusOptionsM,
+		&i.PhotoRetentionHours,
+		&i.AutoWiden,
+		&i.ProductCommissionBp,
 	)
 	return i, err
 }
 
 const getTarget = `-- name: GetTarget :one
-SELECT alert_id, pharmacy_id, distance_m, status, notified_at, responded_at FROM pharmacy_alert_targets WHERE alert_id = $1 AND pharmacy_id = $2
+SELECT alert_id, pharmacy_id, distance_m, status, notified_at, responded_at, seen_at FROM pharmacy_alert_targets WHERE alert_id = $1 AND pharmacy_id = $2
 `
 
 type GetTargetParams struct {
@@ -905,13 +1239,15 @@ func (q *Queries) GetTarget(ctx context.Context, arg GetTargetParams) (PharmacyA
 		&i.Status,
 		&i.NotifiedAt,
 		&i.RespondedAt,
+		&i.SeenAt,
 	)
 	return i, err
 }
 
 const inbox = `-- name: Inbox :many
 SELECT t.alert_id, t.distance_m, t.status AS target_status, t.notified_at,
-       a.kind, a.medicine_name, a.quantity, a.note, a.photo_key, a.status AS alert_status, a.search_ends_at
+       a.kind, a.medicine_name, a.quantity, a.note, a.photo_key, a.status AS alert_status, a.search_ends_at,
+       a.generic_accepted, t.seen_at
 FROM pharmacy_alert_targets t
 JOIN pharmacy_alerts a ON a.id = t.alert_id
 WHERE t.pharmacy_id = $1
@@ -928,17 +1264,19 @@ type InboxParams struct {
 }
 
 type InboxRow struct {
-	AlertID      uuid.UUID
-	DistanceM    int32
-	TargetStatus string
-	NotifiedAt   time.Time
-	Kind         string
-	MedicineName string
-	Quantity     int32
-	Note         string
-	PhotoKey     *string
-	AlertStatus  string
-	SearchEndsAt time.Time
+	AlertID         uuid.UUID
+	DistanceM       int32
+	TargetStatus    string
+	NotifiedAt      time.Time
+	Kind            string
+	MedicineName    string
+	Quantity        int32
+	Note            string
+	PhotoKey        *string
+	AlertStatus     string
+	SearchEndsAt    time.Time
+	GenericAccepted bool
+	SeenAt          *time.Time
 }
 
 // Alertes adressées à la pharmacie (sans aucune donnée du client).
@@ -968,6 +1306,8 @@ func (q *Queries) Inbox(ctx context.Context, arg InboxParams) ([]InboxRow, error
 			&i.PhotoKey,
 			&i.AlertStatus,
 			&i.SearchEndsAt,
+			&i.GenericAccepted,
+			&i.SeenAt,
 		); err != nil {
 			return nil, err
 		}
@@ -981,7 +1321,8 @@ func (q *Queries) Inbox(ctx context.Context, arg InboxParams) ([]InboxRow, error
 
 const inboxItem = `-- name: InboxItem :one
 SELECT t.alert_id, t.distance_m, t.status AS target_status, t.notified_at,
-       a.kind, a.medicine_name, a.quantity, a.note, a.photo_key, a.status AS alert_status, a.search_ends_at
+       a.kind, a.medicine_name, a.quantity, a.note, a.photo_key, a.status AS alert_status, a.search_ends_at,
+       a.generic_accepted, t.seen_at
 FROM pharmacy_alert_targets t
 JOIN pharmacy_alerts a ON a.id = t.alert_id
 WHERE t.alert_id = $1 AND t.pharmacy_id = $2
@@ -993,17 +1334,19 @@ type InboxItemParams struct {
 }
 
 type InboxItemRow struct {
-	AlertID      uuid.UUID
-	DistanceM    int32
-	TargetStatus string
-	NotifiedAt   time.Time
-	Kind         string
-	MedicineName string
-	Quantity     int32
-	Note         string
-	PhotoKey     *string
-	AlertStatus  string
-	SearchEndsAt time.Time
+	AlertID         uuid.UUID
+	DistanceM       int32
+	TargetStatus    string
+	NotifiedAt      time.Time
+	Kind            string
+	MedicineName    string
+	Quantity        int32
+	Note            string
+	PhotoKey        *string
+	AlertStatus     string
+	SearchEndsAt    time.Time
+	GenericAccepted bool
+	SeenAt          *time.Time
 }
 
 func (q *Queries) InboxItem(ctx context.Context, arg InboxItemParams) (InboxItemRow, error) {
@@ -1021,8 +1364,57 @@ func (q *Queries) InboxItem(ctx context.Context, arg InboxItemParams) (InboxItem
 		&i.PhotoKey,
 		&i.AlertStatus,
 		&i.SearchEndsAt,
+		&i.GenericAccepted,
+		&i.SeenAt,
 	)
 	return i, err
+}
+
+const insertAlertItem = `-- name: InsertAlertItem :exec
+INSERT INTO pharmacy_alert_items (alert_id, position, medicine_id, name, form, quantity)
+VALUES ($1, $2, $3, $4, $5, $6)
+`
+
+type InsertAlertItemParams struct {
+	AlertID    uuid.UUID
+	Position   int32
+	MedicineID *uuid.UUID
+	Name       string
+	Form       string
+	Quantity   int32
+}
+
+func (q *Queries) InsertAlertItem(ctx context.Context, arg InsertAlertItemParams) error {
+	_, err := q.db.Exec(ctx, insertAlertItem,
+		arg.AlertID,
+		arg.Position,
+		arg.MedicineID,
+		arg.Name,
+		arg.Form,
+		arg.Quantity,
+	)
+	return err
+}
+
+const insertAlertPhoto = `-- name: InsertAlertPhoto :exec
+INSERT INTO pharmacy_alert_photos (alert_id, kind, position, object_key) VALUES ($1, $2, $3, $4)
+`
+
+type InsertAlertPhotoParams struct {
+	AlertID   uuid.UUID
+	Kind      string
+	Position  int32
+	ObjectKey *string
+}
+
+func (q *Queries) InsertAlertPhoto(ctx context.Context, arg InsertAlertPhotoParams) error {
+	_, err := q.db.Exec(ctx, insertAlertPhoto,
+		arg.AlertID,
+		arg.Kind,
+		arg.Position,
+		arg.ObjectKey,
+	)
+	return err
 }
 
 const insertDocument = `-- name: InsertDocument :one
@@ -1044,6 +1436,70 @@ func (q *Queries) InsertDocument(ctx context.Context, arg InsertDocumentParams) 
 		&i.Kind,
 		&i.ObjectKey,
 		&i.CreatedAt,
+	)
+	return i, err
+}
+
+const insertDutyShift = `-- name: InsertDutyShift :one
+
+INSERT INTO pharmacy_duty_shifts (pharmacy_id, starts_at, ends_at, created_by) VALUES ($1, $2, $3, $4) RETURNING id, pharmacy_id, starts_at, ends_at, created_by, created_at
+`
+
+type InsertDutyShiftParams struct {
+	PharmacyID uuid.UUID
+	StartsAt   time.Time
+	EndsAt     time.Time
+	CreatedBy  uuid.UUID
+}
+
+// ---------------------------------------------------------------- planning de garde
+func (q *Queries) InsertDutyShift(ctx context.Context, arg InsertDutyShiftParams) (PharmacyDutyShift, error) {
+	row := q.db.QueryRow(ctx, insertDutyShift,
+		arg.PharmacyID,
+		arg.StartsAt,
+		arg.EndsAt,
+		arg.CreatedBy,
+	)
+	var i PharmacyDutyShift
+	err := row.Scan(
+		&i.ID,
+		&i.PharmacyID,
+		&i.StartsAt,
+		&i.EndsAt,
+		&i.CreatedBy,
+		&i.CreatedAt,
+	)
+	return i, err
+}
+
+const insertMedicine = `-- name: InsertMedicine :one
+INSERT INTO medicines (name, dosage, form, active_ingredient) VALUES ($1, $2, $3, $4) RETURNING id, name, dosage, form, active_ingredient, is_active, created_at, updated_at
+`
+
+type InsertMedicineParams struct {
+	Name             string
+	Dosage           string
+	Form             string
+	ActiveIngredient string
+}
+
+func (q *Queries) InsertMedicine(ctx context.Context, arg InsertMedicineParams) (Medicine, error) {
+	row := q.db.QueryRow(ctx, insertMedicine,
+		arg.Name,
+		arg.Dosage,
+		arg.Form,
+		arg.ActiveIngredient,
+	)
+	var i Medicine
+	err := row.Scan(
+		&i.ID,
+		&i.Name,
+		&i.Dosage,
+		&i.Form,
+		&i.ActiveIngredient,
+		&i.IsActive,
+		&i.CreatedAt,
+		&i.UpdatedAt,
 	)
 	return i, err
 }
@@ -1082,6 +1538,37 @@ func (q *Queries) InsertPayout(ctx context.Context, arg InsertPayoutParams) (Pha
 	return i, err
 }
 
+const insertResponseLine = `-- name: InsertResponseLine :exec
+INSERT INTO pharmacy_response_lines (response_id, position, alert_item_id, name, quantity, unit_price_xof, available, prescription_required)
+VALUES ($1, $2, $3, $4, $5,
+        $6, $7, $8)
+`
+
+type InsertResponseLineParams struct {
+	ResponseID           uuid.UUID
+	Position             int32
+	AlertItemID          *uuid.UUID
+	Name                 string
+	Quantity             int32
+	UnitPriceXof         int64
+	Available            bool
+	PrescriptionRequired bool
+}
+
+func (q *Queries) InsertResponseLine(ctx context.Context, arg InsertResponseLineParams) error {
+	_, err := q.db.Exec(ctx, insertResponseLine,
+		arg.ResponseID,
+		arg.Position,
+		arg.AlertItemID,
+		arg.Name,
+		arg.Quantity,
+		arg.UnitPriceXof,
+		arg.Available,
+		arg.PrescriptionRequired,
+	)
+	return err
+}
+
 const insertTarget = `-- name: InsertTarget :execrows
 
 INSERT INTO pharmacy_alert_targets (alert_id, pharmacy_id, distance_m) VALUES ($1, $2, $3)
@@ -1104,7 +1591,7 @@ func (q *Queries) InsertTarget(ctx context.Context, arg InsertTargetParams) (int
 }
 
 const latestDeliveryForReservation = `-- name: LatestDeliveryForReservation :one
-SELECT id, reservation_id, driver_id, offer_id, status, fee_xof, assigned_at, picked_up_at, delivered_at, ended_at, created_at, updated_at FROM pharmacy_deliveries WHERE reservation_id = $1 ORDER BY created_at DESC LIMIT 1
+SELECT id, reservation_id, driver_id, offer_id, status, fee_xof, assigned_at, picked_up_at, delivered_at, ended_at, created_at, updated_at, prescription_checked FROM pharmacy_deliveries WHERE reservation_id = $1 ORDER BY created_at DESC LIMIT 1
 `
 
 func (q *Queries) LatestDeliveryForReservation(ctx context.Context, reservationID uuid.UUID) (PharmacyDelivery, error) {
@@ -1123,16 +1610,17 @@ func (q *Queries) LatestDeliveryForReservation(ctx context.Context, reservationI
 		&i.EndedAt,
 		&i.CreatedAt,
 		&i.UpdatedAt,
+		&i.PrescriptionChecked,
 	)
 	return i, err
 }
 
-const latestReservationForAlert = `-- name: LatestReservationForAlert :one
-SELECT id FROM pharmacy_reservations WHERE alert_id = $1 ORDER BY created_at DESC LIMIT 1
+const latestReservationForResponse = `-- name: LatestReservationForResponse :one
+SELECT id FROM pharmacy_reservations WHERE response_id = $1 ORDER BY created_at DESC LIMIT 1
 `
 
-func (q *Queries) LatestReservationForAlert(ctx context.Context, alertID uuid.UUID) (uuid.UUID, error) {
-	row := q.db.QueryRow(ctx, latestReservationForAlert, alertID)
+func (q *Queries) LatestReservationForResponse(ctx context.Context, responseID uuid.UUID) (uuid.UUID, error) {
+	row := q.db.QueryRow(ctx, latestReservationForResponse, responseID)
 	var id uuid.UUID
 	err := row.Scan(&id)
 	return id, err
@@ -1170,8 +1658,40 @@ func (q *Queries) ListAlertIDs(ctx context.Context, arg ListAlertIDsParams) ([]u
 	return items, nil
 }
 
+const listAlertItems = `-- name: ListAlertItems :many
+SELECT id, alert_id, position, medicine_id, name, form, quantity FROM pharmacy_alert_items WHERE alert_id = $1 ORDER BY position
+`
+
+func (q *Queries) ListAlertItems(ctx context.Context, alertID uuid.UUID) ([]PharmacyAlertItem, error) {
+	rows, err := q.db.Query(ctx, listAlertItems, alertID)
+	if err != nil {
+		return nil, err
+	}
+	defer rows.Close()
+	items := []PharmacyAlertItem{}
+	for rows.Next() {
+		var i PharmacyAlertItem
+		if err := rows.Scan(
+			&i.ID,
+			&i.AlertID,
+			&i.Position,
+			&i.MedicineID,
+			&i.Name,
+			&i.Form,
+			&i.Quantity,
+		); err != nil {
+			return nil, err
+		}
+		items = append(items, i)
+	}
+	if err := rows.Err(); err != nil {
+		return nil, err
+	}
+	return items, nil
+}
+
 const listAlertPayments = `-- name: ListAlertPayments :many
-SELECT id, purpose, alert_id, reservation_id, buyer_id, provider, reference, provider_ref, amount_xof, currency, operator, payer_phone, status, failure_reason, succeeded_at, refund_reference, created_at, updated_at FROM pharmacy_payments WHERE alert_id = $1 ORDER BY created_at
+SELECT id, purpose, alert_id, reservation_id, buyer_id, provider, reference, provider_ref, amount_xof, currency, operator, payer_phone, status, failure_reason, succeeded_at, refund_reference, created_at, updated_at, response_id FROM pharmacy_payments WHERE alert_id = $1 ORDER BY created_at
 `
 
 func (q *Queries) ListAlertPayments(ctx context.Context, alertID uuid.UUID) ([]PharmacyPayment, error) {
@@ -1202,6 +1722,39 @@ func (q *Queries) ListAlertPayments(ctx context.Context, alertID uuid.UUID) ([]P
 			&i.RefundReference,
 			&i.CreatedAt,
 			&i.UpdatedAt,
+			&i.ResponseID,
+		); err != nil {
+			return nil, err
+		}
+		items = append(items, i)
+	}
+	if err := rows.Err(); err != nil {
+		return nil, err
+	}
+	return items, nil
+}
+
+const listAlertPhotos = `-- name: ListAlertPhotos :many
+SELECT id, alert_id, kind, position, object_key, purged_at, created_at FROM pharmacy_alert_photos WHERE alert_id = $1 ORDER BY position
+`
+
+func (q *Queries) ListAlertPhotos(ctx context.Context, alertID uuid.UUID) ([]PharmacyAlertPhoto, error) {
+	rows, err := q.db.Query(ctx, listAlertPhotos, alertID)
+	if err != nil {
+		return nil, err
+	}
+	defer rows.Close()
+	items := []PharmacyAlertPhoto{}
+	for rows.Next() {
+		var i PharmacyAlertPhoto
+		if err := rows.Scan(
+			&i.ID,
+			&i.AlertID,
+			&i.Kind,
+			&i.Position,
+			&i.ObjectKey,
+			&i.PurgedAt,
+			&i.CreatedAt,
 		); err != nil {
 			return nil, err
 		}
@@ -1304,7 +1857,7 @@ func (q *Queries) ListDocuments(ctx context.Context, pharmacyID uuid.UUID) ([]Ph
 }
 
 const listDriverDeliveries = `-- name: ListDriverDeliveries :many
-SELECT id, reservation_id, driver_id, offer_id, status, fee_xof, assigned_at, picked_up_at, delivered_at, ended_at, created_at, updated_at FROM pharmacy_deliveries WHERE driver_id = $1 ORDER BY created_at DESC LIMIT $3 OFFSET $2
+SELECT id, reservation_id, driver_id, offer_id, status, fee_xof, assigned_at, picked_up_at, delivered_at, ended_at, created_at, updated_at, prescription_checked FROM pharmacy_deliveries WHERE driver_id = $1 ORDER BY created_at DESC LIMIT $3 OFFSET $2
 `
 
 type ListDriverDeliveriesParams struct {
@@ -1335,6 +1888,44 @@ func (q *Queries) ListDriverDeliveries(ctx context.Context, arg ListDriverDelive
 			&i.EndedAt,
 			&i.CreatedAt,
 			&i.UpdatedAt,
+			&i.PrescriptionChecked,
+		); err != nil {
+			return nil, err
+		}
+		items = append(items, i)
+	}
+	if err := rows.Err(); err != nil {
+		return nil, err
+	}
+	return items, nil
+}
+
+const listDutyShifts = `-- name: ListDutyShifts :many
+SELECT id, pharmacy_id, starts_at, ends_at, created_by, created_at FROM pharmacy_duty_shifts WHERE pharmacy_id = $1 AND ends_at > $2
+ORDER BY starts_at LIMIT 200
+`
+
+type ListDutyShiftsParams struct {
+	PharmacyID uuid.UUID
+	Since      time.Time
+}
+
+func (q *Queries) ListDutyShifts(ctx context.Context, arg ListDutyShiftsParams) ([]PharmacyDutyShift, error) {
+	rows, err := q.db.Query(ctx, listDutyShifts, arg.PharmacyID, arg.Since)
+	if err != nil {
+		return nil, err
+	}
+	defer rows.Close()
+	items := []PharmacyDutyShift{}
+	for rows.Next() {
+		var i PharmacyDutyShift
+		if err := rows.Scan(
+			&i.ID,
+			&i.PharmacyID,
+			&i.StartsAt,
+			&i.EndsAt,
+			&i.CreatedBy,
+			&i.CreatedAt,
 		); err != nil {
 			return nil, err
 		}
@@ -1347,7 +1938,7 @@ func (q *Queries) ListDriverDeliveries(ctx context.Context, arg ListDriverDelive
 }
 
 const listPayments = `-- name: ListPayments :many
-SELECT id, purpose, alert_id, reservation_id, buyer_id, provider, reference, provider_ref, amount_xof, currency, operator, payer_phone, status, failure_reason, succeeded_at, refund_reference, created_at, updated_at FROM pharmacy_payments
+SELECT id, purpose, alert_id, reservation_id, buyer_id, provider, reference, provider_ref, amount_xof, currency, operator, payer_phone, status, failure_reason, succeeded_at, refund_reference, created_at, updated_at, response_id FROM pharmacy_payments
 WHERE ($1::text IS NULL OR status = $1)
   AND ($2::uuid IS NULL OR alert_id = $2)
 ORDER BY created_at DESC LIMIT $4 OFFSET $3
@@ -1393,6 +1984,7 @@ func (q *Queries) ListPayments(ctx context.Context, arg ListPaymentsParams) ([]P
 			&i.RefundReference,
 			&i.CreatedAt,
 			&i.UpdatedAt,
+			&i.ResponseID,
 		); err != nil {
 			return nil, err
 		}
@@ -1482,7 +2074,7 @@ func (q *Queries) ListPharmacyIDs(ctx context.Context, arg ListPharmacyIDsParams
 const listPharmacyReservationIDs = `-- name: ListPharmacyReservationIDs :many
 SELECT id FROM pharmacy_reservations
 WHERE pharmacy_id = $1
-  AND (NOT $2::bool OR status IN ('reserved', 'awaiting_payment', 'paid', 'courier_assigned', 'picked_up'))
+  AND (NOT $2::bool OR status IN ('reserved', 'courier_search', 'awaiting_payment', 'paid', 'courier_assigned', 'picked_up'))
 ORDER BY created_at DESC LIMIT $4 OFFSET $3
 `
 
@@ -1518,12 +2110,48 @@ func (q *Queries) ListPharmacyReservationIDs(ctx context.Context, arg ListPharma
 	return items, nil
 }
 
+const listResponseLines = `-- name: ListResponseLines :many
+SELECT id, response_id, position, alert_item_id, name, quantity, unit_price_xof, available, prescription_required FROM pharmacy_response_lines WHERE response_id = $1 ORDER BY position
+`
+
+func (q *Queries) ListResponseLines(ctx context.Context, responseID uuid.UUID) ([]PharmacyResponseLine, error) {
+	rows, err := q.db.Query(ctx, listResponseLines, responseID)
+	if err != nil {
+		return nil, err
+	}
+	defer rows.Close()
+	items := []PharmacyResponseLine{}
+	for rows.Next() {
+		var i PharmacyResponseLine
+		if err := rows.Scan(
+			&i.ID,
+			&i.ResponseID,
+			&i.Position,
+			&i.AlertItemID,
+			&i.Name,
+			&i.Quantity,
+			&i.UnitPriceXof,
+			&i.Available,
+			&i.PrescriptionRequired,
+		); err != nil {
+			return nil, err
+		}
+		items = append(items, i)
+	}
+	if err := rows.Err(); err != nil {
+		return nil, err
+	}
+	return items, nil
+}
+
 const listResponses = `-- name: ListResponses :many
 SELECT r.id, r.pharmacy_id, r.product_name, r.unit_price_xof, r.quantity_available, r.prescription_required,
-       r.note, r.distance_m, r.status, r.created_at,
+       r.note, r.distance_m, r.status, r.created_at, r.updated_at, r.total_xof, r.available_count, r.line_count, r.unlocked_at,
        p.name AS pharmacy_name, p.phone AS pharmacy_phone, p.address_text AS pharmacy_address,
        ST_Y(p.location::geometry)::float8 AS pharmacy_lat, ST_X(p.location::geometry)::float8 AS pharmacy_lng,
-       p.on_duty AS pharmacy_on_duty
+       p.on_duty AS pharmacy_on_duty, p.open_24h AS pharmacy_open_24h,
+       coalesce((SELECT max(s.ends_at) FROM pharmacy_duty_shifts s
+         WHERE s.pharmacy_id = p.id AND s.starts_at <= now() AND s.ends_at > now()), 'epoch')::timestamptz AS pharmacy_duty_until
 FROM pharmacy_responses r
 JOIN pharmacies p ON p.id = r.pharmacy_id
 WHERE r.alert_id = $1
@@ -1541,12 +2169,19 @@ type ListResponsesRow struct {
 	DistanceM            int32
 	Status               string
 	CreatedAt            time.Time
+	UpdatedAt            time.Time
+	TotalXof             int64
+	AvailableCount       int32
+	LineCount            int32
+	UnlockedAt           *time.Time
 	PharmacyName         string
 	PharmacyPhone        string
 	PharmacyAddress      string
 	PharmacyLat          float64
 	PharmacyLng          float64
 	PharmacyOnDuty       bool
+	PharmacyOpen24h      bool
+	PharmacyDutyUntil    time.Time
 }
 
 // Réponses classées par distance, avec la pharmacie (masquée par le service avant déblocage).
@@ -1570,12 +2205,19 @@ func (q *Queries) ListResponses(ctx context.Context, alertID uuid.UUID) ([]ListR
 			&i.DistanceM,
 			&i.Status,
 			&i.CreatedAt,
+			&i.UpdatedAt,
+			&i.TotalXof,
+			&i.AvailableCount,
+			&i.LineCount,
+			&i.UnlockedAt,
 			&i.PharmacyName,
 			&i.PharmacyPhone,
 			&i.PharmacyAddress,
 			&i.PharmacyLat,
 			&i.PharmacyLng,
 			&i.PharmacyOnDuty,
+			&i.PharmacyOpen24h,
+			&i.PharmacyDutyUntil,
 		); err != nil {
 			return nil, err
 		}
@@ -1624,7 +2266,7 @@ func (q *Queries) LockCourierOffer(ctx context.Context, id uuid.UUID) (PharmacyC
 }
 
 const lockDelivery = `-- name: LockDelivery :one
-SELECT id, reservation_id, driver_id, offer_id, status, fee_xof, assigned_at, picked_up_at, delivered_at, ended_at, created_at, updated_at FROM pharmacy_deliveries WHERE id = $1 FOR UPDATE
+SELECT id, reservation_id, driver_id, offer_id, status, fee_xof, assigned_at, picked_up_at, delivered_at, ended_at, created_at, updated_at, prescription_checked FROM pharmacy_deliveries WHERE id = $1 FOR UPDATE
 `
 
 func (q *Queries) LockDelivery(ctx context.Context, id uuid.UUID) (PharmacyDelivery, error) {
@@ -1643,12 +2285,13 @@ func (q *Queries) LockDelivery(ctx context.Context, id uuid.UUID) (PharmacyDeliv
 		&i.EndedAt,
 		&i.CreatedAt,
 		&i.UpdatedAt,
+		&i.PrescriptionChecked,
 	)
 	return i, err
 }
 
 const lockPayment = `-- name: LockPayment :one
-SELECT id, purpose, alert_id, reservation_id, buyer_id, provider, reference, provider_ref, amount_xof, currency, operator, payer_phone, status, failure_reason, succeeded_at, refund_reference, created_at, updated_at FROM pharmacy_payments WHERE id = $1 FOR UPDATE
+SELECT id, purpose, alert_id, reservation_id, buyer_id, provider, reference, provider_ref, amount_xof, currency, operator, payer_phone, status, failure_reason, succeeded_at, refund_reference, created_at, updated_at, response_id FROM pharmacy_payments WHERE id = $1 FOR UPDATE
 `
 
 func (q *Queries) LockPayment(ctx context.Context, id uuid.UUID) (PharmacyPayment, error) {
@@ -1673,6 +2316,7 @@ func (q *Queries) LockPayment(ctx context.Context, id uuid.UUID) (PharmacyPaymen
 		&i.RefundReference,
 		&i.CreatedAt,
 		&i.UpdatedAt,
+		&i.ResponseID,
 	)
 	return i, err
 }
@@ -1704,12 +2348,61 @@ func (q *Queries) LockReservation(ctx context.Context, id uuid.UUID) (string, er
 	return status, err
 }
 
+const markAlertPhotoPurged = `-- name: MarkAlertPhotoPurged :exec
+UPDATE pharmacy_alert_photos SET object_key = NULL, purged_at = now() WHERE id = $1
+`
+
+func (q *Queries) MarkAlertPhotoPurged(ctx context.Context, id uuid.UUID) error {
+	_, err := q.db.Exec(ctx, markAlertPhotoPurged, id)
+	return err
+}
+
 const markPhotoPurged = `-- name: MarkPhotoPurged :exec
 UPDATE pharmacy_alerts SET photo_key = NULL, photo_purged_at = now(), updated_at = now() WHERE id = $1
 `
 
 func (q *Queries) MarkPhotoPurged(ctx context.Context, id uuid.UUID) error {
 	_, err := q.db.Exec(ctx, markPhotoPurged, id)
+	return err
+}
+
+const markPrepared = `-- name: MarkPrepared :execrows
+UPDATE pharmacy_reservations SET prepared_at = now(), updated_at = now()
+WHERE id = $1 AND prepared_at IS NULL
+  AND status IN ('reserved', 'courier_search', 'awaiting_payment', 'paid', 'courier_assigned')
+`
+
+func (q *Queries) MarkPrepared(ctx context.Context, id uuid.UUID) (int64, error) {
+	result, err := q.db.Exec(ctx, markPrepared, id)
+	if err != nil {
+		return 0, err
+	}
+	return result.RowsAffected(), nil
+}
+
+const markResponseUnlocked = `-- name: MarkResponseUnlocked :execrows
+UPDATE pharmacy_responses SET unlocked_at = now(), updated_at = now() WHERE id = $1 AND unlocked_at IS NULL
+`
+
+func (q *Queries) MarkResponseUnlocked(ctx context.Context, id uuid.UUID) (int64, error) {
+	result, err := q.db.Exec(ctx, markResponseUnlocked, id)
+	if err != nil {
+		return 0, err
+	}
+	return result.RowsAffected(), nil
+}
+
+const markTargetSeen = `-- name: MarkTargetSeen :exec
+UPDATE pharmacy_alert_targets SET seen_at = coalesce(seen_at, now()) WHERE alert_id = $1 AND pharmacy_id = $2
+`
+
+type MarkTargetSeenParams struct {
+	AlertID    uuid.UUID
+	PharmacyID uuid.UUID
+}
+
+func (q *Queries) MarkTargetSeen(ctx context.Context, arg MarkTargetSeenParams) error {
+	_, err := q.db.Exec(ctx, markTargetSeen, arg.AlertID, arg.PharmacyID)
 	return err
 }
 
@@ -1725,6 +2418,22 @@ func (q *Queries) MarkUnlocked(ctx context.Context, id uuid.UUID) (int64, error)
 		return 0, err
 	}
 	return result.RowsAffected(), nil
+}
+
+const moveAlertPhotos = `-- name: MoveAlertPhotos :exec
+UPDATE pharmacy_alert_photos SET alert_id = $1
+WHERE alert_id = $2 AND object_key IS NOT NULL
+`
+
+type MoveAlertPhotosParams struct {
+	ToAlert   uuid.UUID
+	FromAlert uuid.UUID
+}
+
+// Relance : les photos encore présentes passent à la nouvelle alerte.
+func (q *Queries) MoveAlertPhotos(ctx context.Context, arg MoveAlertPhotosParams) error {
+	_, err := q.db.Exec(ctx, moveAlertPhotos, arg.ToAlert, arg.FromAlert)
+	return err
 }
 
 const offeredDrivers = `-- name: OfferedDrivers :many
@@ -1751,18 +2460,95 @@ func (q *Queries) OfferedDrivers(ctx context.Context, reservationID uuid.UUID) (
 	return items, nil
 }
 
+const onDutyPharmacies = `-- name: OnDutyPharmacies :many
+SELECT p.id, p.name, p.phone, p.address_text,
+       ST_Y(p.location::geometry)::float8 AS lat, ST_X(p.location::geometry)::float8 AS lng,
+       p.open_24h, p.is_open, p.on_duty,
+       coalesce((SELECT max(d.ends_at) FROM pharmacy_duty_shifts d
+         WHERE d.pharmacy_id = p.id AND d.starts_at <= now() AND d.ends_at > now()), 'epoch')::timestamptz AS duty_until,
+       ST_Distance(p.location, ST_SetSRID(ST_MakePoint($1::float8, $2::float8), 4326)::geography)::float8 AS distance_m
+FROM pharmacies p
+WHERE p.review_status = 'approved' AND p.suspended_at IS NULL
+  AND (p.open_24h OR p.is_open OR p.on_duty OR EXISTS (
+        SELECT 1 FROM pharmacy_duty_shifts s WHERE s.pharmacy_id = p.id AND s.starts_at <= now() AND s.ends_at > now()))
+  AND ST_DWithin(p.location, ST_SetSRID(ST_MakePoint($1::float8, $2::float8), 4326)::geography, $3::float8)
+ORDER BY distance_m
+LIMIT $4
+`
+
+type OnDutyPharmaciesParams struct {
+	Lng     float64
+	Lat     float64
+	RadiusM float64
+	Lim     int32
+}
+
+type OnDutyPharmaciesRow struct {
+	ID          uuid.UUID
+	Name        string
+	Phone       string
+	AddressText string
+	Lat         float64
+	Lng         float64
+	Open24h     bool
+	IsOpen      bool
+	OnDuty      bool
+	DutyUntil   time.Time
+	DistanceM   float64
+}
+
+// Pharmacies de garde autour d'un point (liste publique : nom, adresse, téléphone).
+func (q *Queries) OnDutyPharmacies(ctx context.Context, arg OnDutyPharmaciesParams) ([]OnDutyPharmaciesRow, error) {
+	rows, err := q.db.Query(ctx, onDutyPharmacies,
+		arg.Lng,
+		arg.Lat,
+		arg.RadiusM,
+		arg.Lim,
+	)
+	if err != nil {
+		return nil, err
+	}
+	defer rows.Close()
+	items := []OnDutyPharmaciesRow{}
+	for rows.Next() {
+		var i OnDutyPharmaciesRow
+		if err := rows.Scan(
+			&i.ID,
+			&i.Name,
+			&i.Phone,
+			&i.AddressText,
+			&i.Lat,
+			&i.Lng,
+			&i.Open24h,
+			&i.IsOpen,
+			&i.OnDuty,
+			&i.DutyUntil,
+			&i.DistanceM,
+		); err != nil {
+			return nil, err
+		}
+		items = append(items, i)
+	}
+	if err := rows.Err(); err != nil {
+		return nil, err
+	}
+	return items, nil
+}
+
 const overview = `-- name: Overview :one
 
 SELECT
   (SELECT count(*) FROM pharmacies p1 WHERE p1.review_status = 'pending_review')::bigint AS pending_review,
   (SELECT count(*) FROM pharmacies p2 WHERE p2.review_status = 'approved' AND p2.suspended_at IS NULL)::bigint AS approved,
   (SELECT count(*) FROM pharmacies p3 WHERE p3.review_status = 'approved' AND p3.suspended_at IS NULL
-                                        AND (p3.is_open OR p3.on_duty))::bigint AS reachable,
+                                        AND (p3.open_24h OR p3.is_open OR p3.on_duty OR EXISTS (
+                                          SELECT 1 FROM pharmacy_duty_shifts s3 WHERE s3.pharmacy_id = p3.id
+                                            AND s3.starts_at <= now() AND s3.ends_at > now())))::bigint AS reachable,
   (SELECT count(*) FROM pharmacy_alerts a1 WHERE a1.created_at >= $1 AND a1.created_at < $2)::bigint AS alerts,
   (SELECT count(*) FROM pharmacy_alerts a2 WHERE a2.created_at >= $1 AND a2.created_at < $2
                                              AND a2.status = 'no_response')::bigint AS alerts_without_response,
-  (SELECT count(*) FROM pharmacy_alerts a3 WHERE a3.created_at >= $1 AND a3.created_at < $2
-                                             AND a3.unlocked_at IS NOT NULL)::bigint AS unlocked,
+  (SELECT count(*) FROM pharmacy_responses u1 WHERE u1.unlocked_at >= $1
+                                               AND u1.unlocked_at < $2)::bigint AS unlocked,
   (SELECT coalesce(sum(y.amount_xof), 0) FROM pharmacy_payments y WHERE y.status = 'succeeded' AND y.purpose = 'unlock'
      AND y.succeeded_at >= $1 AND y.succeeded_at < $2)::bigint AS unlock_revenue_xof,
   (SELECT coalesce(sum(r1.commission_xof), 0) FROM pharmacy_reservations r1 WHERE r1.status = 'completed'
@@ -1807,7 +2593,7 @@ func (q *Queries) Overview(ctx context.Context, arg OverviewParams) (OverviewRow
 }
 
 const paymentsToRecheck = `-- name: PaymentsToRecheck :many
-SELECT id, purpose, alert_id, reservation_id, buyer_id, provider, reference, provider_ref, amount_xof, currency, operator, payer_phone, status, failure_reason, succeeded_at, refund_reference, created_at, updated_at FROM pharmacy_payments WHERE status = 'pending' ORDER BY created_at LIMIT 100
+SELECT id, purpose, alert_id, reservation_id, buyer_id, provider, reference, provider_ref, amount_xof, currency, operator, payer_phone, status, failure_reason, succeeded_at, refund_reference, created_at, updated_at, response_id FROM pharmacy_payments WHERE status = 'pending' ORDER BY created_at LIMIT 100
 `
 
 func (q *Queries) PaymentsToRecheck(ctx context.Context) ([]PharmacyPayment, error) {
@@ -1838,6 +2624,7 @@ func (q *Queries) PaymentsToRecheck(ctx context.Context) ([]PharmacyPayment, err
 			&i.RefundReference,
 			&i.CreatedAt,
 			&i.UpdatedAt,
+			&i.ResponseID,
 		); err != nil {
 			return nil, err
 		}
@@ -1890,7 +2677,7 @@ func (q *Queries) PendingCourierOfferForReservation(ctx context.Context, reserva
 }
 
 const pendingOrderPayment = `-- name: PendingOrderPayment :one
-SELECT id, purpose, alert_id, reservation_id, buyer_id, provider, reference, provider_ref, amount_xof, currency, operator, payer_phone, status, failure_reason, succeeded_at, refund_reference, created_at, updated_at FROM pharmacy_payments WHERE reservation_id = $1 AND purpose = 'order' AND status = 'pending'
+SELECT id, purpose, alert_id, reservation_id, buyer_id, provider, reference, provider_ref, amount_xof, currency, operator, payer_phone, status, failure_reason, succeeded_at, refund_reference, created_at, updated_at, response_id FROM pharmacy_payments WHERE reservation_id = $1 AND purpose = 'order' AND status = 'pending'
 `
 
 func (q *Queries) PendingOrderPayment(ctx context.Context, reservationID *uuid.UUID) (PharmacyPayment, error) {
@@ -1915,16 +2702,17 @@ func (q *Queries) PendingOrderPayment(ctx context.Context, reservationID *uuid.U
 		&i.RefundReference,
 		&i.CreatedAt,
 		&i.UpdatedAt,
+		&i.ResponseID,
 	)
 	return i, err
 }
 
 const pendingUnlockPayment = `-- name: PendingUnlockPayment :one
-SELECT id, purpose, alert_id, reservation_id, buyer_id, provider, reference, provider_ref, amount_xof, currency, operator, payer_phone, status, failure_reason, succeeded_at, refund_reference, created_at, updated_at FROM pharmacy_payments WHERE alert_id = $1 AND purpose = 'unlock' AND status = 'pending'
+SELECT id, purpose, alert_id, reservation_id, buyer_id, provider, reference, provider_ref, amount_xof, currency, operator, payer_phone, status, failure_reason, succeeded_at, refund_reference, created_at, updated_at, response_id FROM pharmacy_payments WHERE response_id = $1 AND purpose = 'unlock' AND status = 'pending'
 `
 
-func (q *Queries) PendingUnlockPayment(ctx context.Context, alertID uuid.UUID) (PharmacyPayment, error) {
-	row := q.db.QueryRow(ctx, pendingUnlockPayment, alertID)
+func (q *Queries) PendingUnlockPayment(ctx context.Context, responseID *uuid.UUID) (PharmacyPayment, error) {
+	row := q.db.QueryRow(ctx, pendingUnlockPayment, responseID)
 	var i PharmacyPayment
 	err := row.Scan(
 		&i.ID,
@@ -1945,6 +2733,7 @@ func (q *Queries) PendingUnlockPayment(ctx context.Context, alertID uuid.UUID) (
 		&i.RefundReference,
 		&i.CreatedAt,
 		&i.UpdatedAt,
+		&i.ResponseID,
 	)
 	return i, err
 }
@@ -2038,7 +2827,7 @@ func (q *Queries) RespondCourierOffer(ctx context.Context, arg RespondCourierOff
 }
 
 const responseOf = `-- name: ResponseOf :one
-SELECT id, alert_id, pharmacy_id, product_name, unit_price_xof, quantity_available, prescription_required, note, distance_m, status, created_at, updated_at FROM pharmacy_responses WHERE alert_id = $1 AND pharmacy_id = $2
+SELECT id, alert_id, pharmacy_id, product_name, unit_price_xof, quantity_available, prescription_required, note, distance_m, status, created_at, updated_at, total_xof, available_count, line_count, unlocked_at FROM pharmacy_responses WHERE alert_id = $1 AND pharmacy_id = $2
 `
 
 type ResponseOfParams struct {
@@ -2062,8 +2851,56 @@ func (q *Queries) ResponseOf(ctx context.Context, arg ResponseOfParams) (Pharmac
 		&i.Status,
 		&i.CreatedAt,
 		&i.UpdatedAt,
+		&i.TotalXof,
+		&i.AvailableCount,
+		&i.LineCount,
+		&i.UnlockedAt,
 	)
 	return i, err
+}
+
+const searchMedicines = `-- name: SearchMedicines :many
+
+SELECT id, name, dosage, form, active_ingredient, is_active, created_at, updated_at FROM medicines
+WHERE is_active
+  AND immutable_unaccent(lower(name || ' ' || dosage || ' ' || active_ingredient)) LIKE '%' || immutable_unaccent(lower($1::text)) || '%'
+ORDER BY name, dosage
+LIMIT $2
+`
+
+type SearchMedicinesParams struct {
+	Q   string
+	Lim int32
+}
+
+// ---------------------------------------------------------------- médicaments
+func (q *Queries) SearchMedicines(ctx context.Context, arg SearchMedicinesParams) ([]Medicine, error) {
+	rows, err := q.db.Query(ctx, searchMedicines, arg.Q, arg.Lim)
+	if err != nil {
+		return nil, err
+	}
+	defer rows.Close()
+	items := []Medicine{}
+	for rows.Next() {
+		var i Medicine
+		if err := rows.Scan(
+			&i.ID,
+			&i.Name,
+			&i.Dosage,
+			&i.Form,
+			&i.ActiveIngredient,
+			&i.IsActive,
+			&i.CreatedAt,
+			&i.UpdatedAt,
+		); err != nil {
+			return nil, err
+		}
+		items = append(items, i)
+	}
+	if err := rows.Err(); err != nil {
+		return nil, err
+	}
+	return items, nil
 }
 
 const setAlertStatus = `-- name: SetAlertStatus :execrows
@@ -2111,18 +2948,24 @@ func (q *Queries) SetDeliveryStatus(ctx context.Context, arg SetDeliveryStatusPa
 }
 
 const setOpenStatus = `-- name: SetOpenStatus :exec
-UPDATE pharmacies SET is_open = $1, on_duty = $2, updated_at = now()
-WHERE id = $3
+UPDATE pharmacies SET is_open = $1, on_duty = $2, open_24h = $3, updated_at = now()
+WHERE id = $4
 `
 
 type SetOpenStatusParams struct {
-	IsOpen bool
-	OnDuty bool
-	ID     uuid.UUID
+	IsOpen  bool
+	OnDuty  bool
+	Open24h bool
+	ID      uuid.UUID
 }
 
 func (q *Queries) SetOpenStatus(ctx context.Context, arg SetOpenStatusParams) error {
-	_, err := q.db.Exec(ctx, setOpenStatus, arg.IsOpen, arg.OnDuty, arg.ID)
+	_, err := q.db.Exec(ctx, setOpenStatus,
+		arg.IsOpen,
+		arg.OnDuty,
+		arg.Open24h,
+		arg.ID,
+	)
 	return err
 }
 
@@ -2151,6 +2994,15 @@ func (q *Queries) SetPaymentStatus(ctx context.Context, arg SetPaymentStatusPara
 		return 0, err
 	}
 	return result.RowsAffected(), nil
+}
+
+const setPrescriptionChecked = `-- name: SetPrescriptionChecked :exec
+UPDATE pharmacy_deliveries SET prescription_checked = true, updated_at = now() WHERE id = $1
+`
+
+func (q *Queries) SetPrescriptionChecked(ctx context.Context, id uuid.UUID) error {
+	_, err := q.db.Exec(ctx, setPrescriptionChecked, id)
+	return err
 }
 
 const setProviderRef = `-- name: SetProviderRef :exec
@@ -2185,6 +3037,7 @@ const setReservationStatus = `-- name: SetReservationStatus :execrows
 UPDATE pharmacy_reservations SET status = $1,
   cancel_reason = CASE WHEN $2::text <> '' THEN $2::text ELSE cancel_reason END,
   completed_at = CASE WHEN $1 = 'completed' THEN now() ELSE completed_at END,
+  paid_at = CASE WHEN $1 IN ('paid', 'courier_assigned') THEN coalesce(paid_at, now()) ELSE paid_at END,
   updated_at = now()
 WHERE id = $3 AND status = ANY($4::text[])
 `
@@ -2252,7 +3105,7 @@ func (q *Queries) SetTargetStatus(ctx context.Context, arg SetTargetStatusParams
 }
 
 const succeededOrderPayment = `-- name: SucceededOrderPayment :one
-SELECT id, purpose, alert_id, reservation_id, buyer_id, provider, reference, provider_ref, amount_xof, currency, operator, payer_phone, status, failure_reason, succeeded_at, refund_reference, created_at, updated_at FROM pharmacy_payments WHERE reservation_id = $1 AND purpose = 'order' AND status = 'succeeded'
+SELECT id, purpose, alert_id, reservation_id, buyer_id, provider, reference, provider_ref, amount_xof, currency, operator, payer_phone, status, failure_reason, succeeded_at, refund_reference, created_at, updated_at, response_id FROM pharmacy_payments WHERE reservation_id = $1 AND purpose = 'order' AND status = 'succeeded'
 ORDER BY created_at LIMIT 1
 `
 
@@ -2278,6 +3131,7 @@ func (q *Queries) SucceededOrderPayment(ctx context.Context, reservationID *uuid
 		&i.RefundReference,
 		&i.CreatedAt,
 		&i.UpdatedAt,
+		&i.ResponseID,
 	)
 	return i, err
 }
@@ -2357,15 +3211,56 @@ func (q *Queries) UpdateContact(ctx context.Context, arg UpdateContactParams) er
 	return err
 }
 
+const updateMedicine = `-- name: UpdateMedicine :one
+UPDATE medicines SET name = $1, dosage = $2, form = $3,
+  active_ingredient = $4, is_active = $5, updated_at = now()
+WHERE id = $6
+RETURNING id, name, dosage, form, active_ingredient, is_active, created_at, updated_at
+`
+
+type UpdateMedicineParams struct {
+	Name             string
+	Dosage           string
+	Form             string
+	ActiveIngredient string
+	IsActive         bool
+	ID               uuid.UUID
+}
+
+func (q *Queries) UpdateMedicine(ctx context.Context, arg UpdateMedicineParams) (Medicine, error) {
+	row := q.db.QueryRow(ctx, updateMedicine,
+		arg.Name,
+		arg.Dosage,
+		arg.Form,
+		arg.ActiveIngredient,
+		arg.IsActive,
+		arg.ID,
+	)
+	var i Medicine
+	err := row.Scan(
+		&i.ID,
+		&i.Name,
+		&i.Dosage,
+		&i.Form,
+		&i.ActiveIngredient,
+		&i.IsActive,
+		&i.CreatedAt,
+		&i.UpdatedAt,
+	)
+	return i, err
+}
+
 const updateSettings = `-- name: UpdateSettings :one
 UPDATE pharmacy_settings SET
   enabled = $1, unlock_fee_xof = $2,
   search_radius_m = $3, max_radius_m = $4,
   target_responses = $5, widen_after_minutes = $6,
   response_window_minutes = $7, pickup_hold_minutes = $8,
-  photo_retention_days = $9, updated_at = now()
+  photo_retention_days = $9, radius_options_m = $10::int[],
+  photo_retention_hours = $11, auto_widen = $12,
+  product_commission_bp = $13, updated_at = now()
 WHERE id
-RETURNING id, enabled, unlock_fee_xof, search_radius_m, max_radius_m, target_responses, widen_after_minutes, response_window_minutes, pickup_hold_minutes, photo_retention_days, updated_at
+RETURNING id, enabled, unlock_fee_xof, search_radius_m, max_radius_m, target_responses, widen_after_minutes, response_window_minutes, pickup_hold_minutes, photo_retention_days, updated_at, radius_options_m, photo_retention_hours, auto_widen, product_commission_bp
 `
 
 type UpdateSettingsParams struct {
@@ -2378,6 +3273,10 @@ type UpdateSettingsParams struct {
 	ResponseWindowMinutes int32
 	PickupHoldMinutes     int32
 	PhotoRetentionDays    int32
+	RadiusOptionsM        []int32
+	PhotoRetentionHours   int32
+	AutoWiden             bool
+	ProductCommissionBp   int32
 }
 
 func (q *Queries) UpdateSettings(ctx context.Context, arg UpdateSettingsParams) (PharmacySetting, error) {
@@ -2391,6 +3290,10 @@ func (q *Queries) UpdateSettings(ctx context.Context, arg UpdateSettingsParams) 
 		arg.ResponseWindowMinutes,
 		arg.PickupHoldMinutes,
 		arg.PhotoRetentionDays,
+		arg.RadiusOptionsM,
+		arg.PhotoRetentionHours,
+		arg.AutoWiden,
+		arg.ProductCommissionBp,
 	)
 	var i PharmacySetting
 	err := row.Scan(
@@ -2405,6 +3308,10 @@ func (q *Queries) UpdateSettings(ctx context.Context, arg UpdateSettingsParams) 
 		&i.PickupHoldMinutes,
 		&i.PhotoRetentionDays,
 		&i.UpdatedAt,
+		&i.RadiusOptionsM,
+		&i.PhotoRetentionHours,
+		&i.AutoWiden,
+		&i.ProductCommissionBp,
 	)
 	return i, err
 }
@@ -2412,13 +3319,14 @@ func (q *Queries) UpdateSettings(ctx context.Context, arg UpdateSettingsParams) 
 const upsertResponse = `-- name: UpsertResponse :one
 
 INSERT INTO pharmacy_responses (alert_id, pharmacy_id, product_name, unit_price_xof, quantity_available,
-                                prescription_required, note, distance_m)
-VALUES ($1, $2, $3, $4, $5, $6, $7, $8)
+                                prescription_required, note, distance_m, total_xof, available_count, line_count)
+VALUES ($1, $2, $3, $4, $5, $6, $7, $8, $9, $10, $11)
 ON CONFLICT (alert_id, pharmacy_id) DO UPDATE SET
   product_name = EXCLUDED.product_name, unit_price_xof = EXCLUDED.unit_price_xof,
   quantity_available = EXCLUDED.quantity_available, prescription_required = EXCLUDED.prescription_required,
-  note = EXCLUDED.note, status = 'active', updated_at = now()
-RETURNING id, alert_id, pharmacy_id, product_name, unit_price_xof, quantity_available, prescription_required, note, distance_m, status, created_at, updated_at
+  note = EXCLUDED.note, total_xof = EXCLUDED.total_xof, available_count = EXCLUDED.available_count,
+  line_count = EXCLUDED.line_count, status = 'active', updated_at = now()
+RETURNING id, alert_id, pharmacy_id, product_name, unit_price_xof, quantity_available, prescription_required, note, distance_m, status, created_at, updated_at, total_xof, available_count, line_count, unlocked_at
 `
 
 type UpsertResponseParams struct {
@@ -2430,6 +3338,9 @@ type UpsertResponseParams struct {
 	PrescriptionRequired bool
 	Note                 string
 	DistanceM            int32
+	TotalXof             int64
+	AvailableCount       int32
+	LineCount            int32
 }
 
 // ---------------------------------------------------------------- réponses
@@ -2443,6 +3354,9 @@ func (q *Queries) UpsertResponse(ctx context.Context, arg UpsertResponseParams) 
 		arg.PrescriptionRequired,
 		arg.Note,
 		arg.DistanceM,
+		arg.TotalXof,
+		arg.AvailableCount,
+		arg.LineCount,
 	)
 	var i PharmacyResponse
 	err := row.Scan(
@@ -2458,6 +3372,10 @@ func (q *Queries) UpsertResponse(ctx context.Context, arg UpsertResponseParams) 
 		&i.Status,
 		&i.CreatedAt,
 		&i.UpdatedAt,
+		&i.TotalXof,
+		&i.AvailableCount,
+		&i.LineCount,
+		&i.UnlockedAt,
 	)
 	return i, err
 }

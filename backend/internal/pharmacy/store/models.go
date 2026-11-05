@@ -10,6 +10,37 @@ import (
 	"github.com/google/uuid"
 )
 
+type Medicine struct {
+	ID               uuid.UUID
+	Name             string
+	Dosage           string
+	Form             string
+	ActiveIngredient string
+	IsActive         bool
+	CreatedAt        time.Time
+	UpdatedAt        time.Time
+}
+
+type PharmacyAlertItem struct {
+	ID         uuid.UUID
+	AlertID    uuid.UUID
+	Position   int32
+	MedicineID *uuid.UUID
+	Name       string
+	Form       string
+	Quantity   int32
+}
+
+type PharmacyAlertPhoto struct {
+	ID        uuid.UUID
+	AlertID   uuid.UUID
+	Kind      string
+	Position  int32
+	ObjectKey *string
+	PurgedAt  *time.Time
+	CreatedAt time.Time
+}
+
 type PharmacyAlertTarget struct {
 	AlertID     uuid.UUID
 	PharmacyID  uuid.UUID
@@ -17,6 +48,7 @@ type PharmacyAlertTarget struct {
 	Status      string
 	NotifiedAt  time.Time
 	RespondedAt *time.Time
+	SeenAt      *time.Time
 }
 
 type PharmacyCourierOffer struct {
@@ -31,18 +63,19 @@ type PharmacyCourierOffer struct {
 }
 
 type PharmacyDelivery struct {
-	ID            uuid.UUID
-	ReservationID uuid.UUID
-	DriverID      uuid.UUID
-	OfferID       *uuid.UUID
-	Status        string
-	FeeXof        int64
-	AssignedAt    time.Time
-	PickedUpAt    *time.Time
-	DeliveredAt   *time.Time
-	EndedAt       *time.Time
-	CreatedAt     time.Time
-	UpdatedAt     time.Time
+	ID                  uuid.UUID
+	ReservationID       uuid.UUID
+	DriverID            uuid.UUID
+	OfferID             *uuid.UUID
+	Status              string
+	FeeXof              int64
+	AssignedAt          time.Time
+	PickedUpAt          *time.Time
+	DeliveredAt         *time.Time
+	EndedAt             *time.Time
+	CreatedAt           time.Time
+	UpdatedAt           time.Time
+	PrescriptionChecked bool
 }
 
 type PharmacyDocument struct {
@@ -50,6 +83,15 @@ type PharmacyDocument struct {
 	PharmacyID uuid.UUID
 	Kind       string
 	ObjectKey  string
+	CreatedAt  time.Time
+}
+
+type PharmacyDutyShift struct {
+	ID         uuid.UUID
+	PharmacyID uuid.UUID
+	StartsAt   time.Time
+	EndsAt     time.Time
+	CreatedBy  uuid.UUID
 	CreatedAt  time.Time
 }
 
@@ -72,6 +114,7 @@ type PharmacyPayment struct {
 	RefundReference *string
 	CreatedAt       time.Time
 	UpdatedAt       time.Time
+	ResponseID      *uuid.UUID
 }
 
 type PharmacyPayout struct {
@@ -97,6 +140,22 @@ type PharmacyResponse struct {
 	Status               string
 	CreatedAt            time.Time
 	UpdatedAt            time.Time
+	TotalXof             int64
+	AvailableCount       int32
+	LineCount            int32
+	UnlockedAt           *time.Time
+}
+
+type PharmacyResponseLine struct {
+	ID                   uuid.UUID
+	ResponseID           uuid.UUID
+	Position             int32
+	AlertItemID          *uuid.UUID
+	Name                 string
+	Quantity             int32
+	UnitPriceXof         int64
+	Available            bool
+	PrescriptionRequired bool
 }
 
 type PharmacySetting struct {
@@ -111,4 +170,8 @@ type PharmacySetting struct {
 	PickupHoldMinutes     int32
 	PhotoRetentionDays    int32
 	UpdatedAt             time.Time
+	RadiusOptionsM        []int32
+	PhotoRetentionHours   int32
+	AutoWiden             bool
+	ProductCommissionBp   int32
 }

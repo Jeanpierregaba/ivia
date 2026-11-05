@@ -33,13 +33,16 @@ type CourierOffer struct {
 
 // CourierMission est la course vue par le livreur.
 type CourierMission struct {
-	ID            uuid.UUID  `json:"id"`
-	ReservationID uuid.UUID  `json:"reservation_id"`
-	Status        string     `json:"status"`
-	FeeXOF        int64      `json:"fee_xof"`
-	ProductName   string     `json:"product_name"`
-	Quantity      int32      `json:"quantity"`
-	Pharmacy      MissionPOI `json:"pharmacy"`
+	ID            uuid.UUID      `json:"id"`
+	ReservationID uuid.UUID      `json:"reservation_id"`
+	Number        string         `json:"number"`
+	Status        string         `json:"status"`
+	FeeXOF        int64          `json:"fee_xof"`
+	Lines         []ResponseLine `json:"lines"`
+	// PrescriptionCheckRequired : vérifier l'original de l'ordonnance avant de remettre les produits.
+	PrescriptionCheckRequired bool       `json:"prescription_check_required"`
+	PreparedAt                *time.Time `json:"prepared_at"`
+	Pharmacy                  MissionPOI `json:"pharmacy"`
 	// Client : coordonnées données seulement pendant la course.
 	Client      *MissionPOI `json:"client"`
 	AssignedAt  time.Time   `json:"assigned_at"`
@@ -81,7 +84,7 @@ func (s *Service) assignCourier(ctx context.Context, reservationID uuid.UUID) (a
 		if err != nil {
 			return fmt.Errorf("verrou de la réservation : %w", err)
 		}
-		if cur != ResPaid {
+		if cur != ResCourierSearch && cur != ResPaid {
 			return nil
 		}
 		if _, err := q.PendingCourierOfferForReservation(ctx, reservationID); err == nil {
@@ -192,8 +195,13 @@ func (s *Service) AcceptCourierOffer(ctx context.Context, driverID, offerID uuid
 		if err != nil {
 			return fmt.Errorf("verrou de la réservation : %w", err)
 		}
-		if cur != ResPaid {
+		if cur != ResCourierSearch && cur != ResPaid {
 			return apperr.Conflict("offer_expired", "Cette course n'attend plus de livreur.")
+		}
+		// Recherche avant paiement : le client paie maintenant ; déjà payé (désistement) : en route.
+		next := ResAwaitingPayment
+		if cur == ResPaid {
+			next = ResCourierAssigned
 		}
 		if err := s.drivers.ClaimForErrand(ctx, driverID); err != nil {
 			return err
@@ -213,7 +221,7 @@ func (s *Service) AcceptCourierOffer(ctx context.Context, driverID, offerID uuid
 			return fmt.Errorf("création de la course : %w", err)
 		}
 		deliveryID = d.ID
-		if _, err := q.SetReservationStatus(ctx, store.SetReservationStatusParams{ID: r.ID, NewStatus: ResCourierAssigned, FromStatuses: []string{ResPaid}}); err != nil {
+		if _, err := q.SetReservationStatus(ctx, store.SetReservationStatusParams{ID: r.ID, NewStatus: next, FromStatuses: []string{cur}}); err != nil {
 			return fmt.Errorf("réservation attribuée : %w", err)
 		}
 		courier, err := s.users.Contact(ctx, driverID)
@@ -231,9 +239,13 @@ func (s *Service) AcceptCourierOffer(ctx context.Context, driverID, offerID uuid
 		}); err != nil {
 			return err
 		}
+		body := courier.FirstName + " va chercher vos produits à la pharmacie."
+		if next == ResAwaitingPayment {
+			body = courier.FirstName + " a accepté votre livraison. Payez maintenant pour qu'il parte à la pharmacie."
+		}
 		return s.notify.Notify(ctx, notifications.Message{
 			UserID: r.BuyerID, App: notifications.AppBuyer, Kind: "pharmacy_courier_assigned",
-			Title: "Livreur trouvé", Body: courier.FirstName + " va chercher votre médicament à la pharmacie.",
+			Title: "Livreur trouvé", Body: body,
 			Data: map[string]string{"reservation_id": r.ID.String()},
 		})
 	})
@@ -296,16 +308,23 @@ func (s *Service) missionView(ctx context.Context, deliveryID uuid.UUID) (Courie
 	if err != nil {
 		return CourierMission{}, fmt.Errorf("lecture de la réservation : %w", err)
 	}
-	resp, err := q.GetResponse(ctx, r.ResponseID)
+	lines, err := s.responseLines(ctx, r.ResponseID)
 	if err != nil {
-		return CourierMission{}, fmt.Errorf("lecture de la réponse : %w", err)
+		return CourierMission{}, err
+	}
+	available := lines[:0:0]
+	for _, l := range lines {
+		if l.Available {
+			available = append(available, l)
+		}
 	}
 	ph, err := q.GetPharmacy(ctx, r.PharmacyID)
 	if err != nil {
 		return CourierMission{}, fmt.Errorf("lecture de la pharmacie : %w", err)
 	}
 	m := CourierMission{
-		ID: d.ID, ReservationID: r.ID, Status: d.Status, FeeXOF: d.FeeXof, ProductName: resp.ProductName, Quantity: r.Quantity,
+		ID: d.ID, ReservationID: r.ID, Number: reservationNumber(r.Number), Status: d.Status, FeeXOF: d.FeeXof, Lines: available,
+		PrescriptionCheckRequired: r.PrescriptionRequired, PreparedAt: r.PreparedAt,
 		Pharmacy: MissionPOI{
 			Name: ph.Name, Phone: ph.Phone, AddressText: ph.AddressText, Location: geo.Point{Lat: ph.Lat, Lng: ph.Lng},
 		},
@@ -379,6 +398,13 @@ func (s *Service) CourierPickedUp(ctx context.Context, driverID, deliveryID uuid
 		if err != nil {
 			return err
 		}
+		cur, err := q.LockReservation(ctx, d.ReservationID)
+		if err != nil {
+			return fmt.Errorf("verrou de la réservation : %w", err)
+		}
+		if cur == ResAwaitingPayment {
+			return apperr.Conflict("awaiting_payment", "Le client n'a pas encore payé : attendez la confirmation avant de récupérer les produits.")
+		}
 		n, err := q.SetDeliveryStatus(ctx, store.SetDeliveryStatusParams{ID: d.ID, NewStatus: "picked_up", FromStatuses: []string{"assigned"}})
 		if err != nil {
 			return fmt.Errorf("récupération : %w", err)
@@ -405,8 +431,9 @@ func (s *Service) CourierPickedUp(ctx context.Context, driverID, deliveryID uuid
 	return s.missionView(ctx, deliveryID)
 }
 
-// CourierDeliver : le client donne son code au livreur ; course terminée, pharmacie créditée.
-func (s *Service) CourierDeliver(ctx context.Context, driverID, deliveryID uuid.UUID, code string) (CourierMission, error) {
+// CourierDeliver : le client donne son code au livreur (et montre l'original de l'ordonnance si
+// besoin) ; course terminée, pharmacie créditée.
+func (s *Service) CourierDeliver(ctx context.Context, driverID, deliveryID uuid.UUID, code string, prescriptionChecked bool) (CourierMission, error) {
 	err := s.db.InTx(ctx, func(ctx context.Context) error {
 		q := s.q(ctx)
 		d, err := s.ownMission(ctx, driverID, deliveryID)
@@ -422,6 +449,15 @@ func (s *Service) CourierDeliver(ctx context.Context, driverID, deliveryID uuid.
 		}
 		if subtle.ConstantTimeCompare([]byte(code), []byte(r.HandoverCode)) != 1 {
 			return apperr.Validation(map[string]string{"code": "Code incorrect."})
+		}
+		if r.PrescriptionRequired {
+			if !prescriptionChecked {
+				return apperr.Unprocessable("prescription_check_required",
+					"Médicament sur ordonnance : vérifiez l'original de l'ordonnance avant de remettre les produits.")
+			}
+			if err := q.SetPrescriptionChecked(ctx, d.ID); err != nil {
+				return fmt.Errorf("ordonnance vérifiée : %w", err)
+			}
 		}
 		if _, err := q.SetDeliveryStatus(ctx, store.SetDeliveryStatusParams{ID: d.ID, NewStatus: "delivered", FromStatuses: []string{"picked_up"}}); err != nil {
 			return fmt.Errorf("livraison : %w", err)
@@ -445,7 +481,7 @@ func (s *Service) CourierDeliver(ctx context.Context, driverID, deliveryID uuid.
 		}
 		return s.notify.Notify(ctx, notifications.Message{
 			UserID: r.BuyerID, App: notifications.AppBuyer, Kind: "pharmacy_completed",
-			Title: "Médicament livré", Body: "Merci d'avoir utilisé l'alerte médicament ivia. Prompt rétablissement !",
+			Title: "Produits livrés", Body: "Merci d'avoir utilisé l'alerte médicament ivia. Prompt rétablissement !",
 			Data: map[string]string{"reservation_id": r.ID.String()},
 		})
 	})
@@ -471,7 +507,11 @@ func (s *Service) CourierWithdraw(ctx context.Context, driverID, deliveryID uuid
 		if n == 0 {
 			return apperr.Conflict("invalid_transition", "Le médicament est récupéré : terminez la livraison.")
 		}
+		// Payé : nouvelle recherche, livraison déjà réglée. Pas encore payé : recherche avant paiement.
 		if _, err := q.SetReservationStatus(ctx, store.SetReservationStatusParams{ID: d.ReservationID, NewStatus: ResPaid, FromStatuses: []string{ResCourierAssigned}}); err != nil {
+			return fmt.Errorf("réservation : %w", err)
+		}
+		if _, err := q.SetReservationStatus(ctx, store.SetReservationStatusParams{ID: d.ReservationID, NewStatus: ResCourierSearch, FromStatuses: []string{ResAwaitingPayment}}); err != nil {
 			return fmt.Errorf("réservation : %w", err)
 		}
 		if err := s.drivers.ReleaseFromErrand(ctx, driverID); err != nil {
