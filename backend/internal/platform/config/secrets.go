@@ -17,7 +17,7 @@ import (
 // secretKeys : variables traitées comme secrets (lecture par fichier possible, jamais journalisées).
 var secretKeys = []string{
 	"DATABASE_URL", "AUTH_SECRET", "BREVO_API_KEY", "PAYMENT_WEBHOOK_SECRET",
-	"R2_ACCESS_KEY_ID", "R2_SECRET_ACCESS_KEY", "SENTRY_DSN",
+	"R2_ACCESS_KEY_ID", "R2_SECRET_ACCESS_KEY", "SENTRY_DSN", "WHATSAPP_ACCESS_TOKEN",
 }
 
 // maxSecretBytes borne la taille d'un fichier de secret (une URL de base ou une clé d'API).

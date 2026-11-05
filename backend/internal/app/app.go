@@ -11,6 +11,7 @@ import (
 	"net/http"
 	"time"
 
+	"github.com/google/uuid"
 	"github.com/jackc/pgx/v5/pgxpool"
 
 	"ivia/backend/internal/admin"
@@ -115,9 +116,14 @@ func New(cfg config.Config, logger *slog.Logger, pool *pgxpool.Pool, opts Option
 	a.Admin = admin.NewService(db)
 	a.Geo = geo.NewService(db, a.Admin)
 	a.Users = users.NewService(db, a.Geo, a.Admin)
-	a.Auth = auth.NewService(db, a.Users, otpSender, logger, auth.Options{Secret: cfg.AuthSecret, SessionTTL: cfg.SessionTTL, GoogleClientIDs: cfg.GoogleClientIDs})
+	a.Auth = auth.NewService(db, a.Users, otpSender, logger, auth.Options{
+		Secret: cfg.AuthSecret, SessionTTL: cfg.SessionTTL, GoogleClientIDs: cfg.GoogleClientIDs,
+		PhoneChannels: a.phoneChannels(), PhoneCodesPerHour: cfg.PhoneCodesPerHour,
+	})
+	a.Auth.SetAuditor(a.Admin)
 	a.Uploads = uploads.NewService(objectStore)
 	a.Notifications = notifications.NewService(db, enq, a.Users, push, logger)
+	a.Auth.SetNotifier(authNotifier{a.Notifications})
 	a.Shops = shops.NewService(db, a.Geo, a.Users, a.Uploads, a.Admin, a.Notifications)
 	a.Stock = stock.NewService(db)
 	a.Catalog = catalog.NewService(db, a.Shops, a.Stock, a.Uploads, a.Admin)
@@ -237,19 +243,63 @@ func (a *App) buildStorage() (storage.ObjectStore, error) {
 	return nil, fmt.Errorf("stockage inconnu : %s", a.Config.Storage)
 }
 
+// buildOTPSender assemble les expéditeurs de codes : e-mail (OTP_SENDER), WhatsApp
+// (PHONE_OTP_SENDER) et SMS (SMS_SENDER). En local, chaque code est aussi gardé pour
+// POST /v1/dev/otp.
 func (a *App) buildOTPSender() (auth.OTPSender, error) {
-	switch a.Config.OTPSender {
+	cfg := a.Config
+	dev := func() *auth.LogSender {
+		if a.DevOTP == nil {
+			a.DevOTP = &auth.LogSender{Logger: a.Logger}
+		}
+		return a.DevOTP
+	}
+	var r auth.ChannelRouter
+	switch cfg.OTPSender {
 	case "brevo":
-		return &auth.BrevoSender{APIKey: a.Config.BrevoAPIKey, SenderEmail: a.Config.BrevoSenderMail, SenderName: a.Config.BrevoSenderName}, nil
+		r.Email = &auth.BrevoSender{APIKey: cfg.BrevoAPIKey, SenderEmail: cfg.BrevoSenderMail, SenderName: cfg.BrevoSenderName}
 	case "log":
-		a.DevOTP = &auth.LogSender{Logger: a.Logger}
-		return a.DevOTP, nil
+		r.Email = dev()
 	case "smtp":
 		// E-mail dans la boîte locale Mailpit, et code gardé pour POST /v1/dev/otp.
-		a.DevOTP = &auth.LogSender{Logger: a.Logger}
-		return auth.TeeSender{&auth.SMTPSender{Addr: a.Config.SMTPAddr, From: a.Config.SMTPFrom}, a.DevOTP}, nil
+		r.Email = auth.TeeSender{&auth.SMTPSender{Addr: cfg.SMTPAddr, From: cfg.SMTPFrom}, dev()}
+	default:
+		return nil, fmt.Errorf("envoi OTP inconnu : %s", cfg.OTPSender)
 	}
-	return nil, fmt.Errorf("envoi OTP inconnu : %s", a.Config.OTPSender)
+	switch cfg.PhoneOTPSender {
+	case "whatsapp":
+		r.WhatsApp = &auth.WhatsAppSender{PhoneNumberID: cfg.WhatsAppPhoneNumberID, AccessToken: cfg.WhatsAppAccessToken,
+			Template: cfg.WhatsAppTemplate, Language: cfg.WhatsAppTemplateLang}
+	case "log":
+		r.WhatsApp = dev()
+	}
+	if cfg.SMSSender == "log" {
+		r.SMS = dev()
+	}
+	return r, nil
+}
+
+// phoneChannels : canaux ouverts pour la connexion par numéro, WhatsApp d'abord.
+func (a *App) phoneChannels() []auth.Channel {
+	var out []auth.Channel
+	if a.Config.PhoneOTPSender == "whatsapp" || a.Config.PhoneOTPSender == "log" {
+		out = append(out, auth.ChannelWhatsApp)
+	}
+	if a.Config.SMSSender == "log" {
+		out = append(out, auth.ChannelSMS)
+	}
+	return out
+}
+
+// authNotifier relie les alertes de sécurité du module auth aux notifications.
+type authNotifier struct{ n *notifications.Service }
+
+func (a authNotifier) NotifyAdmins(ctx context.Context, kind, title, body string, data map[string]string) error {
+	return a.n.NotifyAdmins(ctx, kind, title, body, data)
+}
+
+func (a authNotifier) NotifyUser(ctx context.Context, userID uuid.UUID, app, kind, title, body string, data map[string]string) error {
+	return a.n.Notify(ctx, notifications.Message{UserID: userID, App: notifications.App(app), Kind: kind, Title: title, Body: body, Data: data})
 }
 
 func (a *App) buildPush() (notifications.PushSender, error) {

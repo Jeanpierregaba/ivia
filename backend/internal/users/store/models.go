@@ -20,4 +20,5 @@ type User struct {
 	CreatedAt        time.Time
 	UpdatedAt        time.Time
 	PrivacyConsentAt *time.Time
+	PhoneVerifiedAt  *time.Time
 }

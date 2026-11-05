@@ -41,6 +41,17 @@ type Config struct {
 	BrevoSenderMail string
 	BrevoSenderName string
 
+	// Connexion par numéro (ADR 0012). PhoneOTPSender : none (fermée) | log (local, codes dans le
+	// journal) | whatsapp (API Cloud de Meta). SMSSender : none | log ; le SMS sert de secours.
+	PhoneOTPSender        string
+	SMSSender             string
+	WhatsAppPhoneNumberID string
+	WhatsAppAccessToken   string
+	WhatsAppTemplate      string
+	WhatsAppTemplateLang  string
+	// PhoneCodesPerHour : plafond global des codes WhatsApp et SMS par heure.
+	PhoneCodesPerHour int
+
 	PaymentProvider      string // fake
 	PaymentWebhookSecret string
 
@@ -104,30 +115,36 @@ func Load(getenv func(string) string) (Config, error) {
 	c := Config{
 		// Pas de valeur par défaut : un déploiement qui oublie APP_ENV ne doit jamais démarrer en
 		// mode local (routes de simulation ouvertes, implémentations factices acceptées).
-		Env:                  get("APP_ENV", ""),
-		Port:                 get("PORT", "8080"),
-		DatabaseURL:          secrets["DATABASE_URL"],
-		LogLevel:             get("LOG_LEVEL", "info"),
-		OTPSender:            get("OTP_SENDER", "log"),
-		SMTPAddr:             get("SMTP_ADDR", "localhost:1025"),
-		SMTPFrom:             get("SMTP_FROM", "ivia <no-reply@ivia.local>"),
-		BrevoAPIKey:          secrets["BREVO_API_KEY"],
-		BrevoSenderMail:      get("BREVO_SENDER_EMAIL", ""),
-		BrevoSenderName:      get("BREVO_SENDER_NAME", "ivia"),
-		PaymentProvider:      get("PAYMENT_PROVIDER", "fake"),
-		PaymentWebhookSecret: secrets["PAYMENT_WEBHOOK_SECRET"],
-		PushSender:           get("PUSH_SENDER", "log"),
-		FCMCredentialsFile:   get("FCM_CREDENTIALS_FILE", ""),
-		Storage:              get("STORAGE", "local"),
-		LocalStorageDir:      get("LOCAL_STORAGE_DIR", "./var/uploads"),
-		R2AccountID:          get("R2_ACCOUNT_ID", ""),
-		R2AccessKeyID:        secrets["R2_ACCESS_KEY_ID"],
-		R2SecretAccessKey:    secrets["R2_SECRET_ACCESS_KEY"],
-		R2PublicBucket:       get("R2_PUBLIC_BUCKET", ""),
-		R2PrivateBucket:      get("R2_PRIVATE_BUCKET", ""),
-		R2PublicBaseURL:      strings.TrimRight(get("R2_PUBLIC_BASE_URL", ""), "/"),
-		SentryDSN:            secrets["SENTRY_DSN"],
-		Version:              get("APP_VERSION", "dev"),
+		Env:                   get("APP_ENV", ""),
+		Port:                  get("PORT", "8080"),
+		DatabaseURL:           secrets["DATABASE_URL"],
+		LogLevel:              get("LOG_LEVEL", "info"),
+		OTPSender:             get("OTP_SENDER", "log"),
+		SMTPAddr:              get("SMTP_ADDR", "localhost:1025"),
+		SMTPFrom:              get("SMTP_FROM", "ivia <no-reply@ivia.local>"),
+		BrevoAPIKey:           secrets["BREVO_API_KEY"],
+		BrevoSenderMail:       get("BREVO_SENDER_EMAIL", ""),
+		BrevoSenderName:       get("BREVO_SENDER_NAME", "ivia"),
+		PhoneOTPSender:        get("PHONE_OTP_SENDER", ""),
+		SMSSender:             get("SMS_SENDER", "none"),
+		WhatsAppPhoneNumberID: get("WHATSAPP_PHONE_NUMBER_ID", ""),
+		WhatsAppAccessToken:   secrets["WHATSAPP_ACCESS_TOKEN"],
+		WhatsAppTemplate:      get("WHATSAPP_TEMPLATE", "ivia_code"),
+		WhatsAppTemplateLang:  get("WHATSAPP_TEMPLATE_LANG", "fr"),
+		PaymentProvider:       get("PAYMENT_PROVIDER", "fake"),
+		PaymentWebhookSecret:  secrets["PAYMENT_WEBHOOK_SECRET"],
+		PushSender:            get("PUSH_SENDER", "log"),
+		FCMCredentialsFile:    get("FCM_CREDENTIALS_FILE", ""),
+		Storage:               get("STORAGE", "local"),
+		LocalStorageDir:       get("LOCAL_STORAGE_DIR", "./var/uploads"),
+		R2AccountID:           get("R2_ACCOUNT_ID", ""),
+		R2AccessKeyID:         secrets["R2_ACCESS_KEY_ID"],
+		R2SecretAccessKey:     secrets["R2_SECRET_ACCESS_KEY"],
+		R2PublicBucket:        get("R2_PUBLIC_BUCKET", ""),
+		R2PrivateBucket:       get("R2_PRIVATE_BUCKET", ""),
+		R2PublicBaseURL:       strings.TrimRight(get("R2_PUBLIC_BASE_URL", ""), "/"),
+		SentryDSN:             secrets["SENTRY_DSN"],
+		Version:               get("APP_VERSION", "dev"),
 	}
 	c.PublicBaseURL = strings.TrimRight(get("PUBLIC_BASE_URL", "http://localhost:"+c.Port), "/")
 	for _, id := range strings.Split(get("GOOGLE_CLIENT_IDS", ""), ",") {
@@ -156,6 +173,19 @@ func Load(getenv func(string) string) (Config, error) {
 	}
 	if c.SessionTTL, err = time.ParseDuration(get("SESSION_TTL", "1440h")); err != nil || c.SessionTTL < time.Hour {
 		errs = append(errs, errors.New("SESSION_TTL invalide (durée Go, au moins 1h, ex. 1440h)"))
+	}
+	// Connexion par numéro : codes dans le journal en local, fermée par défaut ailleurs.
+	if c.PhoneOTPSender == "" {
+		c.PhoneOTPSender = "none"
+		if !c.IsProduction() {
+			c.PhoneOTPSender = "log"
+		}
+	}
+	if c.SMSSender == "none" && c.PhoneOTPSender == "log" {
+		c.SMSSender = "log"
+	}
+	if c.PhoneCodesPerHour, err = strconv.Atoi(get("PHONE_CODES_PER_HOUR", "1000")); err != nil {
+		errs = append(errs, errors.New("PHONE_CODES_PER_HOUR : nombre entier attendu"))
 	}
 
 	secret := secrets["AUTH_SECRET"]
@@ -198,6 +228,32 @@ func (c Config) validateIntegrations() []error {
 		}
 	default:
 		errs = append(errs, fmt.Errorf("OTP_SENDER inconnu : %q", c.OTPSender))
+	}
+
+	switch c.PhoneOTPSender {
+	case "none":
+	case "log":
+		if c.IsProduction() {
+			errs = append(errs, errors.New("PHONE_OTP_SENDER=log interdit hors local"))
+		}
+	case "whatsapp":
+		if c.WhatsAppPhoneNumberID == "" || c.WhatsAppAccessToken == "" {
+			errs = append(errs, errors.New("PHONE_OTP_SENDER=whatsapp demande WHATSAPP_PHONE_NUMBER_ID et WHATSAPP_ACCESS_TOKEN"))
+		}
+	default:
+		errs = append(errs, fmt.Errorf("PHONE_OTP_SENDER inconnu : %q", c.PhoneOTPSender))
+	}
+	switch c.SMSSender {
+	case "none":
+	case "log":
+		if c.IsProduction() {
+			errs = append(errs, errors.New("SMS_SENDER=log interdit hors local"))
+		}
+	default:
+		errs = append(errs, fmt.Errorf("SMS_SENDER inconnu : %q (prestataire SMS à choisir)", c.SMSSender))
+	}
+	if c.PhoneCodesPerHour < 10 || c.PhoneCodesPerHour > 1_000_000 {
+		errs = append(errs, errors.New("PHONE_CODES_PER_HOUR : entre 10 et 1 000 000"))
 	}
 
 	switch c.PaymentProvider {

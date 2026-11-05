@@ -144,7 +144,7 @@ func (rt *Router) requireAuth(roles []identity.Role, next HandlerFunc) HandlerFu
 		// Routes réservées aux admins : la session doit avoir passé la double vérification par
 		// code (ADR 0011) ; un mot de passe volé ne suffit pas.
 		if adminOnly(roles) && !principal.MFA {
-			return apperr.Forbidden("mfa_required", "Confirmez votre connexion avec le code reçu par e-mail.")
+			return apperr.Forbidden("mfa_required", "Confirmez votre connexion avec votre application d'authentification ou le code reçu par e-mail.")
 		}
 		return next(w, r.WithContext(identity.WithPrincipal(r.Context(), principal)))
 	}

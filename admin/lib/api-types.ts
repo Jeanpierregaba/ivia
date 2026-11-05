@@ -251,7 +251,7 @@ export interface paths {
         put?: never;
         /**
          * Double vérification : envoyer le code
-         * @description Envoie un code à l'e-mail du compte connecté. Exigé pour le back-office : sans session vérifiée, les routes admin répondent 403 `mfa_required`.
+         * @description Envoie un code à l'e-mail du compte connecté. Exigé pour le back-office : sans session vérifiée, les routes admin répondent 403 `mfa_required`. Refusé (`mfa_use_totp`) quand l'application d'authentification est activée.
          */
         post: operations["postAuthMfaCode"];
         delete?: never;
@@ -271,7 +271,7 @@ export interface paths {
         put?: never;
         /**
          * Double vérification : vérifier le code
-         * @description Marque la session comme vérifiée ; elle expire alors au plus 8 h plus tard, sans prolongation.
+         * @description Code reçu par e-mail, ou, si l'application d'authentification est activée (`mfa_method: totp`), code de l'application ou code de secours (XXXX-XXXX, usage unique). Marque la session comme vérifiée ; elle expire alors au plus 8 h plus tard, sans prolongation.
          */
         post: operations["postAuthMfaVerify"];
         delete?: never;
@@ -328,6 +328,266 @@ export interface paths {
         put?: never;
         /** Se déconnecter de tous les appareils */
         post: operations["postAuthLogoutAll"];
+        delete?: never;
+        options?: never;
+        head?: never;
+        patch?: never;
+        trace?: never;
+    };
+    "/v1/auth/phone/code": {
+        parameters: {
+            query?: never;
+            header?: never;
+            path?: never;
+            cookie?: never;
+        };
+        get?: never;
+        put?: never;
+        /**
+         * Connexion par numéro : envoyer le code
+         * @description Code à 6 chiffres envoyé par WhatsApp (par défaut), SMS en secours si WhatsApp échoue ; valable 5 min. Même réponse que le numéro ait un compte ou non. Limites : 1 code par minute, 10 par jour et par numéro (`otp_rate_limited`, `otp_daily_limit`), 10 par appareil et par heure, plafond global horaire (503 `otp_service_busy`, admins prévenus). Numéro verrouillé : 429 `phone_locked`. Fermée sans configuration : `otp_channel_unavailable`.
+         */
+        post: operations["postAuthPhoneCode"];
+        delete?: never;
+        options?: never;
+        head?: never;
+        patch?: never;
+        trace?: never;
+    };
+    "/v1/auth/phone/verify": {
+        parameters: {
+            query?: never;
+            header?: never;
+            path?: never;
+            cookie?: never;
+        };
+        get?: never;
+        put?: never;
+        /**
+         * Connexion par numéro : vérifier le code
+         * @description Numéro connu : `status: signed_in` et `session` (jeton d'accès de 15 min et jeton de rafraîchissement ; alerte `new_device_login` si l'appareil est nouveau). Numéro inconnu : `status: signup_required` et `signup_token`, valable 15 min, à passer à /v1/auth/phone/signup ; aucun compte n'est créé. 5 codes faux : code annulé et numéro bloqué 15 min (429 `phone_locked`).
+         */
+        post: operations["postAuthPhoneVerify"];
+        delete?: never;
+        options?: never;
+        head?: never;
+        patch?: never;
+        trace?: never;
+    };
+    "/v1/auth/phone/signup": {
+        parameters: {
+            query?: never;
+            header?: never;
+            path?: never;
+            cookie?: never;
+        };
+        get?: never;
+        put?: never;
+        /**
+         * Connexion par numéro : créer le compte
+         * @description Prénom, nom et consentement, avec le `signup_token` de /v1/auth/phone/verify (usage unique, 15 min ; sinon 401 `signup_expired`). Le compte acheteur est créé avec son numéro vérifié et la session ouverte ; le back-office reçoit la notification `new_buyer`.
+         */
+        post: operations["postAuthPhoneSignup"];
+        delete?: never;
+        options?: never;
+        head?: never;
+        patch?: never;
+        trace?: never;
+    };
+    "/v1/auth/refresh": {
+        parameters: {
+            query?: never;
+            header?: never;
+            path?: never;
+            cookie?: never;
+        };
+        get?: never;
+        put?: never;
+        /**
+         * Renouveler la session
+         * @description Échange le jeton de rafraîchissement contre un nouveau couple de jetons (l'ancien ne sert plus). À appeler quand une requête répond 401 `access_token_expired`, une seule fois à la fois. Un ancien jeton présenté à nouveau plus de 30 s après son remplacement révoque la session (vol présumé) : 401 `invalid_session`.
+         */
+        post: operations["postAuthRefresh"];
+        delete?: never;
+        options?: never;
+        head?: never;
+        patch?: never;
+        trace?: never;
+    };
+    "/v1/me/phone/code": {
+        parameters: {
+            query?: never;
+            header?: never;
+            path?: never;
+            cookie?: never;
+        };
+        get?: never;
+        put?: never;
+        /**
+         * Changer de numéro : envoyer le code
+         * @description Code envoyé au nouveau numéro (WhatsApp, SMS en secours). Mêmes limites que la connexion.
+         */
+        post: operations["postMePhoneCode"];
+        delete?: never;
+        options?: never;
+        head?: never;
+        patch?: never;
+        trace?: never;
+    };
+    "/v1/me/phone": {
+        parameters: {
+            query?: never;
+            header?: never;
+            path?: never;
+            cookie?: never;
+        };
+        get?: never;
+        put?: never;
+        /**
+         * Changer de numéro : confirmer
+         * @description Le numéro vérifié devient le nouvel identifiant de connexion. `phone_taken` s'il appartient à un autre compte.
+         */
+        post: operations["postMePhone"];
+        delete?: never;
+        options?: never;
+        head?: never;
+        patch?: never;
+        trace?: never;
+    };
+    "/v1/me/sessions": {
+        parameters: {
+            query?: never;
+            header?: never;
+            path?: never;
+            cookie?: never;
+        };
+        /**
+         * Appareils connectés
+         * @description Sessions actives, la plus récente d'abord ; `current` marque celle de la requête.
+         */
+        get: operations["getMeSessions"];
+        put?: never;
+        post?: never;
+        delete?: never;
+        options?: never;
+        head?: never;
+        patch?: never;
+        trace?: never;
+    };
+    "/v1/me/sessions/{id}": {
+        parameters: {
+            query?: never;
+            header?: never;
+            path?: never;
+            cookie?: never;
+        };
+        get?: never;
+        put?: never;
+        post?: never;
+        /**
+         * Déconnecter un appareil
+         * @description Révoque une session du compte (`session_not_found` sinon).
+         */
+        delete: operations["deleteMeSession"];
+        options?: never;
+        head?: never;
+        patch?: never;
+        trace?: never;
+    };
+    "/v1/auth/mfa/totp/setup": {
+        parameters: {
+            query?: never;
+            header?: never;
+            path?: never;
+            cookie?: never;
+        };
+        get?: never;
+        put?: never;
+        /**
+         * Application d'authentification : commencer
+         * @description Session déjà vérifiée exigée (`mfa_required`). Tire un nouveau secret : `otpauth_uri` à afficher en QR code (Google Authenticator, Microsoft Authenticator…), `secret` à saisir à la main. `totp_already_enabled` si elle est déjà activée.
+         */
+        post: operations["postAuthMfaTotpSetup"];
+        delete?: never;
+        options?: never;
+        head?: never;
+        patch?: never;
+        trace?: never;
+    };
+    "/v1/auth/mfa/totp/confirm": {
+        parameters: {
+            query?: never;
+            header?: never;
+            path?: never;
+            cookie?: never;
+        };
+        get?: never;
+        put?: never;
+        /**
+         * Application d'authentification : activer
+         * @description Premier code de l'application. Retourne 10 codes de secours, affichés une seule fois. Ensuite, la double vérification se fait avec l'application (ou un code de secours) et plus par e-mail.
+         */
+        post: operations["postAuthMfaTotpConfirm"];
+        delete?: never;
+        options?: never;
+        head?: never;
+        patch?: never;
+        trace?: never;
+    };
+    "/v1/auth/mfa/totp/recovery-codes": {
+        parameters: {
+            query?: never;
+            header?: never;
+            path?: never;
+            cookie?: never;
+        };
+        get?: never;
+        put?: never;
+        /**
+         * Nouveaux codes de secours
+         * @description Remplace les codes de secours (code de l'application exigé).
+         */
+        post: operations["postAuthMfaTotpRecoveryCodes"];
+        delete?: never;
+        options?: never;
+        head?: never;
+        patch?: never;
+        trace?: never;
+    };
+    "/v1/auth/mfa/totp/disable": {
+        parameters: {
+            query?: never;
+            header?: never;
+            path?: never;
+            cookie?: never;
+        };
+        get?: never;
+        put?: never;
+        /**
+         * Application d'authentification : désactiver
+         * @description Code de l'application exigé ; le code par e-mail redevient la double vérification.
+         */
+        post: operations["postAuthMfaTotpDisable"];
+        delete?: never;
+        options?: never;
+        head?: never;
+        patch?: never;
+        trace?: never;
+    };
+    "/v1/admin/users/{id}/mfa/reset": {
+        parameters: {
+            query?: never;
+            header?: never;
+            path?: never;
+            cookie?: never;
+        };
+        get?: never;
+        put?: never;
+        /**
+         * Réinitialiser la double vérification d'un admin
+         * @description Téléphone perdu sans code de secours : désactive son application d'authentification et le déconnecte partout. Motif obligatoire, action journalisée ; impossible sur son propre compte.
+         */
+        post: operations["postAdminUserMfaReset"];
         delete?: never;
         options?: never;
         head?: never;
@@ -3698,6 +3958,8 @@ export interface components {
              * @description Date d'acceptation de la politique de confidentialité.
              */
             privacy_consent_at: string | null;
+            /** @description Numéro prouvé par un code : c'est l'identifiant de connexion, modifiable seulement par /v1/me/phone. */
+            phone_verified: boolean;
             /** @description Prénom, téléphone et consentement renseignés : requis pour commander ou postuler comme livreur. */
             profile_complete: boolean;
             /** Format: date-time */
@@ -3712,20 +3974,114 @@ export interface components {
         AuthProviders: {
             password: boolean;
             google: boolean;
+            /** @description Connexion par numéro (WhatsApp, SMS) ouverte. */
+            phone: boolean;
         };
         SessionInfo: {
             mfa_verified: boolean;
             has_password: boolean;
+            /**
+             * @description Second facteur attendu : application d'authentification (`totp`) ou code par e-mail.
+             * @enum {string}
+             */
+            mfa_method: "email" | "totp";
+            recovery_codes_left: number;
             /** Format: date-time */
             expires_at: string;
         };
         Session: {
-            /** @description Jeton opaque à envoyer en `Authorization: Bearer`. */
+            /** @description Jeton opaque à envoyer en `Authorization: Bearer`. Avec `refresh_token`, c'est un jeton d'accès court, valable jusqu'à `access_expires_at`. */
             token: string;
+            /** @description Connexion par numéro (apps mobiles) : jeton de rafraîchissement, à garder dans le stockage sécurisé et à échanger avec /v1/auth/refresh. */
+            refresh_token?: string;
             /** Format: date-time */
+            access_expires_at?: string;
+            /**
+             * Format: date-time
+             * @description Fin de la session si elle n'est plus utilisée ou rafraîchie.
+             */
             expires_at: string;
             is_new_user: boolean;
             user: components["schemas"]["User"];
+        };
+        PhoneCodeInput: {
+            /** @description Mobile togolais : 8 chiffres, avec ou sans +228. */
+            phone: string;
+            /**
+             * @default whatsapp
+             * @enum {string}
+             */
+            channel: "whatsapp" | "sms";
+            /** @description Identifiant d'installation tiré au hasard par l'app et gardé dans son stockage sécurisé (jamais un identifiant matériel). Gardé haché côté serveur. */
+            device_id: string;
+            /** @description Nom lisible de l'appareil (« Tecno Spark 10 »), affiché dans les appareils connectés et les alertes. */
+            device_name?: string;
+            /**
+             * @default buyer
+             * @enum {string}
+             */
+            app: "buyer" | "seller" | "driver" | "pharmacy";
+        };
+        PhoneVerifyInput: {
+            phone: string;
+            code: string;
+            /** @description Identifiant d'installation tiré au hasard par l'app et gardé dans son stockage sécurisé (jamais un identifiant matériel). Gardé haché côté serveur. */
+            device_id: string;
+            /** @description Nom lisible de l'appareil (« Tecno Spark 10 »), affiché dans les appareils connectés et les alertes. */
+            device_name?: string;
+            /**
+             * @default buyer
+             * @enum {string}
+             */
+            app: "buyer" | "seller" | "driver" | "pharmacy";
+        };
+        PhoneSignupInput: {
+            signup_token: string;
+            first_name: string;
+            last_name: string;
+            /** @constant */
+            accept_privacy_policy: true;
+            /** @description Identifiant d'installation tiré au hasard par l'app et gardé dans son stockage sécurisé (jamais un identifiant matériel). Gardé haché côté serveur. */
+            device_id: string;
+            /** @description Nom lisible de l'appareil (« Tecno Spark 10 »), affiché dans les appareils connectés et les alertes. */
+            device_name?: string;
+            /**
+             * @default buyer
+             * @enum {string}
+             */
+            app: "buyer" | "seller" | "driver" | "pharmacy";
+        };
+        PhoneVerifyResult: {
+            /** @enum {string} */
+            status: "signed_in" | "signup_required";
+            session?: components["schemas"]["Session"];
+            signup_token?: string;
+            /** Format: date-time */
+            signup_expires_at?: string;
+        };
+        SessionView: {
+            /** Format: uuid */
+            id: string;
+            device_name: string;
+            user_agent: string;
+            app: string | null;
+            /** Format: date-time */
+            created_at: string;
+            /** Format: date-time */
+            last_used_at: string;
+            current: boolean;
+        };
+        SessionList: {
+            items: components["schemas"]["SessionView"][];
+        };
+        TOTPSetup: {
+            /** @description Secret en base32, à saisir à la main si le QR code ne passe pas. */
+            secret: string;
+            /** @description Lien otpauth:// à afficher en QR code, généré dans le navigateur (jamais envoyé à un service tiers). */
+            otpauth_uri: string;
+        };
+        RecoveryCodes: {
+            recovery_codes: string[];
         };
         Address: {
             /** Format: uuid */
@@ -6232,6 +6588,438 @@ export interface operations {
             cookie?: never;
         };
         requestBody?: never;
+        responses: {
+            /** @description Effectué */
+            204: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content?: never;
+            };
+            /** @description Erreur (voir `code`) */
+            default: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["Error"];
+                };
+            };
+        };
+    };
+    postAuthPhoneCode: {
+        parameters: {
+            query?: never;
+            header?: never;
+            path?: never;
+            cookie?: never;
+        };
+        requestBody: {
+            content: {
+                "application/json": components["schemas"]["PhoneCodeInput"];
+            };
+        };
+        responses: {
+            /** @description Succès */
+            202: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["OTPRequested"];
+                };
+            };
+            /** @description Erreur (voir `code`) */
+            default: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["Error"];
+                };
+            };
+        };
+    };
+    postAuthPhoneVerify: {
+        parameters: {
+            query?: never;
+            header?: never;
+            path?: never;
+            cookie?: never;
+        };
+        requestBody: {
+            content: {
+                "application/json": components["schemas"]["PhoneVerifyInput"];
+            };
+        };
+        responses: {
+            /** @description Succès */
+            200: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["PhoneVerifyResult"];
+                };
+            };
+            /** @description Erreur (voir `code`) */
+            default: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["Error"];
+                };
+            };
+        };
+    };
+    postAuthPhoneSignup: {
+        parameters: {
+            query?: never;
+            header?: never;
+            path?: never;
+            cookie?: never;
+        };
+        requestBody: {
+            content: {
+                "application/json": components["schemas"]["PhoneSignupInput"];
+            };
+        };
+        responses: {
+            /** @description Succès */
+            201: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["Session"];
+                };
+            };
+            /** @description Erreur (voir `code`) */
+            default: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["Error"];
+                };
+            };
+        };
+    };
+    postAuthRefresh: {
+        parameters: {
+            query?: never;
+            header?: never;
+            path?: never;
+            cookie?: never;
+        };
+        requestBody: {
+            content: {
+                "application/json": {
+                    refresh_token: string;
+                };
+            };
+        };
+        responses: {
+            /** @description Succès */
+            200: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["Session"];
+                };
+            };
+            /** @description Erreur (voir `code`) */
+            default: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["Error"];
+                };
+            };
+        };
+    };
+    postMePhoneCode: {
+        parameters: {
+            query?: never;
+            header?: never;
+            path?: never;
+            cookie?: never;
+        };
+        requestBody: {
+            content: {
+                "application/json": {
+                    phone: string;
+                    /** @enum {string} */
+                    channel?: "whatsapp" | "sms";
+                };
+            };
+        };
+        responses: {
+            /** @description Succès */
+            202: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["OTPRequested"];
+                };
+            };
+            /** @description Erreur (voir `code`) */
+            default: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["Error"];
+                };
+            };
+        };
+    };
+    postMePhone: {
+        parameters: {
+            query?: never;
+            header?: never;
+            path?: never;
+            cookie?: never;
+        };
+        requestBody: {
+            content: {
+                "application/json": {
+                    phone: string;
+                    code: string;
+                };
+            };
+        };
+        responses: {
+            /** @description Succès */
+            200: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["User"];
+                };
+            };
+            /** @description Erreur (voir `code`) */
+            default: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["Error"];
+                };
+            };
+        };
+    };
+    getMeSessions: {
+        parameters: {
+            query?: never;
+            header?: never;
+            path?: never;
+            cookie?: never;
+        };
+        requestBody?: never;
+        responses: {
+            /** @description Succès */
+            200: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["SessionList"];
+                };
+            };
+            /** @description Erreur (voir `code`) */
+            default: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["Error"];
+                };
+            };
+        };
+    };
+    deleteMeSession: {
+        parameters: {
+            query?: never;
+            header?: never;
+            path: {
+                id: string;
+            };
+            cookie?: never;
+        };
+        requestBody?: never;
+        responses: {
+            /** @description Effectué */
+            204: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content?: never;
+            };
+            /** @description Erreur (voir `code`) */
+            default: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["Error"];
+                };
+            };
+        };
+    };
+    postAuthMfaTotpSetup: {
+        parameters: {
+            query?: never;
+            header?: never;
+            path?: never;
+            cookie?: never;
+        };
+        requestBody?: never;
+        responses: {
+            /** @description Succès */
+            200: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["TOTPSetup"];
+                };
+            };
+            /** @description Erreur (voir `code`) */
+            default: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["Error"];
+                };
+            };
+        };
+    };
+    postAuthMfaTotpConfirm: {
+        parameters: {
+            query?: never;
+            header?: never;
+            path?: never;
+            cookie?: never;
+        };
+        requestBody: {
+            content: {
+                "application/json": {
+                    code: string;
+                };
+            };
+        };
+        responses: {
+            /** @description Succès */
+            200: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["RecoveryCodes"];
+                };
+            };
+            /** @description Erreur (voir `code`) */
+            default: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["Error"];
+                };
+            };
+        };
+    };
+    postAuthMfaTotpRecoveryCodes: {
+        parameters: {
+            query?: never;
+            header?: never;
+            path?: never;
+            cookie?: never;
+        };
+        requestBody: {
+            content: {
+                "application/json": {
+                    code: string;
+                };
+            };
+        };
+        responses: {
+            /** @description Succès */
+            200: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["RecoveryCodes"];
+                };
+            };
+            /** @description Erreur (voir `code`) */
+            default: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["Error"];
+                };
+            };
+        };
+    };
+    postAuthMfaTotpDisable: {
+        parameters: {
+            query?: never;
+            header?: never;
+            path?: never;
+            cookie?: never;
+        };
+        requestBody: {
+            content: {
+                "application/json": {
+                    code: string;
+                };
+            };
+        };
+        responses: {
+            /** @description Effectué */
+            204: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content?: never;
+            };
+            /** @description Erreur (voir `code`) */
+            default: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["Error"];
+                };
+            };
+        };
+    };
+    postAdminUserMfaReset: {
+        parameters: {
+            query?: never;
+            header?: never;
+            path: {
+                id: string;
+            };
+            cookie?: never;
+        };
+        requestBody: {
+            content: {
+                "application/json": {
+                    reason: string;
+                };
+            };
+        };
         responses: {
             /** @description Effectué */
             204: {

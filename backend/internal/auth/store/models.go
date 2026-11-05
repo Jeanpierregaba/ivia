@@ -25,6 +25,14 @@ type AuthPassword struct {
 	UpdatedAt      time.Time
 }
 
+type AuthTotp struct {
+	UserID      uuid.UUID
+	SecretEnc   []byte
+	ConfirmedAt *time.Time
+	LastStep    int64
+	CreatedAt   time.Time
+}
+
 type OtpCode struct {
 	ID         uuid.UUID
 	Channel    string
@@ -35,4 +43,5 @@ type OtpCode struct {
 	ConsumedAt *time.Time
 	CreatedAt  time.Time
 	Purpose    string
+	SentVia    *string
 }

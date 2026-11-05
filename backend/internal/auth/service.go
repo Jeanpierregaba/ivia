@@ -42,7 +42,9 @@ const (
 type Channel string
 
 const (
-	ChannelEmail    Channel = "email"
+	ChannelEmail Channel = "email"
+	// ChannelPhone : identifiant « numéro de téléphone » ; le code part par WhatsApp ou par SMS.
+	ChannelPhone    Channel = "phone"
 	ChannelWhatsApp Channel = "whatsapp"
 	ChannelSMS      Channel = "sms"
 )
@@ -56,6 +58,10 @@ const (
 	PurposeSignup Purpose = "signup"
 	PurposeReset  Purpose = "reset"
 	PurposeMFA    Purpose = "mfa"
+	// PurposePhoneLogin : connexion ou inscription par numéro (ADR 0012).
+	PurposePhoneLogin Purpose = "phone_login"
+	// PurposePhoneChange : confirmation d'un nouveau numéro sur un compte connecté.
+	PurposePhoneChange Purpose = "phone_change"
 )
 
 // OTPMessage est un code à envoyer.
@@ -75,6 +81,10 @@ type OTPSender interface {
 type UserDirectory interface {
 	FindOrCreateByEmail(ctx context.Context, email string) (users.User, bool, error)
 	FindByEmail(ctx context.Context, email string) (users.User, error)
+	FindByPhone(ctx context.Context, phone string) (users.User, error)
+	MarkPhoneVerified(ctx context.Context, id uuid.UUID) error
+	CreateWithPhone(ctx context.Context, phone string, in users.PhoneSignup) (users.User, bool, error)
+	SetVerifiedPhone(ctx context.Context, id uuid.UUID, phone string) (users.User, error)
 	Get(ctx context.Context, id uuid.UUID) (users.User, error)
 	Roles(ctx context.Context, id uuid.UUID) ([]identity.Role, error)
 }
@@ -89,6 +99,20 @@ type Options struct {
 	// GoogleClientIDs : identifiants OAuth acceptés comme audience des jetons Google (Android, iOS,
 	// web). Vide : connexion Google désactivée.
 	GoogleClientIDs []string
+	// PhoneChannels : canaux d'envoi des codes par numéro, dans l'ordre d'essai (whatsapp, sms).
+	// Vide : connexion par numéro fermée.
+	PhoneChannels []Channel
+	// PhoneCodesPerHour : plafond global des codes WhatsApp et SMS par heure (fraude aux SMS) ;
+	// au-delà, les demandes sont refusées et les admins prévenus. 0 : 1 000.
+	PhoneCodesPerHour int
+	// AccessTTL : durée du jeton d'accès des sessions à rafraîchissement. 0 : 15 minutes.
+	AccessTTL time.Duration
+}
+
+// Notifier prévient les admins (back-office) et les utilisateurs (alertes de sécurité).
+type Notifier interface {
+	NotifyAdmins(ctx context.Context, kind, title, body string, data map[string]string) error
+	NotifyUser(ctx context.Context, userID uuid.UUID, app, kind, title, body string, data map[string]string) error
 }
 
 // Service gère codes et sessions.
@@ -104,7 +128,14 @@ type Service struct {
 	channels map[Channel]bool
 	hasher   *passwordHasher
 	google   *googleVerifier
+	notifier Notifier
+	auditor  Auditor
+	byDevice *ratelimit.Limiter
+	capAlert alertGate
 }
+
+// SetNotifier branche les alertes (le module notifications est créé après auth).
+func (s *Service) SetNotifier(n Notifier) { s.notifier = n }
 
 // NewService crée le service. Seul le canal e-mail est ouvert au lancement.
 func NewService(db *database.DB, userDir UserDirectory, sender OTPSender, logger *slog.Logger, opts Options) *Service {
@@ -116,6 +147,12 @@ func NewService(db *database.DB, userDir UserDirectory, sender OTPSender, logger
 	if opts.VerifiesPerIPPerHour == 0 {
 		opts.VerifiesPerIPPerHour = 4000
 	}
+	if opts.PhoneCodesPerHour == 0 {
+		opts.PhoneCodesPerHour = 1000
+	}
+	if opts.AccessTTL == 0 {
+		opts.AccessTTL = 15 * time.Minute
+	}
 	return &Service{
 		db: db, users: userDir, sender: sender, logger: logger, opts: opts,
 		reqByIP:  ratelimit.New(opts.RequestsPerIPPerHour, time.Hour),
@@ -124,6 +161,7 @@ func NewService(db *database.DB, userDir UserDirectory, sender OTPSender, logger
 		channels: map[Channel]bool{ChannelEmail: true},
 		hasher:   newPasswordHasher(),
 		google:   newGoogleVerifier(opts.GoogleClientIDs),
+		byDevice: ratelimit.New(PhoneCodesPerDevicePerHour, time.Hour),
 	}
 }
 
@@ -134,12 +172,17 @@ type OTPRequested struct {
 	ResendAfterSeconds int     `json:"resend_after_seconds"`
 }
 
-// Session est le résultat d'une connexion réussie.
+// Session est le résultat d'une connexion réussie. Les sessions des apps mobiles (connexion par
+// numéro) ont un jeton d'accès court (token, jusqu'à access_expires_at) et un jeton de
+// rafraîchissement (refresh_token) changé à chaque usage ; expires_at est alors la fin de la
+// session si elle n'est plus rafraîchie.
 type Session struct {
-	Token     string     `json:"token"`
-	ExpiresAt time.Time  `json:"expires_at"`
-	IsNewUser bool       `json:"is_new_user"`
-	User      users.User `json:"user"`
+	Token           string     `json:"token"`
+	RefreshToken    string     `json:"refresh_token,omitempty"`
+	AccessExpiresAt *time.Time `json:"access_expires_at,omitempty"`
+	ExpiresAt       time.Time  `json:"expires_at"`
+	IsNewUser       bool       `json:"is_new_user"`
+	User            users.User `json:"user"`
 }
 
 func (s *Service) normalize(channel Channel, recipient string) (string, error) {
@@ -172,9 +215,17 @@ func (s *Service) RequestOTP(ctx context.Context, channel Channel, recipient, ip
 	return s.sendCode(ctx, channel, recipient, PurposeLogin, ip)
 }
 
-// sendCode génère, enregistre et envoie un code pour un usage. recipient est déjà normalisé.
-// Les limites (1 code par minute, 10 par jour) valent par destinataire, tous usages confondus.
+// sendCode génère, enregistre et envoie un code par e-mail pour un usage. recipient est déjà
+// normalisé.
 func (s *Service) sendCode(ctx context.Context, channel Channel, recipient string, purpose Purpose, ip string) (OTPRequested, error) {
+	return s.sendCodeVia(ctx, channel, recipient, purpose, ip, OTPTTL, []Channel{channel})
+}
+
+// sendCodeVia génère, enregistre et envoie un code. channel est le type d'identifiant (email ou
+// phone) ; via liste les canaux d'envoi à essayer dans l'ordre (WhatsApp puis SMS en secours). Les
+// limites (1 code par minute et par usage, 10 par jour) valent par identifiant, tous canaux
+// confondus.
+func (s *Service) sendCodeVia(ctx context.Context, channel Channel, recipient string, purpose Purpose, ip string, ttl time.Duration, via []Channel) (OTPRequested, error) {
 	if ok, retry := s.reqByIP.Allow(ip); !ok {
 		return OTPRequested{}, apperr.TooManyRequests("rate_limited", "Trop de demandes depuis votre réseau. Réessayez plus tard.", retry)
 	}
@@ -183,6 +234,7 @@ func (s *Service) sendCode(ctx context.Context, channel Channel, recipient strin
 	if err != nil {
 		return OTPRequested{}, err
 	}
+	var otpID uuid.UUID
 	err = s.db.InTx(ctx, func(ctx context.Context) error {
 		q := store.New(s.db.Conn(ctx))
 		if err := q.LockRecipient(ctx, store.LockRecipientParams{Channel: string(channel), Recipient: recipient}); err != nil {
@@ -207,9 +259,9 @@ func (s *Service) sendCode(ctx context.Context, channel Channel, recipient strin
 		if err := q.InvalidateOTPs(ctx, store.InvalidateOTPsParams{Channel: string(channel), Recipient: recipient, Purpose: string(purpose)}); err != nil {
 			return fmt.Errorf("annulation des anciens codes : %w", err)
 		}
-		_, err = q.CreateOTP(ctx, store.CreateOTPParams{
+		otpID, err = q.CreateOTP(ctx, store.CreateOTPParams{
 			Channel: string(channel), Recipient: recipient, Purpose: string(purpose),
-			CodeHash: s.hashCode(channel, purpose, recipient, code), ExpiresAt: now.Add(OTPTTL),
+			CodeHash: s.hashCode(channel, purpose, recipient, code), ExpiresAt: now.Add(ttl),
 		})
 		if err != nil {
 			return fmt.Errorf("enregistrement du code : %w", err)
@@ -220,13 +272,23 @@ func (s *Service) sendCode(ctx context.Context, channel Channel, recipient strin
 		return OTPRequested{}, err
 	}
 
-	sendCtx, cancel := context.WithTimeout(ctx, 15*time.Second)
-	defer cancel()
-	if err := s.sender.Send(sendCtx, OTPMessage{Channel: channel, Recipient: recipient, Code: code, Purpose: purpose}); err != nil {
-		s.logger.Error("envoi du code impossible", "channel", channel, "purpose", purpose, "err", err)
-		return OTPRequested{}, apperr.Unavailable("otp_send_failed", "Le code n'a pas pu être envoyé. Réessayez dans un instant.")
+	for _, ch := range via {
+		sendCtx, cancel := context.WithTimeout(ctx, 15*time.Second)
+		err := s.sender.Send(sendCtx, OTPMessage{Channel: ch, Recipient: recipient, Code: code, Purpose: purpose})
+		cancel()
+		if err != nil {
+			// Ni le destinataire ni le code dans le journal (SECURITY).
+			s.logger.Warn("envoi du code impossible", "channel", ch, "purpose", purpose, "err", err)
+			continue
+		}
+		sentVia := string(ch)
+		if err := store.New(s.db.Pool).SetOTPSentVia(ctx, store.SetOTPSentViaParams{ID: otpID, SentVia: &sentVia}); err != nil {
+			s.logger.Warn("canal d'envoi non noté", "err", err)
+		}
+		return OTPRequested{Channel: ch, ExpiresInSeconds: int(ttl.Seconds()), ResendAfterSeconds: 60}, nil
 	}
-	return OTPRequested{Channel: channel, ExpiresInSeconds: int(OTPTTL.Seconds()), ResendAfterSeconds: 60}, nil
+	s.logger.Error("aucun canal n'a pu envoyer le code", "purpose", purpose, "tried", len(via))
+	return OTPRequested{}, apperr.Unavailable("otp_send_failed", "Le code n'a pas pu être envoyé. Réessayez dans un instant.")
 }
 
 var (
@@ -334,7 +396,12 @@ func (s *Service) createSession(ctx context.Context, userID uuid.UUID, userAgent
 	return token, row.ExpiresAt, nil
 }
 
-var errInvalidSession = apperr.Unauthorized("invalid_session", "Votre session a expiré. Reconnectez-vous.")
+var (
+	errInvalidSession = apperr.Unauthorized("invalid_session", "Votre session a expiré. Reconnectez-vous.")
+	// errAccessExpired : le jeton d'accès court a expiré ; l'app le renouvelle avec son jeton de
+	// rafraîchissement (POST /v1/auth/refresh) sans rien demander à l'utilisateur.
+	errAccessExpired = apperr.Unauthorized("access_token_expired", "Session à renouveler.")
+)
 
 // Authenticate retrouve l'utilisateur d'un jeton de session (appelé à chaque requête). Les rôles
 // sont relus à chaque fois : un rôle retiré ou un compte supprimé prend effet immédiatement.
@@ -349,6 +416,9 @@ func (s *Service) Authenticate(ctx context.Context, token string) (identity.Prin
 	}
 	if err != nil {
 		return identity.Principal{}, fmt.Errorf("lecture de la session : %w", err)
+	}
+	if sess.AccessExpiresAt != nil && time.Now().After(*sess.AccessExpiresAt) {
+		return identity.Principal{}, errAccessExpired
 	}
 	roles, err := s.users.Roles(ctx, sess.UserID)
 	if apperr.IsCode(err, "user_not_found") {
@@ -392,6 +462,15 @@ func (s *Service) OnAccountDeleted(ctx context.Context, userID uuid.UUID) error 
 	if err := q.DeleteIdentitiesOf(ctx, userID); err != nil {
 		return fmt.Errorf("suppression des comptes rattachés : %w", err)
 	}
+	if err := q.DeleteDevicesOf(ctx, userID); err != nil {
+		return fmt.Errorf("suppression des appareils : %w", err)
+	}
+	if err := q.DeleteTOTP(ctx, userID); err != nil {
+		return fmt.Errorf("suppression de la double vérification : %w", err)
+	}
+	if err := q.DeleteRecoveryCodes(ctx, userID); err != nil {
+		return fmt.Errorf("suppression des codes de secours : %w", err)
+	}
 	return s.LogoutAll(ctx, userID)
 }
 
@@ -400,6 +479,12 @@ func (s *Service) Purge(ctx context.Context) error {
 	q := store.New(s.db.Conn(ctx))
 	if _, err := q.PurgeOTPs(ctx); err != nil {
 		return fmt.Errorf("purge des codes : %w", err)
+	}
+	if _, err := q.PurgePendingSignups(ctx); err != nil {
+		return fmt.Errorf("purge des inscriptions en attente : %w", err)
+	}
+	if _, err := q.PurgeRecipientLocks(ctx); err != nil {
+		return fmt.Errorf("purge des verrous : %w", err)
 	}
 	if _, err := q.PurgeSessions(ctx); err != nil {
 		return fmt.Errorf("purge des sessions : %w", err)

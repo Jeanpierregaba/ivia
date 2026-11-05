@@ -13,16 +13,27 @@
 | Infrastructure / mise en ligne | **~60 %** | Images Docker, Compose, Caddy, sauvegardes, CI prêts ; serveurs à louer |
 | Publicité IVI / marketing   |  **~90 %** | API, back-office, jeu de démo et app acheteur faits ; reste à saisir les prix IVI |
 | Module pharmacie (029)      |  **~45 %** | Backend aligné sur les maquettes P01–P14 (déblocage par pharmacie, livreur trouvé avant paiement, sans commission) ; apps et écrans du back-office à faire |
+| Connexion v2 (001, ADR 0012) | **~45 %** | Backend fait : numéro + code WhatsApp (SMS en secours), jetons renouvelables, appareils, TOTP admin ; écrans mobiles et back-office à faire |
 | Démarches hors code         |  **~10 %** | Société, agrégateur de paiement, Play Store, Meta, domaine                 |
 
 ---
 
 ## 1. Backend — fait
 
-Go 1.27, PostgreSQL 18 + PostGIS, tâches de fond River, 28 migrations, documentation interactive
+Go 1.27, PostgreSQL 18 + PostGIS, tâches de fond River, 29 migrations, documentation interactive
 (Swagger) sur `/docs`, contrat OpenAPI vérifié par les tests.
 
 **Comptes et connexion**
+- **Connexion v2 par numéro (ADR 0012, spec 001)** — nouveau :
+  - code à 6 chiffres par **WhatsApp**, **SMS en secours** ; valable 5 min, usage unique ;
+  - aucun compte créé avant la saisie du nom (inscription en attente de 15 min) ;
+  - limites : 1 code par minute, 10 par jour et par numéro, 10 par appareil et par heure, plafond global horaire avec alerte admin ;
+  - **5 codes faux bloquent le numéro 15 min** ;
+  - jeton d'accès de 15 min et **jeton de rafraîchissement changé à chaque usage** (vol détecté si l'ancien revient) ;
+  - **appareils connectés**, déconnexion à distance, alerte « nouvelle connexion » ;
+  - le back-office est prévenu de chaque nouvel acheteur ;
+  - changement de numéro par code.
+- **Admins** : double vérification par **application d'authentification** (Google Authenticator…), 10 codes de secours, réinitialisation par un autre admin (journalisée) ; le code par e-mail reste tant que l'application n'est pas activée.
 - Création de compte par code reçu par e-mail puis mot de passe ; connexion par mot de passe (Argon2id, verrou après 10 échecs) ; mot de passe oublié ; connexion avec Google (prête, à activer avec les identifiants) ; double vérification par code pour les admins (ADR 0011).
 - Envoi des e-mails : Brevo (staging/production), SMTP vers Mailpit (local, boîte de test sur http://localhost:8025), journaux (tests). E-mail du code aux couleurs de la marque.
 - Sessions révocables, rôles acheteur / marchand / livreur / admin, consentement à la politique de confidentialité, suppression du compte.
@@ -126,7 +137,16 @@ Next.js 16, TypeScript strict, Tailwind 4, même langage visuel que les apps (lo
 
 **Backend**
 - [ ] 016 — Brancher le vrai prestataire de paiement (CinetPay, PayDunya, FedaPay ou PayGate) : **bloqué par le choix de l'agrégateur** (ADR 0007).
-- [ ] OTP par WhatsApp puis SMS (après validation Meta) : numéro expéditeur vérifié fourni ; il manque l'identifiant du numéro, l'identifiant du compte WhatsApp Business, le jeton d'accès et un modèle de message « authentification » approuvé.
+- [ ] **Mise en service de WhatsApp** : le code est prêt (API Cloud de Meta). Numéro expéditeur vérifié fourni ; il manque :
+  - l'identifiant du numéro (`WHATSAPP_PHONE_NUMBER_ID`) ;
+  - le jeton système (`WHATSAPP_ACCESS_TOKEN_FILE`) ;
+  - un modèle de message « authentification » approuvé par Meta (`WHATSAPP_TEMPLATE`).
+- [ ] Choisir le fournisseur SMS (secours de WhatsApp) ; d'ici là, pas de SMS hors local.
+
+**Connexion v2**
+- [ ] App acheteur : écrans numéro, code (WhatsApp ou SMS), « Faisons connaissance », renouvellement silencieux du jeton, Profil › Sécurité.
+- [ ] Back-office : second facteur selon la méthode (application ou e-mail), page Sécurité (QR code, codes de secours, sessions), réinitialisation d'un admin.
+- [ ] Marchand : même parcours quand ses maquettes seront fournies.
 
 **Back-office**
 - [ ] Tests navigateur (Playwright) des parcours admin.

@@ -1,94 +1,131 @@
-# 001 — Connexion par code e-mail (app acheteur)
+# 001 — Connexion et inscription (v2 : numéro de téléphone, WhatsApp, SMS)
 
 ## Objectif
 
-Permettre à un acheteur de se connecter ou de créer son compte sans mot de passe, avec un code à
-6 chiffres reçu par e-mail ([PRD](../../PRD.md), « Comptes » ; [ADR 0006](../../decisions/0006-authentification-otp-sessions.md)),
-puis de compléter son profil (prénom, nom, téléphone) et de donner son consentement au traitement
-de ses données (loi togolaise n° 2019-014, [SECURITY](../../SECURITY.md)).
+Les acheteurs se connectent avec leur **numéro de téléphone**, sans mot de passe. Un code à
+6 chiffres leur arrive par WhatsApp, ou par SMS en secours. Un nouveau numéro devient un compte
+après la saisie du prénom et du nom.
 
-Ce premier lot couvre l'**app acheteur** ; les apps marchand et livreur reprendront les mêmes écrans
-quand leurs maquettes seront prêtes. Maquettes du 2026-10-31 : elles guident, sans être la source
-de vérité.
+- **Parcours de référence** : le schéma du porteur du projet,
+  [workflow-inscription-connexion-ivia.bpmn](workflow-inscription-connexion-ivia.bpmn) (aperçu
+  `.png`).
+- **Décision** : [ADR 0012](../../decisions/0012-connexion-numero-whatsapp-jetons-totp.md).
+- **Marchand** : même parcours ; ses maquettes viendront plus tard.
+- **Back-office** : e-mail et mot de passe, puis un second facteur. Ce second facteur est
+  l'application d'authentification, ou le code par e-mail tant qu'elle n'est pas activée.
 
-## Comportement attendu
+La v1 (code par e-mail, puis e-mail et mot de passe, ADR 0006 et 0011) reste dans l'historique git.
+Ses routes restent ouvertes le temps de la migration.
 
-**Démarrage** (pendant le splash de chargement, voir [027](../027-splash-onboarding/spec.md)) :
-- pas de session enregistrée ⇒ présentation (premier lancement) ou écran de connexion ;
-- session enregistrée ⇒ l'app vérifie le profil auprès du serveur :
-  - session refusée (expirée, révoquée) ⇒ elle est effacée, écran de connexion ;
-  - profil incomplet ⇒ écran « Faisons connaissance » ;
-  - profil complet ⇒ accueil (écran provisoire : « Bonjour Awa », « Se déconnecter ») ;
-  - serveur injoignable ⇒ accueil avec le profil gardé sur le téléphone ; sans profil gardé,
-    écran d'erreur « Pas de connexion » avec « Réessayer ».
+## Comportement attendu (apps mobiles)
 
-**1. « Bienvenue sur ivia »** : logo, texte d'explication, champ « Adresse e-mail », bouton
-« Recevoir le code ». En dessous, « Continuer avec WhatsApp » désactivé avec la mention « bientôt ».
-En bas : « En continuant, vous acceptez les Conditions d'utilisation et la Politique de
-confidentialité » (liens).
+**Démarrage** :
+- session gardée ⇒ profil relu au serveur :
+  - jeton d'accès expiré : renouvelé en silence ;
+  - session refusée : retour à la connexion ;
+- pas de session ⇒ présentation au premier lancement, puis connexion.
 
-**2. « Vérifiez vos e-mails »** : rappel de l'adresse avec « Modifier » (retour à l'étape 1),
-6 cases pour le code (le collage d'un code entier remplit les 6 cases), compte à rebours « Renvoyer le
-code dans 0:42 » puis lien « Renvoyer le code », encart « Rien reçu ? Regardez dans les courriers
-indésirables. Le code est valable 10 minutes. », bouton « Vérifier le code » actif dès que les 6 chiffres sont
-saisis.
+**1. « Votre numéro »**
+- Indicatif +228 fixe et champ de 8 chiffres. Espaces et +228 sont acceptés.
+- Bouton « Recevoir le code sur WhatsApp », et lien « Recevoir par SMS ».
+- Mention des Conditions d'utilisation et de la Politique de confidentialité.
+- L'écran est le même que le numéro ait un compte ou non.
 
-**3. « Faisons connaissance »** (nouveau compte ou profil incomplet) : prénom, nom, téléphone
-(indicatif +228 fixe, 8 chiffres) avec la mention « Visible par le livreur uniquement pendant une
-livraison », case « J'accepte que ivia traite mes données selon la Politique de confidentialité »,
-bouton « Créer mon compte ». Le retour (flèche) déconnecte et ramène à l'étape 1.
+**2. « Saisissez le code »**
+- Rappel du numéro et du canal (« Envoyé sur WhatsApp au +228 90 12 34 56 »), avec « Modifier ».
+- 6 cases. Coller un code ou le remplissage automatique par SMS remplit les 6 cases.
+- Compte à rebours de 60 s, puis « Renvoyer le code » et « Recevoir par SMS ».
+- Mention « Le code est valable 5 minutes ».
+- Validation automatique au 6e chiffre.
+- Si WhatsApp a échoué et que le code est parti par SMS, l'écran l'indique.
 
-Un utilisateur dont le profil est déjà complet passe directement de l'étape 2 à l'accueil.
+**3. « Faisons connaissance »** (nouveau numéro)
+- Prénom, nom, et la case « J'accepte que ivia traite mes données selon la Politique de
+  confidentialité ».
+- Bouton « Créer mon compte ».
+- Délai de 15 minutes après le code, sinon il faut recommencer.
+- Le retour ramène à l'étape 1.
+
+**Accueil** : il s'ouvre dès que la session est ouverte, que le compte soit nouveau ou existant.
+
+**Profil › Sécurité**
+- « Appareils connectés » : liste des sessions, avec « Déconnecter » pour chacune.
+- « Changer de numéro » : code envoyé au nouveau numéro.
+- « Se déconnecter de tous les appareils ».
+
+## Comportement attendu (back-office)
+
+1. **Connexion** : e-mail et mot de passe.
+2. **Second facteur** :
+   - application d'authentification activée : saisir son code (6 chiffres) ou un code de secours ;
+   - sinon : code reçu par e-mail.
+3. **Sécurité** (page du compte admin) :
+   - activer l'application (QR code, puis un premier code) ;
+   - voir les 10 codes de secours une seule fois, les régénérer, désactiver l'application ;
+   - voir ses sessions ouvertes et en déconnecter une.
+4. **Utilisateurs** : un admin peut réinitialiser l'application d'un autre admin (motif
+   obligatoire).
 
 ## Critères d'acceptation
 
-- [ ] Étant donné une adresse valide, quand l'utilisateur appuie sur « Recevoir le code », alors un
-      code est demandé au serveur et l'écran « Vérifiez vos e-mails » s'ouvre avec cette adresse.
-- [ ] Étant donné une adresse mal formée ou vide, alors aucune requête n'est envoyée et le champ
-      affiche « Saisissez une adresse e-mail valide. ».
-- [ ] Étant donné le code reçu, quand l'utilisateur le saisit (ou le colle) et valide, alors la
-      session est enregistrée dans le stockage sécurisé du téléphone.
-- [ ] Étant donné un nouveau compte, après validation du code, alors l'écran « Faisons
-      connaissance » s'ouvre ; étant donné un profil complet, alors l'accueil s'ouvre.
-- [ ] Étant donné « Faisons connaissance », quand prénom, nom, un mobile togolais valide et le
-      consentement sont fournis, alors le profil et le consentement sont envoyés au serveur et
-      l'accueil s'ouvre.
-- [ ] Étant donné la case de consentement non cochée, alors le compte n'est pas créé et un message
-      l'indique.
-- [ ] Étant donné le compte à rebours terminé, quand l'utilisateur appuie sur « Renvoyer le code »,
-      alors un nouveau code est demandé et le compte à rebours repart.
-- [ ] Étant donné une session enregistrée et un profil complet, quand l'app est relancée, alors
-      l'accueil s'ouvre sans repasser par la connexion.
-- [ ] Étant donné l'accueil, quand l'utilisateur appuie sur « Se déconnecter », alors la session est
-      révoquée côté serveur, effacée du téléphone, et l'écran de connexion s'ouvre.
-- [ ] Le jeton de session n'apparaît jamais dans les journaux ni dans une URL.
+- [x] Étant donné un numéro valide, quand l'utilisateur demande le code, alors un code de
+      6 chiffres valable 5 minutes part par WhatsApp, et la réponse indique le canal.
+- [x] Étant donné WhatsApp en échec, alors le même code part par SMS.
+- [x] Étant donné un numéro inconnu et le bon code, alors aucun compte n'est créé avant le nom ;
+      avec le nom et le consentement, le compte est créé avec son numéro vérifié, la session
+      s'ouvre et le back-office est prévenu.
+- [x] Étant donné un numéro connu et le bon code, alors la session s'ouvre. Si l'appareil est
+      nouveau, l'utilisateur reçoit l'alerte « Nouvelle connexion ».
+- [x] Étant donné 5 codes faux, alors le code est annulé et le numéro bloqué 15 minutes. Même le
+      bon code et une nouvelle demande sont refusés.
+- [x] Étant donné une demande dans la minute qui suit, alors elle est refusée (`otp_rate_limited`).
+- [x] Étant donné le plafond horaire global atteint, alors les demandes sont refusées et les admins
+      prévenus une seule fois.
+- [x] Étant donné un jeton d'accès expiré, alors l'API répond `access_token_expired`. Le jeton de
+      rafraîchissement donne un nouveau couple de jetons, et l'ancien ne sert plus.
+- [x] Étant donné un ancien jeton de rafraîchissement réutilisé hors du délai de grâce, alors la
+      session est révoquée.
+- [x] Étant donné un numéro vérifié, alors il ne change pas par le profil, seulement par un code
+      envoyé au nouveau numéro.
+- [x] Étant donné « Appareils connectés », quand l'utilisateur déconnecte un appareil, alors la
+      session de cet appareil est refusée.
+- [x] Admin : l'application d'authentification s'active avec un premier code. Ensuite, le code par
+      e-mail est refusé (`mfa_use_totp`) et un code de l'application ne sert qu'une fois.
+- [x] Admin : un code de secours sert une seule fois. Un autre admin peut réinitialiser
+      l'application (motif, journal, sessions coupées).
+- [x] Le code, le jeton, le numéro et le secret n'apparaissent ni dans les journaux (hors mode
+      local) ni dans une URL.
+- [ ] App acheteur : écrans 1 à 3, renouvellement silencieux du jeton, Profil › Sécurité.
+- [ ] Back-office : écran du second facteur selon `mfa_method`, page Sécurité.
 
 ## Cas limites et erreurs
 
-Le message affiché est celui du serveur (`error.message`, en français) quand il existe.
-- **Code faux** (`otp_invalid`) : message sous les cases, cases vidées, focus sur la première.
-- **Code expiré** (`otp_expired`) ou **trop d'essais** (`otp_too_many_attempts`) : message, cases
-  vidées ; l'utilisateur renvoie un code.
-- **Trop de demandes** (`otp_rate_limited`, `otp_daily_limit`) : message, pas de changement d'écran.
-- **Téléphone refusé** par le serveur (erreur de validation par champ) : message sous le champ.
-- **Réseau coupé ou lent** (délai de 15 s) : « Pas de connexion internet. Vérifiez votre réseau et
-  réessayez. » ; le bouton redevient actif. Un double appui n'envoie qu'une requête.
-- **Adresse avec espaces ou majuscules** : espaces retirés avant l'envoi (le serveur normalise).
-- **Prénom ou nom vides, ou de plus de 100 caractères** : message sous le champ.
-- **Numéro saisi avec espaces, ou avec +228** : accepté (8 chiffres retenus).
-- **Session refusée pendant l'utilisation** (401) : session effacée, retour à la connexion.
-- **Police agrandie à 200 %, écran de 320 dp, clavier ouvert** : rien n'est masqué, l'écran défile.
+Le message affiché est celui du serveur (`error.message`, en français).
+
+**Code**
+- **Code faux** (`otp_invalid`) : message, cases vidées.
+- **Code expiré** (`otp_expired`) : message, l'utilisateur en redemande un.
+- **Numéro bloqué** (`phone_locked`, 429, `retry_after`) : « Réessayez dans 15 minutes ».
+
+**Envoi**
+- **Trop de demandes** : `otp_rate_limited`, `otp_daily_limit`, `rate_limited`.
+- **Service saturé** (`otp_service_busy`, 503) : « Réessayez dans quelques minutes ».
+- **Envoi impossible** (`otp_send_failed`) : proposer le SMS.
+- **Connexion par numéro fermée** (`otp_channel_unavailable`), quand WhatsApp n'est pas configuré :
+  message.
+
+**Inscription et session**
+- **Inscription expirée** (`signup_expired`) : retour à l'étape 1.
+- **Jeton d'accès expiré** (`access_token_expired`) : renouvellement automatique.
+- **Échec du renouvellement** (`invalid_session`) : session effacée, écran de connexion.
+- **Réseau coupé** : « Pas de connexion internet » ; un double appui n'envoie qu'une requête.
 
 ## Hors périmètre
 
-- Apps marchand et livreur (même parcours, plus tard).
-- Connexion par WhatsApp ou SMS (bouton présent mais désactivé).
-- Le quartier sur le profil (présent sur la maquette, retiré : il viendra avec la recherche et les
-  adresses, 002 et 007).
-- Les textes des Conditions d'utilisation et de la Politique de confidentialité : pas encore rédigés
-  (démarche suivie dans `TASKS.md`). Les liens affichent « Document disponible prochainement ».
-- L'écran d'accueil réel (007) et le profil modifiable (002).
+- Choix du fournisseur SMS. D'ici là, pas de secours SMS hors local.
+- Clés de sécurité matérielles (WebAuthn) pour les admins.
+- Connexion Google sur mobile : la route reste, mais l'écran n'est pas prévu par le parcours.
 
 ## Questions ouvertes
 
-<!-- Vide = prêt pour le plan. -->
+Aucune : les valeurs par défaut sont dans l'ADR 0012 et se règlent par configuration.

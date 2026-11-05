@@ -29,6 +29,9 @@ type User struct {
 	Roles     []identity.Role `json:"roles"`
 	// PrivacyConsentAt : date d'acceptation de la politique de confidentialité.
 	PrivacyConsentAt *time.Time `json:"privacy_consent_at"`
+	// PhoneVerified : numéro prouvé par un code (WhatsApp ou SMS) ; c'est alors l'identifiant de
+	// connexion, qui ne se change qu'avec un nouveau code.
+	PhoneVerified bool `json:"phone_verified"`
 	// ProfileComplete : prénom, téléphone et consentement renseignés.
 	ProfileComplete bool      `json:"profile_complete"`
 	CreatedAt       time.Time `json:"created_at"`
@@ -123,6 +126,92 @@ func (s *Service) FindByEmail(ctx context.Context, email string) (User, error) {
 	return s.withRoles(ctx, row)
 }
 
+// FindByPhone retourne le compte actif lié au numéro (normalisé), sans le créer.
+func (s *Service) FindByPhone(ctx context.Context, phone string) (User, error) {
+	row, err := store.New(s.db.Conn(ctx)).GetUserByPhone(ctx, &phone)
+	if database.IsNoRows(err) {
+		return User{}, errUserNotFound
+	}
+	if err != nil {
+		return User{}, fmt.Errorf("lecture du compte : %w", err)
+	}
+	return s.withRoles(ctx, row)
+}
+
+// MarkPhoneVerified note que le numéro du compte a été prouvé par un code.
+func (s *Service) MarkPhoneVerified(ctx context.Context, id uuid.UUID) error {
+	if err := store.New(s.db.Conn(ctx)).MarkPhoneVerified(ctx, id); err != nil {
+		return fmt.Errorf("vérification du numéro : %w", err)
+	}
+	return nil
+}
+
+// PhoneSignup est le profil saisi à la création d'un compte par numéro.
+type PhoneSignup struct {
+	FirstName           string `json:"first_name"`
+	LastName            string `json:"last_name"`
+	AcceptPrivacyPolicy bool   `json:"accept_privacy_policy"`
+}
+
+// ValidatePhoneSignup contrôle le profil avant la création du compte.
+func ValidatePhoneSignup(in *PhoneSignup) error {
+	in.FirstName, in.LastName = validate.Clean(in.FirstName), validate.Clean(in.LastName)
+	v := validate.New()
+	v.Text("first_name", in.FirstName, 1, 100)
+	v.Text("last_name", in.LastName, 1, 100)
+	if !in.AcceptPrivacyPolicy {
+		v.Add("accept_privacy_policy", "Acceptez la politique de confidentialité pour créer votre compte.")
+	}
+	return v.Err()
+}
+
+// CreateWithPhone crée un compte acheteur dont le numéro vient d'être vérifié. created vaut faux
+// si le numéro avait déjà un compte (inscription simultanée) : ce compte est alors retourné.
+func (s *Service) CreateWithPhone(ctx context.Context, phone string, in PhoneSignup) (User, bool, error) {
+	if err := ValidatePhoneSignup(&in); err != nil {
+		return User{}, false, err
+	}
+	var (
+		out     User
+		created bool
+	)
+	err := s.db.InTx(ctx, func(ctx context.Context) error {
+		q := store.New(s.db.Conn(ctx))
+		row, err := q.CreateUserWithPhone(ctx, store.CreateUserWithPhoneParams{Phone: &phone, FirstName: in.FirstName, LastName: in.LastName})
+		switch {
+		case err == nil:
+			if err := q.GrantRole(ctx, store.GrantRoleParams{UserID: row.ID, Role: string(identity.RoleBuyer)}); err != nil {
+				return fmt.Errorf("attribution du rôle buyer : %w", err)
+			}
+			created = true
+		case database.IsNoRows(err):
+			if row, err = q.GetUserByPhone(ctx, &phone); err != nil {
+				return fmt.Errorf("lecture du compte : %w", err)
+			}
+		default:
+			return fmt.Errorf("création du compte : %w", err)
+		}
+		out, err = s.withRoles(ctx, row)
+		return err
+	})
+	return out, created, err
+}
+
+// SetVerifiedPhone remplace le numéro du compte par un numéro prouvé par un code.
+func (s *Service) SetVerifiedPhone(ctx context.Context, id uuid.UUID, phone string) (User, error) {
+	row, err := store.New(s.db.Conn(ctx)).SetVerifiedPhone(ctx, store.SetVerifiedPhoneParams{ID: id, Phone: &phone})
+	if database.IsUniqueViolation(err, "users_phone_key") {
+		return User{}, apperr.Conflict("phone_taken", "Ce numéro est déjà utilisé par un autre compte.")
+	}
+	if database.IsNoRows(err) {
+		return User{}, errUserNotFound
+	}
+	if err != nil {
+		return User{}, fmt.Errorf("changement de numéro : %w", err)
+	}
+	return s.withRoles(ctx, row)
+}
+
 // Get retourne le profil d'un utilisateur actif.
 func (s *Service) Get(ctx context.Context, id uuid.UUID) (User, error) {
 	row, err := store.New(s.db.Conn(ctx)).GetUser(ctx, id)
@@ -177,7 +266,12 @@ func (s *Service) UpdateProfile(ctx context.Context, id uuid.UUID, in ProfileInp
 		last = validate.Clean(*in.LastName)
 		v.Text("last_name", last, 0, 100)
 	}
-	if in.Phone != nil {
+	if in.Phone != nil && cur.PhoneVerifiedAt != nil {
+		// Le numéro vérifié est l'identifiant de connexion : il ne change qu'avec un code.
+		if p, ok := validate.NormalizeTogoPhone(*in.Phone); !ok || cur.Phone == nil || p != *cur.Phone {
+			v.Add("phone", "Pour changer de numéro, confirmez le nouveau avec un code (« Changer de numéro »).")
+		}
+	} else if in.Phone != nil {
 		if *in.Phone == "" {
 			phone = nil
 		} else if p, ok := validate.NormalizeTogoPhone(*in.Phone); ok {
@@ -366,7 +460,7 @@ func (s *Service) withRoles(ctx context.Context, row store.User) (User, error) {
 func toUser(row store.User, roles []identity.Role) User {
 	return User{
 		ID: row.ID, Email: row.Email, Phone: row.Phone, FirstName: row.FirstName, LastName: row.LastName,
-		Roles: roles, PrivacyConsentAt: row.PrivacyConsentAt,
+		Roles: roles, PrivacyConsentAt: row.PrivacyConsentAt, PhoneVerified: row.PhoneVerifiedAt != nil,
 		ProfileComplete: row.FirstName != "" && row.Phone != nil && row.PrivacyConsentAt != nil,
 		CreatedAt:       row.CreatedAt,
 	}
