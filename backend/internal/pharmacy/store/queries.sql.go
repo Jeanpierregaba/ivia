@@ -753,6 +753,43 @@ func (q *Queries) DeleteResponseLines(ctx context.Context, responseID uuid.UUID)
 	return err
 }
 
+const devUpsertPharmacy = `-- name: DevUpsertPharmacy :one
+INSERT INTO pharmacies (owner_id, name, license_number, phone, address_text, location, is_open, on_duty,
+                        review_status, reviewed_at)
+VALUES ($1, $2, $3, $4, $5,
+        ST_SetSRID(ST_MakePoint($6::float8, $7::float8), 4326)::geography,
+        true, true, 'approved', now())
+ON CONFLICT (owner_id) DO UPDATE SET is_open = true, on_duty = true, review_status = 'approved',
+  suspended_at = NULL, updated_at = now()
+RETURNING id
+`
+
+type DevUpsertPharmacyParams struct {
+	OwnerID       uuid.UUID
+	Name          string
+	LicenseNumber string
+	Phone         string
+	AddressText   string
+	Lng           float64
+	Lat           float64
+}
+
+// Démonstration locale uniquement (manage seed-demo) : pharmacie validée, ouverte et de garde.
+func (q *Queries) DevUpsertPharmacy(ctx context.Context, arg DevUpsertPharmacyParams) (uuid.UUID, error) {
+	row := q.db.QueryRow(ctx, devUpsertPharmacy,
+		arg.OwnerID,
+		arg.Name,
+		arg.LicenseNumber,
+		arg.Phone,
+		arg.AddressText,
+		arg.Lng,
+		arg.Lat,
+	)
+	var id uuid.UUID
+	err := row.Scan(&id)
+	return id, err
+}
+
 const documentKeysIn = `-- name: DocumentKeysIn :many
 SELECT object_key FROM pharmacy_documents WHERE object_key = ANY($1::text[])
 `

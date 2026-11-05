@@ -665,6 +665,13 @@ func (a *App) SeedDemo(ctx context.Context, logf func(format string, args ...any
 			_, _ = a.Cart.SetItem(ctx, b.id, avail[0].ID, 2, true)
 		}
 	}
+
+	// Pharmacies de garde autour de Tokoin (alerte médicament).
+	n, err := a.seedDemoPharmacies(ctx)
+	if err != nil {
+		return out, err
+	}
+	logf("pharmacies de démonstration : %d", n)
 	return out, nil
 }
 

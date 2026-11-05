@@ -6,6 +6,7 @@ import 'package:ivia_app_core/ivia_app_core.dart';
 import 'package:ivia_ui/ivia_ui.dart';
 
 import '../../app/router.dart';
+import '../payment/payment_providers.dart';
 import 'pay_sheet.dart';
 import 'pharmacy_state.dart';
 
@@ -219,6 +220,18 @@ class _AlertScreenState extends ConsumerState<AlertScreen> with LivePolling {
             onPressed: _busy ? null : () => _relaunch(alert),
             icon: const Icon(Icons.refresh),
             label: const Text('Relancer avec un autre rayon'),
+          ),
+        if (alert.searching && ref.watch(devPaymentsProvider))
+          Padding(
+            padding: const EdgeInsets.only(bottom: IviaSpacing.md),
+            child: OutlinedButton.icon(
+              onPressed: () async {
+                await ref.read(apiClientProvider).devAutoRespond(alert.id);
+                ref.invalidate(medAlertProvider(alert.id));
+              },
+              icon: const Icon(Icons.science_outlined),
+              label: const Text('Simuler les réponses (démo)'),
+            ),
           ),
         if (alert.searching)
           OutlinedButton(
