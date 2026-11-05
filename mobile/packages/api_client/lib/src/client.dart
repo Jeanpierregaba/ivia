@@ -260,6 +260,7 @@ class IviaApiClient {
     String? lastName,
     String? phone,
     bool? acceptPrivacyPolicy,
+    String? avatarKey,
   }) async {
     final json = await _send(
       'PATCH',
@@ -269,6 +270,7 @@ class IviaApiClient {
         'last_name': ?lastName,
         'phone': ?phone,
         'accept_privacy_policy': ?acceptPrivacyPolicy,
+        'avatar_key': ?avatarKey,
       },
     );
     return User.fromJson(json);
@@ -480,11 +482,12 @@ class IviaApiClient {
   /// Récapitulatif de la commande du panier, sans rien enregistrer.
   Future<OrderQuote> quoteOrder({
     Fulfillment fulfillment = Fulfillment.pickup,
+    String? addressId,
   }) async => OrderQuote.fromJson(
     await _send(
       'POST',
       '/v1/orders/quote',
-      data: {'fulfillment': fulfillment.code},
+      data: {'fulfillment': fulfillment.code, 'address_id': ?addressId},
     ),
   );
 
@@ -494,12 +497,14 @@ class IviaApiClient {
   Future<BuyerOrder> createOrder({
     required String clientRequestId,
     Fulfillment fulfillment = Fulfillment.pickup,
+    String? addressId,
   }) async => BuyerOrder.fromJson(
     await _send(
       'POST',
       '/v1/orders',
       data: {
         'fulfillment': fulfillment.code,
+        'address_id': ?addressId,
         'client_request_id': clientRequestId,
       },
     ),
@@ -737,6 +742,9 @@ class IviaApiClient {
   }
 
   /// Révoque la session courante côté serveur.
+  /// Supprime le compte (refusé s'il reste une commande ou une course en cours).
+  Future<void> deleteAccount() => _send('DELETE', '/v1/me');
+
   Future<void> logout() => _send('POST', '/v1/auth/logout');
 
   static String normalizeEmail(String email) => email.trim().toLowerCase();

@@ -21,4 +21,5 @@ type User struct {
 	UpdatedAt        time.Time
 	PrivacyConsentAt *time.Time
 	PhoneVerifiedAt  *time.Time
+	AvatarKey        *string
 }

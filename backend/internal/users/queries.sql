@@ -45,7 +45,7 @@ RETURNING *;
 
 -- name: AnonymizeUser :exec
 UPDATE users
-SET email = NULL, phone = NULL, phone_verified_at = NULL, first_name = '', last_name = '',
+SET email = NULL, phone = NULL, phone_verified_at = NULL, avatar_key = NULL, first_name = '', last_name = '',
     deleted_at = now(), updated_at = now()
 WHERE id = $1 AND deleted_at IS NULL;
 
@@ -147,3 +147,8 @@ SELECT token FROM device_tokens WHERE user_id = $1 AND app = $2;
 -- name: ListUserIDsByRole :many
 SELECT r.user_id FROM user_roles r JOIN users u ON u.id = r.user_id
 WHERE r.role = $1 AND u.deleted_at IS NULL;
+
+-- name: SetAvatar :one
+UPDATE users SET avatar_key = sqlc.narg(avatar_key), updated_at = now()
+WHERE id = sqlc.arg(id) AND deleted_at IS NULL
+RETURNING *;

@@ -36,6 +36,8 @@ const (
 	// PharmacyAlertPhoto : photo d'ordonnance ou de boîte jointe à une alerte médicament (donnée
 	// de santé : privée, lue par URL signée courte par les seules pharmacies sollicitées).
 	PharmacyAlertPhoto Purpose = "pharmacy_alert_photo"
+	// Avatar : photo de profil d'un compte (stockage public).
+	Avatar Purpose = "avatar"
 )
 
 // Limites imposées à la signature (SECURITY.md).
@@ -67,6 +69,7 @@ var rules = map[Purpose]rule{
 	// Déposées à l'inscription, avant la validation qui donne le rôle pharmacien.
 	PharmacyDocument:   {prefix: "pharmacies", vis: storage.Private, types: documents},
 	PharmacyAlertPhoto: {prefix: "pharmacy-alerts", vis: storage.Private, types: images},
+	Avatar:             {prefix: "avatars", vis: storage.Public, types: images},
 }
 
 // Service signe les envois et vérifie les clés.
@@ -129,6 +132,11 @@ func (s *Service) Check(ctx context.Context, purpose Purpose, userID uuid.UUID, 
 
 // PublicURL retourne l'URL d'un fichier public (photo, logo).
 func (s *Service) PublicURL(key string) string { return s.store.PublicURL(key) }
+
+// CheckAvatar vérifie une photo de profil envoyée par l'utilisateur (users.Avatars).
+func (s *Service) CheckAvatar(ctx context.Context, userID uuid.UUID, key string) error {
+	return s.Check(ctx, Avatar, userID, key, "avatar_key")
+}
 
 // PrivateURL retourne une URL de lecture temporaire d'un document privé (admins uniquement).
 func (s *Service) PrivateURL(ctx context.Context, key string) (string, error) {

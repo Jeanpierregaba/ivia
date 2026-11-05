@@ -460,6 +460,9 @@ extension PharmacyApi on IviaApiClient {
     return [for (final i in _list(j['items'])) BuyerAddress.fromJson(i)];
   }
 
+  Future<void> deleteAddress(String id) =>
+      _send('DELETE', '/v1/me/addresses/$id');
+
   Future<BuyerAddress> createAddress({
     required String label,
     required String addressText,

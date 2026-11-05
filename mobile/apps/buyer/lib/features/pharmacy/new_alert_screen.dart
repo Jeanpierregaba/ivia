@@ -511,7 +511,9 @@ class _AlertCaptureScreenState extends ConsumerState<AlertCaptureScreen> {
                 children: [
                   roundDark(
                     Icons.close,
-                    () => Navigator.of(context).maybePop(),
+                    () => (context.canPop()
+                        ? context.pop()
+                        : context.go('/pharmacy')),
                   ),
                   const SizedBox(width: 12),
                   Expanded(

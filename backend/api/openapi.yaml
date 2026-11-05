@@ -956,6 +956,10 @@ paths:
                 accept_privacy_policy:
                   type: boolean
                   description: "`true` enregistre le consentement à la politique de confidentialité (daté par le serveur à la première acceptation). `false` est refusé (`validation_failed`) : le consentement se retire en supprimant son compte."
+                avatar_key:
+                  type: string
+                  maxLength: 300
+                  description: "Photo envoyée avec POST /v1/uploads (usage avatar) ; chaîne vide : photo retirée."
       responses:
         "200":
           description: "Succès"
@@ -1219,6 +1223,7 @@ paths:
                     - promo_visual
                     - pharmacy_document
                     - pharmacy_alert_photo
+                    - avatar
                 content_type:
                   type: string
                   enum:
@@ -8944,6 +8949,11 @@ components:
             - "null"
           format: date-time
           description: "Date d'acceptation de la politique de confidentialité."
+        avatar_url:
+          type:
+            - string
+            - "null"
+          description: "Photo de profil."
         phone_verified:
           type: boolean
           description: "Numéro prouvé par un code : c'est l'identifiant de connexion, modifiable seulement par /v1/me/phone."

@@ -47,7 +47,7 @@ class _AlertScreenState extends ConsumerState<AlertScreen> with LivePolling {
       );
     }
     final responded = alert.responses
-        .where((r) => r.status == 'responded' || r.unlocked)
+        .where((r) => r.status != 'withdrawn' || r.unlocked)
         .toList();
     if (!alert.searching && responded.isEmpty) return _EndedView(alert: alert);
     final left = alert.searchEndsAt.difference(
@@ -330,9 +330,10 @@ class _EndedViewState extends ConsumerState<_EndedView> {
       ref.invalidate(myAlertsProvider);
       if (mounted) context.go(Routes.medAlert(next.id));
     } on ApiException catch (e) {
-      if (mounted)
+      if (mounted) {
         ScaffoldMessenger.of(context)
             .showSnackBar(SnackBar(content: Text(e.message)));
+      }
     } finally {
       if (mounted) setState(() => _busy = false);
     }
@@ -514,7 +515,7 @@ class _ResponsesScreenState extends ConsumerState<ResponsesScreen>
     final now = ref.read(apiClientProvider).now();
     final left = alert.searchEndsAt.difference(now);
     var list = alert.responses
-        .where((r) => r.status == 'responded' || r.unlocked)
+        .where((r) => r.status != 'withdrawn' || r.unlocked)
         .toList();
     switch (_sort) {
       case 1:
@@ -840,8 +841,9 @@ class _UnlockScreenState extends ConsumerState<UnlockScreen> {
               ?.reservationId;
         }
         ref.invalidate(medAlertProvider(widget.alertId));
-        if (id != null && context.mounted)
+        if (id != null && context.mounted) {
           context.pushReplacement(Routes.medReservation(id));
+        }
       },
     );
   }

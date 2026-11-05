@@ -9,6 +9,7 @@ import 'package:ivia_ui/ivia_ui.dart';
 import 'package:flutter/services.dart';
 
 import '../../app/router.dart';
+import '../orders/invoice.dart';
 import 'alert_screen.dart';
 import 'med_ui.dart';
 import 'pharmacy_state.dart';
@@ -63,8 +64,9 @@ class _ReservationScreenState extends ConsumerState<ReservationScreen>
         ['courier_assigned', 'picked_up', 'completed'].contains(r.status)) {
       return _TrackingView(r: r);
     }
-    if (r.delivery && r.status != 'cancelled' && r.status != 'expired')
+    if (r.delivery && r.status != 'cancelled' && r.status != 'expired') {
       return _DeliveryView(r: r);
+    }
     return _PharmacyView(r: r);
   }
 }
@@ -176,9 +178,10 @@ class _PharmacyViewState extends ConsumerState<_PharmacyView> {
           .chooseMedDelivery(widget.r.id, address.id);
       ref.invalidate(medReservationProvider(widget.r.id));
     } on ApiException catch (e) {
-      if (mounted)
+      if (mounted) {
         ScaffoldMessenger.of(context)
             .showSnackBar(SnackBar(content: Text(e.message)));
+      }
     } finally {
       if (mounted) setState(() => _busy = false);
     }
@@ -590,9 +593,10 @@ class _DeliveryViewState extends ConsumerState<_DeliveryView> {
       await api.chooseMedDelivery(widget.r.id, a.id);
       ref.invalidate(medReservationProvider(widget.r.id));
     } on ApiException catch (e) {
-      if (mounted)
+      if (mounted) {
         ScaffoldMessenger.of(context)
             .showSnackBar(SnackBar(content: Text(e.message)));
+      }
     } finally {
       if (mounted) setState(() => _busy = false);
     }
@@ -1016,6 +1020,7 @@ class _TrackingView extends ConsumerWidget {
               ],
             ),
           ),
+          if (r.paidAt != null) _InvoiceButton(r: r),
           const SizedBox(height: 20),
         ],
       ),
@@ -1057,8 +1062,9 @@ class _PickupScreenState extends ConsumerState<PickupScreen> with LivePolling {
   Widget build(BuildContext context) {
     final t = Theme.of(context).textTheme;
     final r = ref.watch(medReservationProvider(widget.reservationId)).value;
-    if (r == null)
+    if (r == null) {
       return const Scaffold(body: Center(child: CircularProgressIndicator()));
+    }
     final loc = r.pharmacy.location;
     final now = ref.read(apiClientProvider).now();
     return Scaffold(
@@ -1081,7 +1087,9 @@ class _PickupScreenState extends ConsumerState<PickupScreen> with LivePolling {
                 children: [
                   MedRoundButton(
                     icon: Icons.arrow_back,
-                    onTap: () => Navigator.of(context).maybePop(),
+                    onTap: () => (context.canPop()
+                        ? context.pop()
+                        : context.go('/pharmacy')),
                   ),
                   const Spacer(),
                   MedRoundButton(
@@ -1164,6 +1172,7 @@ class _PickupScreenState extends ConsumerState<PickupScreen> with LivePolling {
                         ],
                       ),
                     ),
+                  if (r.status == 'completed') _InvoiceButton(r: r),
                   const SizedBox(height: 18),
                   Row(
                     crossAxisAlignment: CrossAxisAlignment.start,
@@ -1208,4 +1217,26 @@ class _PickupScreenState extends ConsumerState<PickupScreen> with LivePolling {
       ),
     );
   }
+}
+
+/// « Télécharger la facture » d'une réservation réglée.
+class _InvoiceButton extends ConsumerWidget {
+  const _InvoiceButton({required this.r});
+  final MedReservation r;
+
+  @override
+  Widget build(BuildContext context, WidgetRef ref) => Padding(
+    padding: const EdgeInsets.only(top: 14),
+    child: OutlinedButton.icon(
+      onPressed: () {
+        final me = switch (ref.read(authControllerProvider)) {
+          AuthSignedIn(:final user) => user,
+          _ => null,
+        };
+        Invoice.fromReservation(r, me).download();
+      },
+      icon: const Icon(Icons.receipt_long_outlined),
+      label: const Text('Télécharger la facture'),
+    ),
+  );
 }

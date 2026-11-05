@@ -3,6 +3,7 @@ import 'dart:typed_data';
 import 'package:flutter/material.dart';
 import 'package:flutter_map/flutter_map.dart';
 import 'package:flutter_riverpod/flutter_riverpod.dart';
+import 'package:go_router/go_router.dart';
 import 'package:ivia_api_client/ivia_api_client.dart';
 import 'package:ivia_ui/ivia_ui.dart';
 import 'package:latlong2/latlong.dart';
@@ -60,10 +61,7 @@ class MedTopBar extends StatelessWidget {
       ),
       child: Row(
         children: [
-          MedRoundButton(
-            icon: icon,
-            onTap: onBack ?? () => Navigator.of(context).maybePop(),
-          ),
+          MedRoundButton(icon: icon, onTap: onBack ?? () => _back(context)),
           const SizedBox(width: IviaSpacing.md),
           Expanded(child: titleText),
           const SizedBox(width: IviaSpacing.md),
@@ -73,6 +71,11 @@ class MedTopBar extends StatelessWidget {
     );
   }
 }
+
+/// Retour : écran précédent, sinon l'accueil (écran ouvert par un lien direct
+/// ou remplacé).
+void _back(BuildContext context) =>
+    context.canPop() ? context.pop() : context.go('/home');
 
 class MedRoundButton extends StatelessWidget {
   const MedRoundButton({

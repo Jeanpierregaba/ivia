@@ -96,6 +96,7 @@ class _HomeScreenState extends ConsumerState<HomeScreen> {
           // Tirer pour actualiser, même quand l'accueil est court.
           physics: const AlwaysScrollableScrollPhysics(),
           // Sections préparées avant d'être visibles (boutiques sous les services).
+          // ignore: deprecated_member_use
           cacheExtent: 1500,
           padding: const EdgeInsets.symmetric(vertical: IviaSpacing.lg),
           children: [

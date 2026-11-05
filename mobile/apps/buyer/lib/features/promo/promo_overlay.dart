@@ -301,6 +301,9 @@ class PromoAdView extends ConsumerWidget {
           OutlinedButton(
             style: fullScreen
                 ? OutlinedButton.styleFrom(
+                    // Fond transparent : le thème met un fond blanc aux boutons
+                    // à contour, qui masquait le texte blanc sur la photo.
+                    backgroundColor: Colors.black26,
                     foregroundColor: Colors.white,
                     side: const BorderSide(color: Colors.white70),
                   )

@@ -10,6 +10,7 @@ class User {
     required this.privacyConsentAt,
     required this.profileComplete,
     this.phoneVerified = false,
+    this.avatarUrl,
   });
 
   factory User.fromJson(Map<String, dynamic> json) => User(
@@ -22,6 +23,7 @@ class User {
     privacyConsentAt: _date(json['privacy_consent_at']),
     profileComplete: json['profile_complete'] as bool,
     phoneVerified: json['phone_verified'] as bool? ?? false,
+    avatarUrl: json['avatar_url'] as String?,
   );
 
   final String id;
@@ -41,6 +43,9 @@ class User {
   /// seulement avec un nouveau code (`POST /v1/me/phone`).
   final bool phoneVerified;
 
+  /// Photo de profil ; `null` : initiales.
+  final String? avatarUrl;
+
   Map<String, dynamic> toJson() => {
     'id': id,
     'email': email,
@@ -51,6 +56,7 @@ class User {
     'privacy_consent_at': privacyConsentAt?.toUtc().toIso8601String(),
     'profile_complete': profileComplete,
     'phone_verified': phoneVerified,
+    'avatar_url': avatarUrl,
   };
 }
 

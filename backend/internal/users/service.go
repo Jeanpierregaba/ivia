@@ -29,6 +29,8 @@ type User struct {
 	Roles     []identity.Role `json:"roles"`
 	// PrivacyConsentAt : date d'acceptation de la politique de confidentialité.
 	PrivacyConsentAt *time.Time `json:"privacy_consent_at"`
+	// AvatarURL : photo de profil, ou null.
+	AvatarURL *string `json:"avatar_url"`
 	// PhoneVerified : numéro prouvé par un code (WhatsApp ou SMS) ; c'est alors l'identifiant de
 	// connexion, qui ne se change qu'avec un nouveau code.
 	PhoneVerified bool `json:"phone_verified"`
@@ -50,7 +52,18 @@ type ProfileInput struct {
 	Phone     *string `json:"phone"`
 	// AcceptPrivacyPolicy : true enregistre le consentement ; false est refusé.
 	AcceptPrivacyPolicy *bool `json:"accept_privacy_policy"`
+	// AvatarKey : photo de profil envoyée avec l'usage « avatar » ; "" la retire.
+	AvatarKey *string `json:"avatar_key"`
 }
+
+// Avatars vérifie les photos de profil envoyées et donne leur adresse publique (module uploads).
+type Avatars interface {
+	CheckAvatar(ctx context.Context, userID uuid.UUID, key string) error
+	PublicURL(key string) string
+}
+
+// SetAvatars branche le stockage des photos de profil.
+func (s *Service) SetAvatars(a Avatars) { s.avatars = a }
 
 // DeletionGuard refuse la suppression d'un compte qui a une activité en cours (commande, mission).
 type DeletionGuard interface {
@@ -65,11 +78,12 @@ type DeletionHook interface {
 
 // Service gère les comptes.
 type Service struct {
-	db     *database.DB
-	geo    *geo.Service
-	audit  *admin.Service
-	guards []DeletionGuard
-	hooks  []DeletionHook
+	db      *database.DB
+	geo     *geo.Service
+	audit   *admin.Service
+	guards  []DeletionGuard
+	hooks   []DeletionHook
+	avatars Avatars
 }
 
 // NewService crée le service.
@@ -287,6 +301,21 @@ func (s *Service) UpdateProfile(ctx context.Context, id uuid.UUID, in ProfileInp
 	if err := v.Err(); err != nil {
 		return User{}, err
 	}
+	if in.AvatarKey != nil {
+		var key *string
+		if *in.AvatarKey != "" {
+			if s.avatars == nil {
+				return User{}, apperr.Validation(map[string]string{"avatar_key": "Photo de profil indisponible."})
+			}
+			if err := s.avatars.CheckAvatar(ctx, id, *in.AvatarKey); err != nil {
+				return User{}, err
+			}
+			key = in.AvatarKey
+		}
+		if _, err := store.New(s.db.Conn(ctx)).SetAvatar(ctx, store.SetAvatarParams{ID: id, AvatarKey: key}); err != nil {
+			return User{}, fmt.Errorf("photo de profil : %w", err)
+		}
+	}
 	row, err := store.New(s.db.Conn(ctx)).UpdateProfile(ctx, store.UpdateProfileParams{
 		ID: id, FirstName: first, LastName: last, Phone: phone, AcceptPrivacyPolicy: accept,
 	})
@@ -454,7 +483,12 @@ func (s *Service) withRoles(ctx context.Context, row store.User) (User, error) {
 	for i, r := range rs {
 		roles[i] = identity.Role(r)
 	}
-	return toUser(row, roles), nil
+	u := toUser(row, roles)
+	if row.AvatarKey != nil && s.avatars != nil {
+		url := s.avatars.PublicURL(*row.AvatarKey)
+		u.AvatarURL = &url
+	}
+	return u, nil
 }
 
 func toUser(row store.User, roles []identity.Role) User {

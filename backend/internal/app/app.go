@@ -122,6 +122,7 @@ func New(cfg config.Config, logger *slog.Logger, pool *pgxpool.Pool, opts Option
 	})
 	a.Auth.SetAuditor(a.Admin)
 	a.Uploads = uploads.NewService(objectStore)
+	a.Users.SetAvatars(a.Uploads)
 	a.Notifications = notifications.NewService(db, enq, a.Users, push, logger)
 	a.Auth.SetNotifier(authNotifier{a.Notifications})
 	a.Shops = shops.NewService(db, a.Geo, a.Users, a.Uploads, a.Admin, a.Notifications)
