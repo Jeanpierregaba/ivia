@@ -6964,6 +6964,61 @@ paths:
             application/json:
               schema:
                 "$ref": "#/components/schemas/Error"
+  "/v1/properties":
+    get:
+      summary: "Biens immobiliers à vendre ou à louer"
+      tags:
+        - Immobilier
+      operationId: getProperties
+      description: "Annonces actives, les plus proches de lat/lng d'abord. Accès public."
+      security: []
+      parameters:
+        - {name: lat, in: query, schema: {type: number}}
+        - {name: lng, in: query, schema: {type: number}}
+        - {name: kind, in: query, schema: {type: string, enum: [sale, rent]}}
+        - {name: limit, in: query, schema: {type: integer, minimum: 1, maximum: 50}}
+      responses:
+        "200":
+          description: "Succès"
+          content:
+            application/json:
+              schema:
+                type: object
+                properties:
+                  items:
+                    type: array
+                    items:
+                      "$ref": "#/components/schemas/Property"
+                required:
+                  - items
+        default:
+          description: "Erreur (voir `code`)"
+          content:
+            application/json:
+              schema:
+                "$ref": "#/components/schemas/Error"
+  "/v1/properties/{id}":
+    get:
+      summary: "Fiche d'un bien immobilier"
+      tags:
+        - Immobilier
+      operationId: getPropertyById
+      security: []
+      parameters:
+        - {name: id, in: path, required: true, schema: {type: string, format: uuid}}
+      responses:
+        "200":
+          description: "Succès"
+          content:
+            application/json:
+              schema:
+                "$ref": "#/components/schemas/Property"
+        default:
+          description: "Erreur (voir `code`)"
+          content:
+            application/json:
+              schema:
+                "$ref": "#/components/schemas/Error"
   "/v1/pharmacy/application":
     post:
       summary: "Inscrire sa pharmacie, ou corriger un dossier non validé"
@@ -9233,6 +9288,27 @@ components:
           maxItems: 10
       required:
         - recovery_codes
+    Property:
+      type: object
+      properties:
+        id: {type: string, format: uuid}
+        title: {type: string}
+        kind: {type: string, enum: [sale, rent]}
+        property_type: {type: string, enum: [house, villa, apartment, land, office, room]}
+        price_xof: {type: integer, description: "Prix de vente, ou loyer mensuel pour une location."}
+        bedrooms: {type: integer}
+        surface_m2: {type: integer}
+        neighborhood: {type: string}
+        address_text: {type: string}
+        lat: {type: number}
+        lng: {type: number}
+        description: {type: string}
+        photo_urls: {type: array, items: {type: string}}
+        contact_name: {type: string}
+        contact_phone: {type: string}
+        distance_m: {type: integer}
+        created_at: {type: string, format: date-time}
+      required: [id, title, kind, property_type, price_xof, bedrooms, surface_m2, neighborhood, address_text, lat, lng, description, photo_urls, contact_name, contact_phone, created_at]
     Address:
       type: object
       properties:

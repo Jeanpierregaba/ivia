@@ -6,10 +6,12 @@ const driverIdentity = AppIdentity(
   brand: IviaAppBrand.driver,
   loginTitle: 'Espace livreur',
   loginBody:
-      'Connectez-vous avec votre e-mail. Les missions s\'ouvrent après la '
-      'validation de votre dossier par ivia.',
+      "Connectez-vous avec votre numéro de téléphone. Les courses s'ouvrent "
+      'après la validation de votre dossier par ivia.',
   loginBadge: 'Livreur',
   codeHint: _codeHint,
+  loginMethod: LoginMethod.phone,
+  appCode: 'driver',
 );
 
 String _codeHint(Duration expiresIn) =>

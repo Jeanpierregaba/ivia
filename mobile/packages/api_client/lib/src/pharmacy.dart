@@ -479,3 +479,66 @@ extension PharmacyApi on IviaApiClient {
     ),
   );
 }
+
+/// Bien immobilier (`/v1/properties`).
+class Property {
+  Property.fromJson(Map<String, dynamic> j)
+    : id = j['id'] as String,
+      title = j['title'] as String,
+      kind = j['kind'] as String,
+      propertyType = j['property_type'] as String? ?? '',
+      priceXof = _i(j['price_xof']),
+      bedrooms = _i(j['bedrooms']),
+      surfaceM2 = _i(j['surface_m2']),
+      neighborhood = j['neighborhood'] as String? ?? '',
+      addressText = j['address_text'] as String? ?? '',
+      location = GeoPoint(
+        lat: (j['lat'] as num).toDouble(),
+        lng: (j['lng'] as num).toDouble(),
+      ),
+      description = j['description'] as String? ?? '',
+      photoUrls = [
+        for (final u in (j['photo_urls'] as List? ?? const [])) u as String,
+      ],
+      contactName = j['contact_name'] as String? ?? '',
+      contactPhone = j['contact_phone'] as String? ?? '',
+      distanceM = _i(j['distance_m']);
+
+  final String id,
+      title,
+      kind,
+      propertyType,
+      neighborhood,
+      addressText,
+      description,
+      contactName,
+      contactPhone;
+  final int priceXof, bedrooms, surfaceM2, distanceM;
+  final GeoPoint location;
+  final List<String> photoUrls;
+
+  bool get forRent => kind == 'rent';
+}
+
+extension PropertiesApi on IviaApiClient {
+  Future<List<Property>> properties({
+    GeoPoint? near,
+    String? kind,
+    int limit = 20,
+  }) async {
+    final j = await _send(
+      'GET',
+      '/v1/properties',
+      query: {
+        if (near != null) 'lat': near.lat.toStringAsFixed(3),
+        if (near != null) 'lng': near.lng.toStringAsFixed(3),
+        'kind': ?kind,
+        'limit': '$limit',
+      },
+    );
+    return [for (final i in _list(j['items'])) Property.fromJson(i)];
+  }
+
+  Future<Property> property(String id) async =>
+      Property.fromJson(await _send('GET', '/v1/properties/$id'));
+}

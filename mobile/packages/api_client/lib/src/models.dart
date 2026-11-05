@@ -790,9 +790,13 @@ class SearchQuery {
     this.maxPrice,
     this.inStockOnly = false,
     this.sort = SearchSort.relevance,
+    this.shopCategoryId,
   });
 
   final String text;
+
+  /// Catégorie de boutique (« Restauration »…).
+  final String? shopCategoryId;
 
   /// Position de l'acheteur : distances calculées, tri par distance permis.
   final GeoPoint? point;
@@ -826,6 +830,7 @@ class SearchQuery {
       if (p != null) 'lng': p.lng.toStringAsFixed(3),
       if (p != null && radiusM != null) 'radius_m': '$radiusM',
       'neighborhood_id': ?neighborhoodId,
+      'shop_category_id': ?shopCategoryId,
       if (products) ...{
         'category_id': ?categoryId,
         'shop_id': ?shopId,

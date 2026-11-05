@@ -12,9 +12,11 @@ import '../cart/cart_button.dart';
 import '../promo/promo_state.dart';
 import '../promo/promo_widgets.dart';
 import '../search/product_grid.dart';
+import '../search/search_sheets.dart';
 import '../search/search_state.dart';
 import '../pharmacy/pharmacy_hub_screen.dart';
 import '../pharmacy/pharmacy_state.dart';
+import '../services/services_screens.dart';
 import 'area_sheet.dart';
 import 'home_providers.dart';
 import 'shop_card.dart';
@@ -50,6 +52,19 @@ class _HomeScreenState extends ConsumerState<HomeScreen> {
         .startFromHome(categoryId: categoryId, tab: tab, sort: sort);
     if (focus) ref.read(searchFocusRequestProvider.notifier).request();
     context.go(Routes.search);
+  }
+
+  /// Filtres : catégorie puis tri, appliqués dans l'onglet Recherche.
+  Future<void> _filters(List<ProductCategory> categories) async {
+    final cat = await showCategorySheet(context, categories, null);
+    if (cat == null || !mounted) return;
+    final sort = await showSortSheet(
+      context,
+      current: SearchSort.relevance,
+      withDistance: ref.read(buyerAreaProvider).point != null,
+      products: true,
+    );
+    _search(categoryId: cat.value, sort: sort?.value ?? SearchSort.relevance);
   }
 
   Future<void> _refresh() async {
@@ -138,7 +153,21 @@ class _HomeScreenState extends ConsumerState<HomeScreen> {
               ),
             ),
             const SizedBox(height: IviaSpacing.xl),
-            _pad(_SearchEntry(onTap: () => _search(focus: true))),
+            _pad(
+              Row(
+                children: [
+                  Expanded(
+                    child: _SearchEntry(onTap: () => _search(focus: true)),
+                  ),
+                  const SizedBox(width: IviaSpacing.md),
+                  _RoundIcon(
+                    icon: Icons.tune,
+                    label: 'Filtres',
+                    onTap: () => _filters(categories),
+                  ),
+                ],
+              ),
+            ),
             const SizedBox(height: IviaSpacing.lg),
             _pad(
               _ServicesGrid(
@@ -203,6 +232,8 @@ class _HomeScreenState extends ConsumerState<HomeScreen> {
               const SizedBox(height: IviaSpacing.md),
               _ShopsSection(),
               const _OnDutySection(),
+              const _RestaurantsSection(),
+              const _PropertiesSection(),
               const PromoInlineBanner(placement: PromoPlacement.homeFeed),
               const SizedBox(height: IviaSpacing.xxl),
               _pad(
@@ -563,7 +594,7 @@ class _ServicesGrid extends StatelessWidget {
         'Restaurant',
         red,
         IviaColors.primary,
-        () => soon('Restaurant'),
+        () => context.push(Routes.restaurants),
       ),
       (Icons.directions_car_outlined, 'Taxi', blue, navy, () => soon('Taxi')),
       (
@@ -578,7 +609,7 @@ class _ServicesGrid extends StatelessWidget {
         'Immobilier',
         blue,
         navy,
-        () => soon('Immobilier'),
+        () => context.push(Routes.properties),
       ),
       (
         Icons.room_service_outlined,
@@ -671,6 +702,131 @@ class _OnDutySection extends ConsumerWidget {
             ),
             child: Column(
               children: [for (final p in items) OnDutyTile(pharmacy: p)],
+            ),
+          ),
+        ],
+      ),
+    );
+  }
+}
+
+/// Bouton rond blanc des en-têtes (filtres).
+class _RoundIcon extends StatelessWidget {
+  const _RoundIcon({
+    required this.icon,
+    required this.label,
+    required this.onTap,
+  });
+  final IconData icon;
+  final String label;
+  final VoidCallback onTap;
+
+  @override
+  Widget build(BuildContext context) => Semantics(
+    button: true,
+    label: label,
+    child: Material(
+      color: IviaColors.surface,
+      shape: const CircleBorder(),
+      child: InkWell(
+        customBorder: const CircleBorder(),
+        onTap: onTap,
+        child: const SizedBox.square(
+          dimension: 60,
+          child: Icon(Icons.tune, color: Color(0xFF111C33)),
+        ),
+      ),
+    ),
+  );
+}
+
+/// « Restaurants autour de vous » (A01).
+class _RestaurantsSection extends ConsumerWidget {
+  const _RestaurantsSection();
+
+  @override
+  Widget build(BuildContext context, WidgetRef ref) {
+    final items = ref.watch(restaurantsProvider).value ?? const <ShopHit>[];
+    if (items.isEmpty) return const SizedBox.shrink();
+    return Padding(
+      padding: const EdgeInsets.only(top: IviaSpacing.xxl),
+      child: Column(
+        crossAxisAlignment: CrossAxisAlignment.start,
+        children: [
+          Padding(
+            padding: const EdgeInsets.symmetric(horizontal: IviaSpacing.screen),
+            child: _SectionTitle(
+              title: 'Restaurants autour de vous',
+              onSeeAll: () => context.push(Routes.restaurants),
+            ),
+          ),
+          const SizedBox(height: IviaSpacing.md),
+          SizedBox(
+            height: 210,
+            child: ListView.separated(
+              scrollDirection: Axis.horizontal,
+              padding: const EdgeInsets.symmetric(
+                horizontal: IviaSpacing.screen,
+              ),
+              itemCount: items.length,
+              separatorBuilder: (_, _) => const SizedBox(width: IviaSpacing.md),
+              itemBuilder: (context, i) {
+                final s = items[i];
+                return SizedBox(
+                  width: 220,
+                  child: ShopCard(
+                    name: s.name,
+                    logoUrl: s.logoUrl,
+                    place: neighborhoodName(ref, s.neighborhoodId),
+                    distance: s.distanceM == null
+                        ? null
+                        : formatDistance(s.distanceM!),
+                    acceptingOrders: s.acceptingOrders,
+                    onTap: () => context.push(Routes.shop(s.id)),
+                  ),
+                );
+              },
+            ),
+          ),
+        ],
+      ),
+    );
+  }
+}
+
+/// « Biens immobiliers » (A01).
+class _PropertiesSection extends ConsumerWidget {
+  const _PropertiesSection();
+
+  @override
+  Widget build(BuildContext context, WidgetRef ref) {
+    final items =
+        ref.watch(propertiesProvider(null)).value ?? const <Property>[];
+    if (items.isEmpty) return const SizedBox.shrink();
+    return Padding(
+      padding: const EdgeInsets.only(top: IviaSpacing.xxl),
+      child: Column(
+        crossAxisAlignment: CrossAxisAlignment.start,
+        children: [
+          Padding(
+            padding: const EdgeInsets.symmetric(horizontal: IviaSpacing.screen),
+            child: _SectionTitle(
+              title: 'Biens immobiliers',
+              onSeeAll: () => context.push(Routes.properties),
+            ),
+          ),
+          const SizedBox(height: IviaSpacing.md),
+          SizedBox(
+            height: 300,
+            child: ListView.separated(
+              scrollDirection: Axis.horizontal,
+              padding: const EdgeInsets.symmetric(
+                horizontal: IviaSpacing.screen,
+              ),
+              itemCount: items.length,
+              separatorBuilder: (_, _) => const SizedBox(width: IviaSpacing.md),
+              itemBuilder: (context, i) =>
+                  PropertyCard(property: items[i], width: 270),
             ),
           ),
         ],

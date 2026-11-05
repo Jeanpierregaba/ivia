@@ -19,6 +19,7 @@ import '../features/payment/payment_wait_screen.dart';
 import '../features/product/product_screen.dart';
 import '../features/profile/profile_tab_screen.dart';
 import '../features/search/search_screen.dart';
+import '../features/services/services_screens.dart';
 import '../features/shell/buyer_shell.dart';
 import '../features/shop/shop_screen.dart';
 import '../features/splash/loading_screen.dart';
@@ -49,6 +50,9 @@ abstract final class Routes {
 
   // Alerte médicament (P01 à P14).
   static const pharmacy = '/pharmacy';
+  static const restaurants = '/restaurants';
+  static const properties = '/properties';
+  static String property(String id) => '/properties/$id';
   static const medNewAlert = '/pharmacy/new';
   static const medItems = '/pharmacy/new/items';
   static String medCapture(String kind) => '/pharmacy/new/capture/$kind';
@@ -98,6 +102,8 @@ String? redirectFor(
       Routes.cart,
       Routes.checkout,
       Routes.pharmacy,
+      Routes.restaurants,
+      Routes.properties,
     ],
     AuthOffline() => const [Routes.offline],
   };
@@ -292,6 +298,24 @@ final routerProvider = Provider<GoRouter>((ref) {
                     PickupScreen(reservationId: state.pathParameters['id']!),
               ),
             ],
+          ),
+        ],
+      ),
+      GoRoute(
+        path: Routes.restaurants,
+        parentNavigatorKey: rootKey,
+        builder: (context, state) => const RestaurantsScreen(),
+      ),
+      GoRoute(
+        path: Routes.properties,
+        parentNavigatorKey: rootKey,
+        builder: (context, state) => const PropertiesScreen(),
+        routes: [
+          GoRoute(
+            path: ':id',
+            parentNavigatorKey: rootKey,
+            builder: (context, state) =>
+                PropertyScreen(propertyId: state.pathParameters['id']!),
           ),
         ],
       ),

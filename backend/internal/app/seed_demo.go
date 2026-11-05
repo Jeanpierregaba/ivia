@@ -100,6 +100,7 @@ var demoSubcategories = []struct {
 var demoShopCategory = map[string]string{
 	"Alimentation": "Alimentation", "Boissons": "Alimentation", "Mode": "Mode et beauté",
 	"Beauté": "Mode et beauté", "Maison": "Maison", "Électronique": "Électronique et téléphonie",
+	"Restauration": "Restauration",
 }
 
 // Marchands de la première version du jeu (catalogue trop ordinaire), suspendus à la relance.
@@ -125,11 +126,11 @@ var demoBuyers = []struct{ first, last, email, phone, hood, address string }{
 
 // Livreurs : zone de travail, véhicule et état (online, offline, pending : dossier à valider).
 var demoDrivers = []struct{ first, last, email, phone, hood, vehicle, plate, state string }{
-	{"Yao", "Kpatcha", "livreur@ivia.local", "+22890000103", "Tokoin", "motorbike", "TG-1234-AB", "online"},
-	{"Kodjo", "Abalo", "kodjo.abalo@ivia.local", "+22890000401", "Bè", "motorbike", "TG-2101-AC", "online"},
-	{"Essowè", "Tchalla", "essowe.tchalla@ivia.local", "+22890000402", "Hédzranawoé", "motorbike", "TG-2102-AC", "online"},
-	{"Komi", "Djobo", "komi.djobo@ivia.local", "+22890000403", "Djidjolé", "car", "TG-2103-AD", "online"},
-	{"Atsu", "Kokou", "atsu.kokou@ivia.local", "+22890000404", "Nyékonakpoè", "motorbike", "TG-2104-AD", "online"},
+	{"Yao", "Kpatcha", "livreur@ivia.local", "+22890000103", "Tokoin", "motorbike", "TG-1234-AB", "offline"},
+	{"Kodjo", "Abalo", "kodjo.abalo@ivia.local", "+22890000401", "Bè", "motorbike", "TG-2101-AC", "offline"},
+	{"Essowè", "Tchalla", "essowe.tchalla@ivia.local", "+22890000402", "Hédzranawoé", "motorbike", "TG-2102-AC", "offline"},
+	{"Komi", "Djobo", "komi.djobo@ivia.local", "+22890000403", "Djidjolé", "car", "TG-2103-AD", "offline"},
+	{"Atsu", "Kokou", "atsu.kokou@ivia.local", "+22890000404", "Nyékonakpoè", "motorbike", "TG-2104-AD", "offline"},
 	{"Fofana", "Issa", "issa.fofana@ivia.local", "+22890000405", "Agoè", "motorbike", "TG-2105-AE", "offline"},
 	{"Paul", "Edoh", "paul.edoh@ivia.local", "+22890000406", "Adidogomé", "car", "TG-2106-AE", "offline"},
 	{"Kossivi", "Akué", "kossivi.akue@ivia.local", "+22890000407", "Baguida", "motorbike", "TG-2107-AF", "offline"},
@@ -221,6 +222,13 @@ func (a *App) SeedDemo(ctx context.Context, logf func(format string, args ...any
 	if err != nil {
 		return out, err
 	}
+	// Catégorie de boutique « Restauration » (restaurants de la démonstration).
+	if cats, err := a.Shops.ListCategories(ctx); err == nil && !slices.ContainsFunc(cats, func(c shops.Category) bool { return c.Name == "Restauration" }) {
+		on := true
+		if _, err := a.Shops.CreateCategory(ctx, adminID, shops.CategoryInput{Name: "Restauration", Position: 2, IsActive: &on}); err != nil {
+			return out, fmt.Errorf("catégorie Restauration : %w", err)
+		}
+	}
 	shopCats, err := a.Shops.ListCategories(ctx)
 	if err != nil {
 		return out, err
@@ -236,7 +244,7 @@ func (a *App) SeedDemo(ctx context.Context, logf func(format string, args ...any
 	if err := json.Unmarshal(demoCatalogJSON, &catalogDef); err != nil {
 		return out, fmt.Errorf("catalogue de démonstration : %w", err)
 	}
-	catalogDef.Shops = withDemoBranches(catalogDef.Shops)
+	catalogDef.Shops = withDemoRestaurants(withDemoBranches(catalogDef.Shops))
 
 	// Marchands, boutiques et produits.
 	type seededShop struct {
@@ -696,6 +704,11 @@ func (a *App) SeedDemo(ctx context.Context, logf func(format string, args ...any
 		return out, err
 	}
 	logf("pharmacies de démonstration : %d", n)
+	np, err := a.seedDemoProperties(ctx, a.Properties)
+	if err != nil {
+		return out, err
+	}
+	logf("biens immobiliers de démonstration : %d", np)
 	return out, nil
 }
 

@@ -8,7 +8,7 @@ import '../features/dossier/dossier_blocked_screen.dart';
 import '../features/dossier/dossier_form_screen.dart';
 import '../features/dossier/dossier_pending_screen.dart';
 import '../features/dossier/dossier_summary_screen.dart';
-import '../features/home/home_placeholder_screen.dart';
+import '../features/work/work_screens.dart';
 import '../features/onboarding/onboarding_screen.dart';
 import '../features/splash/loading_screen.dart';
 import 'driver_dossier.dart';
@@ -18,6 +18,7 @@ abstract final class Routes {
   static const onboarding = '/onboarding';
   static const login = AuthRoutes.login;
   static const code = AuthRoutes.code;
+  static const signup = AuthRoutes.signup;
   static const offline = '/offline';
   static const dossierNew = '/dossier/new';
   static const dossierEdit = '/dossier/edit';
@@ -38,7 +39,7 @@ String? redirectFor(
   final allowed = switch (auth) {
     AuthStarting() => const [Routes.splash],
     AuthSignedOut() when !onboardingSeen => const [Routes.onboarding],
-    AuthSignedOut() => const [Routes.login, Routes.code],
+    AuthSignedOut() => const [Routes.login, Routes.code, Routes.signup],
     AuthOffline() => const [Routes.offline],
     AuthSignedIn() || AuthNeedsProfile() => _dossierScreens(dossier),
   };
@@ -94,11 +95,15 @@ final routerProvider = Provider<GoRouter>((ref) {
       ),
       GoRoute(
         path: Routes.login,
-        builder: (context, state) => const EmailScreen(),
+        builder: (context, state) => const PhoneScreen(),
         routes: [
           GoRoute(
             path: 'code',
-            builder: (context, state) => const CodeScreen(),
+            builder: (context, state) => const PhoneCodeScreen(),
+          ),
+          GoRoute(
+            path: 'signup',
+            builder: (context, state) => const PhoneSignupScreen(),
           ),
         ],
       ),
@@ -128,7 +133,7 @@ final routerProvider = Provider<GoRouter>((ref) {
       ),
       GoRoute(
         path: Routes.home,
-        builder: (context, state) => const HomePlaceholderScreen(),
+        builder: (context, state) => const DriverShell(),
       ),
     ],
   );
