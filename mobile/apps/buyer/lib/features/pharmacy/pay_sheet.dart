@@ -6,6 +6,7 @@ import 'package:ivia_api_client/ivia_api_client.dart';
 import 'package:ivia_app_core/ivia_app_core.dart';
 import 'package:ivia_ui/ivia_ui.dart';
 
+import '../payment/payment_logos.dart';
 import '../payment/payment_providers.dart';
 
 /// Paiement Mobile Money d'un déblocage ou d'une commande pharmacie : choix
@@ -160,20 +161,32 @@ class _PaySheetState extends ConsumerState<_PaySheet> {
               ),
             ],
           ] else ...[
-            SegmentedButton<PaymentOperator>(
-              segments: const [
-                ButtonSegment(
-                  value: PaymentOperator.flooz,
-                  label: Text('Flooz'),
+            for (final op in PaymentOperator.values)
+              Padding(
+                padding: const EdgeInsets.only(bottom: IviaSpacing.sm),
+                child: ListTile(
+                  shape: RoundedRectangleBorder(
+                    borderRadius: BorderRadius.circular(IviaRadius.large),
+                    side: BorderSide(
+                      color: _op == op ? IviaColors.primary : IviaColors.border,
+                      width: _op == op ? 2 : 1,
+                    ),
+                  ),
+                  leading: PaymentLogo.operator(op, size: 40),
+                  title: Text(
+                    op == PaymentOperator.flooz ? 'Flooz' : 'T-Money',
+                  ),
+                  subtitle: Text(operatorBrand(op)),
+                  trailing: Icon(
+                    _op == op
+                        ? Icons.radio_button_checked
+                        : Icons.radio_button_off,
+                    color: _op == op ? IviaColors.primary : IviaColors.border,
+                  ),
+                  onTap: () => setState(() => _op = op),
                 ),
-                ButtonSegment(
-                  value: PaymentOperator.tmoney,
-                  label: Text('T-Money'),
-                ),
-              ],
-              selected: {_op},
-              onSelectionChanged: (s) => setState(() => _op = s.first),
-            ),
+              ),
+            const CardPaymentSoon(),
             const SizedBox(height: IviaSpacing.lg),
             TogoPhoneField(
               label: 'Numéro Mobile Money',

@@ -9,6 +9,8 @@ resolution: workspace
 
 dependencies:
   flutter:
+  assets:
+    - assets/payment/
     sdk: flutter
   flutter_riverpod: ^3.4.3
   go_router: ^18.1.2
