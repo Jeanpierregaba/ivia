@@ -236,6 +236,7 @@ func (a *App) SeedDemo(ctx context.Context, logf func(format string, args ...any
 	if err := json.Unmarshal(demoCatalogJSON, &catalogDef); err != nil {
 		return out, fmt.Errorf("catalogue de démonstration : %w", err)
 	}
+	catalogDef.Shops = withDemoBranches(catalogDef.Shops)
 
 	// Marchands, boutiques et produits.
 	type seededShop struct {
@@ -254,12 +255,35 @@ func (a *App) SeedDemo(ctx context.Context, logf func(format string, args ...any
 			Name: def.Name, Description: def.Description, Phone: def.Owner.Phone, AddressText: def.Address,
 			NeighborhoodID: &n.ID, Location: geo.Point{Lat: def.Lat, Lng: def.Lng}, CategoryID: &catID,
 		}
+		// Photo de la boutique : la première photo de ses articles.
+		shopLogo := func() *string {
+			for _, p := range def.Products {
+				for _, img := range p.Images {
+					if img.File == "" {
+						continue
+					}
+					if data, err := demoPhotos.ReadFile("seedassets/demo/" + img.File); err == nil {
+						k := "shops/" + owner.ID.String() + "/" + uuid.NewString() + ".jpg"
+						if a.LocalStore.Write(storage.Public, k, data) == nil {
+							return &k
+						}
+					}
+				}
+			}
+			return nil
+		}
+		if mine, _ := a.Shops.ListMine(ctx, owner.ID); len(mine) == 0 {
+			input.LogoKey = shopLogo()
+		}
 		shopID, err := a.demoShop(ctx, adminID, owner.ID, input)
 		if err != nil {
 			return out, fmt.Errorf("boutique %s : %w", def.Name, err)
 		}
-		// Boutique d'un seed précédent : nom et présentation du catalogue actuel.
-		if cur, err := a.Shops.Get(ctx, shopID); err == nil && cur.Name != def.Name {
+		// Boutique d'un seed précédent : nom, présentation et photo du catalogue actuel.
+		if cur, err := a.Shops.Get(ctx, shopID); err == nil && (cur.Name != def.Name || cur.LogoURL == nil) {
+			if cur.LogoURL == nil {
+				input.LogoKey = shopLogo()
+			}
 			if _, err := a.Shops.Update(ctx, owner.ID, shopID, input); err != nil {
 				return out, fmt.Errorf("boutique %s : %w", def.Name, err)
 			}
@@ -937,10 +961,11 @@ func (a *App) seedPromoVisuals(ctx context.Context, adminID uuid.UUID, products 
 		}
 		out.Visuals++
 	}
-	// Diffusion insistante pour la démonstration (modifiable dans Publicité > Réglages).
+	// Réglages de diffusion de la démonstration (modifiables dans Publicité > Réglages).
 	_, err = a.Promo.UpdateSettings(ctx, adminID, promo.Settings{
 		Enabled: true, BannersEnabled: true, ModalEnabled: true, InterstitialEnabled: true,
-		FirstDelaySeconds: 8, MinIntervalSeconds: 40, MaxPerSession: 10, FeedEvery: 4,
+		// Diffusion discrète : une fenêtre au plus toutes les 5 minutes, 2 par session.
+		FirstDelaySeconds: 90, MinIntervalSeconds: 300, MaxPerSession: 2, FeedEvery: 8,
 		Rotation: "weighted", OfficialURL: IVIOfficialURL,
 	})
 	return err

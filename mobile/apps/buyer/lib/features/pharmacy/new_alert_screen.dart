@@ -1,5 +1,4 @@
 import 'dart:async';
-import 'dart:typed_data';
 
 import 'package:flutter/material.dart';
 import 'package:flutter_riverpod/flutter_riverpod.dart';
@@ -8,35 +7,855 @@ import 'package:ivia_api_client/ivia_api_client.dart';
 import 'package:ivia_app_core/ivia_app_core.dart';
 import 'package:ivia_ui/ivia_ui.dart';
 
+import '../../app/buyer_area.dart';
 import '../../app/router.dart';
+import '../home/area_sheet.dart';
+import '../payment/payment_providers.dart';
+import 'med_draft.dart';
+import 'med_ui.dart';
 import 'pharmacy_state.dart';
 
-/// P01 à P03 : « Trouver un médicament ». Produits (base ou saisie libre),
-/// photos d'ordonnance ou de boîte, générique accepté, rayon avec le nombre
-/// de pharmacies joignables, puis envoi de l'alerte.
-class NewAlertScreen extends ConsumerStatefulWidget {
+String _kindLabel(String kind) =>
+    kind == 'prescription' ? 'Ordonnance' : 'Boîte';
+
+/// P02 : comment indiquer les produits.
+class NewAlertScreen extends ConsumerWidget {
   const NewAlertScreen({super.key});
 
   @override
-  ConsumerState<NewAlertScreen> createState() => _NewAlertScreenState();
+  Widget build(BuildContext context, WidgetRef ref) {
+    final t = Theme.of(context).textTheme;
+    final method = ref.watch(medDraftProvider).method;
+    Widget option(
+      String value,
+      IconData icon,
+      String title,
+      String body, {
+      String? badge,
+    }) {
+      final selected = method == value;
+      return Padding(
+        padding: const EdgeInsets.only(bottom: 14),
+        child: MedCard(
+          border: selected ? IviaColors.primary : null,
+          onTap: () => ref.read(medDraftProvider.notifier).method(value),
+          child: Row(
+            crossAxisAlignment: CrossAxisAlignment.start,
+            children: [
+              MedIconTile(
+                icon,
+                bg: selected ? Med.softRed : Med.softBlue,
+                fg: selected ? IviaColors.primary : Med.navy,
+                size: 60,
+              ),
+              const SizedBox(width: 16),
+              Expanded(
+                child: Column(
+                  crossAxisAlignment: CrossAxisAlignment.start,
+                  children: [
+                    Text(
+                      title,
+                      style: t.titleMedium?.copyWith(
+                        fontWeight: FontWeight.w800,
+                      ),
+                    ),
+                    if (badge != null) ...[
+                      const SizedBox(height: 8),
+                      MedPill(badge, bg: Med.softBlue, fg: Med.blue),
+                    ],
+                    const SizedBox(height: 8),
+                    Text(body, style: t.bodyMedium?.copyWith(color: Med.muted)),
+                  ],
+                ),
+              ),
+              Icon(
+                selected ? Icons.radio_button_checked : Icons.radio_button_off,
+                color: selected ? IviaColors.primary : const Color(0xFFC9CDD4),
+                size: 30,
+              ),
+            ],
+          ),
+        ),
+      );
+    }
+
+    return MedScaffold(
+      top: const MedTopBar(
+        title: 'Nouvelle alerte',
+        trailing: MedPill('Étape 1 sur 3'),
+      ),
+      body: ListView(
+        padding: const EdgeInsets.symmetric(horizontal: IviaSpacing.screen),
+        children: [
+          Text(
+            'Comment indiquer les produits ?',
+            style: t.headlineMedium?.copyWith(fontWeight: FontWeight.w800),
+          ),
+          const SizedBox(height: 8),
+          Text(
+            'Vous pourrez combiner les méthodes : une ordonnance et un produit saisi, par exemple.',
+            style: t.bodyLarge?.copyWith(color: Med.muted),
+          ),
+          const SizedBox(height: 20),
+          option(
+            'prescription',
+            Icons.description_outlined,
+            'Photo de l\'ordonnance',
+            'Le pharmacien lit directement la prescription.',
+            badge: 'Le plus rapide',
+          ),
+          option(
+            'box_photo',
+            Icons.photo_camera_outlined,
+            'Photo de la boîte',
+            'Le nom, le dosage et la forme sont visibles sur la boîte.',
+          ),
+          option(
+            'name',
+            Icons.edit_note,
+            'Saisir le nom',
+            'Recherchez le médicament et indiquez la quantité.',
+          ),
+          Row(
+            crossAxisAlignment: CrossAxisAlignment.start,
+            children: [
+              const Icon(Icons.lock_outline, size: 20, color: Med.muted),
+              const SizedBox(width: 10),
+              Expanded(
+                child: Text(
+                  'Vos photos ne sont visibles que par les pharmacies de garde alertées, et sont supprimées 24 h après l\'alerte.',
+                  style: t.bodyMedium?.copyWith(color: Med.muted),
+                ),
+              ),
+            ],
+          ),
+        ],
+      ),
+      bottom: MedBottomButton(
+        label: 'Continuer',
+        onTap: () => context.push(
+          method == 'name' ? Routes.medItems : Routes.medCapture(method),
+        ),
+      ),
+    );
+  }
 }
 
-class _Photo {
-  _Photo(this.kind, this.bytes);
-  final String kind;
-  final Uint8List bytes;
+/// P03 : saisir les produits (base de médicaments).
+class AlertItemsScreen extends ConsumerStatefulWidget {
+  const AlertItemsScreen({super.key});
+
+  @override
+  ConsumerState<AlertItemsScreen> createState() => _AlertItemsScreenState();
 }
 
-class _NewAlertScreenState extends ConsumerState<NewAlertScreen> {
+class _AlertItemsScreenState extends ConsumerState<AlertItemsScreen> {
   final _search = TextEditingController();
-  final _note = TextEditingController();
-  final _items = <MedItemDraft>[];
-  final _photos = <_Photo>[];
   var _hits = <MedicineHit>[];
-  var _generic = true;
   Timer? _debounce;
-  GeoPoint? _point;
+
+  @override
+  void dispose() {
+    _debounce?.cancel();
+    _search.dispose();
+    super.dispose();
+  }
+
+  void _onSearch(String q) {
+    _debounce?.cancel();
+    setState(() {});
+    if (q.trim().length < 2) {
+      setState(() => _hits = []);
+      return;
+    }
+    _debounce = Timer(const Duration(milliseconds: 250), () async {
+      try {
+        final hits = await ref.read(apiClientProvider).searchMedicines(q);
+        if (mounted && _search.text == q) setState(() => _hits = hits);
+      } on ApiException {
+        // Saisie libre toujours possible.
+      }
+    });
+  }
+
+  void _add(String name, {MedicineHit? hit}) {
+    if (name.trim().length < 2) return;
+    ref
+        .read(medDraftProvider.notifier)
+        .addItem(
+          MedItemDraft(
+            name: name.trim(),
+            medicineId: hit?.id,
+            form: hit?.form ?? '',
+          ),
+        );
+    _search.clear();
+    setState(() => _hits = []);
+  }
+
+  @override
+  Widget build(BuildContext context) {
+    final t = Theme.of(context).textTheme;
+    final draft = ref.watch(medDraftProvider);
+    final notifier = ref.read(medDraftProvider.notifier);
+    final query = _search.text.trim();
+    return MedScaffold(
+      top: const MedTopBar(
+        title: 'Saisir les produits',
+        trailing: MedPill('Étape 1 sur 3'),
+      ),
+      body: ListView(
+        padding: const EdgeInsets.symmetric(horizontal: IviaSpacing.screen),
+        children: [
+          TextField(
+            controller: _search,
+            onChanged: _onSearch,
+            onSubmitted: _add,
+            textInputAction: TextInputAction.done,
+            style: t.titleMedium,
+            decoration: InputDecoration(
+              hintText: 'Rechercher un médicament',
+              filled: true,
+              fillColor: Colors.white,
+              prefixIcon: const Icon(Icons.search, color: IviaColors.primary),
+              contentPadding: const EdgeInsets.symmetric(vertical: 22),
+              enabledBorder: OutlineInputBorder(
+                borderRadius: BorderRadius.circular(40),
+                borderSide: BorderSide.none,
+              ),
+              focusedBorder: OutlineInputBorder(
+                borderRadius: BorderRadius.circular(40),
+                borderSide: const BorderSide(
+                  color: IviaColors.primary,
+                  width: 2,
+                ),
+              ),
+            ),
+          ),
+          if (query.length >= 2) ...[
+            const SizedBox(height: 14),
+            MedCard(
+              padding: const EdgeInsets.symmetric(horizontal: 20, vertical: 6),
+              child: Column(
+                children: [
+                  for (final (i, h) in _hits.take(5).indexed) ...[
+                    if (i > 0) const Divider(height: 1),
+                    _ResultRow(
+                      title: h.label,
+                      subtitle: h.form,
+                      onAdd: () => _add(h.label, hit: h),
+                    ),
+                  ],
+                  if (_hits.every(
+                    (h) => h.label.toLowerCase() != query.toLowerCase(),
+                  )) ...[
+                    if (_hits.isNotEmpty) const Divider(height: 1),
+                    _ResultRow(
+                      title: query,
+                      subtitle: 'Ajouter tel quel',
+                      onAdd: () => _add(query),
+                    ),
+                  ],
+                ],
+              ),
+            ),
+          ],
+          const SizedBox(height: 20),
+          Row(
+            children: [
+              Expanded(
+                child: Text(
+                  'Votre liste · ${draft.items.length}',
+                  style: t.titleLarge?.copyWith(fontWeight: FontWeight.w800),
+                ),
+              ),
+              TextButton(
+                onPressed: () =>
+                    context.push(Routes.medCapture('prescription')),
+                child: const Text('+ Photo'),
+              ),
+            ],
+          ),
+          const SizedBox(height: 8),
+          if (draft.items.isNotEmpty)
+            MedCard(
+              padding: const EdgeInsets.symmetric(horizontal: 20, vertical: 8),
+              child: Column(
+                children: [
+                  for (final (i, item) in draft.items.indexed) ...[
+                    if (i > 0) const Divider(height: 1),
+                    Padding(
+                      padding: const EdgeInsets.symmetric(vertical: 12),
+                      child: Row(
+                        children: [
+                          const MedIconTile(Icons.add_box_outlined, size: 50),
+                          const SizedBox(width: 14),
+                          Expanded(
+                            child: Column(
+                              crossAxisAlignment: CrossAxisAlignment.start,
+                              children: [
+                                Text(
+                                  item.name,
+                                  style: t.titleMedium?.copyWith(
+                                    fontWeight: FontWeight.w800,
+                                  ),
+                                ),
+                                Text(
+                                  [
+                                    if (item.form.isNotEmpty) item.form,
+                                    'boîte',
+                                  ].join(' · '),
+                                  style: t.bodyMedium?.copyWith(
+                                    color: Med.muted,
+                                  ),
+                                ),
+                              ],
+                            ),
+                          ),
+                          _QtyButton(
+                            icon: Icons.remove,
+                            dark: false,
+                            onTap: () =>
+                                notifier.quantity(i, item.quantity - 1),
+                          ),
+                          SizedBox(
+                            width: 34,
+                            child: Text(
+                              '${item.quantity}',
+                              textAlign: TextAlign.center,
+                              style: t.titleMedium?.copyWith(
+                                fontWeight: FontWeight.w800,
+                              ),
+                            ),
+                          ),
+                          _QtyButton(
+                            icon: Icons.add,
+                            dark: true,
+                            onTap: () =>
+                                notifier.quantity(i, item.quantity + 1),
+                          ),
+                        ],
+                      ),
+                    ),
+                  ],
+                ],
+              ),
+            ),
+          if (draft.photos.isNotEmpty) ...[
+            const SizedBox(height: 12),
+            MedCard(
+              onTap: () => context.push(Routes.medReview),
+              child: Row(
+                children: [
+                  SizedBox.square(
+                    dimension: 50,
+                    child: MedPhoto(bytes: draft.photos.first.bytes),
+                  ),
+                  const SizedBox(width: 14),
+                  Text(
+                    '${draft.photos.length} photo${draft.photos.length > 1 ? 's' : ''} jointe${draft.photos.length > 1 ? 's' : ''}',
+                    style: t.titleMedium?.copyWith(fontWeight: FontWeight.w800),
+                  ),
+                ],
+              ),
+            ),
+          ],
+          const SizedBox(height: 14),
+          MedCard(
+            child: Row(
+              children: [
+                Expanded(
+                  child: Column(
+                    crossAxisAlignment: CrossAxisAlignment.start,
+                    children: [
+                      Text(
+                        'Générique accepté',
+                        style: t.titleMedium?.copyWith(
+                          fontWeight: FontWeight.w800,
+                        ),
+                      ),
+                      Text(
+                        'Même molécule et même dosage.',
+                        style: t.bodyMedium?.copyWith(color: Med.muted),
+                      ),
+                    ],
+                  ),
+                ),
+                Switch(
+                  value: draft.generic,
+                  activeTrackColor: Med.blue,
+                  onChanged: notifier.generic,
+                ),
+              ],
+            ),
+          ),
+        ],
+      ),
+      bottom: MedBottomButton(
+        label: 'Continuer',
+        onTap: draft.isEmpty ? null : () => context.push(Routes.medLaunch),
+      ),
+    );
+  }
+}
+
+class _ResultRow extends StatelessWidget {
+  const _ResultRow({
+    required this.title,
+    required this.subtitle,
+    required this.onAdd,
+  });
+  final String title, subtitle;
+  final VoidCallback onAdd;
+
+  @override
+  Widget build(BuildContext context) {
+    final t = Theme.of(context).textTheme;
+    return Padding(
+      padding: const EdgeInsets.symmetric(vertical: 12),
+      child: Row(
+        children: [
+          Expanded(
+            child: Column(
+              crossAxisAlignment: CrossAxisAlignment.start,
+              children: [
+                Text(
+                  title,
+                  style: t.titleMedium?.copyWith(fontWeight: FontWeight.w800),
+                ),
+                if (subtitle.isNotEmpty)
+                  Text(
+                    subtitle,
+                    style: t.bodyMedium?.copyWith(color: Med.muted),
+                  ),
+              ],
+            ),
+          ),
+          _QtyButton(icon: Icons.add, dark: true, onTap: onAdd),
+        ],
+      ),
+    );
+  }
+}
+
+class _QtyButton extends StatelessWidget {
+  const _QtyButton({
+    required this.icon,
+    required this.dark,
+    required this.onTap,
+  });
+  final IconData icon;
+  final bool dark;
+  final VoidCallback onTap;
+
+  @override
+  Widget build(BuildContext context) => Material(
+    color: dark ? Med.navy : Med.page,
+    shape: const CircleBorder(),
+    child: InkWell(
+      customBorder: const CircleBorder(),
+      onTap: onTap,
+      child: SizedBox.square(
+        dimension: 44,
+        child: Icon(icon, color: dark ? Colors.white : Med.navy),
+      ),
+    ),
+  );
+}
+
+/// P04 : prise de vue (ordonnance ou boîte).
+class AlertCaptureScreen extends ConsumerStatefulWidget {
+  const AlertCaptureScreen({super.key, required this.kind});
+  final String kind;
+
+  @override
+  ConsumerState<AlertCaptureScreen> createState() => _AlertCaptureScreenState();
+}
+
+class _AlertCaptureScreenState extends ConsumerState<AlertCaptureScreen> {
+  late var _kind = widget.kind;
+
+  Future<void> _take(PhotoSource source) async {
+    final bytes = await ref
+        .read(photoPickerProvider)
+        .pick(source: source, maxSide: 1600);
+    if (bytes == null || !mounted) return;
+    ref.read(medDraftProvider.notifier).addPhoto(DraftPhoto(_kind, bytes));
+    context.pushReplacement(Routes.medReview);
+  }
+
+  @override
+  Widget build(BuildContext context) {
+    final t = Theme.of(context).textTheme;
+    final photos = ref.watch(medDraftProvider).photos;
+    Widget roundDark(IconData icon, VoidCallback onTap) => Material(
+      color: const Color(0xFF1E2A44),
+      shape: const CircleBorder(),
+      child: InkWell(
+        customBorder: const CircleBorder(),
+        onTap: onTap,
+        child: SizedBox.square(
+          dimension: 56,
+          child: Icon(icon, color: Colors.white),
+        ),
+      ),
+    );
+    return Scaffold(
+      backgroundColor: Med.navy,
+      body: SafeArea(
+        child: Column(
+          children: [
+            Padding(
+              padding: const EdgeInsets.all(IviaSpacing.screen),
+              child: Row(
+                children: [
+                  roundDark(
+                    Icons.close,
+                    () => Navigator.of(context).maybePop(),
+                  ),
+                  const SizedBox(width: 12),
+                  Expanded(
+                    child: Container(
+                      padding: const EdgeInsets.all(5),
+                      decoration: BoxDecoration(
+                        color: const Color(0xFF1E2A44),
+                        borderRadius: BorderRadius.circular(40),
+                      ),
+                      child: Row(
+                        children: [
+                          for (final k in ['prescription', 'box_photo'])
+                            Expanded(
+                              child: GestureDetector(
+                                onTap: () => setState(() => _kind = k),
+                                child: Container(
+                                  height: 46,
+                                  alignment: Alignment.center,
+                                  decoration: BoxDecoration(
+                                    color: _kind == k
+                                        ? Colors.white
+                                        : Colors.transparent,
+                                    borderRadius: BorderRadius.circular(40),
+                                  ),
+                                  child: Text(
+                                    _kindLabel(k),
+                                    style: t.titleSmall?.copyWith(
+                                      fontWeight: FontWeight.w800,
+                                      color: _kind == k
+                                          ? Med.navy
+                                          : Colors.white,
+                                    ),
+                                  ),
+                                ),
+                              ),
+                            ),
+                        ],
+                      ),
+                    ),
+                  ),
+                  const SizedBox(width: 12),
+                  roundDark(Icons.flash_on_outlined, () {}),
+                ],
+              ),
+            ),
+            Expanded(
+              child: Padding(
+                padding: const EdgeInsets.symmetric(
+                  horizontal: IviaSpacing.screen,
+                ),
+                child: GestureDetector(
+                  onTap: () => _take(PhotoSource.camera),
+                  child: Container(
+                    decoration: BoxDecoration(
+                      color: const Color(0xFF17233D),
+                      borderRadius: BorderRadius.circular(Med.radius),
+                    ),
+                    child: Stack(
+                      children: [
+                        for (final a in [
+                          Alignment.topLeft,
+                          Alignment.topRight,
+                          Alignment.bottomLeft,
+                          Alignment.bottomRight,
+                        ])
+                          Align(
+                            alignment: a,
+                            child: Padding(
+                              padding: const EdgeInsets.all(28),
+                              child: _Corner(alignment: a),
+                            ),
+                          ),
+                        const Center(
+                          child: Icon(
+                            Icons.photo_camera_outlined,
+                            color: Color(0xFF51648D),
+                            size: 48,
+                          ),
+                        ),
+                      ],
+                    ),
+                  ),
+                ),
+              ),
+            ),
+            Padding(
+              padding: const EdgeInsets.all(24),
+              child: Text(
+                _kind == 'prescription'
+                    ? 'Placez toute l\'ordonnance dans le cadre, bien à plat et éclairée.'
+                    : 'Placez la boîte dans le cadre : nom, dosage et forme bien lisibles.',
+                textAlign: TextAlign.center,
+                style: t.bodyLarge?.copyWith(color: Colors.white),
+              ),
+            ),
+            Padding(
+              padding: const EdgeInsets.fromLTRB(36, 0, 36, 24),
+              child: Row(
+                mainAxisAlignment: MainAxisAlignment.spaceBetween,
+                children: [
+                  SizedBox.square(
+                    dimension: 56,
+                    child: photos.isEmpty
+                        ? Container(
+                            decoration: BoxDecoration(
+                              color: const Color(0xFF253350),
+                              borderRadius: BorderRadius.circular(14),
+                            ),
+                          )
+                        : MedPhoto(bytes: photos.last.bytes, radius: 14),
+                  ),
+                  GestureDetector(
+                    onTap: () => _take(PhotoSource.camera),
+                    child: Container(
+                      width: 92,
+                      height: 92,
+                      decoration: BoxDecoration(
+                        shape: BoxShape.circle,
+                        border: Border.all(color: Colors.white, width: 4),
+                      ),
+                      padding: const EdgeInsets.all(6),
+                      child: const DecoratedBox(
+                        decoration: BoxDecoration(
+                          color: Colors.white,
+                          shape: BoxShape.circle,
+                        ),
+                      ),
+                    ),
+                  ),
+                  roundDark(
+                    Icons.image_outlined,
+                    () => _take(PhotoSource.gallery),
+                  ),
+                ],
+              ),
+            ),
+          ],
+        ),
+      ),
+    );
+  }
+}
+
+class _Corner extends StatelessWidget {
+  const _Corner({required this.alignment});
+  final Alignment alignment;
+
+  @override
+  Widget build(BuildContext context) {
+    const side = BorderSide(color: Colors.white, width: 3);
+    return Container(
+      width: 40,
+      height: 40,
+      decoration: BoxDecoration(
+        border: Border(
+          top: alignment.y < 0 ? side : BorderSide.none,
+          bottom: alignment.y > 0 ? side : BorderSide.none,
+          left: alignment.x < 0 ? side : BorderSide.none,
+          right: alignment.x > 0 ? side : BorderSide.none,
+        ),
+      ),
+    );
+  }
+}
+
+/// P05 : vérifier la photo.
+class AlertReviewScreen extends ConsumerStatefulWidget {
+  const AlertReviewScreen({super.key});
+
+  @override
+  ConsumerState<AlertReviewScreen> createState() => _AlertReviewScreenState();
+}
+
+class _AlertReviewScreenState extends ConsumerState<AlertReviewScreen> {
+  var _shown = -1;
+  late final _note = TextEditingController(
+    text: ref.read(medDraftProvider).note,
+  );
+
+  @override
+  void dispose() {
+    _note.dispose();
+    super.dispose();
+  }
+
+  @override
+  Widget build(BuildContext context) {
+    final t = Theme.of(context).textTheme;
+    final photos = ref.watch(medDraftProvider).photos;
+    if (photos.isEmpty) {
+      return MedScaffold(
+        top: const MedTopBar(title: 'Vérifier la photo'),
+        body: Center(
+          child: FilledButton(
+            onPressed: () =>
+                context.pushReplacement(Routes.medCapture('prescription')),
+            child: const Text('Prendre une photo'),
+          ),
+        ),
+      );
+    }
+    final index = _shown < 0 || _shown >= photos.length
+        ? photos.length - 1
+        : _shown;
+    final shown = photos[index];
+    final page = photos
+        .take(index + 1)
+        .where((p) => p.kind == shown.kind)
+        .length;
+    Widget addTile(String label, String kind) => SizedBox.square(
+      dimension: 90,
+      child: MedCard(
+        padding: EdgeInsets.zero,
+        onTap: () => context.push(Routes.medCapture(kind)),
+        child: Column(
+          mainAxisAlignment: MainAxisAlignment.center,
+          children: [
+            const Icon(Icons.add, color: Med.navy),
+            Text(
+              label,
+              style: t.titleSmall?.copyWith(fontWeight: FontWeight.w800),
+            ),
+          ],
+        ),
+      ),
+    );
+    return MedScaffold(
+      top: const MedTopBar(
+        title: 'Vérifier la photo',
+        trailing: MedPill('Étape 1 sur 3'),
+      ),
+      body: ListView(
+        padding: const EdgeInsets.symmetric(horizontal: IviaSpacing.screen),
+        children: [
+          AspectRatio(
+            aspectRatio: 1.08,
+            child: Stack(
+              fit: StackFit.expand,
+              children: [
+                MedPhoto(bytes: shown.bytes, radius: Med.radius),
+                Positioned(
+                  left: 16,
+                  top: 16,
+                  child: MedPill('${_kindLabel(shown.kind)} · page $page'),
+                ),
+              ],
+            ),
+          ),
+          const SizedBox(height: 14),
+          SizedBox(
+            height: 90,
+            child: ListView(
+              scrollDirection: Axis.horizontal,
+              children: [
+                for (final (i, p) in photos.indexed) ...[
+                  GestureDetector(
+                    onTap: () => setState(() => _shown = i),
+                    child: Container(
+                      width: 90,
+                      decoration: BoxDecoration(
+                        borderRadius: BorderRadius.circular(18),
+                        border: Border.all(
+                          color: i == index ? IviaColors.primary : Colors.white,
+                          width: 2,
+                        ),
+                      ),
+                      child: MedPhoto(bytes: p.bytes),
+                    ),
+                  ),
+                  const SizedBox(width: 12),
+                ],
+                addTile('Page', 'prescription'),
+                const SizedBox(width: 12),
+                addTile('Boîte', 'box_photo'),
+              ],
+            ),
+          ),
+          const SizedBox(height: 14),
+          MedCard(
+            child: Column(
+              crossAxisAlignment: CrossAxisAlignment.start,
+              children: [
+                Text(
+                  'Le texte est-il lisible ?',
+                  style: t.titleMedium?.copyWith(fontWeight: FontWeight.w800),
+                ),
+                const SizedBox(height: 6),
+                Text(
+                  'Nom des médicaments, dosage et quantités. Sinon, reprenez la photo.',
+                  style: t.bodyMedium?.copyWith(color: Med.muted),
+                ),
+              ],
+            ),
+          ),
+          const SizedBox(height: 20),
+          Text(
+            'Précision pour le pharmacien (facultatif)',
+            style: t.titleMedium?.copyWith(fontWeight: FontWeight.w800),
+          ),
+          const SizedBox(height: 10),
+          TextField(
+            controller: _note,
+            maxLength: 300,
+            onChanged: ref.read(medDraftProvider.notifier).note,
+            decoration: InputDecoration(
+              hintText: 'Ex. : le sirop plutôt que les comprimés',
+              filled: true,
+              fillColor: Colors.white,
+              counterText: '',
+              border: OutlineInputBorder(
+                borderRadius: BorderRadius.circular(Med.radius),
+                borderSide: BorderSide.none,
+              ),
+            ),
+          ),
+          const SizedBox(height: 12),
+        ],
+      ),
+      bottom: MedBottomButton(
+        label: 'Continuer',
+        onTap: () => context.push(Routes.medLaunch),
+        secondary: MedOutlineButton(
+          label: 'Reprendre',
+          onTap: () {
+            ref.read(medDraftProvider.notifier).removePhoto(index);
+            context.pushReplacement(Routes.medCapture(shown.kind));
+          },
+        ),
+      ),
+    );
+  }
+}
+
+/// P06 : lancer l'alerte (résumé, zone et rayon).
+class AlertLaunchScreen extends ConsumerStatefulWidget {
+  const AlertLaunchScreen({super.key});
+
+  @override
+  ConsumerState<AlertLaunchScreen> createState() => _AlertLaunchScreenState();
+}
+
+class _AlertLaunchScreenState extends ConsumerState<AlertLaunchScreen> {
   AlertPreview? _preview;
+  GeoPoint? _point;
   int? _radius;
   String? _error;
   var _sending = false;
@@ -44,108 +863,40 @@ class _NewAlertScreenState extends ConsumerState<NewAlertScreen> {
   @override
   void initState() {
     super.initState();
-    unawaited(_loadPreview());
+    unawaited(_load());
   }
 
-  @override
-  void dispose() {
-    _debounce?.cancel();
-    _search.dispose();
-    _note.dispose();
-    super.dispose();
-  }
-
-  Future<void> _loadPreview() async {
+  Future<void> _load() async {
+    setState(() {
+      _error = null;
+      _preview = null;
+    });
     final p = await alertPosition(ref);
     if (!mounted) return;
     if (p == null) {
       setState(
         () => _error =
-            'Activez la position ou choisissez votre quartier sur l\'accueil.',
+            'Choisissez votre quartier pour trouver les pharmacies de garde.',
       );
       return;
     }
     try {
       final preview = await ref.read(apiClientProvider).alertPreview(p);
-      if (!mounted) return;
-      setState(() {
-        _point = p;
-        _preview = preview;
-        _radius = preview.defaultRadiusM;
-      });
+      if (mounted) {
+        setState(() {
+          _point = p;
+          _preview = preview;
+          _radius ??= preview.defaultRadiusM;
+        });
+      }
     } on ApiException catch (e) {
       if (mounted) setState(() => _error = e.message);
     }
   }
 
-  void _onSearch(String q) {
-    _debounce?.cancel();
-    if (q.trim().length < 2) {
-      setState(() => _hits = []);
-      return;
-    }
-    _debounce = Timer(const Duration(milliseconds: 300), () async {
-      try {
-        final hits = await ref.read(apiClientProvider).searchMedicines(q);
-        if (mounted && _search.text == q) setState(() => _hits = hits);
-      } on ApiException {
-        // L'autocomplétion est un confort : la saisie libre reste possible.
-      }
-    });
-  }
-
-  void _add({MedicineHit? hit}) {
-    final name = hit?.label ?? _search.text.trim();
-    if (name.length < 2) return;
-    setState(() {
-      _items.add(
-        MedItemDraft(name: name, medicineId: hit?.id, form: hit?.form ?? ''),
-      );
-      _search.clear();
-      _hits = [];
-    });
-  }
-
-  Future<void> _addPhoto(String kind) async {
-    final source = await showModalBottomSheet<PhotoSource>(
-      context: context,
-      showDragHandle: true,
-      builder: (context) => SafeArea(
-        child: Column(
-          mainAxisSize: MainAxisSize.min,
-          children: [
-            ListTile(
-              leading: const Icon(Icons.photo_camera_outlined),
-              title: const Text('Prendre une photo'),
-              onTap: () => Navigator.pop(context, PhotoSource.camera),
-            ),
-            ListTile(
-              leading: const Icon(Icons.photo_library_outlined),
-              title: const Text('Choisir dans la galerie'),
-              onTap: () => Navigator.pop(context, PhotoSource.gallery),
-            ),
-          ],
-        ),
-      ),
-    );
-    if (source == null) return;
-    final bytes = await ref
-        .read(photoPickerProvider)
-        .pick(source: source, maxSide: 1600);
-    if (bytes != null && mounted)
-      setState(() => _photos.add(_Photo(kind, bytes)));
-  }
-
   Future<void> _send() async {
-    if (_items.isEmpty && _photos.isEmpty) {
-      setState(
-        () => _error =
-            'Ajoutez au moins un médicament ou une photo d\'ordonnance.',
-      );
-      return;
-    }
-    final point = _point;
-    final radius = _radius;
+    final draft = ref.read(medDraftProvider);
+    final point = _point, radius = _radius;
     if (point == null || radius == null) return;
     setState(() {
       _sending = true;
@@ -154,7 +905,7 @@ class _NewAlertScreenState extends ConsumerState<NewAlertScreen> {
     final api = ref.read(apiClientProvider);
     try {
       final photos = <({String kind, String objectKey})>[];
-      for (final p in _photos) {
+      for (final p in draft.photos) {
         final prepared = await api.prepareUpload(
           purpose: 'pharmacy_alert_photo',
           contentType: 'image/jpeg',
@@ -164,15 +915,25 @@ class _NewAlertScreenState extends ConsumerState<NewAlertScreen> {
         photos.add((kind: p.kind, objectKey: prepared.objectKey));
       }
       final alert = await api.createAlert(
-        items: _items,
+        items: draft.items,
         photos: photos,
         radiusM: radius,
         location: point,
-        genericAccepted: _generic,
-        note: _note.text.trim(),
+        genericAccepted: draft.generic,
+        note: draft.note.trim(),
       );
-      ref.invalidate(myAlertsProvider);
-      if (mounted) context.pushReplacement(Routes.medAlert(alert.id));
+      // Démonstration locale sans app pharmacie : les pharmacies de démo
+      // répondent d'elles-mêmes quelques secondes plus tard.
+      if (ref.read(devPaymentsProvider)) {
+        Timer(
+          const Duration(seconds: 8),
+          () => api.devAutoRespond(alert.id).catchError((_) {}),
+        );
+      }
+      ref
+        ..invalidate(myAlertsProvider)
+        ..read(medDraftProvider.notifier).reset();
+      if (mounted) context.go(Routes.medAlert(alert.id));
     } on ApiException catch (e) {
       if (mounted) setState(() => _error = e.message);
     } finally {
@@ -183,262 +944,269 @@ class _NewAlertScreenState extends ConsumerState<NewAlertScreen> {
   @override
   Widget build(BuildContext context) {
     final t = Theme.of(context).textTheme;
-    final brand = IviaAppBrand.of(context);
+    final draft = ref.watch(medDraftProvider);
     final preview = _preview;
-    return Scaffold(
-      appBar: AppBar(title: const Text('Trouver un médicament')),
-      body: SafeArea(
-        child: ListView(
-          padding: const EdgeInsets.all(IviaSpacing.screen),
-          children: [
-            Text.rich(
-              TextSpan(
-                text: 'Les pharmacies autour de vous\n',
-                children: [
-                  TextSpan(
-                    text: 'vous répondent.',
-                    style: TextStyle(color: brand.highlight),
+    final area = ref.watch(buyerAreaProvider);
+    ref.listen(buyerAreaProvider, (_, _) => _load());
+    final count =
+        preview?.radii
+            .where((r) => r.radiusM == _radius)
+            .firstOrNull
+            ?.pharmacies ??
+        0;
+    final prescriptions = draft.photos
+        .where((p) => p.kind == 'prescription')
+        .length;
+    final boxes = draft.photos.length - prescriptions;
+    return MedScaffold(
+      top: const MedTopBar(
+        title: 'Lancer l\'alerte',
+        trailing: MedPill('Étape 2 sur 3'),
+      ),
+      body: ListView(
+        padding: const EdgeInsets.symmetric(horizontal: IviaSpacing.screen),
+        children: [
+          MedCard(
+            child: Column(
+              crossAxisAlignment: CrossAxisAlignment.start,
+              children: [
+                Text(
+                  'Produits recherchés',
+                  style: t.titleSmall?.copyWith(
+                    color: Med.muted,
+                    fontWeight: FontWeight.w700,
+                  ),
+                ),
+                if (draft.photos.isNotEmpty) ...[
+                  const SizedBox(height: 14),
+                  Row(
+                    children: [
+                      SizedBox.square(
+                        dimension: 50,
+                        child: MedPhoto(bytes: draft.photos.first.bytes),
+                      ),
+                      const SizedBox(width: 14),
+                      Expanded(
+                        child: Column(
+                          crossAxisAlignment: CrossAxisAlignment.start,
+                          children: [
+                            Text(
+                              [
+                                if (prescriptions > 0)
+                                  'Ordonnance · $prescriptions page${prescriptions > 1 ? 's' : ''}',
+                                if (boxes > 0)
+                                  '$boxes boîte${boxes > 1 ? 's' : ''}',
+                              ].join(' + '),
+                              style: t.titleMedium?.copyWith(
+                                fontWeight: FontWeight.w800,
+                              ),
+                            ),
+                            Text(
+                              draft.note.isEmpty
+                                  ? 'Sans précision'
+                                  : 'Avec une précision',
+                              style: t.bodyMedium?.copyWith(color: Med.muted),
+                            ),
+                          ],
+                        ),
+                      ),
+                    ],
                   ),
                 ],
-              ),
-              style: t.headlineSmall,
-            ),
-            const SizedBox(height: IviaSpacing.sm),
-            Text(
-              'Elles indiquent ce qu\'elles ont et à quel prix. Vous ne payez que '
-              'pour voir la pharmacie choisie.',
-              style: t.bodyMedium?.copyWith(color: IviaColors.textSecondary),
-            ),
-            const SizedBox(height: IviaSpacing.xl),
-            _Label('1. Vos médicaments'),
-            TextField(
-              controller: _search,
-              onChanged: _onSearch,
-              onSubmitted: (_) => _add(),
-              textInputAction: TextInputAction.done,
-              decoration: InputDecoration(
-                hintText: 'Doliprane, amoxicilline…',
-                prefixIcon: const Icon(Icons.search),
-                suffixIcon: IconButton(
-                  tooltip: 'Ajouter',
-                  icon: const Icon(Icons.add_circle),
-                  onPressed: _add,
-                ),
-              ),
-            ),
-            for (final h in _hits.take(6))
-              ListTile(
-                dense: true,
-                leading: const Icon(Icons.medication_outlined),
-                title: Text(h.label),
-                subtitle: h.form.isEmpty ? null : Text(h.form),
-                onTap: () => _add(hit: h),
-              ),
-            for (final (i, item) in _items.indexed)
-              Card(
-                margin: const EdgeInsets.only(top: IviaSpacing.sm),
-                child: ListTile(
-                  leading: const Icon(Icons.medication),
-                  title: Text(item.name),
-                  subtitle: item.form.isEmpty ? null : Text(item.form),
-                  trailing: Row(
-                    mainAxisSize: MainAxisSize.min,
-                    children: [
-                      IconButton(
-                        tooltip: 'Moins',
-                        icon: const Icon(Icons.remove),
-                        onPressed: () => setState(() {
-                          if (item.quantity > 1) {
-                            item.quantity--;
-                          } else {
-                            _items.removeAt(i);
-                          }
-                        }),
-                      ),
-                      Text('${item.quantity}', style: t.titleMedium),
-                      IconButton(
-                        tooltip: 'Plus',
-                        icon: const Icon(Icons.add),
-                        onPressed: item.quantity < 20
-                            ? () => setState(() => item.quantity++)
-                            : null,
-                      ),
-                    ],
-                  ),
-                ),
-              ),
-            const SizedBox(height: IviaSpacing.xl),
-            _Label('2. Ordonnance ou boîte (facultatif)'),
-            Wrap(
-              spacing: IviaSpacing.sm,
-              runSpacing: IviaSpacing.sm,
-              children: [
-                for (final (i, p) in _photos.indexed)
-                  Stack(
-                    children: [
-                      ClipRRect(
-                        borderRadius: BorderRadius.circular(IviaRadius.large),
-                        child: Image.memory(
-                          p.bytes,
-                          width: 84,
-                          height: 84,
-                          fit: BoxFit.cover,
+                if (draft.photos.isNotEmpty && draft.items.isNotEmpty)
+                  const Divider(height: 28),
+                if (draft.photos.isEmpty) const SizedBox(height: 10),
+                for (final i in draft.items)
+                  Padding(
+                    padding: const EdgeInsets.symmetric(vertical: 5),
+                    child: Row(
+                      children: [
+                        Expanded(
+                          child: Text(
+                            i.name,
+                            style: t.titleMedium?.copyWith(
+                              fontWeight: FontWeight.w800,
+                            ),
+                          ),
                         ),
-                      ),
-                      Positioned(
-                        right: 0,
-                        child: IconButton.filledTonal(
-                          iconSize: 16,
-                          tooltip: 'Retirer',
-                          icon: const Icon(Icons.close),
-                          onPressed: () => setState(() => _photos.removeAt(i)),
+                        Text(
+                          '×${i.quantity}',
+                          style: t.titleMedium?.copyWith(color: Med.muted),
                         ),
-                      ),
-                    ],
+                      ],
+                    ),
                   ),
-                if (_photos.length < 4) ...[
-                  OutlinedButton.icon(
-                    onPressed: () => _addPhoto('prescription'),
-                    icon: const Icon(Icons.description_outlined),
-                    label: const Text('Ordonnance'),
-                  ),
-                  OutlinedButton.icon(
-                    onPressed: () => _addPhoto('box_photo'),
-                    icon: const Icon(Icons.inventory_2_outlined),
-                    label: const Text('Boîte'),
+                if (draft.generic) ...[
+                  const SizedBox(height: 6),
+                  Text(
+                    'Générique accepté',
+                    style: t.titleSmall?.copyWith(
+                      color: Med.blue,
+                      fontWeight: FontWeight.w800,
+                    ),
                   ),
                 ],
               ],
             ),
-            if (preview != null)
-              Padding(
-                padding: const EdgeInsets.only(top: IviaSpacing.sm),
-                child: Text(
-                  'Photos visibles seulement par les pharmacies sollicitées, '
-                  'effacées ${preview.photoRetentionHours} h après l\'alerte.',
-                  style: t.bodySmall,
-                ),
-              ),
-            SwitchListTile(
-              contentPadding: EdgeInsets.zero,
-              value: _generic,
-              onChanged: (v) => setState(() => _generic = v),
-              title: const Text('J\'accepte un générique'),
-            ),
-            TextField(
-              controller: _note,
-              maxLength: 300,
-              decoration: const InputDecoration(
-                hintText: 'Précision pour la pharmacie (facultatif)',
-              ),
-            ),
-            const SizedBox(height: IviaSpacing.lg),
-            _Label('3. Jusqu\'où chercher ?'),
-            if (preview == null && _error == null)
-              const Padding(
-                padding: EdgeInsets.all(IviaSpacing.lg),
-                child: Center(child: CircularProgressIndicator()),
-              )
-            else if (preview != null)
-              Row(
-                children: [
-                  for (final r in preview.radii)
+          ),
+          const SizedBox(height: 14),
+          MedCard(
+            child: Column(
+              crossAxisAlignment: CrossAxisAlignment.start,
+              children: [
+                Row(
+                  children: [
                     Expanded(
-                      child: Padding(
-                        padding: const EdgeInsets.symmetric(horizontal: 4),
-                        child: _RadiusCard(
-                          km: r.radiusM / 1000,
-                          pharmacies: r.pharmacies,
-                          selected: _radius == r.radiusM,
-                          onTap: () => setState(() => _radius = r.radiusM),
+                      child: Text(
+                        'Zone de recherche',
+                        style: t.titleMedium?.copyWith(
+                          fontWeight: FontWeight.w800,
                         ),
                       ),
                     ),
+                    InkWell(
+                      onTap: () => showAreaSheet(context),
+                      child: Text(
+                        '${area.label} ▾',
+                        style: t.titleMedium?.copyWith(
+                          color: IviaColors.primary,
+                          fontWeight: FontWeight.w800,
+                        ),
+                      ),
+                    ),
+                  ],
+                ),
+                const SizedBox(height: 16),
+                if (preview == null && _error == null)
+                  const Padding(
+                    padding: EdgeInsets.all(16),
+                    child: Center(child: CircularProgressIndicator()),
+                  )
+                else if (preview != null) ...[
+                  Container(
+                    padding: const EdgeInsets.all(6),
+                    decoration: BoxDecoration(
+                      color: Med.page,
+                      borderRadius: BorderRadius.circular(22),
+                    ),
+                    child: Row(
+                      children: [
+                        for (final r in preview.radii)
+                          Expanded(
+                            child: GestureDetector(
+                              onTap: () => setState(() => _radius = r.radiusM),
+                              child: Container(
+                                height: 52,
+                                alignment: Alignment.center,
+                                decoration: BoxDecoration(
+                                  color: _radius == r.radiusM
+                                      ? Med.navy
+                                      : Colors.transparent,
+                                  borderRadius: BorderRadius.circular(18),
+                                ),
+                                child: Text(
+                                  '${r.radiusM ~/ 1000} km',
+                                  style: t.titleMedium?.copyWith(
+                                    fontWeight: FontWeight.w800,
+                                    color: _radius == r.radiusM
+                                        ? Colors.white
+                                        : Med.navy,
+                                  ),
+                                ),
+                              ),
+                            ),
+                          ),
+                      ],
+                    ),
+                  ),
+                  const SizedBox(height: 16),
+                  Row(
+                    children: [
+                      const Icon(Icons.add_box_outlined, color: Med.navy),
+                      const SizedBox(width: 12),
+                      Expanded(
+                        child: Text.rich(
+                          TextSpan(
+                            children: [
+                              TextSpan(
+                                text:
+                                    '$count pharmacie${count > 1 ? 's' : ''} de garde',
+                                style: const TextStyle(
+                                  fontWeight: FontWeight.w800,
+                                ),
+                              ),
+                              TextSpan(
+                                text: count > 1
+                                    ? ' recevront l\'alerte'
+                                    : ' recevra l\'alerte',
+                              ),
+                            ],
+                          ),
+                          style: t.bodyLarge,
+                        ),
+                      ),
+                    ],
+                  ),
+                ],
+              ],
+            ),
+          ),
+          const SizedBox(height: 14),
+          if (preview != null)
+            Container(
+              padding: const EdgeInsets.all(20),
+              decoration: BoxDecoration(
+                color: const Color(0xFFE2EBF8),
+                borderRadius: BorderRadius.circular(Med.radius),
+              ),
+              child: Row(
+                crossAxisAlignment: CrossAxisAlignment.start,
+                children: [
+                  const Icon(Icons.info_outline, color: Med.blue),
+                  const SizedBox(width: 12),
+                  Expanded(
+                    child: Text.rich(
+                      TextSpan(
+                        children: [
+                          const TextSpan(text: 'Lancer l\'alerte est '),
+                          const TextSpan(
+                            text: 'gratuit',
+                            style: TextStyle(fontWeight: FontWeight.w800),
+                          ),
+                          const TextSpan(text: '. Vous payez '),
+                          TextSpan(
+                            text: formatXof(preview.unlockFeeXof),
+                            style: const TextStyle(fontWeight: FontWeight.w800),
+                          ),
+                          const TextSpan(
+                            text: ' seulement pour débloquer la pharmacie de votre choix parmi celles qui répondent.',
+                          ),
+                        ],
+                      ),
+                      style: t.bodyLarge,
+                    ),
+                  ),
                 ],
               ),
-            if (preview != null) ...[
-              const SizedBox(height: IviaSpacing.lg),
-              IviaInfoCard(
-                text:
-                    'Réponses sous ${preview.responseWindowMinutes} min. Pour voir une '
-                    'pharmacie : ${formatXof(preview.unlockFeeXof)}, produits mis de côté '
-                    '${preview.pickupHoldMinutes} min. Aucune commission ensuite.',
-              ),
-            ],
-            if (_error != null) ...[
-              const SizedBox(height: IviaSpacing.md),
-              Text(
-                _error!,
-                style: t.bodyMedium?.copyWith(color: IviaColors.error),
-              ),
-            ],
-            const SizedBox(height: IviaSpacing.xl),
-            FilledButton(
-              onPressed: _sending || preview == null ? null : _send,
-              child: _sending
-                  ? const ButtonProgress(label: 'Envoi')
-                  : const Text('Lancer l\'alerte'),
+            ),
+          if (_error != null) ...[
+            const SizedBox(height: 14),
+            Text(
+              _error!,
+              style: t.bodyMedium?.copyWith(color: IviaColors.error),
+            ),
+            TextButton(
+              onPressed: () => showAreaSheet(context),
+              child: const Text('Choisir mon quartier'),
             ),
           ],
-        ),
+        ],
       ),
-    );
-  }
-}
-
-class _Label extends StatelessWidget {
-  const _Label(this.text);
-  final String text;
-
-  @override
-  Widget build(BuildContext context) => Padding(
-    padding: const EdgeInsets.only(bottom: IviaSpacing.sm),
-    child: Text(text, style: Theme.of(context).textTheme.titleMedium),
-  );
-}
-
-class _RadiusCard extends StatelessWidget {
-  const _RadiusCard({
-    required this.km,
-    required this.pharmacies,
-    required this.selected,
-    required this.onTap,
-  });
-
-  final double km;
-  final int pharmacies;
-  final bool selected;
-  final VoidCallback onTap;
-
-  @override
-  Widget build(BuildContext context) {
-    final t = Theme.of(context).textTheme;
-    final brand = IviaAppBrand.of(context);
-    return Material(
-      color: selected ? brand.accent : IviaColors.surface,
-      borderRadius: BorderRadius.circular(IviaRadius.large),
-      child: InkWell(
-        borderRadius: BorderRadius.circular(IviaRadius.large),
-        onTap: onTap,
-        child: Padding(
-          padding: const EdgeInsets.symmetric(vertical: IviaSpacing.lg),
-          child: Column(
-            children: [
-              Text(
-                '${km % 1 == 0 ? km.toInt() : km} km',
-                style: t.titleLarge?.copyWith(
-                  color: selected ? Colors.white : null,
-                ),
-              ),
-              Text(
-                '$pharmacies pharmacie${pharmacies > 1 ? 's' : ''}',
-                style: t.bodySmall?.copyWith(
-                  color: selected ? Colors.white : null,
-                ),
-              ),
-            ],
-          ),
-        ),
+      bottom: MedBottomButton(
+        label: 'Lancer l\'alerte',
+        icon: Icons.campaign_outlined,
+        busy: _sending,
+        onTap: preview == null || count == 0 ? null : _send,
       ),
     );
   }

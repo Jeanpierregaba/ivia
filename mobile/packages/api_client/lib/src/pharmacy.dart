@@ -139,6 +139,7 @@ class MedResponse {
       status = j['status'] as String? ?? '',
       unlocked = j['unlocked'] as bool? ?? false,
       reservationId = j['reservation_id'] as String?,
+      respondedAt = _d(j['responded_at']) ?? DateTime.now(),
       pharmacy = j['pharmacy'] == null
           ? null
           : MedPharmacy.fromJson(j['pharmacy'] as Map<String, dynamic>);
@@ -148,6 +149,7 @@ class MedResponse {
   final List<MedLine> lines;
   final bool allAvailable, prescriptionRequired, unlocked;
   final String? reservationId;
+  final DateTime respondedAt;
   final MedPharmacy? pharmacy;
 }
 

@@ -55,7 +55,16 @@ final medReservationProvider = FutureProvider.autoDispose
 Future<GeoPoint?> alertPosition(WidgetRef ref) async {
   final point = _areaPoint(ref.read(buyerAreaProvider));
   if (point != null) return point;
-  return (await ref.read(locationServiceProvider).current()).point;
+  try {
+    // Navigateur : la demande d'autorisation peut rester sans réponse.
+    return (await ref
+            .read(locationServiceProvider)
+            .current()
+            .timeout(const Duration(seconds: 8)))
+        .point;
+  } on TimeoutException {
+    return null;
+  }
 }
 
 /// Relit un provider toutes les [every] tant que l'écran est ouvert et que

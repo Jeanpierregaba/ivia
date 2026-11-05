@@ -50,8 +50,17 @@ abstract final class Routes {
   // Alerte médicament (P01 à P14).
   static const pharmacy = '/pharmacy';
   static const medNewAlert = '/pharmacy/new';
+  static const medItems = '/pharmacy/new/items';
+  static String medCapture(String kind) => '/pharmacy/new/capture/$kind';
+  static const medReview = '/pharmacy/new/review';
+  static const medLaunch = '/pharmacy/new/launch';
+  static const medMap = '/pharmacy/map';
   static String medAlert(String id) => '/pharmacy/alerts/$id';
+  static String medResponses(String id) => '/pharmacy/alerts/$id/responses';
+  static String medUnlock(String alertId, String responseId) =>
+      '/pharmacy/alerts/$alertId/unlock/$responseId';
   static String medReservation(String id) => '/pharmacy/reservations/$id';
+  static String medPickup(String id) => '/pharmacy/reservations/$id/pickup';
   static const checkout = '/checkout';
   static String order(String id) => '$orders/$id';
 
@@ -216,21 +225,73 @@ final routerProvider = Provider<GoRouter>((ref) {
         builder: (context, state) => const PharmacyHubScreen(),
         routes: [
           GoRoute(
+            path: 'map',
+            parentNavigatorKey: rootKey,
+            builder: (context, state) => const OnDutyMapScreen(),
+          ),
+          GoRoute(
             path: 'new',
             parentNavigatorKey: rootKey,
             builder: (context, state) => const NewAlertScreen(),
+            routes: [
+              GoRoute(
+                path: 'items',
+                parentNavigatorKey: rootKey,
+                builder: (context, state) => const AlertItemsScreen(),
+              ),
+              GoRoute(
+                path: 'capture/:kind',
+                parentNavigatorKey: rootKey,
+                builder: (context, state) =>
+                    AlertCaptureScreen(kind: state.pathParameters['kind']!),
+              ),
+              GoRoute(
+                path: 'review',
+                parentNavigatorKey: rootKey,
+                builder: (context, state) => const AlertReviewScreen(),
+              ),
+              GoRoute(
+                path: 'launch',
+                parentNavigatorKey: rootKey,
+                builder: (context, state) => const AlertLaunchScreen(),
+              ),
+            ],
           ),
           GoRoute(
             path: 'alerts/:id',
             parentNavigatorKey: rootKey,
             builder: (context, state) =>
                 AlertScreen(alertId: state.pathParameters['id']!),
+            routes: [
+              GoRoute(
+                path: 'responses',
+                parentNavigatorKey: rootKey,
+                builder: (context, state) =>
+                    ResponsesScreen(alertId: state.pathParameters['id']!),
+              ),
+              GoRoute(
+                path: 'unlock/:responseId',
+                parentNavigatorKey: rootKey,
+                builder: (context, state) => UnlockScreen(
+                  alertId: state.pathParameters['id']!,
+                  responseId: state.pathParameters['responseId']!,
+                ),
+              ),
+            ],
           ),
           GoRoute(
             path: 'reservations/:id',
             parentNavigatorKey: rootKey,
             builder: (context, state) =>
                 ReservationScreen(reservationId: state.pathParameters['id']!),
+            routes: [
+              GoRoute(
+                path: 'pickup',
+                parentNavigatorKey: rootKey,
+                builder: (context, state) =>
+                    PickupScreen(reservationId: state.pathParameters['id']!),
+              ),
+            ],
           ),
         ],
       ),
