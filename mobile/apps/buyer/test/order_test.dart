@@ -596,18 +596,25 @@ void main() {
     tester,
   ) async {
     app.server
-      ..on('POST', '/v1/auth/otp', (_) => FakeResponse.json(202, otpBody))
       ..on(
         'POST',
-        '/v1/auth/verify',
+        '/v1/auth/phone/code',
+        (_) => FakeResponse.json(202, phoneOtpBody),
+      )
+      ..on(
+        'POST',
+        '/v1/auth/phone/verify',
         (_) => FakeResponse.json(200, {
-          'token': 'jeton-kofi',
-          'expires_at': '2026-12-30T08:00:00Z',
-          'is_new_user': false,
-          'user': {
-            ...userBody(complete: true, email: 'kofi@test.tg'),
-            'id': '9e8d7c6b-5a49-4382-a170-6b5c4d3e2f10',
-            'first_name': 'Kofi',
+          'status': 'signed_in',
+          'session': {
+            'token': 'jeton-kofi',
+            'expires_at': '2026-12-30T08:00:00Z',
+            'is_new_user': false,
+            'user': {
+              ...userBody(complete: true, email: 'kofi@test.tg'),
+              'id': '9e8d7c6b-5a49-4382-a170-6b5c4d3e2f10',
+              'first_name': 'Kofi',
+            },
           },
         }),
       );
@@ -623,11 +630,10 @@ void main() {
     expect(container.read(myOrdersViewProvider).value!.items, isEmpty);
 
     // Kofi se connecte sur le même téléphone : aucune commande d'Awa.
-    await tester.enterText(find.byType(TextField), 'kofi@test.tg');
-    await tapText(tester, 'Recevoir le code');
+    await tester.enterText(find.byType(TextField), '90 00 00 01');
+    await tapText(tester, 'Recevoir le code sur WhatsApp');
+    // 6e chiffre : vérification automatique.
     await tester.enterText(find.byType(TextField), '481902');
-    await tester.pump();
-    await tapText(tester, 'Vérifier le code');
     await tester.pumpAndSettle();
     await tester.tap(find.byIcon(Icons.receipt_long_outlined));
     await tester.pumpAndSettle();

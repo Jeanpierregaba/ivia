@@ -24,6 +24,7 @@ abstract final class Routes {
   static const onboarding = '/onboarding';
   static const login = AuthRoutes.login;
   static const code = AuthRoutes.code;
+  static const signup = AuthRoutes.signup;
 
   /// « Faisons connaissance » : profil à compléter après la connexion.
   static const welcome = '/welcome';
@@ -66,7 +67,7 @@ String? redirectFor(
   final allowed = switch (auth) {
     AuthStarting() => const [Routes.splash],
     AuthSignedOut() when !onboardingSeen => const [Routes.onboarding],
-    AuthSignedOut() => const [Routes.login, Routes.code],
+    AuthSignedOut() => const [Routes.login, Routes.code, Routes.signup],
     AuthNeedsProfile() => const [Routes.welcome],
     AuthSignedIn() => const [
       Routes.home,
@@ -112,12 +113,18 @@ final routerProvider = Provider<GoRouter>((ref) {
       ),
       GoRoute(
         path: Routes.login,
-        builder: (context, state) => const EmailScreen(),
+        // Connexion par numéro : numéro, code (WhatsApp ou SMS), puis
+        // « Faisons connaissance » pour un numéro nouveau.
+        builder: (context, state) => const PhoneScreen(),
         routes: [
-          // Sous /login : le retour depuis le code revient à l'e-mail.
+          // Sous /login : le retour depuis le code revient au numéro.
           GoRoute(
             path: 'code',
-            builder: (context, state) => const CodeScreen(),
+            builder: (context, state) => const PhoneCodeScreen(),
+          ),
+          GoRoute(
+            path: 'signup',
+            builder: (context, state) => const PhoneSignupScreen(),
           ),
         ],
       ),

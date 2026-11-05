@@ -52,7 +52,12 @@ class ProfileTabScreen extends ConsumerWidget {
                         style: textTheme.headlineSmall,
                       ),
                     ),
-                    if (user?.email case final email?)
+                    if (user?.phone case final phone?)
+                      Text(
+                        '+228 ${formatTogoPhone(phone)}',
+                        style: textTheme.bodyMedium,
+                      )
+                    else if (user?.email case final email?)
                       Text(email, style: textTheme.bodyMedium),
                   ],
                 ),
@@ -69,6 +74,20 @@ class ProfileTabScreen extends ConsumerWidget {
                   context: context,
                   showDragHandle: true,
                   builder: (context) => const _SellerInfo(),
+                ),
+              ),
+            ],
+          ),
+          const SizedBox(height: IviaSpacing.lg),
+          _Card(
+            children: [
+              _Row(
+                title: 'Appareils connectés',
+                subtitle: 'Voir et déconnecter vos appareils',
+                onTap: () => Navigator.of(context).push(
+                  MaterialPageRoute<void>(
+                    builder: (_) => const ConnectedDevicesScreen(),
+                  ),
                 ),
               ),
             ],
@@ -115,8 +134,8 @@ class _SellerInfo extends StatelessWidget {
             ),
             const SizedBox(height: IviaSpacing.sm),
             Text(
-              'Installez l’app ivia Marchand et connectez-vous avec la même '
-              'adresse e-mail : votre compte est le même. Vous créez votre '
+              'Installez l’app ivia Marchand et connectez-vous avec le même '
+              'compte. Vous créez votre '
               'boutique, l’équipe ivia la valide, puis vous ajoutez vos '
               'produits.',
               style: textTheme.bodyLarge?.copyWith(

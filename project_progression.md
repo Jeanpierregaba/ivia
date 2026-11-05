@@ -13,7 +13,7 @@
 | Infrastructure / mise en ligne | **~60 %** | Images Docker, Compose, Caddy, sauvegardes, CI prêts ; serveurs à louer |
 | Publicité IVI / marketing   |  **~90 %** | API, back-office, jeu de démo et app acheteur faits ; reste à saisir les prix IVI |
 | Module pharmacie (029)      |  **~45 %** | Backend aligné sur les maquettes P01–P14 (déblocage par pharmacie, livreur trouvé avant paiement, sans commission) ; apps et écrans du back-office à faire |
-| Connexion v2 (001, ADR 0012) | **~45 %** | Backend fait : numéro + code WhatsApp (SMS en secours), jetons renouvelables, appareils, TOTP admin ; écrans mobiles et back-office à faire |
+| Connexion v2 (001, ADR 0012) | **~90 %** | Backend, app acheteur et back-office faits ; reste la mise en service WhatsApp (identifiants Meta) et le fournisseur SMS |
 | Démarches hors code         |  **~10 %** | Société, agrégateur de paiement, Play Store, Meta, domaine                 |
 
 ---
@@ -100,7 +100,8 @@ Go 1.27, PostgreSQL 18 + PostGIS, tâches de fond River, 29 migrations, document
 
 Next.js 16, TypeScript strict, Tailwind 4, même langage visuel que les apps (logotypes, Berkeley Blue, Imperial Red, cartes arrondies, mosaïque).
 
-- Connexion admin par mot de passe puis code reçu par e-mail (maquettes B01, B02), mot de passe oublié, session en cookie httpOnly limitée à 8 h, accès coupé dès que le rôle admin est retiré.
+- Connexion admin par mot de passe puis second facteur (maquettes B01, B02) : **application d'authentification** (ou code de secours) si elle est activée, sinon code reçu par e-mail ; mot de passe oublié, session en cookie httpOnly limitée à 8 h, accès coupé dès que le rôle admin est retiré.
+- **Sécurité** (nouveau) : activation de l'application d'authentification avec QR code généré dans le navigateur, 10 codes de secours (copier, imprimer, régénérer), désactivation, sessions ouvertes avec déconnexion ; sur la page Comptes, « Réinitialiser la 2FA » d'un autre admin (motif, journalisé).
 - Tableau de bord (maquette B03), mis à jour en direct toutes les 30 s : 5 tuiles « à traiter », indicateurs avec objectifs et comparaison, graphique livraison/retrait sur 14 jours, livreurs maintenant, paiements, commandes en cours filtrables, journal des actions ; recherche globale, notifications, période au choix.
 - Boutiques : filtres par statut, colonne « Pièces », fiche boutique avec les pièces du marchand (lien temporaire), publier / refuser / suspendre / rétablir avec confirmation et motif ; « Publier » n'apparaît qu'une fois la pièce d'identité déposée.
 - Livreurs : liste filtrée, dossier complet (documents consultables par lien temporaire, documents manquants signalés), valider et activer / refuser / suspendre / rétablir.
@@ -118,7 +119,8 @@ Next.js 16, TypeScript strict, Tailwind 4, même langage visuel que les apps (lo
 ## 3. Apps mobiles (`mobile/`, Flutter) — fait
 
 - Espace de travail à 3 apps (acheteur, marchand, livreur) + client API + bibliothèque d'interface commune.
-- Splash et présentation des 3 apps ; connexion par code e-mail dans les 3 apps.
+- Splash et présentation des 3 apps.
+- **Connexion acheteur par numéro** (nouveau) : numéro, code reçu sur WhatsApp (ou par SMS, au choix ou en secours), validation automatique au 6e chiffre, « Faisons connaissance » (prénom, nom, consentement) pour un numéro nouveau ; jeton d'accès renouvelé en silence ; Profil › Appareils connectés (déconnecter un appareil ou tous). Marchand et livreur gardent la connexion par e-mail en attendant leurs maquettes.
 - **Acheteur** : accueil (zone par position ou quartier, catégories, boutiques, nouveautés), recherche avec filtres et tri, fiches boutique et produit, panier (008), commande en retrait et suivi avec code de remise (009, en relecture).
 - **Marchand** : création de la boutique, écran « en cours de validation » avec dépôt de la pièce d'identité et du RCCM, catalogue (produits, photos, brouillons, retrait, stock) (005).
 - **Livreur** : dossier de candidature avec documents (018).
@@ -144,8 +146,7 @@ Next.js 16, TypeScript strict, Tailwind 4, même langage visuel que les apps (lo
 - [ ] Choisir le fournisseur SMS (secours de WhatsApp) ; d'ici là, pas de SMS hors local.
 
 **Connexion v2**
-- [ ] App acheteur : écrans numéro, code (WhatsApp ou SMS), « Faisons connaissance », renouvellement silencieux du jeton, Profil › Sécurité.
-- [ ] Back-office : second facteur selon la méthode (application ou e-mail), page Sécurité (QR code, codes de secours, sessions), réinitialisation d'un admin.
+- [ ] App acheteur : « Changer de numéro » (l'API est prête).
 - [ ] Marchand : même parcours quand ses maquettes seront fournies.
 
 **Back-office**

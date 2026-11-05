@@ -18,10 +18,15 @@ Le détail est dans l'historique git.
 - [x] 5. Backend : application d'authentification (TOTP), codes de secours, réinitialisation par
       un autre admin ; `mfa_method` dans la session
 - [x] 6. Backend : openapi.yaml, tests Go, ADR 0012
-- [ ] 7. `api_client` : appels v2, `SessionStore` (jeton de rafraîchissement, identifiant
-      d'installation), intercepteur de renouvellement
-- [ ] 8. `app_core` : écrans numéro, code (WhatsApp/SMS), « Faisons connaissance » v2 ; tests
-- [ ] 9. Acheteur : branchement, Profil › Sécurité ; tests
-- [ ] 10. Back-office : second facteur selon `mfa_method`, page Sécurité, réinitialisation admin
+- [x] 7. `api_client` : appels v2, `SessionStore` (jeton de rafraîchissement, identifiant
+      d'installation), renouvellement unique et automatique du jeton d'accès ; tests
+- [x] 8. `app_core` : écrans numéro, code (WhatsApp/SMS, validation au 6e chiffre),
+      « Faisons connaissance » v2, « Appareils connectés » ; mode de connexion choisi par app
+      (`LoginMethod`) : le marchand et le livreur restent sur l'e-mail en attendant leurs maquettes
+- [x] 9. Acheteur : connexion par numéro, Profil › Appareils connectés ; tests (191)
+- [x] 10. Back-office : second facteur selon `mfa_method` (code de secours possible), page
+      Sécurité (QR code généré dans le navigateur, codes de secours, sessions), « Réinitialiser la
+      2FA » sur les comptes admin
+- [ ] Acheteur : « Changer de numéro » (l'API est prête)
 - [ ] 11. Mise en service WhatsApp : identifiants Meta et modèle approuvé (porteur du projet) ;
       choix du fournisseur SMS

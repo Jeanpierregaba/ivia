@@ -95,8 +95,9 @@ Ses routes restent ouvertes le temps de la migration.
       l'application (motif, journal, sessions coupées).
 - [x] Le code, le jeton, le numéro et le secret n'apparaissent ni dans les journaux (hors mode
       local) ni dans une URL.
-- [ ] App acheteur : écrans 1 à 3, renouvellement silencieux du jeton, Profil › Sécurité.
-- [ ] Back-office : écran du second facteur selon `mfa_method`, page Sécurité.
+- [x] App acheteur : écrans 1 à 3, renouvellement silencieux du jeton, appareils connectés.
+- [x] Back-office : écran du second facteur selon `mfa_method`, page Sécurité.
+- [ ] App acheteur : « Changer de numéro ».
 
 ## Cas limites et erreurs
 

@@ -9,7 +9,16 @@ class AppIdentity {
     required this.loginBody,
     required this.codeHint,
     this.loginBadge,
+    this.loginMethod = LoginMethod.email,
+    this.appCode = 'buyer',
   });
+
+  /// Connexion par e-mail (v1) ou par numéro (v2, ADR 0012).
+  final LoginMethod loginMethod;
+
+  /// Code de l'app envoyé au serveur (alertes de sécurité) : buyer, seller,
+  /// driver ou pharmacy.
+  final String appCode;
 
   final IviaAppBrand brand;
 
@@ -23,6 +32,9 @@ class AppIdentity {
   /// Encart de l'écran du code, selon la validité du code.
   final String Function(Duration expiresIn) codeHint;
 }
+
+/// Mode de connexion d'une app.
+enum LoginMethod { email, phone }
 
 /// Fourni par chaque app (`main()` et tests).
 final appIdentityProvider = Provider<AppIdentity>(

@@ -15,7 +15,7 @@ import {
 } from "@/components/ui";
 import { api, ApiError, type Schemas } from "@/lib/api";
 import { formatDateTime, formatPhone, ROLE_LABEL } from "@/lib/format";
-import { setAdmin } from "./actions";
+import { resetMfa, setAdmin } from "./actions";
 
 export const metadata = { title: "Comptes" };
 
@@ -125,17 +125,30 @@ export default async function UsersPage({ searchParams }: Props) {
                   {u.id === me.id ? (
                     <span className="text-[13px] text-text-muted">Votre compte</span>
                   ) : isAdmin ? (
-                    <ActionForm
-                      action={setAdmin}
-                      label="Retirer"
-                      variant="outline"
-                      hidden={{ id: u.id, grant: "false" }}
-                      confirm={{
-                        title: `Retirer les droits admin de ${name} ?`,
-                        body: "L'accès au back-office est coupé dès sa prochaine page.",
-                      }}
-                      reason={{ label: "Motif", required: true }}
-                    />
+                    <div className="flex flex-wrap gap-2">
+                      <ActionForm
+                        action={resetMfa}
+                        label="Réinitialiser la 2FA"
+                        variant="ghost"
+                        hidden={{ id: u.id }}
+                        confirm={{
+                          title: `Réinitialiser la double vérification de ${name} ?`,
+                          body: "Son application d'authentification est désactivée et toutes ses sessions sont coupées. À faire seulement après avoir vérifié son identité (téléphone perdu).",
+                        }}
+                        reason={{ label: "Motif", required: true }}
+                      />
+                      <ActionForm
+                        action={setAdmin}
+                        label="Retirer"
+                        variant="outline"
+                        hidden={{ id: u.id, grant: "false" }}
+                        confirm={{
+                          title: `Retirer les droits admin de ${name} ?`,
+                          body: "L'accès au back-office est coupé dès sa prochaine page.",
+                        }}
+                        reason={{ label: "Motif", required: true }}
+                      />
+                    </div>
                   ) : (
                     <ActionForm
                       action={setAdmin}

@@ -4,4 +4,7 @@ abstract final class AuthRoutes {
 
   /// Sous /login : le retour depuis le code revient à l'e-mail.
   static const code = '/login/code';
+
+  /// Connexion par numéro, numéro nouveau : prénom, nom et consentement.
+  static const signup = '/login/signup';
 }
