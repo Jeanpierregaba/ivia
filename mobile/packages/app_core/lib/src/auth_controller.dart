@@ -51,8 +51,14 @@ class AuthController extends Notifier<AuthState> {
 
   @override
   AuthState build() {
-    final client = _client..onUnauthorized = _onUnauthorized;
-    ref.onDispose(() => client.onUnauthorized = null);
+    final client = _client
+      ..onUnauthorized = _onUnauthorized
+      ..onTokensRefreshed = _onTokensRefreshed;
+    ref.onDispose(() {
+      client
+        ..onUnauthorized = null
+        ..onTokensRefreshed = null;
+    });
     unawaited(_start());
     return const AuthStarting();
   }
@@ -66,8 +72,14 @@ class AuthController extends Notifier<AuthState> {
   /// Session ouverte (mot de passe, création, Google) : gardée sur le téléphone.
   Future<void> signedIn(Session session) async {
     _generation++;
-    await _store.save(session.token, session.user);
-    _client.token = session.token;
+    await _store.save(
+      session.token,
+      session.user,
+      refreshToken: session.refreshToken,
+    );
+    _client
+      ..token = session.token
+      ..refreshToken = session.refreshToken;
     state = _fromUser(session.user);
   }
 
@@ -103,7 +115,9 @@ class AuthController extends Notifier<AuthState> {
   Future<AuthState> _restore(Duration meTimeout) async {
     final stored = await _store.read();
     if (stored == null) return const AuthSignedOut();
-    _client.token = stored.token;
+    _client
+      ..token = stored.token
+      ..refreshToken = stored.refreshToken;
     try {
       final user = await _client.getMe().timeout(meTimeout);
       await _store.saveUser(user);
@@ -128,6 +142,11 @@ class AuthController extends Notifier<AuthState> {
   static AuthState _fromUser(User user) =>
       user.profileComplete ? AuthSignedIn(user) : AuthNeedsProfile(user);
 
+  /// Jetons renouvelés par le client : gardés pour le prochain démarrage.
+  void _onTokensRefreshed(Session session) {
+    unawaited(_store.saveTokens(session.token, session.refreshToken));
+  }
+
   void _onUnauthorized() {
     // Au démarrage, _restore traite lui-même le refus.
     if (state is! AuthStarting) unawaited(_clear());
@@ -140,7 +159,9 @@ class AuthController extends Notifier<AuthState> {
   }
 
   Future<void> _clearStorage() async {
-    _client.token = null;
+    _client
+      ..token = null
+      ..refreshToken = null;
     await _store.clear();
   }
 }

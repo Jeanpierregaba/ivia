@@ -78,6 +78,13 @@ class BuyerHarness {
   }
 
   Future<void> launch(WidgetTester tester) async {
+    // Accueil A01 plus haut que l'écran de test par défaut (800 × 600) :
+    // écran de téléphone haut, sauf si le test a choisi sa taille.
+    if (tester.view.physicalSize == const Size(2400, 1800)) {
+      tester.view.physicalSize = const Size(2400, 7200);
+      tester.view.devicePixelRatio = 3;
+      addTearDown(tester.view.reset);
+    }
     final onboarding = await OnboardingStore.open();
     final area = await AreaStore.open();
     await tester.pumpWidget(const SizedBox());

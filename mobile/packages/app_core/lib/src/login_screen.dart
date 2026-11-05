@@ -230,7 +230,7 @@ class _LoginScreenState extends ConsumerState<LoginScreen> {
             Align(
               alignment: Alignment.centerLeft,
               child: TextButton(
-                onPressed: _busy ? null : () => _go(AuthRoutes.signup),
+                onPressed: _busy ? null : () => _go(AuthRoutes.emailSignup),
                 child: const Text('Créer mon mot de passe'),
               ),
             ),
@@ -249,7 +249,7 @@ class _LoginScreenState extends ConsumerState<LoginScreen> {
             children: [
               Text('Pas encore de compte ?', style: textTheme.bodyMedium),
               TextButton(
-                onPressed: _busy ? null : () => _go(AuthRoutes.signup),
+                onPressed: _busy ? null : () => _go(AuthRoutes.emailSignup),
                 child: const Text('Créer un compte'),
               ),
             ],

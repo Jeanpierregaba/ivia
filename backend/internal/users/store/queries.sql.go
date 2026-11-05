@@ -14,7 +14,7 @@ import (
 
 const anonymizeUser = `-- name: AnonymizeUser :exec
 UPDATE users
-SET email = NULL, phone = NULL, first_name = '', last_name = '',
+SET email = NULL, phone = NULL, phone_verified_at = NULL, avatar_key = NULL, first_name = '', last_name = '',
     deleted_at = now(), updated_at = now()
 WHERE id = $1 AND deleted_at IS NULL
 `
@@ -83,7 +83,7 @@ func (q *Queries) CreateAddress(ctx context.Context, arg CreateAddressParams) (u
 }
 
 const createUser = `-- name: CreateUser :one
-INSERT INTO users (email) VALUES ($1) ON CONFLICT (email) DO NOTHING RETURNING id, email, phone, first_name, last_name, deleted_at, created_at, updated_at, privacy_consent_at
+INSERT INTO users (email) VALUES ($1) ON CONFLICT (email) DO NOTHING RETURNING id, email, phone, first_name, last_name, deleted_at, created_at, updated_at, privacy_consent_at, phone_verified_at, avatar_key
 `
 
 // Sans effet (aucune ligne) si l'e-mail existe déjà : inscription simultanée.
@@ -100,6 +100,42 @@ func (q *Queries) CreateUser(ctx context.Context, email *string) (User, error) {
 		&i.CreatedAt,
 		&i.UpdatedAt,
 		&i.PrivacyConsentAt,
+		&i.PhoneVerifiedAt,
+		&i.AvatarKey,
+	)
+	return i, err
+}
+
+const createUserWithPhone = `-- name: CreateUserWithPhone :one
+INSERT INTO users (phone, phone_verified_at, first_name, last_name, privacy_consent_at)
+VALUES ($1, now(), $2, $3, now())
+ON CONFLICT (phone) DO NOTHING
+RETURNING id, email, phone, first_name, last_name, deleted_at, created_at, updated_at, privacy_consent_at, phone_verified_at, avatar_key
+`
+
+type CreateUserWithPhoneParams struct {
+	Phone     *string
+	FirstName string
+	LastName  string
+}
+
+// Compte créé après la vérification du numéro (connexion par numéro) : numéro vérifié, nom et
+// consentement datés. Sans effet (aucune ligne) si le numéro est déjà pris.
+func (q *Queries) CreateUserWithPhone(ctx context.Context, arg CreateUserWithPhoneParams) (User, error) {
+	row := q.db.QueryRow(ctx, createUserWithPhone, arg.Phone, arg.FirstName, arg.LastName)
+	var i User
+	err := row.Scan(
+		&i.ID,
+		&i.Email,
+		&i.Phone,
+		&i.FirstName,
+		&i.LastName,
+		&i.DeletedAt,
+		&i.CreatedAt,
+		&i.UpdatedAt,
+		&i.PrivacyConsentAt,
+		&i.PhoneVerifiedAt,
+		&i.AvatarKey,
 	)
 	return i, err
 }
@@ -205,7 +241,7 @@ func (q *Queries) GetAddress(ctx context.Context, arg GetAddressParams) (GetAddr
 }
 
 const getUser = `-- name: GetUser :one
-SELECT id, email, phone, first_name, last_name, deleted_at, created_at, updated_at, privacy_consent_at FROM users WHERE id = $1
+SELECT id, email, phone, first_name, last_name, deleted_at, created_at, updated_at, privacy_consent_at, phone_verified_at, avatar_key FROM users WHERE id = $1
 `
 
 func (q *Queries) GetUser(ctx context.Context, id uuid.UUID) (User, error) {
@@ -221,12 +257,14 @@ func (q *Queries) GetUser(ctx context.Context, id uuid.UUID) (User, error) {
 		&i.CreatedAt,
 		&i.UpdatedAt,
 		&i.PrivacyConsentAt,
+		&i.PhoneVerifiedAt,
+		&i.AvatarKey,
 	)
 	return i, err
 }
 
 const getUserByEmail = `-- name: GetUserByEmail :one
-SELECT id, email, phone, first_name, last_name, deleted_at, created_at, updated_at, privacy_consent_at FROM users WHERE email = $1 AND deleted_at IS NULL
+SELECT id, email, phone, first_name, last_name, deleted_at, created_at, updated_at, privacy_consent_at, phone_verified_at, avatar_key FROM users WHERE email = $1 AND deleted_at IS NULL
 `
 
 func (q *Queries) GetUserByEmail(ctx context.Context, email *string) (User, error) {
@@ -242,6 +280,31 @@ func (q *Queries) GetUserByEmail(ctx context.Context, email *string) (User, erro
 		&i.CreatedAt,
 		&i.UpdatedAt,
 		&i.PrivacyConsentAt,
+		&i.PhoneVerifiedAt,
+		&i.AvatarKey,
+	)
+	return i, err
+}
+
+const getUserByPhone = `-- name: GetUserByPhone :one
+SELECT id, email, phone, first_name, last_name, deleted_at, created_at, updated_at, privacy_consent_at, phone_verified_at, avatar_key FROM users WHERE phone = $1 AND deleted_at IS NULL
+`
+
+func (q *Queries) GetUserByPhone(ctx context.Context, phone *string) (User, error) {
+	row := q.db.QueryRow(ctx, getUserByPhone, phone)
+	var i User
+	err := row.Scan(
+		&i.ID,
+		&i.Email,
+		&i.Phone,
+		&i.FirstName,
+		&i.LastName,
+		&i.DeletedAt,
+		&i.CreatedAt,
+		&i.UpdatedAt,
+		&i.PrivacyConsentAt,
+		&i.PhoneVerifiedAt,
+		&i.AvatarKey,
 	)
 	return i, err
 }
@@ -392,6 +455,16 @@ func (q *Queries) ListUserIDsByRole(ctx context.Context, role string) ([]uuid.UU
 	return items, nil
 }
 
+const markPhoneVerified = `-- name: MarkPhoneVerified :exec
+UPDATE users SET phone_verified_at = now(), updated_at = now()
+WHERE id = $1 AND phone_verified_at IS NULL
+`
+
+func (q *Queries) MarkPhoneVerified(ctx context.Context, id uuid.UUID) error {
+	_, err := q.db.Exec(ctx, markPhoneVerified, id)
+	return err
+}
+
 const revokeAllRoles = `-- name: RevokeAllRoles :exec
 DELETE FROM user_roles WHERE user_id = $1
 `
@@ -419,7 +492,7 @@ func (q *Queries) RevokeRole(ctx context.Context, arg RevokeRoleParams) (int64, 
 }
 
 const searchUsers = `-- name: SearchUsers :many
-SELECT u.id, u.email, u.phone, u.first_name, u.last_name, u.deleted_at, u.created_at, u.updated_at, u.privacy_consent_at, coalesce(array_agg(r.role ORDER BY r.role) FILTER (WHERE r.role IS NOT NULL), '{}')::text[] AS roles
+SELECT u.id, u.email, u.phone, u.first_name, u.last_name, u.deleted_at, u.created_at, u.updated_at, u.privacy_consent_at, u.phone_verified_at, u.avatar_key, coalesce(array_agg(r.role ORDER BY r.role) FILTER (WHERE r.role IS NOT NULL), '{}')::text[] AS roles
 FROM users u
 LEFT JOIN user_roles r ON r.user_id = u.id
 WHERE u.deleted_at IS NULL
@@ -451,6 +524,8 @@ type SearchUsersRow struct {
 	CreatedAt        time.Time
 	UpdatedAt        time.Time
 	PrivacyConsentAt *time.Time
+	PhoneVerifiedAt  *time.Time
+	AvatarKey        *string
 	Roles            []string
 }
 
@@ -478,6 +553,8 @@ func (q *Queries) SearchUsers(ctx context.Context, arg SearchUsersParams) ([]Sea
 			&i.CreatedAt,
 			&i.UpdatedAt,
 			&i.PrivacyConsentAt,
+			&i.PhoneVerifiedAt,
+			&i.AvatarKey,
 			&i.Roles,
 		); err != nil {
 			return nil, err
@@ -488,6 +565,67 @@ func (q *Queries) SearchUsers(ctx context.Context, arg SearchUsersParams) ([]Sea
 		return nil, err
 	}
 	return items, nil
+}
+
+const setAvatar = `-- name: SetAvatar :one
+UPDATE users SET avatar_key = $1, updated_at = now()
+WHERE id = $2 AND deleted_at IS NULL
+RETURNING id, email, phone, first_name, last_name, deleted_at, created_at, updated_at, privacy_consent_at, phone_verified_at, avatar_key
+`
+
+type SetAvatarParams struct {
+	AvatarKey *string
+	ID        uuid.UUID
+}
+
+func (q *Queries) SetAvatar(ctx context.Context, arg SetAvatarParams) (User, error) {
+	row := q.db.QueryRow(ctx, setAvatar, arg.AvatarKey, arg.ID)
+	var i User
+	err := row.Scan(
+		&i.ID,
+		&i.Email,
+		&i.Phone,
+		&i.FirstName,
+		&i.LastName,
+		&i.DeletedAt,
+		&i.CreatedAt,
+		&i.UpdatedAt,
+		&i.PrivacyConsentAt,
+		&i.PhoneVerifiedAt,
+		&i.AvatarKey,
+	)
+	return i, err
+}
+
+const setVerifiedPhone = `-- name: SetVerifiedPhone :one
+UPDATE users SET phone = $1, phone_verified_at = now(), updated_at = now()
+WHERE id = $2 AND deleted_at IS NULL
+RETURNING id, email, phone, first_name, last_name, deleted_at, created_at, updated_at, privacy_consent_at, phone_verified_at, avatar_key
+`
+
+type SetVerifiedPhoneParams struct {
+	Phone *string
+	ID    uuid.UUID
+}
+
+// Changement de numéro confirmé par un code.
+func (q *Queries) SetVerifiedPhone(ctx context.Context, arg SetVerifiedPhoneParams) (User, error) {
+	row := q.db.QueryRow(ctx, setVerifiedPhone, arg.Phone, arg.ID)
+	var i User
+	err := row.Scan(
+		&i.ID,
+		&i.Email,
+		&i.Phone,
+		&i.FirstName,
+		&i.LastName,
+		&i.DeletedAt,
+		&i.CreatedAt,
+		&i.UpdatedAt,
+		&i.PrivacyConsentAt,
+		&i.PhoneVerifiedAt,
+		&i.AvatarKey,
+	)
+	return i, err
 }
 
 const updateAddress = `-- name: UpdateAddress :execrows
@@ -541,7 +679,7 @@ SET first_name = $1,
     ),
     updated_at = now()
 WHERE id = $5 AND deleted_at IS NULL
-RETURNING id, email, phone, first_name, last_name, deleted_at, created_at, updated_at, privacy_consent_at
+RETURNING id, email, phone, first_name, last_name, deleted_at, created_at, updated_at, privacy_consent_at, phone_verified_at, avatar_key
 `
 
 type UpdateProfileParams struct {
@@ -571,6 +709,8 @@ func (q *Queries) UpdateProfile(ctx context.Context, arg UpdateProfileParams) (U
 		&i.CreatedAt,
 		&i.UpdatedAt,
 		&i.PrivacyConsentAt,
+		&i.PhoneVerifiedAt,
+		&i.AvatarKey,
 	)
 	return i, err
 }

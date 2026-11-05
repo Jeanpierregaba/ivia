@@ -8,6 +8,7 @@ import 'package:ivia_ui/ivia_ui.dart';
 import '../../app/router.dart';
 import '../common/unavailable_view.dart';
 import '../orders/orders_providers.dart';
+import 'payment_logos.dart';
 import 'payment_providers.dart';
 
 /// Refus qui disent que la commande ne se paie plus : retour au suivi.
@@ -215,7 +216,8 @@ class _PaymentScreenState extends ConsumerState<PaymentScreen> {
             ),
             const SizedBox(height: IviaSpacing.md),
           ],
-          const SizedBox(height: IviaSpacing.sm),
+          const CardPaymentSoon(),
+          const SizedBox(height: IviaSpacing.lg),
           TogoPhoneField(
             label: 'Numéro $label',
             controller: _phone,
@@ -290,30 +292,20 @@ class _OperatorCard extends StatelessWidget {
             padding: const EdgeInsets.all(IviaSpacing.lg),
             child: Row(
               children: [
-                // Pas de logo d'opérateur : une initiale sur fond neutre.
-                Container(
-                  width: 44,
-                  height: 44,
-                  alignment: Alignment.center,
-                  decoration: BoxDecoration(
-                    color: IviaColors.background,
-                    borderRadius: BorderRadius.circular(IviaRadius.button),
-                  ),
-                  child: Text(
-                    label[0],
-                    style: textTheme.titleMedium?.copyWith(
-                      fontWeight: FontWeight.w800,
-                      color: IviaColors.textSecondary,
-                    ),
-                  ),
-                ),
+                PaymentLogo.operator(operator, size: 44),
                 const SizedBox(width: IviaSpacing.md),
                 Expanded(
-                  child: Text(
-                    label,
-                    style: textTheme.titleMedium?.copyWith(
-                      fontWeight: FontWeight.w700,
-                    ),
+                  child: Column(
+                    crossAxisAlignment: CrossAxisAlignment.start,
+                    children: [
+                      Text(
+                        label,
+                        style: textTheme.titleMedium?.copyWith(
+                          fontWeight: FontWeight.w700,
+                        ),
+                      ),
+                      Text(operatorBrand(operator), style: textTheme.bodySmall),
+                    ],
                   ),
                 ),
                 Icon(

@@ -27,7 +27,7 @@ extension on CodePurpose {
   };
 
   String get emailRoute => switch (this) {
-    CodePurpose.signup => AuthRoutes.signup,
+    CodePurpose.signup => AuthRoutes.emailSignup,
     CodePurpose.reset => AuthRoutes.forgot,
   };
 }

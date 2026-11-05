@@ -1,166 +1,75 @@
-# 001 — Plan technique
+# 001 — Plan technique (v2)
 
-## Approche
+## Backend (fait)
 
-**Backend (petit ajout)** : le consentement doit être enregistré par le serveur, qui n'en garde
-aujourd'hui aucune trace.
-- Migration `00018` : colonne `users.privacy_consent_at timestamptz NULL`.
-- `PATCH /v1/me` accepte `accept_privacy_policy: true`. Il date le consentement s'il n'en existe
-  pas encore ; `false` est refusé. On retire son consentement en supprimant son compte.
-- `User` expose `privacy_consent_at`.
-- `profile_complete` exige désormais prénom, téléphone **et** consentement : un compte existant sans
-  consentement repasse par « Faisons connaissance ». Le marchand et le livreur sont aussi concernés,
-  ce qui est voulu : le consentement est demandé à tous.
-- `openapi.yaml` est mis à jour dans le même commit, avec des tests Go (consentement daté une seule
-  fois, `false` refusé, `profile_complete`).
+- **Migration `00029_auth_phone_tokens.sql`** (additive) :
+  - `otp_codes` : identifiant `phone`, colonne `sent_via`, usages `phone_login` et `phone_change` ;
+  - `users.phone_verified_at` ;
+  - tables `auth_recipient_locks`, `auth_pending_signups`, `auth_devices` ;
+  - `sessions` : colonnes `refresh_hash`, `previous_refresh_hash`, `refreshed_at`,
+    `access_expires_at`, `device_id`, `app` ;
+  - tables `auth_totp` et `auth_recovery_codes`.
+- **Module `auth`** :
+  - `phone.go` : demande de code, vérification, inscription en attente, appareils, renouvellement,
+    changement de numéro, sessions ;
+  - `totp.go` : application d'authentification et codes de secours ;
+  - `whatsapp_sender.go` : API Cloud de Meta, et `ChannelRouter` qui confie chaque canal à son
+    expéditeur.
+- **`sendCodeVia`** : essaie les canaux dans l'ordre (WhatsApp, puis SMS) et note celui qui a servi.
+- **`Authenticate`** : répond `access_token_expired` quand le jeton d'accès d'une session à
+  rafraîchissement a expiré.
+- **Configuration** :
+  - `PHONE_OTP_SENDER` : `none`, `log` (local) ou `whatsapp` ;
+  - `SMS_SENDER` : `none` ou `log` ;
+  - `WHATSAPP_PHONE_NUMBER_ID`, `WHATSAPP_ACCESS_TOKEN(_FILE)`, `WHATSAPP_TEMPLATE(_LANG)` ;
+  - `PHONE_CODES_PER_HOUR`.
+- **Alertes** (module notifications) :
+  - `new_buyer` (admins) ;
+  - `auth_otp_cap` (admins) ;
+  - `new_device_login` (utilisateur, dans son app).
 
-**`packages/api_client`** devient un paquet Flutter. Il porte les appels HTTP, les modèles et le
-jeton (comme prévu par ARCHITECTURE) :
-- `IviaApiClient` construit sur `dio`, avec :
-  - `requestOtp` (renvoie `resendAfter` et `expiresIn`) ;
-  - `verifyOtp` (renvoie `Session` : jeton, `isNewUser`, `User`) ;
-  - `getMe`, `updateMe`, `logout`.
-- Un intercepteur ajoute `Authorization: Bearer` et signale les réponses 401.
-- `ApiException(code, message, fields, status)` traduit le format d'erreur commun. Les coupures
-  réseau et les délais dépassés deviennent `ApiException.network`, avec un message français.
-  Délais : 10 s pour la connexion, 15 s pour la réponse.
-- `SessionStore` range le jeton et le dernier profil reçu (JSON) dans `flutter_secure_storage`
-  (Keystore Android, Keychain iOS). Rien n'est stocké en clair.
-- Les journaux de dio ne sont pas activés : aucun jeton, e-mail ni code n'y figure.
+### Routes
 
-**App acheteur : un état de session unique qui pilote la navigation.**
-- `AuthController` (`Notifier` Riverpod) a 5 états :
-  - `starting` ;
-  - `signedOut` ;
-  - `needsProfile(user)` ;
-  - `signedIn(user)` ;
-  - `offlineNoProfile` (session gardée sans profil, serveur injoignable).
-- Au démarrage, il lit le `SessionStore`, puis appelle `GET /v1/me` (délai de 5 s).
-- La règle `redirect` de go_router, rafraîchie à chaque changement d'état, remplace
-  l'`initialLocation` de 027 :
-  - `starting` ⇒ `/splash` ;
-  - `signedOut` ⇒ `/onboarding` (si pas vue) ou `/login…` ;
-  - `needsProfile` ⇒ `/profile` ;
-  - `signedIn` ⇒ `/home` ;
-  - `offlineNoProfile` ⇒ `/offline`.
-  On ne peut donc jamais atteindre un écran qui ne correspond pas à l'état.
-- `LoginFlow` (`Notifier`) garde l'adresse saisie et l'heure à partir de laquelle un code peut être
-  renvoyé, de l'étape 1 à l'étape 2.
-- Le splash de chargement (`/splash`) reste au moins 800 ms (027).
+| Route | Rôle |
+| --- | --- |
+| `POST /v1/auth/phone/code` | envoyer le code (public) |
+| `POST /v1/auth/phone/verify` | `signed_in` + session, ou `signup_required` + `signup_token` |
+| `POST /v1/auth/phone/signup` | créer le compte et ouvrir la session |
+| `POST /v1/auth/refresh` | nouveau couple de jetons |
+| `GET /v1/me/sessions`, `DELETE /v1/me/sessions/{id}` | appareils connectés |
+| `POST /v1/me/phone/code`, `POST /v1/me/phone` | changer de numéro |
+| `POST /v1/auth/mfa/totp/setup`, `confirm`, `recovery-codes`, `disable` | application d'authentification |
+| `POST /v1/admin/users/{id}/mfa/reset` | réinitialiser l'application d'un autre admin |
+| `GET /v1/auth/session` | renvoie aussi `mfa_method` et `recovery_codes_left` |
+| `POST /v1/auth/mfa/verify` | accepte aussi un code de l'application ou un code de secours |
 
-**Composants partagés (`packages/ui`)**, utilisables ensuite par les deux autres apps :
-- `IviaLogoTile` : logo dans une tuile de couleur.
-- `IviaBackButton` : bouton retour rond, blanc.
-- `IviaFieldLabel` : libellé au-dessus d'un champ.
-- `IviaCodeInput` : 6 cases, collage, effacement arrière.
-- `IviaInfoCard` : encart d'information.
-- `IviaPill` : pastille « Dernière étape ».
-- `IviaLoadingSplash` : splash de chargement.
+### Tests
 
-**Thème** : boutons pleins et à contour en **pilule**, de 54 dp de haut (maquettes). Champs blancs,
-contour `border-input` fin au repos, Imperial de 2 dp quand le champ est actif (choix du
-2026-10-31 : contraste 3:1). DESIGN.md est mis à jour en conséquence.
+- `internal/app/auth_phone_test.go` : inscription et connexion, verrou, renouvellement et
+  réutilisation, changement de numéro, TOTP admin.
+- `internal/auth/phone_test.go` : secours SMS, tous canaux en panne, plafond global, format du
+  message WhatsApp.
 
-## Fichiers touchés
+## App acheteur (à faire)
 
-**Backend**
-- `backend/db/migrations/00018_users_privacy_consent.sql`
-- `backend/internal/users/queries.sql`, `service.go`, `handler.go`, `store/` (généré par sqlc)
-- `backend/api/openapi.yaml`
-- tests : `backend/internal/app/flows_test.go` (ou `users`)
+**`api_client`**
+- Appels `requestPhoneCode`, `verifyPhone`, `phoneSignup`, `refresh`, `listSessions`,
+  `revokeSession`, `requestPhoneChange`, `confirmPhoneChange`.
+- `SessionStore` garde le jeton d'accès, le jeton de rafraîchissement et l'identifiant
+  d'installation (stockage sécurisé).
+- L'intercepteur renouvelle le jeton une seule fois à la fois sur `access_token_expired`, puis
+  rejoue la requête.
 
-**`mobile/packages/api_client`**
-- `lib/src/client.dart`, `models.dart`, `api_exception.dart`, `session_store.dart`
-- `pubspec.yaml` (`flutter`, `dio`, `flutter_secure_storage`)
-- `test/` : client testé avec un faux adaptateur dio (JSON réels du contrat, erreurs, 401,
-  réseau), `SessionStore` testé avec un faux stockage
+**`app_core`**
+- `PhoneScreen`, `PhoneCodeScreen` et `ProfileScreen` v2 (sans téléphone), à la place des écrans
+  e-mail.
+- `LoginFlow` garde le numéro, le canal et le jeton d'inscription.
+- Ces écrans servent aussi au marchand et au livreur.
 
-**`mobile/packages/ui`**
-- `lib/src/` : composants ci-dessus, `onboarding.dart` révisé (027), `theme.dart` (boutons, champs)
-- tests de widget de chaque composant
+**Acheteur** : Profil › Sécurité (appareils connectés, changer de numéro).
 
-**`mobile/apps/buyer`**
-- `lib/app/` : `auth_controller.dart`, `router.dart` (redirect), `providers.dart` (client,
-  stockage), `main.dart`
-- `lib/features/splash/` (splash de chargement)
-- `lib/features/onboarding/` : pages et illustrations (027)
-- `lib/features/auth/` : `email_screen.dart`, `code_screen.dart`, `profile_screen.dart`,
-  `login_flow.dart`, `offline_screen.dart`
-- `lib/features/home/home_placeholder_screen.dart`
-- `test/` : parcours complets avec un faux serveur (adaptateur dio), contrôleur et redirections
-- `ios/Runner/Info.plist`, `android/.../AndroidManifest.xml` : rien à ajouter (HTTP en clair
-  autorisé en debug uniquement, voir Sécurité)
+## Back-office (à faire)
 
-**Docs** : DESIGN.md (boutons en pilule, nouveaux composants, écrans de connexion), ARCHITECTURE.md
-(colonne de consentement), `AGENTS.md` (lancer l'app acheteur contre l'API locale sur le simulateur
-iOS), TASKS.md.
-
-Les apps marchand et livreur gardent leur écran de connexion provisoire. Elles profitent seulement
-de la nouvelle mise en page de la présentation (027) et du thème.
-
-## Données
-
-Migration `00018` **non destructive** : ajout d'une colonne nullable. Sur le téléphone, le
-`SessionStore` garde le jeton et le dernier profil reçu, dans le stockage sécurisé. Tout est effacé
-à la déconnexion et quand le serveur refuse la session.
-
-## API / interfaces
-
-Routes déjà en place : `POST /v1/auth/otp`, `POST /v1/auth/verify`, `GET /v1/me`,
-`POST /v1/auth/logout`. Changements de contrat :
-- `PATCH /v1/me` accepte `accept_privacy_policy` ;
-- `User.privacy_consent_at` ;
-- `profile_complete` change de règle.
-
-## Dépendances
-
-Vérifiées sur pub.dev le 2026-10-31. La documentation de chaque paquet sera consultée via Context7
-au moment de coder.
-
-| Paquet | Version | Où | Pourquoi |
-|---|---|---|---|
-| `dio` | ^5.11.1 | `api_client` | client HTTP prévu par la stack (intercepteurs, délais) |
-| `flutter_secure_storage` | ^11.2.0 | `api_client` | jeton dans le Keystore / Keychain (SECURITY) |
-
-## Sécurité
-
-- **Jeton** : stockage sécurisé uniquement, envoyé en en-tête, jamais journalisé (aucun intercepteur
-  de logs), effacé à la déconnexion et sur 401.
-- **HTTP en clair** (API locale `http://localhost:8081`) :
-  - iOS : l'exception ATS `NSAllowsLocalNetworking` ne vise que le réseau local (localhost,
-    `.local`) ; elle reste dans l'Info.plist commun, sans effet sur l'API publique ;
-  - Android : `usesCleartextTraffic` uniquement dans le manifeste `debug` ;
-  - en release, `ApiConfig` refuse une `API_BASE_URL` qui n'est pas en `https`.
-- **OTP** : le code saisi n'est gardé qu'en mémoire, le temps de la requête.
-- **Consentement** : daté par le serveur, jamais par l'app.
-- **Énumération des comptes** : l'écran 2 s'affiche que l'adresse ait un compte ou non (le serveur
-  répond pareil).
-
-## Tests
-
-- **Go** : migration, `PATCH /v1/me` avec et sans consentement, `profile_complete`, contrat OpenAPI
-  (test existant).
-- **`api_client`** : chaque appel avec un faux adaptateur dio, dont la traduction des erreurs (format
-  commun, 401, coupure, délai) ; `SessionStore` (écriture, lecture, effacement).
-- **`ui`** : `IviaCodeInput` (saisie, collage de 6 chiffres, effacement arrière, accessibilité),
-  boutons en pilule, police à 200 %.
-- **App acheteur** :
-  - parcours complets contre un faux serveur : nouvel utilisateur, utilisateur existant,
-    code faux, renvoi du code, consentement manquant, téléphone refusé, coupure réseau,
-    relance avec session (valide, refusée, serveur injoignable), déconnexion ;
-  - redirections du routeur pour chaque état.
-- **Manuel** : parcours complet sur le simulateur iPhone 17 Pro contre l'API locale (code lu par
-  `POST /v1/dev/otp` ou dans les journaux).
-
-Les parties critiques au sens de `docs/TESTING.md` (OTP et sessions) sont côté serveur et déjà
-testées. Côté app, les tests du `SessionStore` et de l'`AuthController` sont écrits avant le code.
-
-## Risques
-
-- **Changement de `profile_complete`** : il touche aussi les apps marchand et livreur (le
-  consentement leur sera demandé). C'est voulu, mais c'est un changement de contrat que doit
-  connaître le collègue backend.
-- **Backend modifié par le développeur frontend** : à faire relire par le collègue backend dans la
-  pull request.
-- **Profil gardé sur le téléphone** (prénom, nom, e-mail, téléphone) : chiffré par le stockage
-  sécurisé, effacé à la déconnexion. C'est acceptable au regard de SECURITY.
+- Écran du second facteur selon `mfa_method`.
+- Page « Sécurité » : QR code généré dans le navigateur, codes de secours, sessions.
+- Bouton « Réinitialiser la double vérification » sur la fiche d'un admin.

@@ -11,6 +11,7 @@ import '../../app/router.dart';
 import '../common/unavailable_view.dart';
 import 'cancel_sheet.dart';
 import 'order_labels.dart';
+import 'invoice.dart';
 import 'order_parts.dart';
 import 'orders_providers.dart';
 
@@ -319,6 +320,20 @@ class _OrderScreenState extends ConsumerState<OrderScreen> {
               ],
             ),
           ),
+          if (order.paidAt != null) ...[
+            const SizedBox(height: IviaSpacing.lg),
+            OutlinedButton.icon(
+              onPressed: () {
+                final me = switch (ref.read(authControllerProvider)) {
+                  AuthSignedIn(:final user) => user,
+                  _ => null,
+                };
+                Invoice.fromOrder(order, me).download();
+              },
+              icon: const Icon(Icons.receipt_long_outlined),
+              label: const Text('Télécharger la facture'),
+            ),
+          ],
           if (canCancel(order)) ...[
             const SizedBox(height: IviaSpacing.xl),
             OutlinedButton(

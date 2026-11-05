@@ -295,6 +295,129 @@ void main() {
     );
   });
 
+  group('connexion par numéro', () {
+    const device = DeviceInfo(
+      id: 'appareil-123456',
+      name: 'Téléphone Android',
+      app: 'buyer',
+    );
+
+    test('demande de code : numéro, canal et appareil envoyés', () async {
+      server.on(
+        'POST',
+        '/v1/auth/phone/code',
+        (_) => FakeResponse.json(202, {...phoneOtpBody, 'channel': 'sms'}),
+      );
+      final otp = await client.requestPhoneCode('+22890123456', device);
+      expect(server.last.body, {
+        'phone': '+22890123456',
+        'channel': 'whatsapp',
+        'device_id': 'appareil-123456',
+        'device_name': 'Téléphone Android',
+        'app': 'buyer',
+      });
+      expect(otp.channel, OtpChannel.sms);
+      expect(otp.expiresIn, const Duration(minutes: 5));
+    });
+
+    test('vérification : numéro connu ou inscription à terminer', () async {
+      server.on(
+        'POST',
+        '/v1/auth/phone/verify',
+        (_) => FakeResponse.json(200, {
+          'status': 'signed_in',
+          'session': phoneSessionBody(),
+        }),
+      );
+      final known = await client.verifyPhone('+22890123456', '123456', device);
+      expect(known, isA<PhoneSignedIn>());
+      final session = (known as PhoneSignedIn).session;
+      expect(session.refreshToken, 'jeton-rafraichissement');
+      expect(session.user.phoneVerified, isTrue);
+
+      server.on(
+        'POST',
+        '/v1/auth/phone/verify',
+        (_) => FakeResponse.json(200, {
+          'status': 'signup_required',
+          'signup_token': 'jeton-inscription',
+          'signup_expires_at': '2026-11-05T10:15:00Z',
+        }),
+      );
+      final fresh = await client.verifyPhone('+22890123456', '123456', device);
+      expect((fresh as PhoneSignupRequired).token, 'jeton-inscription');
+    });
+
+    test('jeton expiré : un seul renouvellement pour plusieurs requêtes, '
+        'puis requêtes rejouées', () async {
+      final refreshed = <Session>[];
+      client
+        ..token = 'ancien-acces'
+        ..refreshToken = 'ancien-refresh'
+        ..onTokensRefreshed = refreshed.add;
+      server.on('GET', '/v1/me', (r) {
+        if (r.headers['authorization'] == 'Bearer ancien-acces') {
+          return FakeResponse.error(
+            401,
+            'access_token_expired',
+            'Session à renouveler.',
+          );
+        }
+        return FakeResponse.json(200, userBody(complete: true));
+      });
+      server.on('POST', '/v1/auth/refresh', (r) async {
+        await Future<void>.delayed(const Duration(milliseconds: 20));
+        return FakeResponse.json(
+          200,
+          phoneSessionBody(token: 'nouvel-acces', refresh: 'nouveau-refresh'),
+        );
+      });
+      final users = await Future.wait([client.getMe(), client.getMe()]);
+      expect(users.map((u) => u.firstName), ['Awa', 'Awa']);
+      expect(server.calls('POST', '/v1/auth/refresh'), hasLength(1));
+      expect(server.calls('POST', '/v1/auth/refresh').single.body, {
+        'refresh_token': 'ancien-refresh',
+      });
+      expect(
+        server
+            .calls('POST', '/v1/auth/refresh')
+            .single
+            .headers['authorization'],
+        isNull,
+      );
+      expect(client.token, 'nouvel-acces');
+      expect(client.refreshToken, 'nouveau-refresh');
+      expect(refreshed, hasLength(1));
+      expect(unauthorized, 0);
+    });
+
+    test('renouvellement refusé : session signalée comme refusée', () async {
+      client
+        ..token = 'ancien-acces'
+        ..refreshToken = 'refresh-vole';
+      server.on(
+        'GET',
+        '/v1/me',
+        (_) => FakeResponse.error(
+          401,
+          'access_token_expired',
+          'Session à renouveler.',
+        ),
+      );
+      server.on(
+        'POST',
+        '/v1/auth/refresh',
+        (_) => FakeResponse.error(
+          401,
+          'invalid_session',
+          'Votre session a expiré.',
+        ),
+      );
+      await expectLater(client.getMe(), throwsA(isA<ApiException>()));
+      expect(unauthorized, 1);
+    });
+  });
+
   test('délais de connexion et de réponse', () {
     final dio = client.debugDio;
     expect(dio.options.connectTimeout, const Duration(seconds: 10));

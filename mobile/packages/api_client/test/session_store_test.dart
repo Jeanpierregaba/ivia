@@ -32,6 +32,28 @@ void main() {
     expect(stored?.user?.profileComplete, isTrue);
   });
 
+  test(
+    'jeton de rafraîchissement gardé puis effacé ; appareil conservé',
+    () async {
+      final store = SessionStore();
+      final device = await store.deviceId();
+      expect(device.length, greaterThanOrEqualTo(16));
+      await store.save(
+        'acces',
+        User.fromJson(userBody()),
+        refreshToken: 'refresh',
+      );
+      expect((await store.read())?.refreshToken, 'refresh');
+      await store.saveTokens('acces-2', 'refresh-2');
+      final stored = await store.read();
+      expect(stored?.token, 'acces-2');
+      expect(stored?.refreshToken, 'refresh-2');
+      await store.clear();
+      expect(await store.read(), isNull);
+      expect(await store.deviceId(), device);
+    },
+  );
+
   test('efface tout', () async {
     final store = SessionStore();
     await store.save('jeton-secret', User.fromJson(userBody()));

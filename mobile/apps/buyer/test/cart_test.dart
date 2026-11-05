@@ -588,20 +588,29 @@ void main() {
     tester,
   ) async {
     const kofi = '9e8d7c6b-5a49-4382-a170-6b5c4d3e2f10';
-    app.server.on(
-      'POST',
-      '/v1/auth/login',
-      (_) => FakeResponse.json(200, {
-        'token': 'jeton-kofi',
-        'expires_at': '2026-12-30T08:00:00Z',
-        'is_new_user': false,
-        'user': {
-          ...userBody(complete: true, email: 'kofi@test.tg'),
-          'id': kofi,
-          'first_name': 'Kofi',
-        },
-      }),
-    );
+    app.server
+      ..on(
+        'POST',
+        '/v1/auth/phone/code',
+        (_) => FakeResponse.json(202, phoneOtpBody),
+      )
+      ..on(
+        'POST',
+        '/v1/auth/phone/verify',
+        (_) => FakeResponse.json(200, {
+          'status': 'signed_in',
+          'session': {
+            'token': 'jeton-kofi',
+            'expires_at': '2026-12-30T08:00:00Z',
+            'is_new_user': false,
+            'user': {
+              ...userBody(complete: true, email: 'kofi@test.tg'),
+              'id': kofi,
+              'first_name': 'Kofi',
+            },
+          },
+        }),
+      );
     app.cart.put(riz, 2);
     await app.launch(tester);
     final container = app.container(tester);
@@ -615,13 +624,10 @@ void main() {
     expect(container.read(cartViewProvider).value!.cart.isEmpty, isTrue);
 
     // Kofi se connecte sur le même téléphone : son panier, vide.
-    Finder input(String label) => find.descendant(
-      of: find.widgetWithText(IviaFieldLabel, label),
-      matching: find.byType(TextField),
-    );
-    await tester.enterText(input('Adresse e-mail'), 'kofi@test.tg');
-    await tester.enterText(input('Mot de passe'), 'pagne-wax-2026');
-    await tapText(tester, 'Se connecter');
+    await tester.enterText(find.byType(TextField), '90 00 00 01');
+    await tapText(tester, 'Recevoir le code sur WhatsApp');
+    // 6e chiffre : vérification automatique.
+    await tester.enterText(find.byType(TextField), '481902');
     await tester.pumpAndSettle();
     expect(find.textContaining('Bonjour Kofi'), findsOneWidget);
     expect(find.bySemanticsLabel('Panier'), findsOneWidget);

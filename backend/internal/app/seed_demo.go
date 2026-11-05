@@ -100,6 +100,7 @@ var demoSubcategories = []struct {
 var demoShopCategory = map[string]string{
 	"Alimentation": "Alimentation", "Boissons": "Alimentation", "Mode": "Mode et beauté",
 	"Beauté": "Mode et beauté", "Maison": "Maison", "Électronique": "Électronique et téléphonie",
+	"Restauration": "Restauration",
 }
 
 // Marchands de la première version du jeu (catalogue trop ordinaire), suspendus à la relance.
@@ -125,11 +126,11 @@ var demoBuyers = []struct{ first, last, email, phone, hood, address string }{
 
 // Livreurs : zone de travail, véhicule et état (online, offline, pending : dossier à valider).
 var demoDrivers = []struct{ first, last, email, phone, hood, vehicle, plate, state string }{
-	{"Yao", "Kpatcha", "livreur@ivia.local", "+22890000103", "Tokoin", "motorbike", "TG-1234-AB", "online"},
-	{"Kodjo", "Abalo", "kodjo.abalo@ivia.local", "+22890000401", "Bè", "motorbike", "TG-2101-AC", "online"},
-	{"Essowè", "Tchalla", "essowe.tchalla@ivia.local", "+22890000402", "Hédzranawoé", "motorbike", "TG-2102-AC", "online"},
-	{"Komi", "Djobo", "komi.djobo@ivia.local", "+22890000403", "Djidjolé", "car", "TG-2103-AD", "online"},
-	{"Atsu", "Kokou", "atsu.kokou@ivia.local", "+22890000404", "Nyékonakpoè", "motorbike", "TG-2104-AD", "online"},
+	{"Yao", "Kpatcha", "livreur@ivia.local", "+22890000103", "Tokoin", "motorbike", "TG-1234-AB", "offline"},
+	{"Kodjo", "Abalo", "kodjo.abalo@ivia.local", "+22890000401", "Bè", "motorbike", "TG-2101-AC", "offline"},
+	{"Essowè", "Tchalla", "essowe.tchalla@ivia.local", "+22890000402", "Hédzranawoé", "motorbike", "TG-2102-AC", "offline"},
+	{"Komi", "Djobo", "komi.djobo@ivia.local", "+22890000403", "Djidjolé", "car", "TG-2103-AD", "offline"},
+	{"Atsu", "Kokou", "atsu.kokou@ivia.local", "+22890000404", "Nyékonakpoè", "motorbike", "TG-2104-AD", "offline"},
 	{"Fofana", "Issa", "issa.fofana@ivia.local", "+22890000405", "Agoè", "motorbike", "TG-2105-AE", "offline"},
 	{"Paul", "Edoh", "paul.edoh@ivia.local", "+22890000406", "Adidogomé", "car", "TG-2106-AE", "offline"},
 	{"Kossivi", "Akué", "kossivi.akue@ivia.local", "+22890000407", "Baguida", "motorbike", "TG-2107-AF", "offline"},
@@ -221,6 +222,13 @@ func (a *App) SeedDemo(ctx context.Context, logf func(format string, args ...any
 	if err != nil {
 		return out, err
 	}
+	// Catégorie de boutique « Restauration » (restaurants de la démonstration).
+	if cats, err := a.Shops.ListCategories(ctx); err == nil && !slices.ContainsFunc(cats, func(c shops.Category) bool { return c.Name == "Restauration" }) {
+		on := true
+		if _, err := a.Shops.CreateCategory(ctx, adminID, shops.CategoryInput{Name: "Restauration", Position: 2, IsActive: &on}); err != nil {
+			return out, fmt.Errorf("catégorie Restauration : %w", err)
+		}
+	}
 	shopCats, err := a.Shops.ListCategories(ctx)
 	if err != nil {
 		return out, err
@@ -236,6 +244,7 @@ func (a *App) SeedDemo(ctx context.Context, logf func(format string, args ...any
 	if err := json.Unmarshal(demoCatalogJSON, &catalogDef); err != nil {
 		return out, fmt.Errorf("catalogue de démonstration : %w", err)
 	}
+	catalogDef.Shops = withDemoRestaurants(withDemoBranches(catalogDef.Shops))
 
 	// Marchands, boutiques et produits.
 	type seededShop struct {
@@ -254,12 +263,35 @@ func (a *App) SeedDemo(ctx context.Context, logf func(format string, args ...any
 			Name: def.Name, Description: def.Description, Phone: def.Owner.Phone, AddressText: def.Address,
 			NeighborhoodID: &n.ID, Location: geo.Point{Lat: def.Lat, Lng: def.Lng}, CategoryID: &catID,
 		}
+		// Photo de la boutique : la première photo de ses articles.
+		shopLogo := func() *string {
+			for _, p := range def.Products {
+				for _, img := range p.Images {
+					if img.File == "" {
+						continue
+					}
+					if data, err := demoPhotos.ReadFile("seedassets/demo/" + img.File); err == nil {
+						k := "shops/" + owner.ID.String() + "/" + uuid.NewString() + ".jpg"
+						if a.LocalStore.Write(storage.Public, k, data) == nil {
+							return &k
+						}
+					}
+				}
+			}
+			return nil
+		}
+		if mine, _ := a.Shops.ListMine(ctx, owner.ID); len(mine) == 0 {
+			input.LogoKey = shopLogo()
+		}
 		shopID, err := a.demoShop(ctx, adminID, owner.ID, input)
 		if err != nil {
 			return out, fmt.Errorf("boutique %s : %w", def.Name, err)
 		}
-		// Boutique d'un seed précédent : nom et présentation du catalogue actuel.
-		if cur, err := a.Shops.Get(ctx, shopID); err == nil && cur.Name != def.Name {
+		// Boutique d'un seed précédent : nom, présentation et photo du catalogue actuel.
+		if cur, err := a.Shops.Get(ctx, shopID); err == nil && (cur.Name != def.Name || cur.LogoURL == nil) {
+			if cur.LogoURL == nil {
+				input.LogoKey = shopLogo()
+			}
 			if _, err := a.Shops.Update(ctx, owner.ID, shopID, input); err != nil {
 				return out, fmt.Errorf("boutique %s : %w", def.Name, err)
 			}
@@ -665,6 +697,18 @@ func (a *App) SeedDemo(ctx context.Context, logf func(format string, args ...any
 			_, _ = a.Cart.SetItem(ctx, b.id, avail[0].ID, 2, true)
 		}
 	}
+
+	// Pharmacies de garde autour de Tokoin (alerte médicament).
+	n, err := a.seedDemoPharmacies(ctx)
+	if err != nil {
+		return out, err
+	}
+	logf("pharmacies de démonstration : %d", n)
+	np, err := a.seedDemoProperties(ctx, a.Properties)
+	if err != nil {
+		return out, err
+	}
+	logf("biens immobiliers de démonstration : %d", np)
 	return out, nil
 }
 
@@ -930,10 +974,11 @@ func (a *App) seedPromoVisuals(ctx context.Context, adminID uuid.UUID, products 
 		}
 		out.Visuals++
 	}
-	// Diffusion insistante pour la démonstration (modifiable dans Publicité > Réglages).
+	// Réglages de diffusion de la démonstration (modifiables dans Publicité > Réglages).
 	_, err = a.Promo.UpdateSettings(ctx, adminID, promo.Settings{
 		Enabled: true, BannersEnabled: true, ModalEnabled: true, InterstitialEnabled: true,
-		FirstDelaySeconds: 8, MinIntervalSeconds: 40, MaxPerSession: 10, FeedEvery: 4,
+		// Diffusion discrète : une fenêtre au plus toutes les 5 minutes, 2 par session.
+		FirstDelaySeconds: 90, MinIntervalSeconds: 300, MaxPerSession: 2, FeedEvery: 8,
 		Rotation: "weighted", OfficialURL: IVIOfficialURL,
 	})
 	return err

@@ -140,7 +140,7 @@ func (h *Handler) adminList(w http.ResponseWriter, r *http.Request) error {
 	q := httpapi.NewQuery(r)
 	page := q.Page()
 	search := q.String("q", 100)
-	role := q.Enum("role", "", "buyer", "seller", "driver", "admin")
+	role := q.Enum("role", "", "buyer", "seller", "driver", "admin", "pharmacist")
 	if err := q.Err(); err != nil {
 		return err
 	}

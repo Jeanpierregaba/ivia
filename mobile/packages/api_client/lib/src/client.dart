@@ -6,6 +6,11 @@ import 'api_exception.dart';
 import 'models.dart';
 import 'promo.dart';
 
+part 'driver_work.dart';
+part 'pharmacist.dart';
+part 'pharmacy.dart';
+part 'seller_money.dart';
+
 /// Client de l'API REST `/v1` (contrat : backend/api/openapi.yaml).
 ///
 /// Aucun journal des requêtes : jeton, e-mail et code ne doivent jamais
@@ -40,7 +45,9 @@ class IviaApiClient {
       InterceptorsWrapper(
         onRequest: (options, handler) {
           final token = this.token;
-          if (token != null) options.headers['Authorization'] = 'Bearer $token';
+          if (token != null && options.extra['anonymous'] != true) {
+            options.headers['Authorization'] = 'Bearer $token';
+          }
           handler.next(options);
         },
         onResponse: (response, handler) {
@@ -79,6 +86,19 @@ class IviaApiClient {
 
   /// Jeton de la session ouverte ; `null` : appels anonymes.
   String? token;
+
+  /// Jeton de rafraîchissement (connexion par numéro) : sert à renouveler
+  /// [token] quand le serveur répond `access_token_expired`.
+  String? refreshToken;
+
+  /// Appelé après chaque renouvellement : l'app garde les nouveaux jetons
+  /// dans son stockage sécurisé.
+  void Function(Session session)? onTokensRefreshed;
+
+  /// Renouvellement en cours : plusieurs requêtes refusées en même temps
+  /// n'en déclenchent qu'un (le serveur révoque la session si un ancien
+  /// jeton de rafraîchissement revient).
+  Future<bool>? _refreshing;
 
   /// Appelé quand le serveur refuse le jeton (session expirée ou révoquée).
   /// Modifiable : l'état de session de l'app s'y abonne après la création
@@ -175,6 +195,128 @@ class IviaApiClient {
     data: {'current_password': ?current, 'new_password': next},
   );
 
+  // --- Connexion par numéro (ADR 0012) --------------------------------------
+
+  /// Envoie un code par WhatsApp (SMS en secours, ou SMS si [channel] le
+  /// demande). Même réponse que le numéro ait un compte ou non.
+  Future<OtpRequested> requestPhoneCode(
+    String phone,
+    DeviceInfo device, {
+    OtpChannel channel = OtpChannel.whatsapp,
+  }) async => OtpRequested.fromJson(
+    await _send(
+      'POST',
+      '/v1/auth/phone/code',
+      data: {'phone': phone, 'channel': channel.code, ...device.toJson()},
+    ),
+  );
+
+  /// Vérifie le code : session ouverte, ou inscription à terminer.
+  Future<PhoneVerifyResult> verifyPhone(
+    String phone,
+    String code,
+    DeviceInfo device,
+  ) async => PhoneVerifyResult.fromJson(
+    await _send(
+      'POST',
+      '/v1/auth/phone/verify',
+      data: {'phone': phone, 'code': code, ...device.toJson()},
+    ),
+  );
+
+  /// Crée le compte d'un numéro vérifié et ouvre la session.
+  Future<Session> phoneSignup({
+    required String signupToken,
+    required String firstName,
+    required String lastName,
+    required DeviceInfo device,
+  }) async => Session.fromJson(
+    await _send(
+      'POST',
+      '/v1/auth/phone/signup',
+      data: {
+        'signup_token': signupToken,
+        'first_name': firstName,
+        'last_name': lastName,
+        'accept_privacy_policy': true,
+        ...device.toJson(),
+      },
+    ),
+  );
+
+  /// Appareils connectés au compte.
+  Future<List<SessionView>> sessions() async {
+    final json = await _send('GET', '/v1/me/sessions');
+    return [
+      for (final item in json['items'] as List)
+        SessionView.fromJson(item as Map<String, dynamic>),
+    ];
+  }
+
+  /// Déconnecte un autre appareil.
+  Future<void> revokeSession(String id) =>
+      _send('DELETE', '/v1/me/sessions/$id');
+
+  /// Déconnecte tous les appareils, celui-ci compris.
+  Future<void> logoutAll() => _send('POST', '/v1/auth/logout-all');
+
+  /// Changement de numéro : code envoyé au nouveau numéro.
+  Future<OtpRequested> requestPhoneChange(
+    String phone, {
+    OtpChannel channel = OtpChannel.whatsapp,
+  }) async => OtpRequested.fromJson(
+    await _send(
+      'POST',
+      '/v1/me/phone/code',
+      data: {'phone': phone, 'channel': channel.code},
+    ),
+  );
+
+  /// Changement de numéro : confirmation par le code reçu.
+  Future<User> confirmPhoneChange(String phone, String code) async =>
+      User.fromJson(
+        await _send(
+          'POST',
+          '/v1/me/phone',
+          data: {'phone': phone, 'code': code},
+        ),
+      );
+
+  /// Renouvelle les jetons ; `false` si la session est refusée.
+  Future<bool> _refresh() {
+    final pending = _refreshing;
+    if (pending != null) return pending;
+    final future = _doRefresh().whenComplete(() => _refreshing = null);
+    _refreshing = future;
+    return future;
+  }
+
+  Future<bool> _doRefresh() async {
+    final refresh = refreshToken;
+    if (refresh == null) return false;
+    try {
+      final response = await _dio.request<Object?>(
+        '/v1/auth/refresh',
+        data: {'refresh_token': refresh},
+        // Sans jeton d'accès : l'intercepteur n'en met que si `token` existe.
+        options: Options(method: 'POST', extra: {'anonymous': true}),
+      );
+      final body = response.data;
+      if (body is! Map<String, dynamic>) return false;
+      final session = Session.fromJson(body);
+      // Session fermée pendant le renouvellement : rien à garder.
+      if (refreshToken != refresh) return false;
+      token = session.token;
+      refreshToken = session.refreshToken;
+      onTokensRefreshed?.call(session);
+      return true;
+    } on DioException catch (e) {
+      final error = _toApiException(e);
+      if (error.isNetwork) throw error;
+      return false;
+    }
+  }
+
   Future<User> getMe() async => User.fromJson(await _send('GET', '/v1/me'));
 
   /// Modifie le profil ; seuls les champs fournis sont envoyés.
@@ -183,6 +325,7 @@ class IviaApiClient {
     String? lastName,
     String? phone,
     bool? acceptPrivacyPolicy,
+    String? avatarKey,
   }) async {
     final json = await _send(
       'PATCH',
@@ -192,6 +335,7 @@ class IviaApiClient {
         'last_name': ?lastName,
         'phone': ?phone,
         'accept_privacy_policy': ?acceptPrivacyPolicy,
+        'avatar_key': ?avatarKey,
       },
     );
     return User.fromJson(json);
@@ -403,11 +547,12 @@ class IviaApiClient {
   /// Récapitulatif de la commande du panier, sans rien enregistrer.
   Future<OrderQuote> quoteOrder({
     Fulfillment fulfillment = Fulfillment.pickup,
+    String? addressId,
   }) async => OrderQuote.fromJson(
     await _send(
       'POST',
       '/v1/orders/quote',
-      data: {'fulfillment': fulfillment.code},
+      data: {'fulfillment': fulfillment.code, 'address_id': ?addressId},
     ),
   );
 
@@ -417,12 +562,14 @@ class IviaApiClient {
   Future<BuyerOrder> createOrder({
     required String clientRequestId,
     Fulfillment fulfillment = Fulfillment.pickup,
+    String? addressId,
   }) async => BuyerOrder.fromJson(
     await _send(
       'POST',
       '/v1/orders',
       data: {
         'fulfillment': fulfillment.code,
+        'address_id': ?addressId,
         'client_request_id': clientRequestId,
       },
     ),
@@ -660,6 +807,9 @@ class IviaApiClient {
   }
 
   /// Révoque la session courante côté serveur.
+  /// Supprime le compte (refusé s'il reste une commande ou une course en cours).
+  Future<void> deleteAccount() => _send('DELETE', '/v1/me');
+
   Future<void> logout() => _send('POST', '/v1/auth/logout');
 
   static String normalizeEmail(String email) => email.trim().toLowerCase();
@@ -674,6 +824,7 @@ class IviaApiClient {
     String path, {
     Object? data,
     Map<String, String>? query,
+    bool retried = false,
   }) async {
     // Jeton envoyé : un 401 tardif d'une ancienne session ne doit pas
     // effacer la session ouverte depuis.
@@ -689,7 +840,17 @@ class IviaApiClient {
       return body is Map<String, dynamic> ? body : const {};
     } on DioException catch (e) {
       final error = _toApiException(e);
-      if (sentToken != null && sentToken == token && error.statusCode == 401) {
+      if (error.code == 'access_token_expired' &&
+          sentToken != null &&
+          !retried) {
+        // Jeton d'accès court expiré : renouvelé sans rien demander, puis la
+        // requête est rejouée une fois. Un autre appel l'a peut-être déjà
+        // renouvelé (jeton changé depuis l'envoi).
+        if (token != sentToken || await _refresh()) {
+          return _send(method, path, data: data, query: query, retried: true);
+        }
+      }
+      if (sentToken != null && token == sentToken && error.statusCode == 401) {
         onUnauthorized?.call();
       }
       throw error;

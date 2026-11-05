@@ -34,9 +34,9 @@ class ShopIllustration extends StatelessWidget {
                       _ShopHeader(),
                       _Divider(),
                       _ProductRow(
-                        name: 'Riz parfumé 5 kg',
+                        name: 'Sac en cuir pleine fleur',
                         detail: 'Stock 12',
-                        price: '4 500 F',
+                        price: '85 000 F',
                       ),
                       _Divider(),
                       _ProductRow(

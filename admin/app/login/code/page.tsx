@@ -7,7 +7,8 @@ import { CodeForm } from "./code-form";
 
 export const metadata: Metadata = { title: "Code de vérification" };
 
-// Maquette B02 : code à 6 chiffres reçu par e-mail, après le mot de passe.
+// Maquette B02 : second facteur après le mot de passe — code de l'application d'authentification
+// (ou code de secours) si elle est activée, sinon code à 6 chiffres reçu par e-mail.
 export default async function CodePage() {
   if (!(await sessionToken())) redirect("/login");
   let me: Schemas["User"];
@@ -25,7 +26,7 @@ export default async function CodePage() {
 
   return (
     <AuthShell>
-      <CodeForm email={me.email ?? ""} />
+      <CodeForm email={me.email ?? ""} method={session.mfa_method} />
     </AuthShell>
   );
 }

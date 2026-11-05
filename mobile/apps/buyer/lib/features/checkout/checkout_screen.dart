@@ -9,16 +9,26 @@ import 'package:ivia_ui/ivia_ui.dart';
 
 import '../../app/cart.dart';
 import '../../app/router.dart';
+import '../pharmacy/reservation_screen.dart' show pickDeliveryAddress;
 import '../orders/order_parts.dart';
 import '../orders/orders_providers.dart';
 import '../promo/promo_state.dart';
 import '../shop/shop_screen.dart' show publicShopProvider;
 
 /// Récapitulatif du retrait, calculé par le serveur à l'ouverture.
-final checkoutQuoteProvider = FutureProvider.autoDispose<OrderQuote>(
-  (ref) => ref.read(apiClientProvider).quoteOrder(),
-  retry: (_, _) => null,
-);
+/// Clé : adresse de livraison, ou `null` pour le retrait.
+final checkoutQuoteProvider = FutureProvider.autoDispose
+    .family<OrderQuote, String?>(
+      (ref, addressId) => ref
+          .read(apiClientProvider)
+          .quoteOrder(
+            fulfillment: addressId == null
+                ? Fulfillment.pickup
+                : Fulfillment.delivery,
+            addressId: addressId,
+          ),
+      retry: (_, _) => null,
+    );
 
 /// Refus qui viennent du panier : « Revenir au panier » le relit.
 const _cartRefusals = {
@@ -42,6 +52,9 @@ class _CheckoutScreenState extends ConsumerState<CheckoutScreen> {
   /// rend la même commande au lieu d'en créer une seconde.
   final _requestId = newRequestId();
   var _placing = false;
+
+  /// Livraison : adresse choisie ; `null` : retrait en boutique.
+  BuyerAddress? _address;
 
   /// Issue inconnue (réseau coupé, réponse inattendue) : la commande a pu
   /// être créée et le panier vidé. Le panier est relu à la sortie de
@@ -89,13 +102,25 @@ class _CheckoutScreenState extends ConsumerState<CheckoutScreen> {
     try {
       BuyerOrder order;
       try {
-        order = await client.createOrder(clientRequestId: _requestId);
+        order = await client.createOrder(
+          clientRequestId: _requestId,
+          fulfillment: _address == null
+              ? Fulfillment.pickup
+              : Fulfillment.delivery,
+          addressId: _address?.id,
+        );
       } on ApiException catch (e) {
         // Même requête encore en cours de création : elle est rendue
         // au nouvel essai.
         if (e.code != 'duplicate_request') rethrow;
         await Future<void>.delayed(const Duration(seconds: 1));
-        order = await client.createOrder(clientRequestId: _requestId);
+        order = await client.createOrder(
+          clientRequestId: _requestId,
+          fulfillment: _address == null
+              ? Fulfillment.pickup
+              : Fulfillment.delivery,
+          addressId: _address?.id,
+        );
       }
       _uncertain = false;
       // Commande après un clic publicitaire : comptée pour les statistiques.
@@ -144,9 +169,14 @@ class _CheckoutScreenState extends ConsumerState<CheckoutScreen> {
     }
   }
 
+  Future<void> _chooseAddress() async {
+    final a = await pickDeliveryAddress(context, ref, '');
+    if (a != null && mounted) setState(() => _address = a);
+  }
+
   @override
   Widget build(BuildContext context) {
-    final quote = ref.watch(checkoutQuoteProvider);
+    final quote = ref.watch(checkoutQuoteProvider(_address?.id));
     final textTheme = Theme.of(context).textTheme;
     // Pas de retour pendant l'envoi : l'issue de « Payer » doit être connue.
     return PopScope(
@@ -179,7 +209,8 @@ class _CheckoutScreenState extends ConsumerState<CheckoutScreen> {
                 AsyncError(:final error) => [
                   _QuoteError(
                     error: error,
-                    onRetry: () => ref.invalidate(checkoutQuoteProvider),
+                    onRetry: () =>
+                        ref.invalidate(checkoutQuoteProvider(_address?.id)),
                     onBack: () => _backToCart(GoRouter.of(context)),
                   ),
                 ],
@@ -231,13 +262,20 @@ class _CheckoutScreenState extends ConsumerState<CheckoutScreen> {
         MediaQuery.sizeOf(context).width < 360 ||
         MediaQuery.textScalerOf(context).scale(1) > 1.3;
     final modes = [
-      const _ModeCard(
+      _ModeCard(
         title: 'Livraison',
-        body: 'Un livreur ivia vous apporte la commande',
-        selected: false,
-        soon: true,
+        body: _address == null
+            ? 'Un livreur ivia vous apporte la commande'
+            : '${_address!.label} · ${formatXof(quote.deliveryFeeXof)}',
+        selected: _address != null,
+        onTap: _placing ? null : _chooseAddress,
       ),
-      _ModeCard(title: 'Retrait', body: 'Gratuit, $place', selected: true),
+      _ModeCard(
+        title: 'Retrait',
+        body: 'Gratuit, $place',
+        selected: _address == null,
+        onTap: _placing ? null : () => setState(() => _address = null),
+      ),
     ];
     return [
       Semantics(
@@ -357,71 +395,78 @@ class _ModeCard extends StatelessWidget {
     required this.title,
     required this.body,
     required this.selected,
+    // ignore: unused_element_parameter
     this.soon = false,
+    this.onTap,
   });
 
   final String title;
   final String body;
   final bool selected;
   final bool soon;
+  final VoidCallback? onTap;
 
   @override
   Widget build(BuildContext context) {
     final textTheme = Theme.of(context).textTheme;
     final brand = IviaAppBrand.of(context);
-    return Semantics(
-      inMutuallyExclusiveGroup: true,
-      checked: selected,
-      enabled: !soon,
-      label: [title, body, if (soon) 'bientôt disponible'].join(', '),
-      excludeSemantics: true,
-      child: Container(
-        padding: const EdgeInsets.all(IviaSpacing.lg),
-        decoration: BoxDecoration(
-          color: IviaColors.surface,
-          borderRadius: BorderRadius.circular(IviaRadius.large),
-          border: Border.all(
-            color: selected ? brand.action : IviaColors.surface,
-            width: 2,
+    return GestureDetector(
+      onTap: soon ? null : onTap,
+      behavior: HitTestBehavior.opaque,
+      child: Semantics(
+        inMutuallyExclusiveGroup: true,
+        checked: selected,
+        enabled: !soon,
+        label: [title, body, if (soon) 'bientôt disponible'].join(', '),
+        excludeSemantics: true,
+        child: Container(
+          padding: const EdgeInsets.all(IviaSpacing.lg),
+          decoration: BoxDecoration(
+            color: IviaColors.surface,
+            borderRadius: BorderRadius.circular(IviaRadius.large),
+            border: Border.all(
+              color: selected ? brand.action : IviaColors.surface,
+              width: 2,
+            ),
           ),
-        ),
-        child: Column(
-          crossAxisAlignment: CrossAxisAlignment.start,
-          children: [
-            Row(
-              children: [
-                Expanded(
-                  child: Text(
-                    title,
-                    style: textTheme.titleMedium?.copyWith(
-                      fontWeight: FontWeight.w700,
-                      color: soon ? IviaColors.textMuted : null,
+          child: Column(
+            crossAxisAlignment: CrossAxisAlignment.start,
+            children: [
+              Row(
+                children: [
+                  Expanded(
+                    child: Text(
+                      title,
+                      style: textTheme.titleMedium?.copyWith(
+                        fontWeight: FontWeight.w700,
+                        color: soon ? IviaColors.textMuted : null,
+                      ),
                     ),
                   ),
+                  Icon(
+                    selected
+                        ? Icons.radio_button_checked
+                        : Icons.radio_button_unchecked,
+                    color: selected ? brand.action : IviaColors.border,
+                  ),
+                ],
+              ),
+              const SizedBox(height: IviaSpacing.xs),
+              Text(
+                body,
+                style: textTheme.bodySmall?.copyWith(
+                  color: soon ? IviaColors.textMuted : null,
                 ),
-                Icon(
-                  selected
-                      ? Icons.radio_button_checked
-                      : Icons.radio_button_unchecked,
-                  color: selected ? brand.action : IviaColors.border,
+              ),
+              if (soon) ...[
+                const SizedBox(height: IviaSpacing.sm),
+                const IviaStatusPill(
+                  label: 'Bientôt',
+                  tone: IviaPillTone.neutral,
                 ),
               ],
-            ),
-            const SizedBox(height: IviaSpacing.xs),
-            Text(
-              body,
-              style: textTheme.bodySmall?.copyWith(
-                color: soon ? IviaColors.textMuted : null,
-              ),
-            ),
-            if (soon) ...[
-              const SizedBox(height: IviaSpacing.sm),
-              const IviaStatusPill(
-                label: 'Bientôt',
-                tone: IviaPillTone.neutral,
-              ),
             ],
-          ],
+          ),
         ),
       ),
     );

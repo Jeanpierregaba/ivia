@@ -15,8 +15,6 @@ import 'package:ivia_driver/main.dart';
 import 'package:ivia_ui/ivia_ui.dart';
 import 'package:shared_preferences/shared_preferences.dart';
 
-const _email = 'kossi@test.tg';
-
 /// Image PNG de 1 × 1 pixel.
 final _png = base64Decode(
   'iVBORw0KGgoAAAANSUhEUgAAAAEAAAABCAYAAAAfFcSJAAAADUlEQVR42mNkYPhfDwAChwGA60e6kgAAAABJRU5ErkJggg==',
@@ -78,10 +76,15 @@ void main() {
     server = FakeApiServer()
       ..on(
         'POST',
-        '/v1/auth/login',
+        '/v1/auth/phone/code',
+        (_) => FakeResponse.json(202, phoneOtpBody),
+      )
+      ..on(
+        'POST',
+        '/v1/auth/phone/verify',
         (_) => FakeResponse.json(200, {
-          ...sessionBody(),
-          'user': _user(complete: false),
+          'status': 'signed_in',
+          'session': {...phoneSessionBody(), 'user': _user(complete: false)},
         }),
       )
       ..on('POST', '/v1/auth/logout', (_) => FakeResponse.json(204, null))
@@ -178,13 +181,10 @@ void main() {
       SharedPreferences.setMockInitialValues({'onboarding_seen': true});
 
   Future<void> login(WidgetTester tester) async {
-    Finder input(String label) => find.descendant(
-      of: find.widgetWithText(IviaFieldLabel, label),
-      matching: find.byType(TextField),
-    );
-    await tester.enterText(input('Adresse e-mail'), _email);
-    await tester.enterText(input('Mot de passe'), 'pagne-wax-2026');
-    await tapText(tester, 'Se connecter');
+    await tester.enterText(find.byType(TextField), '90 12 34 56');
+    await tapText(tester, 'Recevoir le code sur WhatsApp');
+    await tester.enterText(find.byType(TextField), '481902');
+    await tester.pumpAndSettle();
   }
 
   Future<void> signedInWith(Map<String, dynamic> user) async {
@@ -355,8 +355,11 @@ void main() {
     testWidgets('profil complet : aucun champ de profil', (tester) async {
       server.on(
         'POST',
-        '/v1/auth/login',
-        (_) => FakeResponse.json(200, {...sessionBody(), 'user': _user()}),
+        '/v1/auth/phone/verify',
+        (_) => FakeResponse.json(200, {
+          'status': 'signed_in',
+          'session': {...phoneSessionBody(), 'user': _user()},
+        }),
       );
       await launchApp(tester);
       await login(tester);
@@ -657,37 +660,7 @@ void main() {
       );
       await tester.fling(find.text('Compte créé'), const Offset(0, 400), 1000);
       await tester.pumpAndSettle();
-      expect(find.text('Vous êtes livreur ivia'), findsOneWidget);
-    });
-
-    testWidgets('validé : « Changer le mot de passe », puis retour', (
-      tester,
-    ) async {
-      await signedInWith(_user());
-      server
-        ..on(
-          'GET',
-          '/v1/driver/me',
-          (_) => FakeResponse.json(
-            200,
-            driverBody(review: 'approved', status: 'offline'),
-          ),
-        )
-        ..on(
-          'GET',
-          '/v1/auth/session',
-          (_) => FakeResponse.json(200, {
-            'mfa_verified': false,
-            'has_password': true,
-            'expires_at': '2026-12-30T08:00:00Z',
-          }),
-        );
-      await launchApp(tester);
-      await tapText(tester, 'Changer le mot de passe');
-      expect(find.text('Mot de passe actuel'), findsOneWidget);
-      await tester.tap(find.byTooltip('Retour'));
-      await tester.pumpAndSettle();
-      expect(find.text('Vous êtes livreur ivia'), findsOneWidget);
+      expect(find.text('Profil'), findsOneWidget);
     });
 
     testWidgets('refusé : motif, correction préremplie, renvoi', (

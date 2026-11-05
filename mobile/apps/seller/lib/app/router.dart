@@ -27,6 +27,8 @@ abstract final class Routes {
   static const splash = '/';
   static const onboarding = '/onboarding';
   static const login = AuthRoutes.login;
+  static const code = AuthRoutes.code;
+  static const signup = AuthRoutes.signup;
   static const offline = '/offline';
   static const shopNew = '/shop/new';
   static const shopPending = '/shop/pending';
@@ -36,7 +38,6 @@ abstract final class Routes {
   static const orders = '/orders';
   static const catalog = '/catalog';
   static const account = '/account';
-  static const accountPassword = '/account/password';
   static const productNew = '/catalog/new';
   static const productPublished = '/catalog/published';
   static String productDraft(String id) => '/catalog/draft/$id';
@@ -61,7 +62,7 @@ String? redirectFor(
   final allowed = switch (auth) {
     AuthStarting() => const [Routes.splash],
     AuthSignedOut() when !onboardingSeen => const [Routes.onboarding],
-    AuthSignedOut() => const [Routes.login],
+    AuthSignedOut() => const [Routes.login, Routes.code, Routes.signup],
     AuthOffline() => const [Routes.offline],
     AuthSignedIn() || AuthNeedsProfile() => _shopScreens(shop),
   };
@@ -117,7 +118,20 @@ final routerProvider = Provider<GoRouter>((ref) {
         path: Routes.onboarding,
         builder: (context, state) => const OnboardingScreen(),
       ),
-      ...authRoutes(),
+      GoRoute(
+        path: Routes.login,
+        builder: (context, state) => const PhoneScreen(),
+        routes: [
+          GoRoute(
+            path: 'code',
+            builder: (context, state) => const PhoneCodeScreen(),
+          ),
+          GoRoute(
+            path: 'signup',
+            builder: (context, state) => const PhoneSignupScreen(),
+          ),
+        ],
+      ),
       GoRoute(
         path: Routes.offline,
         builder: (context, state) => const OfflineScreen(),
@@ -223,13 +237,6 @@ final routerProvider = Provider<GoRouter>((ref) {
               GoRoute(
                 path: Routes.account,
                 builder: (context, state) => const AccountScreen(),
-                routes: [
-                  GoRoute(
-                    path: 'password',
-                    parentNavigatorKey: rootKey,
-                    builder: (context, state) => const ChangePasswordScreen(),
-                  ),
-                ],
               ),
             ],
           ),

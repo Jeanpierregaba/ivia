@@ -1,6 +1,6 @@
 # Progression du projet ivia
 
-> Fichier tenu à jour à chaque étape. Dernière mise à jour : **2026-11-04**.
+> Fichier tenu à jour à chaque étape. Dernière mise à jour : **2026-11-05**.
 > Détail des tâches : [`TASKS.md`](TASKS.md) · journal des sessions : [`docs/SESSION-LOG.md`](docs/SESSION-LOG.md).
 
 ## En un coup d'œil
@@ -12,16 +12,28 @@
 | Apps mobiles (Flutter)      |  **~50 %** | Acheteur jusqu'à la commande en retrait, catalogue marchand, dossier livreur ; paiement et livraison à faire |
 | Infrastructure / mise en ligne | **~60 %** | Images Docker, Compose, Caddy, sauvegardes, CI prêts ; serveurs à louer |
 | Publicité IVI / marketing   |  **~90 %** | API, back-office, jeu de démo et app acheteur faits ; reste à saisir les prix IVI |
+| Module pharmacie (029)      |  **~70 %** | Backend fait ; app acheteur P01–P14 faite (alerte, réponses, déblocage, retrait ou livreur ivia, paiement) ; app pharmacie et app livreur faites ; écrans du back-office à faire |
+| Connexion v2 (001, ADR 0012) | **~95 %** | Tout est codé (changement de numéro compris) ; reste la mise en service WhatsApp (+228 99 30 99 45, voir docs/whatsapp-mise-en-service.md) et le fournisseur SMS |
 | Démarches hors code         |  **~10 %** | Société, agrégateur de paiement, Play Store, Meta, domaine                 |
 
 ---
 
 ## 1. Backend — fait
 
-Go 1.27, PostgreSQL 18 + PostGIS, tâches de fond River, 26 migrations, documentation interactive
+Go 1.27, PostgreSQL 18 + PostGIS, tâches de fond River, 29 migrations, documentation interactive
 (Swagger) sur `/docs`, contrat OpenAPI vérifié par les tests.
 
 **Comptes et connexion**
+- **Connexion v2 par numéro (ADR 0012, spec 001)** — nouveau :
+  - code à 6 chiffres par **WhatsApp**, **SMS en secours** ; valable 5 min, usage unique ;
+  - aucun compte créé avant la saisie du nom (inscription en attente de 15 min) ;
+  - limites : 1 code par minute, 10 par jour et par numéro, 10 par appareil et par heure, plafond global horaire avec alerte admin ;
+  - **5 codes faux bloquent le numéro 15 min** ;
+  - jeton d'accès de 15 min et **jeton de rafraîchissement changé à chaque usage** (vol détecté si l'ancien revient) ;
+  - **appareils connectés**, déconnexion à distance, alerte « nouvelle connexion » ;
+  - le back-office est prévenu de chaque nouvel acheteur ;
+  - changement de numéro par code.
+- **Admins** : double vérification par **application d'authentification** (Google Authenticator…), 10 codes de secours, réinitialisation par un autre admin (journalisée) ; le code par e-mail reste tant que l'application n'est pas activée.
 - Création de compte par code reçu par e-mail puis mot de passe ; connexion par mot de passe (Argon2id, verrou après 10 échecs) ; mot de passe oublié ; connexion avec Google (prête, à activer avec les identifiants) ; double vérification par code pour les admins (ADR 0011).
 - Envoi des e-mails : Brevo (staging/production), SMTP vers Mailpit (local, boîte de test sur http://localhost:8025), journaux (tests). E-mail du code aux couleurs de la marque.
 - Sessions révocables, rôles acheteur / marchand / livreur / admin, consentement à la politique de confidentialité, suppression du compte.
@@ -60,6 +72,20 @@ Go 1.27, PostgreSQL 18 + PostGIS, tâches de fond River, 26 migrations, document
 - Réglages de diffusion : délai avant la première fenêtre, intervalle minimal, plafond par session, rotation pondérée/aléatoire/par priorité, coupure générale.
 - Statistiques : affichages, clics, fermetures, clics vers le site officiel, commandes après clic, conversion, ventes payées par produit promu. Événements anonymes (aucune donnée personnelle), limités par adresse IP.
 
+**Alerte médicament (module pharmacie, spec 029)** — mis à jour d'après les maquettes P01 à P14
+- Pharmacies : inscription dans l'app pharmacie, pièces (autorisation d'ouverture, inscription à l'Ordre, pièce du titulaire) dans le stockage privé, validation par l'admin qui donne le rôle pharmacien ; ouverte, fermée, de garde ou **24 h/24** ; **planning de garde** saisi par l'admin ; suspension.
+- Alerte du client : **liste de produits** (base de médicaments avec autocomplétion, ou saisie libre ; forme, quantité), photos d'ordonnance ou de boîte, « générique accepté », note. Rayon **au choix (2, 5 ou 10 km)** avec le nombre de pharmacies joignables affiché avant l'envoi ; **relance** avec un autre rayon (photos reprises).
+- Réponses ligne par ligne (disponible, quantité, prix, ordonnance), fenêtre de 20 minutes, compteurs « contactées, vues, réponses », classement par distance.
+- **Déblocage par pharmacie** (100 F chacune, Mobile Money) : identité révélée et produits **mis de côté 1 heure** (réservation « M-n », code à 4 chiffres).
+- **Aucune commission sur les produits** : le forfait de déblocage suffit ; la pharmacie reçoit le prix complet.
+- **Retrait sur place** (paiement à la pharmacie) ou **livreur ivia** : la recherche du livreur le plus proche démarre dès le choix ; **le client ne paie (produits + livraison) qu'une fois le livreur trouvé**, et le livreur ne récupère la commande qu'après ce paiement. Livraison permise sur ordonnance, avec vérification de l'ordonnance par le livreur à la remise.
+- Commande préparée signalée par la pharmacie, suivi (déblocage, paiement, préparation, récupération, remise), distance et temps à pied ou délai de livraison.
+- Annulation par la pharmacie : client remboursé, **forfait de déblocage compris** ; annulation après paiement remboursée ; codes limités à 5 essais par quart d'heure.
+- Pharmacies de garde à proximité en accès public (accueil) ; base de médicaments gérée dans le back-office.
+- Solde dû à chaque pharmacie, reversements enregistrés par l'admin (journalisés, plafonnés au solde) ; indicateurs ; tous les chiffres réglables dans le back-office.
+- Données de santé : photos privées, lues par lien de 10 minutes par les seules pharmacies sollicitées, **supprimées 24 heures** après l'alerte ; la pharmacie ne voit jamais l'identité du client (prénom seulement à la réservation).
+- 61 routes documentées dans le contrat OpenAPI, tests de bout en bout (livraison complète avec recherche du livreur avant paiement, ordonnance vérifiée à la livraison, retrait, relance, annulation remboursée).
+
 **Jeu de démonstration** (`manage seed-demo`, local uniquement, relançable sans doublon)
 - Catalogue haut de gamme : 10 boutiques dans 10 quartiers (concept store, maroquinerie, couture wax de cérémonie, parfums et beauté, pâtisserie fine, épicerie fine, bar à smoothies, high-tech, décoration, sneakers), 52 produits avec 91 vraies photos sous licence libre **embarquées dans le dépôt** (aucune connexion nécessaire, crédits conservés), sous-catégories, promotions et badges. Les boutiques de la première version (marché, épicerie de base…) sont suspendues à la relance.
 - Boutique officielle IVI : AWU IVI 1,5 L, 0,5 L, 0,33 L, paquet 30 sachets, bonbonne, avec les photos de la marque, **en vente et en tête de toutes les listes**, promotions (1,5 L à 400 F, paquet à 650 F, bonbonne à 2 500 F). Ce sont des **prix de démonstration** à remplacer par les vrais dans Produits IVI.
@@ -74,7 +100,8 @@ Go 1.27, PostgreSQL 18 + PostGIS, tâches de fond River, 26 migrations, document
 
 Next.js 16, TypeScript strict, Tailwind 4, même langage visuel que les apps (logotypes, Berkeley Blue, Imperial Red, cartes arrondies, mosaïque).
 
-- Connexion admin par mot de passe puis code reçu par e-mail (maquettes B01, B02), mot de passe oublié, session en cookie httpOnly limitée à 8 h, accès coupé dès que le rôle admin est retiré.
+- Connexion admin par mot de passe puis second facteur (maquettes B01, B02) : **application d'authentification** (ou code de secours) si elle est activée, sinon code reçu par e-mail ; mot de passe oublié, session en cookie httpOnly limitée à 8 h, accès coupé dès que le rôle admin est retiré.
+- **Sécurité** (nouveau) : activation de l'application d'authentification avec QR code généré dans le navigateur, 10 codes de secours (copier, imprimer, régénérer), désactivation, sessions ouvertes avec déconnexion ; sur la page Comptes, « Réinitialiser la 2FA » d'un autre admin (motif, journalisé).
 - Tableau de bord (maquette B03), mis à jour en direct toutes les 30 s : 5 tuiles « à traiter », indicateurs avec objectifs et comparaison, graphique livraison/retrait sur 14 jours, livreurs maintenant, paiements, commandes en cours filtrables, journal des actions ; recherche globale, notifications, période au choix.
 - Boutiques : filtres par statut, colonne « Pièces », fiche boutique avec les pièces du marchand (lien temporaire), publier / refuser / suspendre / rétablir avec confirmation et motif ; « Publier » n'apparaît qu'une fois la pièce d'identité déposée.
 - Livreurs : liste filtrée, dossier complet (documents consultables par lien temporaire, documents manquants signalés), valider et activer / refuser / suspendre / rétablir.
@@ -92,10 +119,20 @@ Next.js 16, TypeScript strict, Tailwind 4, même langage visuel que les apps (lo
 ## 3. Apps mobiles (`mobile/`, Flutter) — fait
 
 - Espace de travail à 3 apps (acheteur, marchand, livreur) + client API + bibliothèque d'interface commune.
-- Splash et présentation des 3 apps ; connexion par code e-mail dans les 3 apps.
+- Splash et présentation des 3 apps.
+- **Connexion acheteur par numéro** (nouveau) : numéro, code reçu sur WhatsApp (ou par SMS, au choix ou en secours), validation automatique au 6e chiffre, « Faisons connaissance » (prénom, nom, consentement) pour un numéro nouveau ; jeton d'accès renouvelé en silence ; Profil › Appareils connectés (déconnecter un appareil ou tous). Marchand, livreur et pharmacie utilisent la même connexion par numéro, avec le badge de leur app. Le back-office reste en e-mail, mot de passe et 2FA.
 - **Acheteur** : accueil (zone par position ou quartier, catégories, boutiques, nouveautés), recherche avec filtres et tri, fiches boutique et produit, panier (008), commande en retrait et suivi avec code de remise (009, en relecture).
 - **Marchand** : création de la boutique, écran « en cours de validation » avec dépôt de la pièce d'identité et du RCCM, catalogue (produits, photos, brouillons, retrait, stock) (005).
 - **Livreur** : dossier de candidature avec documents (018).
+- **Accueil A01** (nouveau) : « Livrer à », « Tout ce qu'il vous faut, tout près de vous. », recherche « Pharmacie, plat, taxi… », les 8 services (Pharmacie, Alimentation, E-Bazar actifs ; Restaurant, Taxi, Immobilier, Conciergerie, Coursier « bientôt »), bannières à la une, boutiques près de vous, **pharmacies de garde** avec appel direct.
+- **App marchand, compléments** (nouveau) : Compte refait (identité, boutique, changer de numéro, appareils connectés, aide), écran **Revenus et relevés** (à recevoir, déjà reversé, ventes brutes, détail commande par commande). Démo : Afi sur 90 00 01 01.
+- **App pharmacie** (`apps/pharmacy`, nouveau, port 8093 en aperçu) : connexion par numéro, inscription de l'officine et dépôt des 3 pièces, attente de validation ; alertes reçues en direct (produits, photos d'ordonnance, note, compte à rebours), réponse produit par produit (disponible, prix, quantité, ordonnance) ou refus ; réservations (commande prête, remise au comptoir par code à 4 chiffres, livreur ivia, annulation remboursée) ; ouverte / de garde / 24 h, planning de garde, appareils connectés ; solde à recevoir et reversements. Démo : titulaires sur 91 80 02 01 à 91 80 02 11.
+- **Alerte médicament (P01 à P14)** (nouveau) : médicaments (base avec autocomplétion ou saisie libre, quantités), photos d'ordonnance ou de boîte, générique, rayon 2/5/10 km avec le nombre de pharmacies ; suivi en direct (contactées, vues, réponses), réponses classées par distance avec disponibilités et prix ; déblocage d'une pharmacie (Mobile Money) ; réservation avec code à 4 chiffres et mise de côté ; **retrait sur place** ou **livreur ivia** (adresse, devis, recherche du livreur, paiement une fois le livreur trouvé, suivi, appel) ; relance avec un autre rayon ; annulation.
+- **Changer de numéro** (nouveau) : code envoyé au nouveau numéro.
+- **Profil complet** (nouveau) : photo de profil, informations personnelles, adresses, notifications (catégories, son, vibration), sécurité (numéro, appareils connectés), aide (contact WhatsApp, FAQ), suppression du compte.
+- **Factures PDF** (nouveau) : « Télécharger la facture » sur chaque commande payée et réservation pharmacie réglée.
+- **Commande en livraison** (nouveau) : choix de l'adresse et frais affichés avant de payer.
+- **Logos Moov Money et Yas** officiels sur les écrans de paiement.
 - **Publicité IVI (acheteur)** : carrousel de bannières dans un ordre tiré au hasard qui défile seul ; section « Produits vedettes » ; produits mis en avant glissés dans l'accueil et la navigation du catalogue ; prix promotionnel avec prix normal barré, badges et caractéristiques ; fenêtres et interstitiels plein écran selon les réglages de l'admin (délai, intervalle, plafond par session, rotation), toujours fermables, jamais pendant le panier, la commande ou le paiement ; « Commander maintenant » passe par le panier habituel ; « Visiter le site officiel IVI » ouvre le navigateur ; statistiques anonymes envoyées par lots.
 
 ## 4. Infrastructure — fait
@@ -111,10 +148,23 @@ Next.js 16, TypeScript strict, Tailwind 4, même langage visuel que les apps (lo
 
 **Backend**
 - [ ] 016 — Brancher le vrai prestataire de paiement (CinetPay, PayDunya, FedaPay ou PayGate) : **bloqué par le choix de l'agrégateur** (ADR 0007).
-- [ ] OTP par WhatsApp puis SMS (après validation Meta) : numéro expéditeur vérifié fourni ; il manque l'identifiant du numéro, l'identifiant du compte WhatsApp Business, le jeton d'accès et un modèle de message « authentification » approuvé.
+- [ ] **Mise en service de WhatsApp** : le code est prêt (API Cloud de Meta). Numéro expéditeur vérifié fourni ; il manque :
+  - l'identifiant du numéro (`WHATSAPP_PHONE_NUMBER_ID`) ;
+  - le jeton système (`WHATSAPP_ACCESS_TOKEN_FILE`) ;
+  - un modèle de message « authentification » approuvé par Meta (`WHATSAPP_TEMPLATE`).
+- [ ] Choisir le fournisseur SMS (secours de WhatsApp) ; d'ici là, pas de SMS hors local.
+
+**Connexion v2**
+- [ ] Marchand : même parcours quand ses maquettes seront fournies.
 
 **Back-office**
 - [ ] Tests navigateur (Playwright) des parcours admin.
+- [ ] Écrans du module pharmacie : dossiers des pharmacies, planning de garde, base de médicaments, alertes, paiements et remboursements, reversements, réglages (l'API est prête).
+
+**Module pharmacie**
+- [ ] App pharmacie (Flutter) : inscription et pièces, ouverture et garde, alertes reçues, réponses, réservations, solde.
+- [ ] App livreur : courses pharmacie (attendre le paiement du client, vérification de l'ordonnance).
+- [ ] Restaurants, immobilier, taxi, conciergerie et coursier : pas encore de module (tuiles « bientôt » sur l'accueil).
 
 **Publicité IVI**
 - [ ] **Remplacer les prix de démonstration des 5 produits IVI** par les vrais prix (back-office, Produits IVI).

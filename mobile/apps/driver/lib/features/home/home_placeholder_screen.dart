@@ -1,10 +1,7 @@
 import 'package:flutter/material.dart';
 import 'package:flutter_riverpod/flutter_riverpod.dart';
-import 'package:go_router/go_router.dart';
 import 'package:ivia_app_core/ivia_app_core.dart';
 import 'package:ivia_ui/ivia_ui.dart';
-
-import '../../app/router.dart';
 
 /// Accueil provisoire du livreur validé, remplacé par la disponibilité et
 /// les missions (fonctionnalités 019 à 022).
@@ -40,11 +37,6 @@ class HomePlaceholderScreen extends ConsumerWidget {
               ),
             ),
             const SizedBox(height: IviaSpacing.xxxl),
-            OutlinedButton(
-              onPressed: () => context.push(Routes.homePassword),
-              child: const Text('Changer le mot de passe'),
-            ),
-            const SizedBox(height: IviaSpacing.sm),
             AsyncButton.outlined(
               label: 'Se déconnecter',
               onPressed: ref.read(authControllerProvider.notifier).signOut,

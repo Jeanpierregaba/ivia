@@ -8,7 +8,7 @@ import '../features/dossier/dossier_blocked_screen.dart';
 import '../features/dossier/dossier_form_screen.dart';
 import '../features/dossier/dossier_pending_screen.dart';
 import '../features/dossier/dossier_summary_screen.dart';
-import '../features/home/home_placeholder_screen.dart';
+import '../features/work/work_screens.dart';
 import '../features/onboarding/onboarding_screen.dart';
 import '../features/splash/loading_screen.dart';
 import 'driver_dossier.dart';
@@ -17,6 +17,8 @@ abstract final class Routes {
   static const splash = '/';
   static const onboarding = '/onboarding';
   static const login = AuthRoutes.login;
+  static const code = AuthRoutes.code;
+  static const signup = AuthRoutes.signup;
   static const offline = '/offline';
   static const dossierNew = '/dossier/new';
   static const dossierEdit = '/dossier/edit';
@@ -24,7 +26,6 @@ abstract final class Routes {
   static const dossierSummary = '/dossier/summary';
   static const dossierBlocked = '/dossier/blocked';
   static const home = '/home';
-  static const homePassword = '/home/password';
 }
 
 /// Écrans permis selon la session et le dossier ; le premier est la
@@ -38,16 +39,11 @@ String? redirectFor(
   final allowed = switch (auth) {
     AuthStarting() => const [Routes.splash],
     AuthSignedOut() when !onboardingSeen => const [Routes.onboarding],
-    AuthSignedOut() => const [Routes.login],
+    AuthSignedOut() => const [Routes.login, Routes.code, Routes.signup],
     AuthOffline() => const [Routes.offline],
     AuthSignedIn() || AuthNeedsProfile() => _dossierScreens(dossier),
   };
-  // Écrans de connexion : `/login` et ses sous-écrans (création, mot de
-  // passe oublié) ; les autres écrans sont exacts.
-  final ok = allowed.any(
-    (a) => location == a || (a == Routes.login && location.startsWith('$a/')),
-  );
-  return ok ? null : allowed.first;
+  return allowed.contains(location) ? null : allowed.first;
 }
 
 List<String> _dossierScreens(AsyncValue<DriverDossier?> dossier) {
@@ -67,7 +63,7 @@ List<String> _dossierScreens(AsyncValue<DriverDossier?> dossier) {
       Routes.dossierEdit,
     ],
     DriverReview.rejected => const [Routes.dossierBlocked, Routes.dossierEdit],
-    DriverReview.approved => const [Routes.home, Routes.homePassword],
+    DriverReview.approved => const [Routes.home],
   };
 }
 
@@ -97,7 +93,20 @@ final routerProvider = Provider<GoRouter>((ref) {
         path: Routes.onboarding,
         builder: (context, state) => const OnboardingScreen(),
       ),
-      ...authRoutes(),
+      GoRoute(
+        path: Routes.login,
+        builder: (context, state) => const PhoneScreen(),
+        routes: [
+          GoRoute(
+            path: 'code',
+            builder: (context, state) => const PhoneCodeScreen(),
+          ),
+          GoRoute(
+            path: 'signup',
+            builder: (context, state) => const PhoneSignupScreen(),
+          ),
+        ],
+      ),
       GoRoute(
         path: Routes.offline,
         builder: (context, state) => const OfflineScreen(),
@@ -124,13 +133,7 @@ final routerProvider = Provider<GoRouter>((ref) {
       ),
       GoRoute(
         path: Routes.home,
-        builder: (context, state) => const HomePlaceholderScreen(),
-        routes: [
-          GoRoute(
-            path: 'password',
-            builder: (context, state) => const ChangePasswordScreen(),
-          ),
-        ],
+        builder: (context, state) => const DriverShell(),
       ),
     ],
   );

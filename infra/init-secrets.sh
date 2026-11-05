@@ -63,6 +63,7 @@ ask brevo_api_key "Clé d'API Brevo (envoi des codes)"
 ask r2_access_key_id "Identifiant de clé R2"
 ask r2_secret_access_key "Clé secrète R2"
 ask sentry_dsn "DSN Sentry"
+ask whatsapp_access_token "Jeton système WhatsApp Business (envoi des codes par WhatsApp)"
 
 if [ ! -e "$DIR/fcm.json" ]; then
   : | save fcm.json "$API_UID"

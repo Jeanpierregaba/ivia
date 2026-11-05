@@ -20,12 +20,63 @@ class CartButton extends ConsumerWidget {
     final count = ref.watch(
       cartViewProvider.select((c) => c.value?.cart.articleCount ?? 0),
     );
-    return IviaIconBadgeButton(
-      icon: Icons.shopping_bag_outlined,
-      label: 'Panier',
-      count: count,
-      semanticLabel: count == 0 ? 'Panier' : 'Panier, ${articlesLabel(count)}',
-      onPressed: () => context.push(Routes.cart),
+    // Maquette A01 : rond blanc, chariot, pastille rouge du nombre d'articles.
+    return Semantics(
+      button: true,
+      label: count == 0 ? 'Panier' : 'Panier, ${articlesLabel(count)}',
+      excludeSemantics: true,
+      onTap: () => context.push(Routes.cart),
+      child: Tooltip(
+        message: 'Panier',
+        child: Material(
+          color: IviaColors.surface,
+          shape: const CircleBorder(),
+          child: InkWell(
+            customBorder: const CircleBorder(),
+            onTap: () => context.push(Routes.cart),
+            child: SizedBox.square(
+              dimension: 60,
+              child: Stack(
+                clipBehavior: Clip.none,
+                alignment: Alignment.center,
+                children: [
+                  const Icon(
+                    Icons.shopping_cart_outlined,
+                    color: Color(0xFF111C33),
+                    size: 28,
+                  ),
+                  if (count > 0)
+                    Positioned(
+                      right: 2,
+                      top: 2,
+                      child: Container(
+                        constraints: const BoxConstraints(
+                          minWidth: 24,
+                          minHeight: 24,
+                        ),
+                        padding: const EdgeInsets.symmetric(horizontal: 6),
+                        alignment: Alignment.center,
+                        decoration: BoxDecoration(
+                          color: IviaColors.imperialRed,
+                          borderRadius: BorderRadius.circular(12),
+                          border: Border.all(color: Colors.white, width: 2),
+                        ),
+                        child: Text(
+                          count > 99 ? '99+' : '$count',
+                          style: const TextStyle(
+                            color: Colors.white,
+                            fontSize: 12,
+                            fontWeight: FontWeight.w800,
+                          ),
+                        ),
+                      ),
+                    ),
+                ],
+              ),
+            ),
+          ),
+        ),
+      ),
     );
   }
 }

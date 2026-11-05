@@ -22,7 +22,7 @@ else
     val=$(grep -E "^$v=" .env | head -1 | cut -d= -f2- | sed 's/[[:space:]]*#.*$//; s/^[[:space:]]*//; s/[[:space:]]*$//')
     [ -n "$val" ] && ok "$v renseignée" || ko "$v vide dans .env"
   done
-  if grep -Eq '^(AUTH_SECRET|BREVO_API_KEY|PAYMENT_WEBHOOK_SECRET|R2_ACCESS_KEY_ID|R2_SECRET_ACCESS_KEY|SENTRY_DSN|POSTGRES_PASSWORD|DATABASE_URL)=.+' .env; then
+  if grep -Eq '^(AUTH_SECRET|BREVO_API_KEY|PAYMENT_WEBHOOK_SECRET|R2_ACCESS_KEY_ID|R2_SECRET_ACCESS_KEY|SENTRY_DSN|WHATSAPP_ACCESS_TOKEN|POSTGRES_PASSWORD|DATABASE_URL)=.+' .env; then
     ko ".env contient un secret : le déplacer dans secrets/ (sudo ./init-secrets.sh)"
   fi
   app_env=$(grep -E '^APP_ENV=' .env | cut -d= -f2 | sed 's/[[:space:]]*#.*$//; s/[[:space:]]//g')
@@ -45,7 +45,7 @@ else
       case "$perm" in 400 | 600) ok "secrets/$f présent ($perm)" ;; *) ko "secrets/$f en $perm (attendu 400)" ;; esac
     fi
   done
-  for f in brevo_api_key r2_access_key_id r2_secret_access_key fcm.json sentry_dsn; do
+  for f in brevo_api_key r2_access_key_id r2_secret_access_key fcm.json sentry_dsn whatsapp_access_token; do
     if [ ! -f "secrets/$f" ]; then ko "secrets/$f absent (fichier vide accepté si le service n'est pas encore branché)"
     elif [ ! -s "secrets/$f" ]; then warn "secrets/$f vide : service non configuré"
     else ok "secrets/$f présent"

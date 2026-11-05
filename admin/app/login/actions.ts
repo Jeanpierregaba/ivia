@@ -5,8 +5,8 @@ import { redirect } from "next/navigation";
 
 import { api, ApiError, SESSION_COOKIE, type Schemas } from "@/lib/api";
 
-// Connexion au back-office (ADR 0011) : e-mail et mot de passe (B01), puis code reçu par e-mail
-// (B02). Entre les deux, la session existe mais n'ouvre aucune route admin (mfa_required) ; son
+// Connexion au back-office (ADR 0011, ADR 0012) : e-mail et mot de passe (B01), puis second facteur
+// (B02) : code de l'application d'authentification si elle est activée, sinon code reçu par e-mail. Entre les deux, la session existe mais n'ouvre aucune route admin (mfa_required) ; son
 // cookie ne vit que 15 minutes. Le jeton reste dans un cookie httpOnly, jamais dans le navigateur.
 
 export type FormState = { error?: string; fields?: Record<string, string>; info?: string };
@@ -39,6 +39,9 @@ async function startVerification(session: Schemas["Session"]): Promise<FormState
   }
   await setSessionCookie(session.token, new Date(Date.now() + 15 * 60 * 1000));
   try {
+    // Application d'authentification activée : aucun e-mail à envoyer.
+    const info = await api<Schemas["SessionInfo"]>("/v1/auth/session");
+    if (info.mfa_method === "totp") return undefined;
     await api("/v1/auth/mfa/code", { method: "POST" });
   } catch (err) {
     if (err instanceof ApiError && err.code !== "otp_rate_limited") return { error: err.message };
@@ -71,7 +74,7 @@ export async function verifyCode(_: FormState, form: FormData): Promise<FormStat
   try {
     info = await api<Schemas["SessionInfo"]>("/v1/auth/mfa/verify", {
       method: "POST",
-      body: { code: String(form.get("code") ?? "").replace(/\D/g, "") },
+      body: { code: secondFactorCode(String(form.get("code") ?? "")) },
     });
   } catch (err) {
     if (err instanceof ApiError) return { error: err.message };
@@ -82,6 +85,12 @@ export async function verifyCode(_: FormState, form: FormData): Promise<FormStat
   // Sans « rester connecté », cookie de session : il disparaît à la fermeture du navigateur.
   await setSessionCookie(token, form.get("remember") === "on" ? new Date(info.expires_at) : undefined);
   redirect("/");
+}
+
+/** Code à 6 chiffres (espaces retirés) ou code de secours « XXXX-XXXX ». */
+function secondFactorCode(raw: string): string {
+  const trimmed = raw.trim();
+  return /^[\d\s]+$/.test(trimmed) ? trimmed.replace(/\D/g, "") : trimmed.toUpperCase().replace(/\s/g, "");
 }
 
 /** B02 : nouveau code (1 par minute). */

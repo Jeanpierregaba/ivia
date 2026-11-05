@@ -18,7 +18,6 @@ import 'package:ivia_seller/main.dart';
 import 'package:ivia_ui/ivia_ui.dart';
 import 'package:shared_preferences/shared_preferences.dart';
 
-const _email = 'afi@test.tg';
 const _lome = GeoPoint(lat: 6.1375, lng: 1.2123);
 
 /// Image PNG de 1 × 1 pixel.
@@ -74,10 +73,15 @@ void main() {
     server = FakeApiServer()
       ..on(
         'POST',
-        '/v1/auth/login',
+        '/v1/auth/phone/code',
+        (_) => FakeResponse.json(202, phoneOtpBody),
+      )
+      ..on(
+        'POST',
+        '/v1/auth/phone/verify',
         (_) => FakeResponse.json(200, {
-          ...sessionBody(),
-          'user': _user(consent: false),
+          'status': 'signed_in',
+          'session': {...phoneSessionBody(), 'user': _user(consent: false)},
         }),
       )
       ..on('POST', '/v1/auth/logout', (_) => FakeResponse.json(204, null))
@@ -175,13 +179,10 @@ void main() {
   }
 
   Future<void> login(WidgetTester tester) async {
-    Finder input(String label) => find.descendant(
-      of: find.widgetWithText(IviaFieldLabel, label),
-      matching: find.byType(TextField),
-    );
-    await tester.enterText(input('Adresse e-mail'), _email);
-    await tester.enterText(input('Mot de passe'), 'pagne-wax-2026');
-    await tapText(tester, 'Se connecter');
+    await tester.enterText(find.byType(TextField), '90 12 34 56');
+    await tapText(tester, 'Recevoir le code sur WhatsApp');
+    await tester.enterText(find.byType(TextField), '481902');
+    await tester.pumpAndSettle();
   }
 
   Finder field(String label) => find.descendant(
@@ -285,11 +286,11 @@ void main() {
       tester,
     ) async {
       await launchApp(tester);
-      expect(
-        find.textContaining('Vous avez déjà un compte ivia'),
-        findsOneWidget,
-      );
-      await login(tester);
+      await tester.enterText(find.byType(TextField), '90 12 34 56');
+      await tapText(tester, 'Recevoir le code sur WhatsApp');
+      expect(find.text('Saisissez le code'), findsOneWidget);
+      await tester.enterText(find.byType(TextField), '481902');
+      await tester.pumpAndSettle();
 
       expect(find.text('Créez votre boutique'), findsOneWidget);
       expect(find.text('Étape 1 sur 2'), findsOneWidget);
@@ -336,8 +337,11 @@ void main() {
     ) async {
       server.on(
         'POST',
-        '/v1/auth/login',
-        (_) => FakeResponse.json(200, {...sessionBody(), 'user': _user()}),
+        '/v1/auth/phone/verify',
+        (_) => FakeResponse.json(200, {
+          'status': 'signed_in',
+          'session': {...phoneSessionBody(), 'user': _user()},
+        }),
       );
       await launchApp(tester);
       await login(tester);
@@ -586,48 +590,35 @@ void main() {
       tester,
     ) async {
       onboardingSeen();
-      server
-        ..on(
-          'POST',
-          '/v1/auth/signup/code',
-          (_) => FakeResponse.json(202, otpBody),
-        )
-        ..on(
-          'POST',
-          '/v1/dev/otp',
-          (_) => FakeResponse.json(200, {'code': '481902'}),
-        );
+      server.on(
+        'POST',
+        '/v1/dev/otp',
+        (_) => FakeResponse.json(200, {'code': '481902'}),
+      );
       await launchApp(tester, devCode: true);
-      await tapText(tester, 'Créer un compte');
-      await tester.enterText(field('Adresse e-mail'), _email);
-      await tapText(tester, 'Recevoir le code');
+      await tester.enterText(find.byType(TextField), '90 12 34 56');
+      await tapText(tester, 'Recevoir le code sur WhatsApp');
       await tester.pumpAndSettle();
       expect(server.calls('POST', '/v1/dev/otp').single.body, {
-        'recipient': _email,
+        'recipient': '+22890123456',
       });
-      // Code saisi tout seul : écran du mot de passe.
-      expect(find.text('Choisissez un mot de passe'), findsOneWidget);
+      expect(
+        (server.calls('POST', '/v1/auth/phone/verify').single.body!
+            as Map)['code'],
+        '481902',
+      );
+      expect(find.text('Créez votre boutique'), findsOneWidget);
     });
 
     testWidgets('sans le drapeau de développement : code demandé', (
       tester,
     ) async {
       onboardingSeen();
-      server.on(
-        'POST',
-        '/v1/auth/signup/code',
-        (_) => FakeResponse.json(202, otpBody),
-      );
       await launchApp(tester);
-      await tapText(tester, 'Créer un compte');
-      await tester.enterText(field('Adresse e-mail'), _email);
-      await tapText(tester, 'Recevoir le code');
+      await tester.enterText(find.byType(TextField), '90 12 34 56');
+      await tapText(tester, 'Recevoir le code sur WhatsApp');
       expect(server.calls('POST', '/v1/dev/otp'), isEmpty);
-      expect(find.text('Vérifiez vos e-mails'), findsOneWidget);
-      expect(
-        find.textContaining('Même compte sur toutes les apps ivia'),
-        findsOneWidget,
-      );
+      expect(find.text('Saisissez le code'), findsOneWidget);
     });
 
     testWidgets('retour sur le formulaire : déconnexion', (tester) async {

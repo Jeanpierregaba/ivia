@@ -400,7 +400,7 @@ paths:
       tags:
         - Connexion
       operationId: postAuthMfaCode
-      description: "Envoie un code à l'e-mail du compte connecté. Exigé pour le back-office : sans session vérifiée, les routes admin répondent 403 `mfa_required`."
+      description: "Envoie un code à l'e-mail du compte connecté. Exigé pour le back-office : sans session vérifiée, les routes admin répondent 403 `mfa_required`. Refusé (`mfa_use_totp`) quand l'application d'authentification est activée."
       x-roles:
         - any
       responses:
@@ -422,7 +422,7 @@ paths:
       tags:
         - Connexion
       operationId: postAuthMfaVerify
-      description: "Marque la session comme vérifiée ; elle expire alors au plus 8 h plus tard, sans prolongation."
+      description: "Code reçu par e-mail, ou, si l'application d'authentification est activée (`mfa_method: totp`), code de l'application ou code de secours (XXXX-XXXX, usage unique). Marque la session comme vérifiée ; elle expire alors au plus 8 h plus tard, sans prolongation."
       x-roles:
         - any
       requestBody:
@@ -434,7 +434,7 @@ paths:
               properties:
                 code:
                   type: string
-                  pattern: "^[0-9]{6}$"
+                  pattern: "^([0-9]{6}|[A-Za-z0-9]{4}-?[A-Za-z0-9]{4})$"
               required:
                 - code
       responses:
@@ -517,6 +517,400 @@ paths:
             application/json:
               schema:
                 "$ref": "#/components/schemas/Error"
+  "/v1/auth/phone/code":
+    post:
+      summary: "Connexion par numéro : envoyer le code"
+      tags:
+        - Connexion
+      operationId: postAuthPhoneCode
+      description: "Code à 6 chiffres envoyé par WhatsApp (par défaut), SMS en secours si WhatsApp échoue ; valable 5 min. Même réponse que le numéro ait un compte ou non. Limites : 1 code par minute, 10 par jour et par numéro (`otp_rate_limited`, `otp_daily_limit`), 10 par appareil et par heure, plafond global horaire (503 `otp_service_busy`, admins prévenus). Numéro verrouillé : 429 `phone_locked`. Fermée sans configuration : `otp_channel_unavailable`."
+      security: []
+      requestBody:
+        required: true
+        content:
+          application/json:
+            schema:
+              "$ref": "#/components/schemas/PhoneCodeInput"
+      responses:
+        "202":
+          description: "Succès"
+          content:
+            application/json:
+              schema:
+                "$ref": "#/components/schemas/OTPRequested"
+        default:
+          description: "Erreur (voir `code`)"
+          content:
+            application/json:
+              schema:
+                "$ref": "#/components/schemas/Error"
+  "/v1/auth/phone/verify":
+    post:
+      summary: "Connexion par numéro : vérifier le code"
+      tags:
+        - Connexion
+      operationId: postAuthPhoneVerify
+      description: "Numéro connu : `status: signed_in` et `session` (jeton d'accès de 15 min et jeton de rafraîchissement ; alerte `new_device_login` si l'appareil est nouveau). Numéro inconnu : `status: signup_required` et `signup_token`, valable 15 min, à passer à /v1/auth/phone/signup ; aucun compte n'est créé. 5 codes faux : code annulé et numéro bloqué 15 min (429 `phone_locked`)."
+      security: []
+      requestBody:
+        required: true
+        content:
+          application/json:
+            schema:
+              "$ref": "#/components/schemas/PhoneVerifyInput"
+      responses:
+        "200":
+          description: "Succès"
+          content:
+            application/json:
+              schema:
+                "$ref": "#/components/schemas/PhoneVerifyResult"
+        default:
+          description: "Erreur (voir `code`)"
+          content:
+            application/json:
+              schema:
+                "$ref": "#/components/schemas/Error"
+  "/v1/auth/phone/signup":
+    post:
+      summary: "Connexion par numéro : créer le compte"
+      tags:
+        - Connexion
+      operationId: postAuthPhoneSignup
+      description: "Prénom, nom et consentement, avec le `signup_token` de /v1/auth/phone/verify (usage unique, 15 min ; sinon 401 `signup_expired`). Le compte acheteur est créé avec son numéro vérifié et la session ouverte ; le back-office reçoit la notification `new_buyer`."
+      security: []
+      requestBody:
+        required: true
+        content:
+          application/json:
+            schema:
+              "$ref": "#/components/schemas/PhoneSignupInput"
+      responses:
+        "201":
+          description: "Succès"
+          content:
+            application/json:
+              schema:
+                "$ref": "#/components/schemas/Session"
+        default:
+          description: "Erreur (voir `code`)"
+          content:
+            application/json:
+              schema:
+                "$ref": "#/components/schemas/Error"
+  "/v1/auth/refresh":
+    post:
+      summary: "Renouveler la session"
+      tags:
+        - Connexion
+      operationId: postAuthRefresh
+      description: "Échange le jeton de rafraîchissement contre un nouveau couple de jetons (l'ancien ne sert plus). À appeler quand une requête répond 401 `access_token_expired`, une seule fois à la fois. Un ancien jeton présenté à nouveau plus de 30 s après son remplacement révoque la session (vol présumé) : 401 `invalid_session`."
+      security: []
+      requestBody:
+        required: true
+        content:
+          application/json:
+            schema:
+              type: object
+              properties:
+                refresh_token:
+                  type: string
+                  maxLength: 64
+              required:
+                - refresh_token
+      responses:
+        "200":
+          description: "Succès"
+          content:
+            application/json:
+              schema:
+                "$ref": "#/components/schemas/Session"
+        default:
+          description: "Erreur (voir `code`)"
+          content:
+            application/json:
+              schema:
+                "$ref": "#/components/schemas/Error"
+  "/v1/me/phone/code":
+    post:
+      summary: "Changer de numéro : envoyer le code"
+      tags:
+        - Compte
+      operationId: postMePhoneCode
+      description: "Code envoyé au nouveau numéro (WhatsApp, SMS en secours). Mêmes limites que la connexion."
+      x-roles:
+        - any
+      requestBody:
+        required: true
+        content:
+          application/json:
+            schema:
+              type: object
+              properties:
+                phone:
+                  type: string
+                channel:
+                  type: string
+                  enum:
+                    - whatsapp
+                    - sms
+              required:
+                - phone
+      responses:
+        "202":
+          description: "Succès"
+          content:
+            application/json:
+              schema:
+                "$ref": "#/components/schemas/OTPRequested"
+        default:
+          description: "Erreur (voir `code`)"
+          content:
+            application/json:
+              schema:
+                "$ref": "#/components/schemas/Error"
+  "/v1/me/phone":
+    post:
+      summary: "Changer de numéro : confirmer"
+      tags:
+        - Compte
+      operationId: postMePhone
+      description: "Le numéro vérifié devient le nouvel identifiant de connexion. `phone_taken` s'il appartient à un autre compte."
+      x-roles:
+        - any
+      requestBody:
+        required: true
+        content:
+          application/json:
+            schema:
+              type: object
+              properties:
+                phone:
+                  type: string
+                code:
+                  type: string
+                  pattern: "^[0-9]{6}$"
+              required:
+                - phone
+                - code
+      responses:
+        "200":
+          description: "Succès"
+          content:
+            application/json:
+              schema:
+                "$ref": "#/components/schemas/User"
+        default:
+          description: "Erreur (voir `code`)"
+          content:
+            application/json:
+              schema:
+                "$ref": "#/components/schemas/Error"
+  "/v1/me/sessions":
+    get:
+      summary: "Appareils connectés"
+      tags:
+        - Compte
+      operationId: getMeSessions
+      description: "Sessions actives, la plus récente d'abord ; `current` marque celle de la requête."
+      x-roles:
+        - any
+      responses:
+        "200":
+          description: "Succès"
+          content:
+            application/json:
+              schema:
+                "$ref": "#/components/schemas/SessionList"
+        default:
+          description: "Erreur (voir `code`)"
+          content:
+            application/json:
+              schema:
+                "$ref": "#/components/schemas/Error"
+  "/v1/me/sessions/{id}":
+    delete:
+      summary: "Déconnecter un appareil"
+      tags:
+        - Compte
+      operationId: deleteMeSession
+      description: "Révoque une session du compte (`session_not_found` sinon)."
+      x-roles:
+        - any
+      parameters:
+        - name: id
+          in: path
+          required: true
+          schema:
+            type: string
+            format: uuid
+      responses:
+        "204":
+          description: "Effectué"
+        default:
+          description: "Erreur (voir `code`)"
+          content:
+            application/json:
+              schema:
+                "$ref": "#/components/schemas/Error"
+  "/v1/auth/mfa/totp/setup":
+    post:
+      summary: "Application d'authentification : commencer"
+      tags:
+        - Connexion
+      operationId: postAuthMfaTotpSetup
+      description: "Session déjà vérifiée exigée (`mfa_required`). Tire un nouveau secret : `otpauth_uri` à afficher en QR code (Google Authenticator, Microsoft Authenticator…), `secret` à saisir à la main. `totp_already_enabled` si elle est déjà activée."
+      x-roles:
+        - any
+      responses:
+        "200":
+          description: "Succès"
+          content:
+            application/json:
+              schema:
+                "$ref": "#/components/schemas/TOTPSetup"
+        default:
+          description: "Erreur (voir `code`)"
+          content:
+            application/json:
+              schema:
+                "$ref": "#/components/schemas/Error"
+  "/v1/auth/mfa/totp/confirm":
+    post:
+      summary: "Application d'authentification : activer"
+      tags:
+        - Connexion
+      operationId: postAuthMfaTotpConfirm
+      description: "Premier code de l'application. Retourne 10 codes de secours, affichés une seule fois. Ensuite, la double vérification se fait avec l'application (ou un code de secours) et plus par e-mail."
+      x-roles:
+        - any
+      requestBody:
+        required: true
+        content:
+          application/json:
+            schema:
+              type: object
+              properties:
+                code:
+                  type: string
+                  pattern: "^[0-9]{6}$"
+              required:
+                - code
+      responses:
+        "200":
+          description: "Succès"
+          content:
+            application/json:
+              schema:
+                "$ref": "#/components/schemas/RecoveryCodes"
+        default:
+          description: "Erreur (voir `code`)"
+          content:
+            application/json:
+              schema:
+                "$ref": "#/components/schemas/Error"
+  "/v1/auth/mfa/totp/recovery-codes":
+    post:
+      summary: "Nouveaux codes de secours"
+      tags:
+        - Connexion
+      operationId: postAuthMfaTotpRecoveryCodes
+      description: "Remplace les codes de secours (code de l'application exigé)."
+      x-roles:
+        - any
+      requestBody:
+        required: true
+        content:
+          application/json:
+            schema:
+              type: object
+              properties:
+                code:
+                  type: string
+                  pattern: "^[0-9]{6}$"
+              required:
+                - code
+      responses:
+        "200":
+          description: "Succès"
+          content:
+            application/json:
+              schema:
+                "$ref": "#/components/schemas/RecoveryCodes"
+        default:
+          description: "Erreur (voir `code`)"
+          content:
+            application/json:
+              schema:
+                "$ref": "#/components/schemas/Error"
+  "/v1/auth/mfa/totp/disable":
+    post:
+      summary: "Application d'authentification : désactiver"
+      tags:
+        - Connexion
+      operationId: postAuthMfaTotpDisable
+      description: "Code de l'application exigé ; le code par e-mail redevient la double vérification."
+      x-roles:
+        - any
+      requestBody:
+        required: true
+        content:
+          application/json:
+            schema:
+              type: object
+              properties:
+                code:
+                  type: string
+                  pattern: "^[0-9]{6}$"
+              required:
+                - code
+      responses:
+        "204":
+          description: "Effectué"
+        default:
+          description: "Erreur (voir `code`)"
+          content:
+            application/json:
+              schema:
+                "$ref": "#/components/schemas/Error"
+  "/v1/admin/users/{id}/mfa/reset":
+    post:
+      summary: "Réinitialiser la double vérification d'un admin"
+      tags:
+        - Admin
+      operationId: postAdminUserMfaReset
+      description: "Téléphone perdu sans code de secours : désactive son application d'authentification et le déconnecte partout. Motif obligatoire, action journalisée ; impossible sur son propre compte."
+      x-roles:
+        - admin
+      parameters:
+        - name: id
+          in: path
+          required: true
+          schema:
+            type: string
+            format: uuid
+      requestBody:
+        required: true
+        content:
+          application/json:
+            schema:
+              type: object
+              properties:
+                reason:
+                  type: string
+                  minLength: 3
+                  maxLength: 500
+              required:
+                - reason
+      responses:
+        "204":
+          description: "Effectué"
+        default:
+          description: "Erreur (voir `code`)"
+          content:
+            application/json:
+              schema:
+                "$ref": "#/components/schemas/Error"
   "/v1/me":
     get:
       summary: "Mon profil"
@@ -562,6 +956,10 @@ paths:
                 accept_privacy_policy:
                   type: boolean
                   description: "`true` enregistre le consentement à la politique de confidentialité (daté par le serveur à la première acceptation). `false` est refusé (`validation_failed`) : le consentement se retire en supprimant son compte."
+                avatar_key:
+                  type: string
+                  maxLength: 300
+                  description: "Photo envoyée avec POST /v1/uploads (usage avatar) ; chaîne vide : photo retirée."
       responses:
         "200":
           description: "Succès"
@@ -731,6 +1129,7 @@ paths:
                     - buyer
                     - seller
                     - driver
+                    - pharmacy
               required:
                 - token
                 - platform
@@ -822,6 +1221,9 @@ paths:
                     - driver_document
                     - merchant_document
                     - promo_visual
+                    - pharmacy_document
+                    - pharmacy_alert_photo
+                    - avatar
                 content_type:
                   type: string
                   enum:
@@ -866,6 +1268,7 @@ paths:
               - seller
               - driver
               - admin
+              - pharmacy
         - name: limit
           in: query
           required: false
@@ -954,6 +1357,7 @@ paths:
               - seller
               - driver
               - admin
+              - pharmacy
       x-roles:
         - any
       responses:
@@ -3365,6 +3769,7 @@ paths:
               - seller
               - driver
               - admin
+              - pharmacist
         - name: limit
           in: query
           required: false
@@ -5843,6 +6248,2212 @@ paths:
             application/json:
               schema:
                 "$ref": "#/components/schemas/Error"
+  "/v1/pharmacies/on-duty":
+    get:
+      summary: "Pharmacies de garde, ouvertes 24 h/24 ou ouvertes, les plus proches d'abord (accueil)"
+      tags:
+        - Pharmacie
+      operationId: getPharmaciesOnDuty
+      security: []
+      parameters:
+        - name: lat
+          in: query
+          required: true
+          schema:
+            type: number
+            format: double
+            minimum: -90
+            maximum: 90
+        - name: lng
+          in: query
+          required: true
+          schema:
+            type: number
+            format: double
+            minimum: -180
+            maximum: 180
+        - name: radius_m
+          in: query
+          required: false
+          schema:
+            type: integer
+            minimum: 500
+            maximum: 50000
+            default: 10000
+        - name: limit
+          in: query
+          required: false
+          schema:
+            type: integer
+            minimum: 1
+            maximum: 50
+            default: 20
+      responses:
+        "200":
+          description: "Succès"
+          content:
+            application/json:
+              schema:
+                type: object
+                properties:
+                  items:
+                    type: array
+                    items:
+                      "$ref": "#/components/schemas/OnDutyPharmacy"
+                required:
+                  - items
+        default:
+          description: "Erreur (voir `code`)"
+          content:
+            application/json:
+              schema:
+                "$ref": "#/components/schemas/Error"
+  "/v1/medicines":
+    get:
+      summary: "Rechercher un médicament dans la base (2 lettres au moins, 15 résultats)"
+      tags:
+        - Alerte médicament
+      operationId: getMedicines
+      parameters:
+        - name: q
+          in: query
+          required: false
+          schema:
+            type: string
+            maxLength: 80
+      x-roles:
+        - any
+      responses:
+        "200":
+          description: "Succès"
+          content:
+            application/json:
+              schema:
+                type: object
+                properties:
+                  items:
+                    type: array
+                    items:
+                      "$ref": "#/components/schemas/Medicine"
+                required:
+                  - items
+        default:
+          description: "Erreur (voir `code`)"
+          content:
+            application/json:
+              schema:
+                "$ref": "#/components/schemas/Error"
+  "/v1/medicine-alerts/preview":
+    get:
+      summary: "Pharmacies joignables par rayon, forfait et délais, avant de lancer l'alerte (address_id ou lat/lng)"
+      tags:
+        - Alerte médicament
+      operationId: getMedicineAlertsPreview
+      parameters:
+        - name: address_id
+          in: query
+          required: false
+          schema:
+            type: string
+            format: uuid
+        - name: lat
+          in: query
+          required: false
+          schema:
+            type: number
+            format: double
+            minimum: -90
+            maximum: 90
+        - name: lng
+          in: query
+          required: false
+          schema:
+            type: number
+            format: double
+            minimum: -180
+            maximum: 180
+      x-roles:
+        - any
+      responses:
+        "200":
+          description: "Succès"
+          content:
+            application/json:
+              schema:
+                "$ref": "#/components/schemas/MedicineAlertPreview"
+        default:
+          description: "Erreur (voir `code`)"
+          content:
+            application/json:
+              schema:
+                "$ref": "#/components/schemas/Error"
+  "/v1/medicine-alerts":
+    post:
+      summary: "Lancer une alerte : produits (base ou saisie libre) et/ou photos d'ordonnance ou de boîte"
+      tags:
+        - Alerte médicament
+      operationId: postMedicineAlerts
+      x-roles:
+        - any
+      requestBody:
+        required: true
+        content:
+          application/json:
+            schema:
+              "$ref": "#/components/schemas/MedicineAlertInput"
+      responses:
+        "201":
+          description: "Succès"
+          content:
+            application/json:
+              schema:
+                "$ref": "#/components/schemas/MedicineAlert"
+        default:
+          description: "Erreur (voir `code`)"
+          content:
+            application/json:
+              schema:
+                "$ref": "#/components/schemas/Error"
+    get:
+      summary: "Mes alertes médicament"
+      tags:
+        - Alerte médicament
+      operationId: getMedicineAlerts
+      parameters:
+        - name: limit
+          in: query
+          required: false
+          schema:
+            type: integer
+            minimum: 1
+            maximum: 100
+            default: 20
+        - name: offset
+          in: query
+          required: false
+          schema:
+            type: integer
+            minimum: 0
+            maximum: 10000
+            default: 0
+      x-roles:
+        - any
+      responses:
+        "200":
+          description: "Succès"
+          content:
+            application/json:
+              schema:
+                type: object
+                properties:
+                  items:
+                    type: array
+                    items:
+                      "$ref": "#/components/schemas/MedicineAlert"
+                  next_offset:
+                    type:
+                      - integer
+                      - "null"
+                required:
+                  - items
+                  - next_offset
+        default:
+          description: "Erreur (voir `code`)"
+          content:
+            application/json:
+              schema:
+                "$ref": "#/components/schemas/Error"
+  "/v1/medicine-alerts/{id}":
+    get:
+      summary: "Alerte, compteurs (contactées, vues, réponses) et réponses classées par distance"
+      tags:
+        - Alerte médicament
+      operationId: getMedicineAlertsById
+      parameters:
+        - name: id
+          in: path
+          required: true
+          schema:
+            type: string
+            format: uuid
+      x-roles:
+        - any
+      responses:
+        "200":
+          description: "Succès"
+          content:
+            application/json:
+              schema:
+                "$ref": "#/components/schemas/MedicineAlert"
+        default:
+          description: "Erreur (voir `code`)"
+          content:
+            application/json:
+              schema:
+                "$ref": "#/components/schemas/Error"
+  "/v1/medicine-alerts/{id}/cancel":
+    post:
+      summary: "Annuler l'alerte"
+      tags:
+        - Alerte médicament
+      operationId: postMedicineAlertsByIdCancel
+      parameters:
+        - name: id
+          in: path
+          required: true
+          schema:
+            type: string
+            format: uuid
+      x-roles:
+        - any
+      responses:
+        "200":
+          description: "Succès"
+          content:
+            application/json:
+              schema:
+                "$ref": "#/components/schemas/MedicineAlert"
+        default:
+          description: "Erreur (voir `code`)"
+          content:
+            application/json:
+              schema:
+                "$ref": "#/components/schemas/Error"
+  "/v1/medicine-alerts/{id}/relaunch":
+    post:
+      summary: "Relancer une alerte terminée (autre rayon, produits modifiables, photos reprises)"
+      tags:
+        - Alerte médicament
+      operationId: postMedicineAlertsByIdRelaunch
+      parameters:
+        - name: id
+          in: path
+          required: true
+          schema:
+            type: string
+            format: uuid
+      x-roles:
+        - any
+      requestBody:
+        required: true
+        content:
+          application/json:
+            schema:
+              "$ref": "#/components/schemas/MedicineRelaunchInput"
+      responses:
+        "201":
+          description: "Succès"
+          content:
+            application/json:
+              schema:
+                "$ref": "#/components/schemas/MedicineAlert"
+        default:
+          description: "Erreur (voir `code`)"
+          content:
+            application/json:
+              schema:
+                "$ref": "#/components/schemas/Error"
+  "/v1/medicine-alerts/{id}/responses/{responseId}/unlock":
+    post:
+      summary: "Débloquer UNE pharmacie (forfait par pharmacie) : identité visible et produits mis de côté"
+      tags:
+        - Alerte médicament
+      operationId: postMedicineAlertsByIdResponsesByResponseIdUnlock
+      parameters:
+        - name: id
+          in: path
+          required: true
+          schema:
+            type: string
+            format: uuid
+        - name: responseId
+          in: path
+          required: true
+          schema:
+            type: string
+            format: uuid
+      x-roles:
+        - any
+      requestBody:
+        required: true
+        content:
+          application/json:
+            schema:
+              "$ref": "#/components/schemas/MedicinePayInput"
+      responses:
+        "200":
+          description: "Succès"
+          content:
+            application/json:
+              schema:
+                "$ref": "#/components/schemas/MedicineUnlockResult"
+        default:
+          description: "Erreur (voir `code`)"
+          content:
+            application/json:
+              schema:
+                "$ref": "#/components/schemas/Error"
+  "/v1/medicine-reservations":
+    get:
+      summary: "Mes réservations de médicaments"
+      tags:
+        - Alerte médicament
+      operationId: getMedicineReservations
+      parameters:
+        - name: limit
+          in: query
+          required: false
+          schema:
+            type: integer
+            minimum: 1
+            maximum: 100
+            default: 20
+        - name: offset
+          in: query
+          required: false
+          schema:
+            type: integer
+            minimum: 0
+            maximum: 10000
+            default: 0
+      x-roles:
+        - any
+      responses:
+        "200":
+          description: "Succès"
+          content:
+            application/json:
+              schema:
+                type: object
+                properties:
+                  items:
+                    type: array
+                    items:
+                      "$ref": "#/components/schemas/MedicineReservation"
+                  next_offset:
+                    type:
+                      - integer
+                      - "null"
+                required:
+                  - items
+                  - next_offset
+        default:
+          description: "Erreur (voir `code`)"
+          content:
+            application/json:
+              schema:
+                "$ref": "#/components/schemas/Error"
+  "/v1/medicine-reservations/{id}":
+    get:
+      summary: "Réservation : produits, distance, suivi, code de remise"
+      tags:
+        - Alerte médicament
+      operationId: getMedicineReservationsById
+      parameters:
+        - name: id
+          in: path
+          required: true
+          schema:
+            type: string
+            format: uuid
+      x-roles:
+        - any
+      responses:
+        "200":
+          description: "Succès"
+          content:
+            application/json:
+              schema:
+                "$ref": "#/components/schemas/MedicineReservation"
+        default:
+          description: "Erreur (voir `code`)"
+          content:
+            application/json:
+              schema:
+                "$ref": "#/components/schemas/Error"
+  "/v1/medicine-reservations/{id}/delivery-quote":
+    get:
+      summary: "Devis de livraison ivia vers une adresse (aucun engagement)"
+      tags:
+        - Alerte médicament
+      operationId: getMedicineReservationsByIdDeliveryQuote
+      parameters:
+        - name: id
+          in: path
+          required: true
+          schema:
+            type: string
+            format: uuid
+        - name: address_id
+          in: query
+          required: true
+          schema:
+            type: string
+            format: uuid
+      x-roles:
+        - any
+      responses:
+        "200":
+          description: "Succès"
+          content:
+            application/json:
+              schema:
+                "$ref": "#/components/schemas/MedicineDeliveryQuote"
+        default:
+          description: "Erreur (voir `code`)"
+          content:
+            application/json:
+              schema:
+                "$ref": "#/components/schemas/Error"
+  "/v1/medicine-reservations/{id}/delivery":
+    post:
+      summary: "Choisir la livraison ivia : lance la recherche du livreur le plus proche (paiement après acceptation)"
+      tags:
+        - Alerte médicament
+      operationId: postMedicineReservationsByIdDelivery
+      parameters:
+        - name: id
+          in: path
+          required: true
+          schema:
+            type: string
+            format: uuid
+      x-roles:
+        - any
+      requestBody:
+        required: true
+        content:
+          application/json:
+            schema:
+              "$ref": "#/components/schemas/MedicineDeliveryInput"
+      responses:
+        "200":
+          description: "Succès"
+          content:
+            application/json:
+              schema:
+                "$ref": "#/components/schemas/MedicineReservation"
+        default:
+          description: "Erreur (voir `code`)"
+          content:
+            application/json:
+              schema:
+                "$ref": "#/components/schemas/Error"
+  "/v1/medicine-reservations/{id}/pickup":
+    post:
+      summary: "Revenir au retrait sur place (arrête la recherche de livreur)"
+      tags:
+        - Alerte médicament
+      operationId: postMedicineReservationsByIdPickup
+      parameters:
+        - name: id
+          in: path
+          required: true
+          schema:
+            type: string
+            format: uuid
+      x-roles:
+        - any
+      responses:
+        "200":
+          description: "Succès"
+          content:
+            application/json:
+              schema:
+                "$ref": "#/components/schemas/MedicineReservation"
+        default:
+          description: "Erreur (voir `code`)"
+          content:
+            application/json:
+              schema:
+                "$ref": "#/components/schemas/Error"
+  "/v1/medicine-reservations/{id}/pay":
+    post:
+      summary: "Payer produits et livraison, une fois le livreur trouvé (statut awaiting_payment)"
+      tags:
+        - Alerte médicament
+      operationId: postMedicineReservationsByIdPay
+      parameters:
+        - name: id
+          in: path
+          required: true
+          schema:
+            type: string
+            format: uuid
+      x-roles:
+        - any
+      requestBody:
+        required: true
+        content:
+          application/json:
+            schema:
+              "$ref": "#/components/schemas/MedicinePayInput"
+      responses:
+        "200":
+          description: "Succès"
+          content:
+            application/json:
+              schema:
+                "$ref": "#/components/schemas/MedicinePayment"
+        default:
+          description: "Erreur (voir `code`)"
+          content:
+            application/json:
+              schema:
+                "$ref": "#/components/schemas/Error"
+  "/v1/medicine-reservations/{id}/cancel":
+    post:
+      summary: "Annuler une réservation (remboursée si la livraison était payée)"
+      tags:
+        - Alerte médicament
+      operationId: postMedicineReservationsByIdCancel
+      parameters:
+        - name: id
+          in: path
+          required: true
+          schema:
+            type: string
+            format: uuid
+      x-roles:
+        - any
+      requestBody:
+        required: true
+        content:
+          application/json:
+            schema:
+              "$ref": "#/components/schemas/Reason"
+      responses:
+        "200":
+          description: "Succès"
+          content:
+            application/json:
+              schema:
+                "$ref": "#/components/schemas/MedicineReservation"
+        default:
+          description: "Erreur (voir `code`)"
+          content:
+            application/json:
+              schema:
+                "$ref": "#/components/schemas/Error"
+  "/v1/medicine-payments/{id}":
+    get:
+      summary: "Paiement (déblocage ou commande livrée)"
+      tags:
+        - Alerte médicament
+      operationId: getMedicinePaymentsById
+      parameters:
+        - name: id
+          in: path
+          required: true
+          schema:
+            type: string
+            format: uuid
+      x-roles:
+        - any
+      responses:
+        "200":
+          description: "Succès"
+          content:
+            application/json:
+              schema:
+                "$ref": "#/components/schemas/MedicinePayment"
+        default:
+          description: "Erreur (voir `code`)"
+          content:
+            application/json:
+              schema:
+                "$ref": "#/components/schemas/Error"
+  "/v1/medicine-payments/{id}/cancel":
+    post:
+      summary: "Abandonner une demande de paiement en attente"
+      tags:
+        - Alerte médicament
+      operationId: postMedicinePaymentsByIdCancel
+      parameters:
+        - name: id
+          in: path
+          required: true
+          schema:
+            type: string
+            format: uuid
+      x-roles:
+        - any
+      responses:
+        "200":
+          description: "Succès"
+          content:
+            application/json:
+              schema:
+                "$ref": "#/components/schemas/MedicinePayment"
+        default:
+          description: "Erreur (voir `code`)"
+          content:
+            application/json:
+              schema:
+                "$ref": "#/components/schemas/Error"
+  "/v1/dev/medicine-payments/{id}/simulate":
+    post:
+      summary: "Simuler la réponse du faux prestataire (local et tests uniquement)"
+      tags:
+        - Développement
+      operationId: postDevMedicinePaymentsByIdSimulate
+      parameters:
+        - name: id
+          in: path
+          required: true
+          schema:
+            type: string
+            format: uuid
+      x-roles:
+        - any
+      requestBody:
+        required: true
+        content:
+          application/json:
+            schema:
+              "$ref": "#/components/schemas/SimulateOutcome"
+      responses:
+        "200":
+          description: "Succès"
+          content:
+            application/json:
+              schema:
+                type: object
+                properties:
+                  status:
+                    type: string
+                required:
+                  - status
+        default:
+          description: "Erreur (voir `code`)"
+          content:
+            application/json:
+              schema:
+                "$ref": "#/components/schemas/Error"
+  "/v1/dev/medicine-alerts/{id}/auto-respond":
+    post:
+      summary: "Faire répondre les pharmacies de démonstration (local et tests uniquement)"
+      tags:
+        - Développement
+      operationId: postDevMedicineAlertsByIdAutoRespond
+      description: "Les pharmacies créées par `manage seed-demo` qui ont reçu l'alerte y répondent (tous les produits disponibles, prix de démonstration). Route absente hors local."
+      parameters:
+        - name: id
+          in: path
+          required: true
+          schema:
+            type: string
+            format: uuid
+      x-roles:
+        - any
+      responses:
+        "200":
+          description: "Succès"
+          content:
+            application/json:
+              schema:
+                type: object
+                properties:
+                  responses:
+                    type: integer
+                required:
+                  - responses
+        default:
+          description: "Erreur (voir `code`)"
+          content:
+            application/json:
+              schema:
+                "$ref": "#/components/schemas/Error"
+  "/v1/properties":
+    get:
+      summary: "Biens immobiliers à vendre ou à louer"
+      tags:
+        - Immobilier
+      operationId: getProperties
+      description: "Annonces actives, les plus proches de lat/lng d'abord. Accès public."
+      security: []
+      parameters:
+        - {name: lat, in: query, schema: {type: number}}
+        - {name: lng, in: query, schema: {type: number}}
+        - {name: kind, in: query, schema: {type: string, enum: [sale, rent]}}
+        - {name: limit, in: query, schema: {type: integer, minimum: 1, maximum: 50}}
+      responses:
+        "200":
+          description: "Succès"
+          content:
+            application/json:
+              schema:
+                type: object
+                properties:
+                  items:
+                    type: array
+                    items:
+                      "$ref": "#/components/schemas/Property"
+                required:
+                  - items
+        default:
+          description: "Erreur (voir `code`)"
+          content:
+            application/json:
+              schema:
+                "$ref": "#/components/schemas/Error"
+  "/v1/properties/{id}":
+    get:
+      summary: "Fiche d'un bien immobilier"
+      tags:
+        - Immobilier
+      operationId: getPropertyById
+      security: []
+      parameters:
+        - {name: id, in: path, required: true, schema: {type: string, format: uuid}}
+      responses:
+        "200":
+          description: "Succès"
+          content:
+            application/json:
+              schema:
+                "$ref": "#/components/schemas/Property"
+        default:
+          description: "Erreur (voir `code`)"
+          content:
+            application/json:
+              schema:
+                "$ref": "#/components/schemas/Error"
+  "/v1/pharmacy/application":
+    post:
+      summary: "Inscrire sa pharmacie, ou corriger un dossier non validé"
+      tags:
+        - Pharmacie
+      operationId: postPharmacyApplication
+      x-roles:
+        - any
+      requestBody:
+        required: true
+        content:
+          application/json:
+            schema:
+              "$ref": "#/components/schemas/PharmacyApplicationInput"
+      responses:
+        "201":
+          description: "Succès"
+          content:
+            application/json:
+              schema:
+                "$ref": "#/components/schemas/Pharmacy"
+        default:
+          description: "Erreur (voir `code`)"
+          content:
+            application/json:
+              schema:
+                "$ref": "#/components/schemas/Error"
+  "/v1/pharmacy/me":
+    get:
+      summary: "Ma pharmacie"
+      tags:
+        - Pharmacie
+      operationId: getPharmacyMe
+      x-roles:
+        - any
+      responses:
+        "200":
+          description: "Succès"
+          content:
+            application/json:
+              schema:
+                "$ref": "#/components/schemas/Pharmacy"
+        default:
+          description: "Erreur (voir `code`)"
+          content:
+            application/json:
+              schema:
+                "$ref": "#/components/schemas/Error"
+    patch:
+      summary: "Modifier téléphone et horaires"
+      tags:
+        - Pharmacie
+      operationId: patchPharmacyMe
+      x-roles:
+        - any
+      requestBody:
+        required: true
+        content:
+          application/json:
+            schema:
+              "$ref": "#/components/schemas/PharmacyContactInput"
+      responses:
+        "200":
+          description: "Succès"
+          content:
+            application/json:
+              schema:
+                "$ref": "#/components/schemas/Pharmacy"
+        default:
+          description: "Erreur (voir `code`)"
+          content:
+            application/json:
+              schema:
+                "$ref": "#/components/schemas/Error"
+  "/v1/pharmacy/me/documents":
+    post:
+      summary: "Joindre une pièce au dossier (POST /v1/uploads, usage pharmacy_document)"
+      tags:
+        - Pharmacie
+      operationId: postPharmacyMeDocuments
+      x-roles:
+        - any
+      requestBody:
+        required: true
+        content:
+          application/json:
+            schema:
+              "$ref": "#/components/schemas/PharmacyDocumentInput"
+      responses:
+        "201":
+          description: "Succès"
+          content:
+            application/json:
+              schema:
+                "$ref": "#/components/schemas/Pharmacy"
+        default:
+          description: "Erreur (voir `code`)"
+          content:
+            application/json:
+              schema:
+                "$ref": "#/components/schemas/Error"
+  "/v1/pharmacy/me/duty-shifts":
+    get:
+      summary: "Mon planning de garde (à venir et en cours)"
+      tags:
+        - Pharmacie
+      operationId: getPharmacyMeDutyShifts
+      x-roles:
+        - pharmacist
+      responses:
+        "200":
+          description: "Succès"
+          content:
+            application/json:
+              schema:
+                type: object
+                properties:
+                  items:
+                    type: array
+                    items:
+                      "$ref": "#/components/schemas/PharmacyDutyShift"
+                required:
+                  - items
+        default:
+          description: "Erreur (voir `code`)"
+          content:
+            application/json:
+              schema:
+                "$ref": "#/components/schemas/Error"
+  "/v1/pharmacy/me/status":
+    put:
+      summary: "Ouvrir, fermer, déclarer de garde ou 24 h/24 (seules ces pharmacies reçoivent les alertes)"
+      tags:
+        - Pharmacie
+      operationId: putPharmacyMeStatus
+      x-roles:
+        - pharmacist
+      requestBody:
+        required: true
+        content:
+          application/json:
+            schema:
+              "$ref": "#/components/schemas/PharmacyOpenStatus"
+      responses:
+        "200":
+          description: "Succès"
+          content:
+            application/json:
+              schema:
+                "$ref": "#/components/schemas/Pharmacy"
+        default:
+          description: "Erreur (voir `code`)"
+          content:
+            application/json:
+              schema:
+                "$ref": "#/components/schemas/Error"
+  "/v1/pharmacy/inbox":
+    get:
+      summary: "Alertes reçues (sans aucune donnée du client)"
+      tags:
+        - Pharmacie
+      operationId: getPharmacyInbox
+      parameters:
+        - name: open_only
+          in: query
+          required: false
+          schema:
+            type: boolean
+            default: true
+        - name: limit
+          in: query
+          required: false
+          schema:
+            type: integer
+            minimum: 1
+            maximum: 100
+            default: 20
+        - name: offset
+          in: query
+          required: false
+          schema:
+            type: integer
+            minimum: 0
+            maximum: 10000
+            default: 0
+      x-roles:
+        - pharmacist
+      responses:
+        "200":
+          description: "Succès"
+          content:
+            application/json:
+              schema:
+                type: object
+                properties:
+                  items:
+                    type: array
+                    items:
+                      "$ref": "#/components/schemas/PharmacyInboxItem"
+                  next_offset:
+                    type:
+                      - integer
+                      - "null"
+                required:
+                  - items
+                  - next_offset
+        default:
+          description: "Erreur (voir `code`)"
+          content:
+            application/json:
+              schema:
+                "$ref": "#/components/schemas/Error"
+  "/v1/pharmacy/inbox/{id}":
+    get:
+      summary: "Alerte reçue (marquée vue), avec liens temporaires vers les photos"
+      tags:
+        - Pharmacie
+      operationId: getPharmacyInboxById
+      parameters:
+        - name: id
+          in: path
+          required: true
+          schema:
+            type: string
+            format: uuid
+      x-roles:
+        - pharmacist
+      responses:
+        "200":
+          description: "Succès"
+          content:
+            application/json:
+              schema:
+                "$ref": "#/components/schemas/PharmacyInboxItem"
+        default:
+          description: "Erreur (voir `code`)"
+          content:
+            application/json:
+              schema:
+                "$ref": "#/components/schemas/Error"
+  "/v1/pharmacy/inbox/{id}/respond":
+    post:
+      summary: "Répondre ligne par ligne : disponible, quantité, prix (modifiable tant que non débloquée)"
+      tags:
+        - Pharmacie
+      operationId: postPharmacyInboxByIdRespond
+      parameters:
+        - name: id
+          in: path
+          required: true
+          schema:
+            type: string
+            format: uuid
+      x-roles:
+        - pharmacist
+      requestBody:
+        required: true
+        content:
+          application/json:
+            schema:
+              "$ref": "#/components/schemas/PharmacyResponseInput"
+      responses:
+        "200":
+          description: "Succès"
+          content:
+            application/json:
+              schema:
+                "$ref": "#/components/schemas/PharmacyInboxItem"
+        default:
+          description: "Erreur (voir `code`)"
+          content:
+            application/json:
+              schema:
+                "$ref": "#/components/schemas/Error"
+  "/v1/pharmacy/inbox/{id}/decline":
+    post:
+      summary: "Indisponible (retire une réponse non débloquée)"
+      tags:
+        - Pharmacie
+      operationId: postPharmacyInboxByIdDecline
+      parameters:
+        - name: id
+          in: path
+          required: true
+          schema:
+            type: string
+            format: uuid
+      x-roles:
+        - pharmacist
+      responses:
+        "200":
+          description: "Succès"
+          content:
+            application/json:
+              schema:
+                "$ref": "#/components/schemas/PharmacyInboxItem"
+        default:
+          description: "Erreur (voir `code`)"
+          content:
+            application/json:
+              schema:
+                "$ref": "#/components/schemas/Error"
+  "/v1/pharmacy/reservations":
+    get:
+      summary: "Réservations de ma pharmacie"
+      tags:
+        - Pharmacie
+      operationId: getPharmacyReservations
+      parameters:
+        - name: active_only
+          in: query
+          required: false
+          schema:
+            type: boolean
+            default: false
+        - name: limit
+          in: query
+          required: false
+          schema:
+            type: integer
+            minimum: 1
+            maximum: 100
+            default: 20
+        - name: offset
+          in: query
+          required: false
+          schema:
+            type: integer
+            minimum: 0
+            maximum: 10000
+            default: 0
+      x-roles:
+        - pharmacist
+      responses:
+        "200":
+          description: "Succès"
+          content:
+            application/json:
+              schema:
+                type: object
+                properties:
+                  items:
+                    type: array
+                    items:
+                      "$ref": "#/components/schemas/PharmacyReservation"
+                  next_offset:
+                    type:
+                      - integer
+                      - "null"
+                required:
+                  - items
+                  - next_offset
+        default:
+          description: "Erreur (voir `code`)"
+          content:
+            application/json:
+              schema:
+                "$ref": "#/components/schemas/Error"
+  "/v1/pharmacy/reservations/{id}":
+    get:
+      summary: "Réservation de ma pharmacie"
+      tags:
+        - Pharmacie
+      operationId: getPharmacyReservationsById
+      parameters:
+        - name: id
+          in: path
+          required: true
+          schema:
+            type: string
+            format: uuid
+      x-roles:
+        - pharmacist
+      responses:
+        "200":
+          description: "Succès"
+          content:
+            application/json:
+              schema:
+                "$ref": "#/components/schemas/PharmacyReservation"
+        default:
+          description: "Erreur (voir `code`)"
+          content:
+            application/json:
+              schema:
+                "$ref": "#/components/schemas/Error"
+  "/v1/pharmacy/reservations/{id}/prepared":
+    post:
+      summary: "Commande préparée (visible du client et du livreur)"
+      tags:
+        - Pharmacie
+      operationId: postPharmacyReservationsByIdPrepared
+      parameters:
+        - name: id
+          in: path
+          required: true
+          schema:
+            type: string
+            format: uuid
+      x-roles:
+        - pharmacist
+      responses:
+        "200":
+          description: "Succès"
+          content:
+            application/json:
+              schema:
+                "$ref": "#/components/schemas/PharmacyReservation"
+        default:
+          description: "Erreur (voir `code`)"
+          content:
+            application/json:
+              schema:
+                "$ref": "#/components/schemas/Error"
+  "/v1/pharmacy/reservations/{id}/complete":
+    post:
+      summary: "Remettre au client contre son code (retrait payé sur place, sans commission)"
+      tags:
+        - Pharmacie
+      operationId: postPharmacyReservationsByIdComplete
+      parameters:
+        - name: id
+          in: path
+          required: true
+          schema:
+            type: string
+            format: uuid
+      x-roles:
+        - pharmacist
+      requestBody:
+        required: true
+        content:
+          application/json:
+            schema:
+              "$ref": "#/components/schemas/HandoverCode"
+      responses:
+        "200":
+          description: "Succès"
+          content:
+            application/json:
+              schema:
+                "$ref": "#/components/schemas/PharmacyReservation"
+        default:
+          description: "Erreur (voir `code`)"
+          content:
+            application/json:
+              schema:
+                "$ref": "#/components/schemas/Error"
+  "/v1/pharmacy/reservations/{id}/cancel":
+    post:
+      summary: "Annuler (produit plus disponible) : client remboursé, forfait de déblocage compris"
+      tags:
+        - Pharmacie
+      operationId: postPharmacyReservationsByIdCancel
+      parameters:
+        - name: id
+          in: path
+          required: true
+          schema:
+            type: string
+            format: uuid
+      x-roles:
+        - pharmacist
+      requestBody:
+        required: true
+        content:
+          application/json:
+            schema:
+              "$ref": "#/components/schemas/Reason"
+      responses:
+        "200":
+          description: "Succès"
+          content:
+            application/json:
+              schema:
+                "$ref": "#/components/schemas/PharmacyReservation"
+        default:
+          description: "Erreur (voir `code`)"
+          content:
+            application/json:
+              schema:
+                "$ref": "#/components/schemas/Error"
+  "/v1/pharmacy/earnings":
+    get:
+      summary: "Sommes dues (livraisons payées dans l'app) et reversements"
+      tags:
+        - Pharmacie
+      operationId: getPharmacyEarnings
+      x-roles:
+        - pharmacist
+      responses:
+        "200":
+          description: "Succès"
+          content:
+            application/json:
+              schema:
+                "$ref": "#/components/schemas/PharmacyEarnings"
+        default:
+          description: "Erreur (voir `code`)"
+          content:
+            application/json:
+              schema:
+                "$ref": "#/components/schemas/Error"
+  "/v1/driver/pharmacy-offers/current":
+    get:
+      summary: "Course pharmacie proposée"
+      tags:
+        - Livreur
+      operationId: getDriverPharmacyOffersCurrent
+      x-roles:
+        - driver
+      responses:
+        "200":
+          description: "Succès"
+          content:
+            application/json:
+              schema:
+                type: object
+                properties:
+                  offer:
+                    oneOf:
+                      - "$ref": "#/components/schemas/PharmacyCourierOffer"
+                      - type: "null"
+                required:
+                  - offer
+        default:
+          description: "Erreur (voir `code`)"
+          content:
+            application/json:
+              schema:
+                "$ref": "#/components/schemas/Error"
+  "/v1/driver/pharmacy-offers/{id}/accept":
+    post:
+      summary: "Accepter la course : le client est invité à payer"
+      tags:
+        - Livreur
+      operationId: postDriverPharmacyOffersByIdAccept
+      parameters:
+        - name: id
+          in: path
+          required: true
+          schema:
+            type: string
+            format: uuid
+      x-roles:
+        - driver
+      responses:
+        "200":
+          description: "Succès"
+          content:
+            application/json:
+              schema:
+                "$ref": "#/components/schemas/PharmacyCourierMission"
+        default:
+          description: "Erreur (voir `code`)"
+          content:
+            application/json:
+              schema:
+                "$ref": "#/components/schemas/Error"
+  "/v1/driver/pharmacy-offers/{id}/decline":
+    post:
+      summary: "Refuser la course (proposée au livreur suivant)"
+      tags:
+        - Livreur
+      operationId: postDriverPharmacyOffersByIdDecline
+      parameters:
+        - name: id
+          in: path
+          required: true
+          schema:
+            type: string
+            format: uuid
+      x-roles:
+        - driver
+      responses:
+        "204":
+          description: "Effectué"
+        default:
+          description: "Erreur (voir `code`)"
+          content:
+            application/json:
+              schema:
+                "$ref": "#/components/schemas/Error"
+  "/v1/driver/pharmacy-missions/current":
+    get:
+      summary: "Course pharmacie en cours"
+      tags:
+        - Livreur
+      operationId: getDriverPharmacyMissionsCurrent
+      x-roles:
+        - driver
+      responses:
+        "200":
+          description: "Succès"
+          content:
+            application/json:
+              schema:
+                type: object
+                properties:
+                  mission:
+                    oneOf:
+                      - "$ref": "#/components/schemas/PharmacyCourierMission"
+                      - type: "null"
+                required:
+                  - mission
+        default:
+          description: "Erreur (voir `code`)"
+          content:
+            application/json:
+              schema:
+                "$ref": "#/components/schemas/Error"
+  "/v1/driver/pharmacy-missions":
+    get:
+      summary: "Historique de mes courses pharmacie"
+      tags:
+        - Livreur
+      operationId: getDriverPharmacyMissions
+      parameters:
+        - name: limit
+          in: query
+          required: false
+          schema:
+            type: integer
+            minimum: 1
+            maximum: 100
+            default: 20
+        - name: offset
+          in: query
+          required: false
+          schema:
+            type: integer
+            minimum: 0
+            maximum: 10000
+            default: 0
+      x-roles:
+        - driver
+      responses:
+        "200":
+          description: "Succès"
+          content:
+            application/json:
+              schema:
+                type: object
+                properties:
+                  items:
+                    type: array
+                    items:
+                      "$ref": "#/components/schemas/PharmacyCourierMission"
+                  next_offset:
+                    type:
+                      - integer
+                      - "null"
+                required:
+                  - items
+                  - next_offset
+        default:
+          description: "Erreur (voir `code`)"
+          content:
+            application/json:
+              schema:
+                "$ref": "#/components/schemas/Error"
+  "/v1/driver/pharmacy-missions/{id}/picked-up":
+    post:
+      summary: "Commande récupérée à la pharmacie (refusé tant que le client n'a pas payé)"
+      tags:
+        - Livreur
+      operationId: postDriverPharmacyMissionsByIdPickedUp
+      parameters:
+        - name: id
+          in: path
+          required: true
+          schema:
+            type: string
+            format: uuid
+      x-roles:
+        - driver
+      responses:
+        "200":
+          description: "Succès"
+          content:
+            application/json:
+              schema:
+                "$ref": "#/components/schemas/PharmacyCourierMission"
+        default:
+          description: "Erreur (voir `code`)"
+          content:
+            application/json:
+              schema:
+                "$ref": "#/components/schemas/Error"
+  "/v1/driver/pharmacy-missions/{id}/delivered":
+    post:
+      summary: "Remis au client contre son code (ordonnance vérifiée si exigée)"
+      tags:
+        - Livreur
+      operationId: postDriverPharmacyMissionsByIdDelivered
+      parameters:
+        - name: id
+          in: path
+          required: true
+          schema:
+            type: string
+            format: uuid
+      x-roles:
+        - driver
+      requestBody:
+        required: true
+        content:
+          application/json:
+            schema:
+              "$ref": "#/components/schemas/PharmacyDeliveredInput"
+      responses:
+        "200":
+          description: "Succès"
+          content:
+            application/json:
+              schema:
+                "$ref": "#/components/schemas/PharmacyCourierMission"
+        default:
+          description: "Erreur (voir `code`)"
+          content:
+            application/json:
+              schema:
+                "$ref": "#/components/schemas/Error"
+  "/v1/driver/pharmacy-missions/{id}/withdraw":
+    post:
+      summary: "Se désister avant la récupération (recherche relancée)"
+      tags:
+        - Livreur
+      operationId: postDriverPharmacyMissionsByIdWithdraw
+      parameters:
+        - name: id
+          in: path
+          required: true
+          schema:
+            type: string
+            format: uuid
+      x-roles:
+        - driver
+      requestBody:
+        required: true
+        content:
+          application/json:
+            schema:
+              "$ref": "#/components/schemas/Reason"
+      responses:
+        "204":
+          description: "Effectué"
+        default:
+          description: "Erreur (voir `code`)"
+          content:
+            application/json:
+              schema:
+                "$ref": "#/components/schemas/Error"
+  "/v1/admin/pharmacies":
+    get:
+      summary: "Pharmacies"
+      tags:
+        - Admin
+      operationId: getAdminPharmacies
+      parameters:
+        - name: review_status
+          in: query
+          required: false
+          schema:
+            type: string
+            enum:
+              - pending_review
+              - approved
+              - rejected
+        - name: suspended_only
+          in: query
+          required: false
+          schema:
+            type: boolean
+            default: false
+        - name: q
+          in: query
+          required: false
+          schema:
+            type: string
+            maxLength: 100
+        - name: limit
+          in: query
+          required: false
+          schema:
+            type: integer
+            minimum: 1
+            maximum: 100
+            default: 20
+        - name: offset
+          in: query
+          required: false
+          schema:
+            type: integer
+            minimum: 0
+            maximum: 10000
+            default: 0
+      x-roles:
+        - admin
+      responses:
+        "200":
+          description: "Succès"
+          content:
+            application/json:
+              schema:
+                type: object
+                properties:
+                  items:
+                    type: array
+                    items:
+                      "$ref": "#/components/schemas/AdminPharmacy"
+                  next_offset:
+                    type:
+                      - integer
+                      - "null"
+                required:
+                  - items
+                  - next_offset
+        default:
+          description: "Erreur (voir `code`)"
+          content:
+            application/json:
+              schema:
+                "$ref": "#/components/schemas/Error"
+  "/v1/admin/pharmacies/{id}":
+    get:
+      summary: "Dossier d'une pharmacie (liens temporaires vers les pièces)"
+      tags:
+        - Admin
+      operationId: getAdminPharmaciesById
+      parameters:
+        - name: id
+          in: path
+          required: true
+          schema:
+            type: string
+            format: uuid
+      x-roles:
+        - admin
+      responses:
+        "200":
+          description: "Succès"
+          content:
+            application/json:
+              schema:
+                "$ref": "#/components/schemas/AdminPharmacy"
+        default:
+          description: "Erreur (voir `code`)"
+          content:
+            application/json:
+              schema:
+                "$ref": "#/components/schemas/Error"
+  "/v1/admin/pharmacies/{id}/review":
+    post:
+      summary: "Valider, refuser, suspendre ou réactiver (journalisé)"
+      tags:
+        - Admin
+      operationId: postAdminPharmaciesByIdReview
+      parameters:
+        - name: id
+          in: path
+          required: true
+          schema:
+            type: string
+            format: uuid
+      x-roles:
+        - admin
+      requestBody:
+        required: true
+        content:
+          application/json:
+            schema:
+              "$ref": "#/components/schemas/PharmacyReviewInput"
+      responses:
+        "200":
+          description: "Succès"
+          content:
+            application/json:
+              schema:
+                "$ref": "#/components/schemas/AdminPharmacy"
+        default:
+          description: "Erreur (voir `code`)"
+          content:
+            application/json:
+              schema:
+                "$ref": "#/components/schemas/Error"
+  "/v1/admin/pharmacies/{id}/earnings":
+    get:
+      summary: "Sommes dues à une pharmacie"
+      tags:
+        - Admin
+      operationId: getAdminPharmaciesByIdEarnings
+      parameters:
+        - name: id
+          in: path
+          required: true
+          schema:
+            type: string
+            format: uuid
+      x-roles:
+        - admin
+      responses:
+        "200":
+          description: "Succès"
+          content:
+            application/json:
+              schema:
+                "$ref": "#/components/schemas/PharmacyEarnings"
+        default:
+          description: "Erreur (voir `code`)"
+          content:
+            application/json:
+              schema:
+                "$ref": "#/components/schemas/Error"
+  "/v1/admin/pharmacies/{id}/payouts":
+    post:
+      summary: "Enregistrer un reversement (dans la limite du solde, journalisé)"
+      tags:
+        - Admin
+      operationId: postAdminPharmaciesByIdPayouts
+      parameters:
+        - name: id
+          in: path
+          required: true
+          schema:
+            type: string
+            format: uuid
+      x-roles:
+        - admin
+      requestBody:
+        required: true
+        content:
+          application/json:
+            schema:
+              "$ref": "#/components/schemas/PharmacyPayoutInput"
+      responses:
+        "201":
+          description: "Succès"
+          content:
+            application/json:
+              schema:
+                "$ref": "#/components/schemas/PharmacyEarnings"
+        default:
+          description: "Erreur (voir `code`)"
+          content:
+            application/json:
+              schema:
+                "$ref": "#/components/schemas/Error"
+  "/v1/admin/pharmacies/{id}/duty-shifts":
+    get:
+      summary: "Planning de garde d'une pharmacie"
+      tags:
+        - Admin
+      operationId: getAdminPharmaciesByIdDutyShifts
+      parameters:
+        - name: id
+          in: path
+          required: true
+          schema:
+            type: string
+            format: uuid
+      x-roles:
+        - admin
+      responses:
+        "200":
+          description: "Succès"
+          content:
+            application/json:
+              schema:
+                type: object
+                properties:
+                  items:
+                    type: array
+                    items:
+                      "$ref": "#/components/schemas/PharmacyDutyShift"
+                required:
+                  - items
+        default:
+          description: "Erreur (voir `code`)"
+          content:
+            application/json:
+              schema:
+                "$ref": "#/components/schemas/Error"
+    post:
+      summary: "Ajouter un créneau de garde (8 jours au plus, journalisé)"
+      tags:
+        - Admin
+      operationId: postAdminPharmaciesByIdDutyShifts
+      parameters:
+        - name: id
+          in: path
+          required: true
+          schema:
+            type: string
+            format: uuid
+      x-roles:
+        - admin
+      requestBody:
+        required: true
+        content:
+          application/json:
+            schema:
+              "$ref": "#/components/schemas/PharmacyDutyShiftInput"
+      responses:
+        "201":
+          description: "Succès"
+          content:
+            application/json:
+              schema:
+                "$ref": "#/components/schemas/PharmacyDutyShift"
+        default:
+          description: "Erreur (voir `code`)"
+          content:
+            application/json:
+              schema:
+                "$ref": "#/components/schemas/Error"
+  "/v1/admin/pharmacy-duty-shifts/{id}":
+    delete:
+      summary: "Supprimer un créneau de garde (journalisé)"
+      tags:
+        - Admin
+      operationId: deleteAdminPharmacyDutyShiftsById
+      parameters:
+        - name: id
+          in: path
+          required: true
+          schema:
+            type: string
+            format: uuid
+      x-roles:
+        - admin
+      requestBody:
+        required: true
+        content:
+          application/json:
+            schema:
+              "$ref": "#/components/schemas/Reason"
+      responses:
+        "204":
+          description: "Effectué"
+        default:
+          description: "Erreur (voir `code`)"
+          content:
+            application/json:
+              schema:
+                "$ref": "#/components/schemas/Error"
+  "/v1/admin/medicines":
+    get:
+      summary: "Base de médicaments"
+      tags:
+        - Admin
+      operationId: getAdminMedicines
+      parameters:
+        - name: q
+          in: query
+          required: false
+          schema:
+            type: string
+            maxLength: 80
+        - name: limit
+          in: query
+          required: false
+          schema:
+            type: integer
+            minimum: 1
+            maximum: 100
+            default: 20
+        - name: offset
+          in: query
+          required: false
+          schema:
+            type: integer
+            minimum: 0
+            maximum: 10000
+            default: 0
+      x-roles:
+        - admin
+      responses:
+        "200":
+          description: "Succès"
+          content:
+            application/json:
+              schema:
+                type: object
+                properties:
+                  items:
+                    type: array
+                    items:
+                      "$ref": "#/components/schemas/Medicine"
+                  next_offset:
+                    type:
+                      - integer
+                      - "null"
+                required:
+                  - items
+                  - next_offset
+        default:
+          description: "Erreur (voir `code`)"
+          content:
+            application/json:
+              schema:
+                "$ref": "#/components/schemas/Error"
+    post:
+      summary: "Ajouter un médicament à la base (journalisé)"
+      tags:
+        - Admin
+      operationId: postAdminMedicines
+      x-roles:
+        - admin
+      requestBody:
+        required: true
+        content:
+          application/json:
+            schema:
+              "$ref": "#/components/schemas/MedicineInput"
+      responses:
+        "201":
+          description: "Succès"
+          content:
+            application/json:
+              schema:
+                "$ref": "#/components/schemas/Medicine"
+        default:
+          description: "Erreur (voir `code`)"
+          content:
+            application/json:
+              schema:
+                "$ref": "#/components/schemas/Error"
+  "/v1/admin/medicines/{id}":
+    patch:
+      summary: "Modifier ou désactiver un médicament (journalisé)"
+      tags:
+        - Admin
+      operationId: patchAdminMedicinesById
+      parameters:
+        - name: id
+          in: path
+          required: true
+          schema:
+            type: string
+            format: uuid
+      x-roles:
+        - admin
+      requestBody:
+        required: true
+        content:
+          application/json:
+            schema:
+              "$ref": "#/components/schemas/MedicineInput"
+      responses:
+        "200":
+          description: "Succès"
+          content:
+            application/json:
+              schema:
+                "$ref": "#/components/schemas/Medicine"
+        default:
+          description: "Erreur (voir `code`)"
+          content:
+            application/json:
+              schema:
+                "$ref": "#/components/schemas/Error"
+  "/v1/admin/medicine-alerts":
+    get:
+      summary: "Alertes médicament"
+      tags:
+        - Admin
+      operationId: getAdminMedicineAlerts
+      parameters:
+        - name: status
+          in: query
+          required: false
+          schema:
+            type: string
+            enum:
+              - searching
+              - answered
+              - no_response
+              - unlocked
+              - fulfilled
+              - cancelled
+        - name: limit
+          in: query
+          required: false
+          schema:
+            type: integer
+            minimum: 1
+            maximum: 100
+            default: 20
+        - name: offset
+          in: query
+          required: false
+          schema:
+            type: integer
+            minimum: 0
+            maximum: 10000
+            default: 0
+      x-roles:
+        - admin
+      responses:
+        "200":
+          description: "Succès"
+          content:
+            application/json:
+              schema:
+                type: object
+                properties:
+                  items:
+                    type: array
+                    items:
+                      "$ref": "#/components/schemas/AdminMedicineAlert"
+                  next_offset:
+                    type:
+                      - integer
+                      - "null"
+                required:
+                  - items
+                  - next_offset
+        default:
+          description: "Erreur (voir `code`)"
+          content:
+            application/json:
+              schema:
+                "$ref": "#/components/schemas/Error"
+  "/v1/admin/medicine-alerts/{id}":
+    get:
+      summary: "Alerte (pharmacies visibles) et ses paiements"
+      tags:
+        - Admin
+      operationId: getAdminMedicineAlertsById
+      parameters:
+        - name: id
+          in: path
+          required: true
+          schema:
+            type: string
+            format: uuid
+      x-roles:
+        - admin
+      responses:
+        "200":
+          description: "Succès"
+          content:
+            application/json:
+              schema:
+                "$ref": "#/components/schemas/AdminMedicineAlert"
+        default:
+          description: "Erreur (voir `code`)"
+          content:
+            application/json:
+              schema:
+                "$ref": "#/components/schemas/Error"
+  "/v1/admin/medicine-payments":
+    get:
+      summary: "Paiements du module pharmacie"
+      tags:
+        - Admin
+      operationId: getAdminMedicinePayments
+      parameters:
+        - name: status
+          in: query
+          required: false
+          schema:
+            type: string
+            enum:
+              - pending
+              - succeeded
+              - failed
+              - expired
+              - refund_pending
+              - refunded
+        - name: alert_id
+          in: query
+          required: false
+          schema:
+            type: string
+            format: uuid
+        - name: limit
+          in: query
+          required: false
+          schema:
+            type: integer
+            minimum: 1
+            maximum: 100
+            default: 20
+        - name: offset
+          in: query
+          required: false
+          schema:
+            type: integer
+            minimum: 0
+            maximum: 10000
+            default: 0
+      x-roles:
+        - admin
+      responses:
+        "200":
+          description: "Succès"
+          content:
+            application/json:
+              schema:
+                type: object
+                properties:
+                  items:
+                    type: array
+                    items:
+                      "$ref": "#/components/schemas/MedicinePayment"
+                  next_offset:
+                    type:
+                      - integer
+                      - "null"
+                required:
+                  - items
+                  - next_offset
+        default:
+          description: "Erreur (voir `code`)"
+          content:
+            application/json:
+              schema:
+                "$ref": "#/components/schemas/Error"
+  "/v1/admin/medicine-payments/{id}/refund":
+    post:
+      summary: "Rembourser un paiement réussi (journalisé)"
+      tags:
+        - Admin
+      operationId: postAdminMedicinePaymentsByIdRefund
+      parameters:
+        - name: id
+          in: path
+          required: true
+          schema:
+            type: string
+            format: uuid
+      x-roles:
+        - admin
+      requestBody:
+        required: true
+        content:
+          application/json:
+            schema:
+              "$ref": "#/components/schemas/Reason"
+      responses:
+        "200":
+          description: "Succès"
+          content:
+            application/json:
+              schema:
+                "$ref": "#/components/schemas/MedicinePayment"
+        default:
+          description: "Erreur (voir `code`)"
+          content:
+            application/json:
+              schema:
+                "$ref": "#/components/schemas/Error"
+  "/v1/admin/pharmacy/settings":
+    get:
+      summary: "Réglages de l'alerte médicament"
+      tags:
+        - Admin
+      operationId: getAdminPharmacySettings
+      x-roles:
+        - admin
+      responses:
+        "200":
+          description: "Succès"
+          content:
+            application/json:
+              schema:
+                "$ref": "#/components/schemas/PharmacySettings"
+        default:
+          description: "Erreur (voir `code`)"
+          content:
+            application/json:
+              schema:
+                "$ref": "#/components/schemas/Error"
+    put:
+      summary: "Modifier les réglages (journalisé)"
+      tags:
+        - Admin
+      operationId: putAdminPharmacySettings
+      x-roles:
+        - admin
+      requestBody:
+        required: true
+        content:
+          application/json:
+            schema:
+              "$ref": "#/components/schemas/PharmacySettingsInput"
+      responses:
+        "200":
+          description: "Succès"
+          content:
+            application/json:
+              schema:
+                "$ref": "#/components/schemas/PharmacySettings"
+        default:
+          description: "Erreur (voir `code`)"
+          content:
+            application/json:
+              schema:
+                "$ref": "#/components/schemas/Error"
+  "/v1/admin/pharmacy/overview":
+    get:
+      summary: "Indicateurs (30 derniers jours par défaut)"
+      tags:
+        - Admin
+      operationId: getAdminPharmacyOverview
+      parameters:
+        - name: from
+          in: query
+          required: false
+          schema:
+            type: string
+            format: date
+        - name: to
+          in: query
+          required: false
+          schema:
+            type: string
+            format: date
+      x-roles:
+        - admin
+      responses:
+        "200":
+          description: "Succès"
+          content:
+            application/json:
+              schema:
+                "$ref": "#/components/schemas/PharmacyOverview"
+        default:
+          description: "Erreur (voir `code`)"
+          content:
+            application/json:
+              schema:
+                "$ref": "#/components/schemas/Error"
 components:
   securitySchemes:
     bearer:
@@ -6386,12 +8997,21 @@ components:
               - seller
               - driver
               - admin
+              - pharmacist
         privacy_consent_at:
           type:
             - string
             - "null"
           format: date-time
           description: "Date d'acceptation de la politique de confidentialité."
+        avatar_url:
+          type:
+            - string
+            - "null"
+          description: "Photo de profil."
+        phone_verified:
+          type: boolean
+          description: "Numéro prouvé par un code : c'est l'identifiant de connexion, modifiable seulement par /v1/me/phone."
         profile_complete:
           type: boolean
           description: "Prénom, téléphone et consentement renseignés : requis pour commander ou postuler comme livreur."
@@ -6406,6 +9026,7 @@ components:
         - last_name
         - roles
         - privacy_consent_at
+        - phone_verified
         - profile_complete
         - created_at
     OTPRequested:
@@ -6432,9 +9053,13 @@ components:
           type: boolean
         google:
           type: boolean
+        phone:
+          type: boolean
+          description: "Connexion par numéro (WhatsApp, SMS) ouverte."
       required:
         - password
         - google
+        - phone
     SessionInfo:
       type: object
       properties:
@@ -6442,22 +9067,39 @@ components:
           type: boolean
         has_password:
           type: boolean
+        mfa_method:
+          type: string
+          enum:
+            - email
+            - totp
+          description: "Second facteur attendu : application d'authentification (`totp`) ou code par e-mail."
+        recovery_codes_left:
+          type: integer
         expires_at:
           type: string
           format: date-time
       required:
         - mfa_verified
         - has_password
+        - mfa_method
+        - recovery_codes_left
         - expires_at
     Session:
       type: object
       properties:
         token:
           type: string
-          description: "Jeton opaque à envoyer en `Authorization: Bearer`."
+          description: "Jeton opaque à envoyer en `Authorization: Bearer`. Avec `refresh_token`, c'est un jeton d'accès court, valable jusqu'à `access_expires_at`."
+        refresh_token:
+          type: string
+          description: "Connexion par numéro (apps mobiles) : jeton de rafraîchissement, à garder dans le stockage sécurisé et à échanger avec /v1/auth/refresh."
+        access_expires_at:
+          type: string
+          format: date-time
         expires_at:
           type: string
           format: date-time
+          description: "Fin de la session si elle n'est plus utilisée ou rafraîchie."
         is_new_user:
           type: boolean
         user:
@@ -6467,6 +9109,206 @@ components:
         - expires_at
         - is_new_user
         - user
+    PhoneCodeInput:
+      type: object
+      properties:
+        phone:
+          type: string
+          description: "Mobile togolais : 8 chiffres, avec ou sans +228."
+        channel:
+          type: string
+          enum:
+            - whatsapp
+            - sms
+          default: whatsapp
+        device_id:
+          type: string
+          minLength: 8
+          maxLength: 100
+          description: "Identifiant d'installation tiré au hasard par l'app et gardé dans son stockage sécurisé (jamais un identifiant matériel). Gardé haché côté serveur."
+        device_name:
+          type: string
+          maxLength: 80
+          description: "Nom lisible de l'appareil (« Tecno Spark 10 »), affiché dans les appareils connectés et les alertes."
+        app:
+          type: string
+          enum:
+            - buyer
+            - seller
+            - driver
+            - pharmacy
+          default: buyer
+      required:
+        - phone
+        - device_id
+    PhoneVerifyInput:
+      type: object
+      properties:
+        phone:
+          type: string
+        code:
+          type: string
+          pattern: "^[0-9]{6}$"
+        device_id:
+          type: string
+          minLength: 8
+          maxLength: 100
+          description: "Identifiant d'installation tiré au hasard par l'app et gardé dans son stockage sécurisé (jamais un identifiant matériel). Gardé haché côté serveur."
+        device_name:
+          type: string
+          maxLength: 80
+          description: "Nom lisible de l'appareil (« Tecno Spark 10 »), affiché dans les appareils connectés et les alertes."
+        app:
+          type: string
+          enum:
+            - buyer
+            - seller
+            - driver
+            - pharmacy
+          default: buyer
+      required:
+        - phone
+        - code
+        - device_id
+    PhoneSignupInput:
+      type: object
+      properties:
+        signup_token:
+          type: string
+        first_name:
+          type: string
+          minLength: 1
+          maxLength: 100
+        last_name:
+          type: string
+          minLength: 1
+          maxLength: 100
+        accept_privacy_policy:
+          type: boolean
+          const: true
+        device_id:
+          type: string
+          minLength: 8
+          maxLength: 100
+          description: "Identifiant d'installation tiré au hasard par l'app et gardé dans son stockage sécurisé (jamais un identifiant matériel). Gardé haché côté serveur."
+        device_name:
+          type: string
+          maxLength: 80
+          description: "Nom lisible de l'appareil (« Tecno Spark 10 »), affiché dans les appareils connectés et les alertes."
+        app:
+          type: string
+          enum:
+            - buyer
+            - seller
+            - driver
+            - pharmacy
+          default: buyer
+      required:
+        - signup_token
+        - first_name
+        - last_name
+        - accept_privacy_policy
+        - device_id
+    PhoneVerifyResult:
+      type: object
+      properties:
+        status:
+          type: string
+          enum:
+            - signed_in
+            - signup_required
+        session:
+          "$ref": "#/components/schemas/Session"
+        signup_token:
+          type: string
+        signup_expires_at:
+          type: string
+          format: date-time
+      required:
+        - status
+    SessionView:
+      type: object
+      properties:
+        id:
+          type: string
+          format: uuid
+        device_name:
+          type: string
+        user_agent:
+          type: string
+        app:
+          type:
+            - string
+            - "null"
+        created_at:
+          type: string
+          format: date-time
+        last_used_at:
+          type: string
+          format: date-time
+        current:
+          type: boolean
+      required:
+        - id
+        - device_name
+        - user_agent
+        - app
+        - created_at
+        - last_used_at
+        - current
+    SessionList:
+      type: object
+      properties:
+        items:
+          type: array
+          items:
+            "$ref": "#/components/schemas/SessionView"
+      required:
+        - items
+    TOTPSetup:
+      type: object
+      properties:
+        secret:
+          type: string
+          description: "Secret en base32, à saisir à la main si le QR code ne passe pas."
+        otpauth_uri:
+          type: string
+          description: "Lien otpauth:// à afficher en QR code, généré dans le navigateur (jamais envoyé à un service tiers)."
+      required:
+        - secret
+        - otpauth_uri
+    RecoveryCodes:
+      type: object
+      properties:
+        recovery_codes:
+          type: array
+          items:
+            type: string
+          minItems: 10
+          maxItems: 10
+      required:
+        - recovery_codes
+    Property:
+      type: object
+      properties:
+        id: {type: string, format: uuid}
+        title: {type: string}
+        kind: {type: string, enum: [sale, rent]}
+        property_type: {type: string, enum: [house, villa, apartment, land, office, room]}
+        price_xof: {type: integer, description: "Prix de vente, ou loyer mensuel pour une location."}
+        bedrooms: {type: integer}
+        surface_m2: {type: integer}
+        neighborhood: {type: string}
+        address_text: {type: string}
+        lat: {type: number}
+        lng: {type: number}
+        description: {type: string}
+        photo_urls: {type: array, items: {type: string}}
+        contact_name: {type: string}
+        contact_phone: {type: string}
+        distance_m: {type: integer}
+        created_at: {type: string, format: date-time}
+      required: [id, title, kind, property_type, price_xof, bedrooms, surface_m2, neighborhood, address_text, lat, lng, description, photo_urls, contact_name, contact_phone, created_at]
     Address:
       type: object
       properties:
@@ -8177,6 +11019,7 @@ components:
             - seller
             - driver
             - admin
+            - pharmacy
         kind:
           type: string
         title:
@@ -9248,3 +12091,1889 @@ components:
       properties:
         reason:
           type: string
+    PharmacyDocument:
+      type: object
+      description: "Pièce du dossier ; url seulement pour les admins."
+      properties:
+        id:
+          type: string
+          format: uuid
+        kind:
+          type: string
+          enum:
+            - opening_authorization
+            - order_registration
+            - owner_id
+            - other
+        url:
+          type: string
+        created_at:
+          type: string
+          format: date-time
+      required:
+        - id
+        - kind
+        - created_at
+    Pharmacy:
+      type: object
+      description: "Dossier d'une pharmacie (titulaire et admin). duty_until : fin de la garde planifiée en cours."
+      properties:
+        id:
+          type: string
+          format: uuid
+        name:
+          type: string
+        license_number:
+          type: string
+        phone:
+          type: string
+        address_text:
+          type: string
+        neighborhood_id:
+          type:
+            - string
+            - "null"
+          format: uuid
+        location:
+          "$ref": "#/components/schemas/Point"
+        opening_hours:
+          type: string
+        is_open:
+          type: boolean
+        on_duty:
+          type: boolean
+        open_24h:
+          type: boolean
+        duty_until:
+          type:
+            - string
+            - "null"
+          format: date-time
+        status:
+          type: string
+          enum:
+            - pending_review
+            - approved
+            - rejected
+            - suspended
+        review_status:
+          type: string
+          enum:
+            - pending_review
+            - approved
+            - rejected
+        review_note:
+          type: string
+        reviewed_at:
+          type:
+            - string
+            - "null"
+          format: date-time
+        suspended_at:
+          type:
+            - string
+            - "null"
+          format: date-time
+        suspension_reason:
+          type: string
+        documents:
+          type: array
+          items:
+            "$ref": "#/components/schemas/PharmacyDocument"
+        missing_documents:
+          type: array
+          items:
+            type: string
+        created_at:
+          type: string
+          format: date-time
+        updated_at:
+          type: string
+          format: date-time
+      required:
+        - id
+        - name
+        - license_number
+        - phone
+        - address_text
+        - neighborhood_id
+        - location
+        - opening_hours
+        - is_open
+        - on_duty
+        - open_24h
+        - duty_until
+        - status
+        - review_status
+        - review_note
+        - reviewed_at
+        - suspended_at
+        - suspension_reason
+        - documents
+        - missing_documents
+        - created_at
+        - updated_at
+    AdminPharmacy:
+      type: object
+      description: "Dossier avec le titulaire (back-office)."
+      properties:
+        id:
+          type: string
+          format: uuid
+        name:
+          type: string
+        license_number:
+          type: string
+        phone:
+          type: string
+        address_text:
+          type: string
+        neighborhood_id:
+          type:
+            - string
+            - "null"
+          format: uuid
+        location:
+          "$ref": "#/components/schemas/Point"
+        opening_hours:
+          type: string
+        is_open:
+          type: boolean
+        on_duty:
+          type: boolean
+        open_24h:
+          type: boolean
+        duty_until:
+          type:
+            - string
+            - "null"
+          format: date-time
+        status:
+          type: string
+          enum:
+            - pending_review
+            - approved
+            - rejected
+            - suspended
+        review_status:
+          type: string
+          enum:
+            - pending_review
+            - approved
+            - rejected
+        review_note:
+          type: string
+        reviewed_at:
+          type:
+            - string
+            - "null"
+          format: date-time
+        suspended_at:
+          type:
+            - string
+            - "null"
+          format: date-time
+        suspension_reason:
+          type: string
+        documents:
+          type: array
+          items:
+            "$ref": "#/components/schemas/PharmacyDocument"
+        missing_documents:
+          type: array
+          items:
+            type: string
+        created_at:
+          type: string
+          format: date-time
+        updated_at:
+          type: string
+          format: date-time
+        owner_id:
+          type: string
+          format: uuid
+        owner_first_name:
+          type: string
+        owner_phone:
+          type: string
+      required:
+        - id
+        - name
+        - license_number
+        - phone
+        - address_text
+        - neighborhood_id
+        - location
+        - opening_hours
+        - is_open
+        - on_duty
+        - open_24h
+        - duty_until
+        - status
+        - review_status
+        - review_note
+        - reviewed_at
+        - suspended_at
+        - suspension_reason
+        - documents
+        - missing_documents
+        - created_at
+        - updated_at
+        - owner_id
+        - owner_first_name
+        - owner_phone
+    PharmacyApplicationInput:
+      type: object
+      description: "Inscription d'une pharmacie."
+      properties:
+        name:
+          type: string
+          minLength: 2
+          maxLength: 120
+        license_number:
+          type: string
+          minLength: 2
+          maxLength: 60
+        phone:
+          type: string
+        address_text:
+          type: string
+          minLength: 3
+          maxLength: 300
+        neighborhood_id:
+          type:
+            - string
+            - "null"
+          format: uuid
+        location:
+          "$ref": "#/components/schemas/Point"
+        opening_hours:
+          type: string
+          maxLength: 300
+      required:
+        - name
+        - license_number
+        - phone
+        - address_text
+        - location
+    PharmacyContactInput:
+      type: object
+      properties:
+        phone:
+          type: string
+        opening_hours:
+          type: string
+          maxLength: 300
+      required:
+        - phone
+    PharmacyDocumentInput:
+      type: object
+      properties:
+        kind:
+          type: string
+          enum:
+            - opening_authorization
+            - order_registration
+            - owner_id
+            - other
+        object_key:
+          type: string
+      required:
+        - kind
+        - object_key
+    PharmacyOpenStatus:
+      type: object
+      properties:
+        is_open:
+          type: boolean
+        on_duty:
+          type: boolean
+        open_24h:
+          type: boolean
+      required:
+        - is_open
+        - on_duty
+    PharmacyReviewInput:
+      type: object
+      description: "Motif obligatoire pour refuser ou suspendre."
+      properties:
+        decision:
+          type: string
+          enum:
+            - approve
+            - reject
+            - suspend
+            - reinstate
+        reason:
+          type: string
+      required:
+        - decision
+    OnDutyPharmacy:
+      type: object
+      description: "Pharmacie joignable maintenant (accueil)."
+      properties:
+        id:
+          type: string
+          format: uuid
+        name:
+          type: string
+        phone:
+          type: string
+        address_text:
+          type: string
+        location:
+          "$ref": "#/components/schemas/Point"
+        distance_m:
+          type: integer
+          format: int32
+        open_24h:
+          type: boolean
+        is_open:
+          type: boolean
+        on_duty:
+          type: boolean
+        duty_until:
+          type:
+            - string
+            - "null"
+          format: date-time
+      required:
+        - id
+        - name
+        - phone
+        - address_text
+        - location
+        - distance_m
+        - open_24h
+        - is_open
+        - on_duty
+        - duty_until
+    PharmacyDutyShift:
+      type: object
+      description: "Créneau de garde planifié."
+      properties:
+        id:
+          type: string
+          format: uuid
+        pharmacy_id:
+          type: string
+          format: uuid
+        starts_at:
+          type: string
+          format: date-time
+        ends_at:
+          type: string
+          format: date-time
+        created_at:
+          type: string
+          format: date-time
+      required:
+        - id
+        - pharmacy_id
+        - starts_at
+        - ends_at
+        - created_at
+    PharmacyDutyShiftInput:
+      type: object
+      description: "8 jours au plus, fin dans le futur."
+      properties:
+        starts_at:
+          type: string
+          format: date-time
+        ends_at:
+          type: string
+          format: date-time
+        reason:
+          type: string
+      required:
+        - starts_at
+        - ends_at
+    Medicine:
+      type: object
+      description: "Médicament de la base ; label = nom et dosage."
+      properties:
+        id:
+          type: string
+          format: uuid
+        name:
+          type: string
+        dosage:
+          type: string
+        form:
+          type: string
+        active_ingredient:
+          type: string
+        label:
+          type: string
+        is_active:
+          type: boolean
+      required:
+        - id
+        - name
+        - dosage
+        - form
+        - active_ingredient
+        - label
+        - is_active
+    MedicineInput:
+      type: object
+      properties:
+        name:
+          type: string
+          minLength: 2
+          maxLength: 120
+        dosage:
+          type: string
+          maxLength: 60
+        form:
+          type: string
+          maxLength: 60
+        active_ingredient:
+          type: string
+          maxLength: 120
+        is_active:
+          type: boolean
+      required:
+        - name
+    MedicineAlertItemInput:
+      type: object
+      description: "Produit recherché : choisi dans la base (medicine_id) ou saisi librement (name)."
+      properties:
+        medicine_id:
+          type:
+            - string
+            - "null"
+          format: uuid
+        name:
+          type: string
+          maxLength: 160
+          description: "Repris de la base si medicine_id est donné."
+        form:
+          type: string
+          maxLength: 60
+        quantity:
+          type: integer
+          minimum: 1
+          maximum: 20
+      required:
+        - quantity
+    MedicineAlertPhotoInput:
+      type: object
+      description: "Photo envoyée avec POST /v1/uploads (usage pharmacy_alert_photo)."
+      properties:
+        kind:
+          type: string
+          enum:
+            - prescription
+            - box
+        object_key:
+          type: string
+      required:
+        - kind
+        - object_key
+    MedicineAlertInput:
+      type: object
+      description: "Au moins un produit ou une photo. Position : address_id ou location. radius_m parmi les rayons proposés."
+      properties:
+        items:
+          type: array
+          maxItems: 20
+          items:
+            "$ref": "#/components/schemas/MedicineAlertItemInput"
+        photos:
+          type: array
+          maxItems: 10
+          items:
+            "$ref": "#/components/schemas/MedicineAlertPhotoInput"
+        note:
+          type: string
+          maxLength: 300
+        generic_accepted:
+          type: boolean
+        radius_m:
+          type: integer
+          format: int32
+        address_id:
+          type:
+            - string
+            - "null"
+          format: uuid
+        location:
+          oneOf:
+            - "$ref": "#/components/schemas/Point"
+            - type: "null"
+      required:
+        - radius_m
+    MedicineRelaunchInput:
+      type: object
+      description: "Champs absents : repris de l'alerte d'origine (photos comprises)."
+      properties:
+        radius_m:
+          type: integer
+          format: int32
+        items:
+          type:
+            - array
+            - "null"
+          maxItems: 20
+          items:
+            "$ref": "#/components/schemas/MedicineAlertItemInput"
+        note:
+          type:
+            - string
+            - "null"
+        generic_accepted:
+          type:
+            - boolean
+            - "null"
+      required:
+        - radius_m
+    MedicineRadiusCount:
+      type: object
+      properties:
+        radius_m:
+          type: integer
+          format: int32
+        pharmacies:
+          type: integer
+          format: int64
+      required:
+        - radius_m
+        - pharmacies
+    MedicineAlertPreview:
+      type: object
+      description: "Avant de lancer l'alerte : pharmacies joignables par rayon et règles en vigueur."
+      properties:
+        default_radius_m:
+          type: integer
+          format: int32
+        radii:
+          type: array
+          items:
+            "$ref": "#/components/schemas/MedicineRadiusCount"
+        unlock_fee_xof:
+          type: integer
+          format: int64
+        response_window_minutes:
+          type: integer
+          format: int32
+        pickup_hold_minutes:
+          type: integer
+          format: int32
+        photo_retention_hours:
+          type: integer
+          format: int32
+      required:
+        - default_radius_m
+        - radii
+        - unlock_fee_xof
+        - response_window_minutes
+        - pickup_hold_minutes
+        - photo_retention_hours
+    MedicineAlertItem:
+      type: object
+      properties:
+        id:
+          type: string
+          format: uuid
+        position:
+          type: integer
+          format: int32
+        medicine_id:
+          type:
+            - string
+            - "null"
+          format: uuid
+        name:
+          type: string
+        form:
+          type: string
+        quantity:
+          type: integer
+          format: int32
+      required:
+        - id
+        - position
+        - medicine_id
+        - name
+        - form
+        - quantity
+    MedicineAlertPhoto:
+      type: object
+      description: "url : lien de 10 minutes, absent une fois la photo purgée."
+      properties:
+        id:
+          type: string
+          format: uuid
+        kind:
+          type: string
+          enum:
+            - prescription
+            - box
+        position:
+          type: integer
+          format: int32
+        url:
+          type: string
+        purged:
+          type: boolean
+      required:
+        - id
+        - kind
+        - position
+        - purged
+    MedicineAlertStats:
+      type: object
+      properties:
+        notified:
+          type: integer
+          format: int64
+        seen:
+          type: integer
+          format: int64
+        responded:
+          type: integer
+          format: int64
+      required:
+        - notified
+        - seen
+        - responded
+    MedicineResponseLine:
+      type: object
+      description: "Ligne de réponse d'une pharmacie."
+      properties:
+        id:
+          type: string
+          format: uuid
+        alert_item_id:
+          type:
+            - string
+            - "null"
+          format: uuid
+        name:
+          type: string
+        quantity:
+          type: integer
+          format: int32
+        unit_price_xof:
+          type: integer
+          format: int64
+        line_total_xof:
+          type: integer
+          format: int64
+        available:
+          type: boolean
+        prescription_required:
+          type: boolean
+      required:
+        - id
+        - alert_item_id
+        - name
+        - quantity
+        - unit_price_xof
+        - line_total_xof
+        - available
+        - prescription_required
+    PharmacyContact:
+      type: object
+      description: "Identité d'une pharmacie, visible après déblocage."
+      properties:
+        id:
+          type: string
+          format: uuid
+        name:
+          type: string
+        phone:
+          type: string
+        address_text:
+          type: string
+        location:
+          "$ref": "#/components/schemas/Point"
+        on_duty:
+          type: boolean
+        open_24h:
+          type: boolean
+        duty_until:
+          type:
+            - string
+            - "null"
+          format: date-time
+      required:
+        - id
+        - name
+        - phone
+        - address_text
+        - location
+        - on_duty
+        - open_24h
+        - duty_until
+    MedicineAlertResponse:
+      type: object
+      description: "Réponse classée par distance ; tant qu'elle n'est pas débloquée, pharmacy est nul, label vaut « Pharmacie N » et note est vide."
+      properties:
+        id:
+          type: string
+          format: uuid
+        rank:
+          type: integer
+          format: int32
+        label:
+          type: string
+        distance_m:
+          type: integer
+          format: int32
+        lines:
+          type: array
+          items:
+            "$ref": "#/components/schemas/MedicineResponseLine"
+        available_count:
+          type: integer
+          format: int32
+        line_count:
+          type: integer
+          format: int32
+        all_available:
+          type: boolean
+        total_xof:
+          type: integer
+          format: int64
+        prescription_required:
+          type: boolean
+        note:
+          type: string
+        status:
+          type: string
+          enum:
+            - active
+            - withdrawn
+        unlocked:
+          type: boolean
+        responded_at:
+          type: string
+          format: date-time
+        reservation_id:
+          type:
+            - string
+            - "null"
+          format: uuid
+        pharmacy:
+          oneOf:
+            - "$ref": "#/components/schemas/PharmacyContact"
+            - type: "null"
+      required:
+        - id
+        - rank
+        - label
+        - distance_m
+        - lines
+        - available_count
+        - line_count
+        - all_available
+        - total_xof
+        - prescription_required
+        - note
+        - status
+        - unlocked
+        - responded_at
+        - reservation_id
+        - pharmacy
+    MedicineAlert:
+      type: object
+      description: "Alerte vue par le client ; unlock_fee_xof est dû pour chaque pharmacie débloquée."
+      properties:
+        id:
+          type: string
+          format: uuid
+        kind:
+          type: string
+          enum:
+            - prescription
+            - box_photo
+            - name
+            - mixed
+        items:
+          type: array
+          items:
+            "$ref": "#/components/schemas/MedicineAlertItem"
+        photos:
+          type: array
+          items:
+            "$ref": "#/components/schemas/MedicineAlertPhoto"
+        note:
+          type: string
+        generic_accepted:
+          type: boolean
+        status:
+          type: string
+          enum:
+            - searching
+            - answered
+            - no_response
+            - unlocked
+            - fulfilled
+            - cancelled
+        location:
+          "$ref": "#/components/schemas/Point"
+        radius_m:
+          type: integer
+          format: int32
+        search_ends_at:
+          type: string
+          format: date-time
+        stats:
+          "$ref": "#/components/schemas/MedicineAlertStats"
+        unlock_fee_xof:
+          type: integer
+          format: int64
+        responses:
+          type: array
+          items:
+            "$ref": "#/components/schemas/MedicineAlertResponse"
+        relaunched_from:
+          type:
+            - string
+            - "null"
+          format: uuid
+        created_at:
+          type: string
+          format: date-time
+        closed_at:
+          type:
+            - string
+            - "null"
+          format: date-time
+      required:
+        - id
+        - kind
+        - items
+        - photos
+        - note
+        - generic_accepted
+        - status
+        - location
+        - radius_m
+        - search_ends_at
+        - stats
+        - unlock_fee_xof
+        - responses
+        - relaunched_from
+        - created_at
+        - closed_at
+    AdminMedicineAlert:
+      type: object
+      description: "Alerte (pharmacies visibles) avec le client et les paiements."
+      properties:
+        id:
+          type: string
+          format: uuid
+        kind:
+          type: string
+          enum:
+            - prescription
+            - box_photo
+            - name
+            - mixed
+        items:
+          type: array
+          items:
+            "$ref": "#/components/schemas/MedicineAlertItem"
+        photos:
+          type: array
+          items:
+            "$ref": "#/components/schemas/MedicineAlertPhoto"
+        note:
+          type: string
+        generic_accepted:
+          type: boolean
+        status:
+          type: string
+          enum:
+            - searching
+            - answered
+            - no_response
+            - unlocked
+            - fulfilled
+            - cancelled
+        location:
+          "$ref": "#/components/schemas/Point"
+        radius_m:
+          type: integer
+          format: int32
+        search_ends_at:
+          type: string
+          format: date-time
+        stats:
+          "$ref": "#/components/schemas/MedicineAlertStats"
+        unlock_fee_xof:
+          type: integer
+          format: int64
+        responses:
+          type: array
+          items:
+            "$ref": "#/components/schemas/MedicineAlertResponse"
+        relaunched_from:
+          type:
+            - string
+            - "null"
+          format: uuid
+        created_at:
+          type: string
+          format: date-time
+        closed_at:
+          type:
+            - string
+            - "null"
+          format: date-time
+        buyer_id:
+          type: string
+          format: uuid
+        payments:
+          type: array
+          items:
+            "$ref": "#/components/schemas/MedicinePayment"
+      required:
+        - id
+        - kind
+        - items
+        - photos
+        - note
+        - generic_accepted
+        - status
+        - location
+        - radius_m
+        - search_ends_at
+        - stats
+        - unlock_fee_xof
+        - responses
+        - relaunched_from
+        - created_at
+        - closed_at
+        - buyer_id
+        - payments
+    PharmacyOwnResponse:
+      type: object
+      properties:
+        id:
+          type: string
+          format: uuid
+        lines:
+          type: array
+          items:
+            "$ref": "#/components/schemas/MedicineResponseLine"
+        total_xof:
+          type: integer
+          format: int64
+        note:
+          type: string
+        status:
+          type: string
+          enum:
+            - active
+            - withdrawn
+        unlocked:
+          type: boolean
+      required:
+        - id
+        - lines
+        - total_xof
+        - note
+        - status
+        - unlocked
+    PharmacyInboxItem:
+      type: object
+      description: "Alerte reçue par une pharmacie : jamais d'identité ni de position du client. photos : liens de 10 minutes (détail seulement)."
+      properties:
+        alert_id:
+          type: string
+          format: uuid
+        kind:
+          type: string
+          enum:
+            - prescription
+            - box_photo
+            - name
+            - mixed
+        items:
+          type: array
+          items:
+            "$ref": "#/components/schemas/MedicineAlertItem"
+        photos:
+          type: array
+          items:
+            "$ref": "#/components/schemas/MedicineAlertPhoto"
+        photo_count:
+          type: integer
+          format: int32
+        note:
+          type: string
+        generic_accepted:
+          type: boolean
+        distance_m:
+          type: integer
+          format: int32
+        status:
+          type: string
+          enum:
+            - pending
+            - responded
+            - declined
+            - expired
+        alert_status:
+          type: string
+          enum:
+            - searching
+            - answered
+            - no_response
+            - unlocked
+            - fulfilled
+            - cancelled
+        search_ends_at:
+          type: string
+          format: date-time
+        seen:
+          type: boolean
+        my_response:
+          oneOf:
+            - "$ref": "#/components/schemas/PharmacyOwnResponse"
+            - type: "null"
+        received_at:
+          type: string
+          format: date-time
+      required:
+        - alert_id
+        - kind
+        - items
+        - photos
+        - photo_count
+        - note
+        - generic_accepted
+        - distance_m
+        - status
+        - alert_status
+        - search_ends_at
+        - seen
+        - my_response
+        - received_at
+    PharmacyResponseLineInput:
+      type: object
+      description: "Prix obligatoire pour une ligne disponible."
+      properties:
+        alert_item_id:
+          type:
+            - string
+            - "null"
+          format: uuid
+        name:
+          type: string
+          minLength: 2
+          maxLength: 160
+        quantity:
+          type: integer
+          minimum: 1
+          maximum: 100
+        unit_price_xof:
+          type: integer
+          format: int64
+          minimum: 0
+          maximum: 10000000
+        available:
+          type: boolean
+        prescription_required:
+          type: boolean
+      required:
+        - name
+        - quantity
+        - available
+    PharmacyResponseInput:
+      type: object
+      description: "Au moins une ligne disponible ; sinon, refuser l'alerte."
+      properties:
+        lines:
+          type: array
+          minItems: 1
+          maxItems: 30
+          items:
+            "$ref": "#/components/schemas/PharmacyResponseLineInput"
+        note:
+          type: string
+          maxLength: 300
+      required:
+        - lines
+    CourierContact:
+      type: object
+      description: "Livreur ivia ; téléphone seulement pendant la course."
+      properties:
+        first_name:
+          type: string
+        phone:
+          type: string
+        vehicle_type:
+          type: string
+        vehicle_plate:
+          type: string
+        status:
+          type: string
+          enum:
+            - assigned
+            - picked_up
+            - delivered
+      required:
+        - first_name
+        - phone
+        - vehicle_type
+        - vehicle_plate
+        - status
+    MedicineTimeline:
+      type: object
+      description: "Étapes de la commande."
+      properties:
+        unlocked_at:
+          type: string
+          format: date-time
+        paid_at:
+          type:
+            - string
+            - "null"
+          format: date-time
+        prepared_at:
+          type:
+            - string
+            - "null"
+          format: date-time
+        picked_up_at:
+          type:
+            - string
+            - "null"
+          format: date-time
+        delivered_at:
+          type:
+            - string
+            - "null"
+          format: date-time
+      required:
+        - unlocked_at
+        - paid_at
+        - prepared_at
+        - picked_up_at
+        - delivered_at
+    MedicineReservation:
+      type: object
+      description: "Réservation créée au déblocage. handover_code (4 chiffres) à donner au pharmacien ou au livreur ; absent pendant la recherche de livreur et l'attente de paiement."
+      properties:
+        id:
+          type: string
+          format: uuid
+        number:
+          type: string
+        alert_id:
+          type: string
+          format: uuid
+        fulfillment:
+          type: string
+          enum:
+            - pickup
+            - delivery
+        status:
+          type: string
+          enum:
+            - reserved
+            - courier_search
+            - awaiting_payment
+            - paid
+            - courier_assigned
+            - picked_up
+            - completed
+            - expired
+            - cancelled
+        lines:
+          type: array
+          items:
+            "$ref": "#/components/schemas/MedicineResponseLine"
+        items_xof:
+          type: integer
+          format: int64
+        delivery_fee_xof:
+          type: integer
+          format: int64
+        total_xof:
+          type: integer
+          format: int64
+        pay_in_app:
+          type: boolean
+        prescription_required:
+          type: boolean
+        handover_code:
+          type: string
+        expires_at:
+          type:
+            - string
+            - "null"
+          format: date-time
+        courier_offers_sent:
+          type: integer
+          format: int64
+        distance_m:
+          type: integer
+          format: int64
+        walk_minutes:
+          type: integer
+          format: int32
+        delivery_address:
+          type: string
+        delivery_eta_minutes:
+          type:
+            - integer
+            - "null"
+          format: int32
+        cancel_reason:
+          type: string
+        pharmacy:
+          "$ref": "#/components/schemas/PharmacyContact"
+        courier:
+          oneOf:
+            - "$ref": "#/components/schemas/CourierContact"
+            - type: "null"
+        timeline:
+          "$ref": "#/components/schemas/MedicineTimeline"
+        created_at:
+          type: string
+          format: date-time
+        completed_at:
+          type:
+            - string
+            - "null"
+          format: date-time
+      required:
+        - id
+        - number
+        - alert_id
+        - fulfillment
+        - status
+        - lines
+        - items_xof
+        - delivery_fee_xof
+        - total_xof
+        - pay_in_app
+        - prescription_required
+        - expires_at
+        - courier_offers_sent
+        - distance_m
+        - walk_minutes
+        - delivery_address
+        - delivery_eta_minutes
+        - cancel_reason
+        - pharmacy
+        - courier
+        - timeline
+        - created_at
+        - completed_at
+    MedicineDeliveryQuote:
+      type: object
+      description: "Devis indicatif ; le prix est figé au choix de la livraison."
+      properties:
+        distance_m:
+          type: integer
+          format: int64
+        vehicle_type:
+          type: string
+        delivery_fee_xof:
+          type: integer
+          format: int64
+        items_xof:
+          type: integer
+          format: int64
+        total_xof:
+          type: integer
+          format: int64
+        eta_minutes:
+          type: integer
+          format: int32
+      required:
+        - distance_m
+        - vehicle_type
+        - delivery_fee_xof
+        - items_xof
+        - total_xof
+        - eta_minutes
+    MedicineDeliveryInput:
+      type: object
+      properties:
+        address_id:
+          type: string
+          format: uuid
+      required:
+        - address_id
+    PharmacyReservation:
+      type: object
+      description: "Réservation vue par la pharmacie (prénom du client seulement, jamais son code)."
+      properties:
+        id:
+          type: string
+          format: uuid
+        number:
+          type: string
+        alert_id:
+          type: string
+          format: uuid
+        fulfillment:
+          type: string
+          enum:
+            - pickup
+            - delivery
+        status:
+          type: string
+          enum:
+            - reserved
+            - courier_search
+            - awaiting_payment
+            - paid
+            - courier_assigned
+            - picked_up
+            - completed
+            - expired
+            - cancelled
+        lines:
+          type: array
+          items:
+            "$ref": "#/components/schemas/MedicineResponseLine"
+        items_xof:
+          type: integer
+          format: int64
+        commission_xof:
+          type: integer
+          format: int64
+        pharmacy_due_xof:
+          type: integer
+          format: int64
+        prescription_required:
+          type: boolean
+        buyer_first_name:
+          type: string
+        expires_at:
+          type:
+            - string
+            - "null"
+          format: date-time
+        prepared_at:
+          type:
+            - string
+            - "null"
+          format: date-time
+        cancel_reason:
+          type: string
+        courier:
+          oneOf:
+            - "$ref": "#/components/schemas/CourierContact"
+            - type: "null"
+        created_at:
+          type: string
+          format: date-time
+        completed_at:
+          type:
+            - string
+            - "null"
+          format: date-time
+      required:
+        - id
+        - number
+        - alert_id
+        - fulfillment
+        - status
+        - lines
+        - items_xof
+        - commission_xof
+        - pharmacy_due_xof
+        - prescription_required
+        - buyer_first_name
+        - expires_at
+        - prepared_at
+        - cancel_reason
+        - courier
+        - created_at
+        - completed_at
+    PharmacyPayout:
+      type: object
+      properties:
+        id:
+          type: string
+          format: uuid
+        amount_xof:
+          type: integer
+          format: int64
+        reference:
+          type: string
+        note:
+          type: string
+        created_at:
+          type: string
+          format: date-time
+      required:
+        - id
+        - amount_xof
+        - reference
+        - note
+        - created_at
+    PharmacyEarnings:
+      type: object
+      description: "Sommes dues (livraisons payées dans l'app) ; les retraits se paient sur place."
+      properties:
+        due_xof:
+          type: integer
+          format: int64
+        paid_out_xof:
+          type: integer
+          format: int64
+        balance_xof:
+          type: integer
+          format: int64
+        delivered_count:
+          type: integer
+          format: int64
+        pickup_count:
+          type: integer
+          format: int64
+        payouts:
+          type: array
+          items:
+            "$ref": "#/components/schemas/PharmacyPayout"
+      required:
+        - due_xof
+        - paid_out_xof
+        - balance_xof
+        - delivered_count
+        - pickup_count
+        - payouts
+    PharmacyPayoutInput:
+      type: object
+      properties:
+        amount_xof:
+          type: integer
+          format: int64
+          minimum: 1
+        reference:
+          type: string
+          minLength: 2
+          maxLength: 100
+        note:
+          type: string
+          maxLength: 300
+      required:
+        - amount_xof
+        - reference
+    MedicinePayInput:
+      type: object
+      description: "Numéro Mobile Money du payeur."
+      properties:
+        operator:
+          type: string
+          enum:
+            - flooz
+            - tmoney
+        phone:
+          type: string
+      required:
+        - operator
+        - phone
+    MedicinePayment:
+      type: object
+      description: "Paiement du module pharmacie (déblocage d'une pharmacie ou commande livrée)."
+      properties:
+        id:
+          type: string
+          format: uuid
+        purpose:
+          type: string
+          enum:
+            - unlock
+            - order
+        alert_id:
+          type: string
+          format: uuid
+        reservation_id:
+          type:
+            - string
+            - "null"
+          format: uuid
+        status:
+          type: string
+          enum:
+            - pending
+            - succeeded
+            - failed
+            - expired
+            - refund_pending
+            - refunded
+        amount_xof:
+          type: integer
+          format: int64
+        currency:
+          type: string
+        operator:
+          type: string
+          enum:
+            - flooz
+            - tmoney
+        phone_masked:
+          type: string
+        failure_reason:
+          type: string
+        instructions:
+          type: string
+        created_at:
+          type: string
+          format: date-time
+        updated_at:
+          type: string
+          format: date-time
+      required:
+        - id
+        - purpose
+        - alert_id
+        - reservation_id
+        - status
+        - amount_xof
+        - currency
+        - operator
+        - phone_masked
+        - failure_reason
+        - created_at
+        - updated_at
+    MedicineUnlockResult:
+      type: object
+      description: "payment est nul si le déblocage est gratuit ; reservation_id est rempli une fois la pharmacie débloquée."
+      properties:
+        alert:
+          "$ref": "#/components/schemas/MedicineAlert"
+        payment:
+          oneOf:
+            - "$ref": "#/components/schemas/MedicinePayment"
+            - type: "null"
+        reservation_id:
+          type:
+            - string
+            - "null"
+          format: uuid
+      required:
+        - alert
+        - payment
+        - reservation_id
+    SimulateOutcome:
+      type: object
+      properties:
+        outcome:
+          type: string
+          enum:
+            - succeeded
+            - failed
+      required:
+        - outcome
+    HandoverCode:
+      type: object
+      properties:
+        code:
+          type: string
+          pattern: "^[0-9]{4,6}$"
+      required:
+        - code
+    PharmacyDeliveredInput:
+      type: object
+      description: "prescription_checked obligatoire à true si la commande exige une ordonnance."
+      properties:
+        code:
+          type: string
+          pattern: "^[0-9]{4,6}$"
+        prescription_checked:
+          type: boolean
+      required:
+        - code
+    PharmacyCourierOffer:
+      type: object
+      description: "Course pharmacie proposée au livreur (le plus proche d'abord)."
+      properties:
+        id:
+          type: string
+          format: uuid
+        reservation_id:
+          type: string
+          format: uuid
+        pharmacy_name:
+          type: string
+        pharmacy_address:
+          type: string
+        distance_to_pharmacy_m:
+          type: integer
+          format: int32
+        pharmacy_to_client_m:
+          type: integer
+          format: int64
+        earning_xof:
+          type: integer
+          format: int64
+        expires_at:
+          type: string
+          format: date-time
+      required:
+        - id
+        - reservation_id
+        - pharmacy_name
+        - pharmacy_address
+        - distance_to_pharmacy_m
+        - pharmacy_to_client_m
+        - earning_xof
+        - expires_at
+    PharmacyMissionPOI:
+      type: object
+      properties:
+        name:
+          type: string
+        phone:
+          type: string
+        address_text:
+          type: string
+        location:
+          "$ref": "#/components/schemas/Point"
+        instructions:
+          type: string
+      required:
+        - name
+        - phone
+        - address_text
+        - location
+        - instructions
+    PharmacyCourierMission:
+      type: object
+      description: "Course vue par le livreur ; client nul hors course en cours. Récupération refusée tant que le client n'a pas payé."
+      properties:
+        id:
+          type: string
+          format: uuid
+        reservation_id:
+          type: string
+          format: uuid
+        number:
+          type: string
+        status:
+          type: string
+          enum:
+            - assigned
+            - picked_up
+            - delivered
+            - cancelled
+        fee_xof:
+          type: integer
+          format: int64
+        lines:
+          type: array
+          items:
+            "$ref": "#/components/schemas/MedicineResponseLine"
+        prescription_check_required:
+          type: boolean
+        prepared_at:
+          type:
+            - string
+            - "null"
+          format: date-time
+        pharmacy:
+          "$ref": "#/components/schemas/PharmacyMissionPOI"
+        client:
+          oneOf:
+            - "$ref": "#/components/schemas/PharmacyMissionPOI"
+            - type: "null"
+        assigned_at:
+          type: string
+          format: date-time
+        picked_up_at:
+          type:
+            - string
+            - "null"
+          format: date-time
+        delivered_at:
+          type:
+            - string
+            - "null"
+          format: date-time
+      required:
+        - id
+        - reservation_id
+        - number
+        - status
+        - fee_xof
+        - lines
+        - prescription_check_required
+        - prepared_at
+        - pharmacy
+        - client
+        - assigned_at
+        - picked_up_at
+        - delivered_at
+    PharmacySettings:
+      type: object
+      description: "Réglages de l'alerte médicament."
+      properties:
+        enabled:
+          type: boolean
+        unlock_fee_xof:
+          type: integer
+          format: int64
+          minimum: 0
+          maximum: 100000
+        search_radius_m:
+          type: integer
+          minimum: 500
+          maximum: 50000
+          description: "Rayon proposé par défaut (parmi radius_options_m)."
+        max_radius_m:
+          type: integer
+          minimum: 500
+          maximum: 50000
+        radius_options_m:
+          type: array
+          minItems: 1
+          maxItems: 5
+          items:
+            type: integer
+            minimum: 500
+            maximum: 50000
+        auto_widen:
+          type: boolean
+          description: "Élargir seul la recherche faute de réponses (sinon, le client relance)."
+        target_responses:
+          type: integer
+          minimum: 1
+          maximum: 20
+        widen_after_minutes:
+          type: integer
+          minimum: 1
+          maximum: 60
+        response_window_minutes:
+          type: integer
+          minimum: 2
+          maximum: 120
+        pickup_hold_minutes:
+          type: integer
+          minimum: 15
+          maximum: 1440
+        photo_retention_hours:
+          type: integer
+          minimum: 1
+          maximum: 8760
+        product_commission_bp:
+          type: integer
+          minimum: 0
+          maximum: 5000
+          description: "Commission sur les produits livrés, en points de base (0 : aucune)."
+        updated_at:
+          type: string
+          format: date-time
+      required:
+        - enabled
+        - unlock_fee_xof
+        - search_radius_m
+        - max_radius_m
+        - radius_options_m
+        - auto_widen
+        - target_responses
+        - widen_after_minutes
+        - response_window_minutes
+        - pickup_hold_minutes
+        - photo_retention_hours
+        - product_commission_bp
+        - updated_at
+    PharmacySettingsInput:
+      type: object
+      description: "Champs absents : inchangés."
+      properties:
+        enabled:
+          type: boolean
+        unlock_fee_xof:
+          type: integer
+          format: int64
+          minimum: 0
+          maximum: 100000
+        search_radius_m:
+          type: integer
+          minimum: 500
+          maximum: 50000
+          description: "Rayon proposé par défaut (parmi radius_options_m)."
+        max_radius_m:
+          type: integer
+          minimum: 500
+          maximum: 50000
+        radius_options_m:
+          type: array
+          minItems: 1
+          maxItems: 5
+          items:
+            type: integer
+            minimum: 500
+            maximum: 50000
+        auto_widen:
+          type: boolean
+          description: "Élargir seul la recherche faute de réponses (sinon, le client relance)."
+        target_responses:
+          type: integer
+          minimum: 1
+          maximum: 20
+        widen_after_minutes:
+          type: integer
+          minimum: 1
+          maximum: 60
+        response_window_minutes:
+          type: integer
+          minimum: 2
+          maximum: 120
+        pickup_hold_minutes:
+          type: integer
+          minimum: 15
+          maximum: 1440
+        photo_retention_hours:
+          type: integer
+          minimum: 1
+          maximum: 8760
+        product_commission_bp:
+          type: integer
+          minimum: 0
+          maximum: 5000
+          description: "Commission sur les produits livrés, en points de base (0 : aucune)."
+        reason:
+          type: string
+    PharmacyOverview:
+      type: object
+      properties:
+        pending_review:
+          type: integer
+          format: int64
+        approved:
+          type: integer
+          format: int64
+        reachable:
+          type: integer
+          format: int64
+        alerts:
+          type: integer
+          format: int64
+        alerts_without_response:
+          type: integer
+          format: int64
+        unlocked:
+          type: integer
+          format: int64
+        unlock_revenue_xof:
+          type: integer
+          format: int64
+        commission_xof:
+          type: integer
+          format: int64
+        completed:
+          type: integer
+          format: int64
+      required:
+        - pending_review
+        - approved
+        - reachable
+        - alerts
+        - alerts_without_response
+        - unlocked
+        - unlock_revenue_xof
+        - commission_xof
+        - completed

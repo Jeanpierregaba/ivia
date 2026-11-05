@@ -6,9 +6,12 @@ const buyerIdentity = AppIdentity(
   brand: IviaAppBrand.buyer,
   loginTitle: 'Bienvenue sur ivia',
   loginBody:
-      'Connectez-vous avec votre e-mail et votre mot de passe, ou créez '
-      'votre compte.',
+      'Connectez-vous ou créez votre compte avec votre numéro de '
+      'téléphone. Nous vous envoyons un code sur WhatsApp.',
   codeHint: _codeHint,
+  // Connexion par numéro (spec 001 v2, ADR 0012).
+  loginMethod: LoginMethod.phone,
+  appCode: 'buyer',
 );
 
 String _codeHint(Duration expiresIn) =>

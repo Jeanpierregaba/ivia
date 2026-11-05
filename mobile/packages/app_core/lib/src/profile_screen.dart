@@ -24,6 +24,10 @@ class _ProfileScreenState extends ConsumerState<ProfileScreen> {
   final _phone = TextEditingController();
   var _consent = false;
   var _isNewAccount = true;
+
+  /// Numéro vérifié par un code (connexion par numéro) : il n'est ni
+  /// redemandé ni modifiable ici.
+  var _phoneVerified = false;
   var _errors = <String, String>{};
   String? _generalError;
   var _busy = false;
@@ -36,6 +40,7 @@ class _ProfileScreenState extends ConsumerState<ProfileScreen> {
       _lastName.text = user.lastName;
       _phone.text = formatTogoPhone(user.phone ?? '');
       _isNewAccount = user.firstName.isEmpty;
+      _phoneVerified = user.phoneVerified;
     }
   }
 
@@ -56,7 +61,7 @@ class _ProfileScreenState extends ConsumerState<ProfileScreen> {
     if (first.length > 100) errors['first_name'] = '100 caractères au plus.';
     if (last.isEmpty) errors['last_name'] = 'Saisissez votre nom.';
     if (last.length > 100) errors['last_name'] = '100 caractères au plus.';
-    if (!isTogoMobile(togoPhoneDigits(_phone.text))) {
+    if (!_phoneVerified && !isTogoMobile(togoPhoneDigits(_phone.text))) {
       errors['phone'] =
           'Numéro mobile togolais attendu (8 chiffres commençant par 7 ou 9).';
     }
@@ -82,7 +87,9 @@ class _ProfileScreenState extends ConsumerState<ProfileScreen> {
           .updateMe(
             firstName: _firstName.text.trim(),
             lastName: _lastName.text.trim(),
-            phone: '+228${togoPhoneDigits(_phone.text)}',
+            phone: _phoneVerified
+                ? null
+                : '+228${togoPhoneDigits(_phone.text)}',
             acceptPrivacyPolicy: true,
           );
       // Profil complet : le routeur ouvre l'accueil.
@@ -201,16 +208,18 @@ class _ProfileScreenState extends ConsumerState<ProfileScreen> {
                         const SizedBox(height: IviaSpacing.lg),
                         names[1],
                       ],
-                      const SizedBox(height: IviaSpacing.lg),
-                      TogoPhoneField(
-                        label: 'Téléphone',
-                        controller: _phone,
-                        enabled: !_busy,
-                        helperText:
-                            'Visible par le livreur uniquement pendant une '
-                            'livraison.',
-                        errorText: _errors['phone'],
-                      ),
+                      if (!_phoneVerified) ...[
+                        const SizedBox(height: IviaSpacing.lg),
+                        TogoPhoneField(
+                          label: 'Téléphone',
+                          controller: _phone,
+                          enabled: !_busy,
+                          helperText:
+                              'Visible par le livreur uniquement pendant une '
+                              'livraison.',
+                          errorText: _errors['phone'],
+                        ),
+                      ],
                       const SizedBox(height: IviaSpacing.xl),
                       ConsentCheckbox(
                         value: _consent,

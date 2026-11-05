@@ -16,12 +16,14 @@ const (
 	RoleSeller Role = "seller"
 	RoleDriver Role = "driver"
 	RoleAdmin  Role = "admin"
+	// RolePharmacist : titulaire d'une pharmacie validée (module pharmacy).
+	RolePharmacist Role = "pharmacist"
 )
 
 // Valid indique si le rôle est connu.
 func (r Role) Valid() bool {
 	switch r {
-	case RoleBuyer, RoleSeller, RoleDriver, RoleAdmin:
+	case RoleBuyer, RoleSeller, RoleDriver, RoleAdmin, RolePharmacist:
 		return true
 	}
 	return false

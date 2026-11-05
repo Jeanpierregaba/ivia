@@ -9,12 +9,17 @@ import '../features/checkout/checkout_screen.dart';
 import '../features/home/home_screen.dart';
 import '../features/onboarding/onboarding_screen.dart';
 import '../features/orders/order_screen.dart';
+import '../features/pharmacy/alert_screen.dart';
+import '../features/pharmacy/new_alert_screen.dart';
+import '../features/pharmacy/pharmacy_hub_screen.dart';
+import '../features/pharmacy/reservation_screen.dart';
 import '../features/orders/orders_screen.dart';
 import '../features/payment/payment_screen.dart';
 import '../features/payment/payment_wait_screen.dart';
 import '../features/product/product_screen.dart';
 import '../features/profile/profile_tab_screen.dart';
 import '../features/search/search_screen.dart';
+import '../features/services/services_screens.dart';
 import '../features/shell/buyer_shell.dart';
 import '../features/shop/shop_screen.dart';
 import '../features/splash/loading_screen.dart';
@@ -23,6 +28,8 @@ abstract final class Routes {
   static const splash = '/';
   static const onboarding = '/onboarding';
   static const login = AuthRoutes.login;
+  static const code = AuthRoutes.code;
+  static const signup = AuthRoutes.signup;
 
   /// « Faisons connaissance » : profil à compléter après la connexion.
   static const welcome = '/welcome';
@@ -33,7 +40,6 @@ abstract final class Routes {
   static const search = '/search';
   static const orders = '/orders';
   static const profile = '/profile';
-  static const profilePassword = '/profile/password';
 
   // Fiches, par-dessus la barre du bas.
   static const shops = '/shops';
@@ -41,6 +47,24 @@ abstract final class Routes {
   static String shop(String id) => '$shops/$id';
   static String product(String id) => '$products/$id';
   static const cart = '/cart';
+
+  // Alerte médicament (P01 à P14).
+  static const pharmacy = '/pharmacy';
+  static const restaurants = '/restaurants';
+  static const properties = '/properties';
+  static String property(String id) => '/properties/$id';
+  static const medNewAlert = '/pharmacy/new';
+  static const medItems = '/pharmacy/new/items';
+  static String medCapture(String kind) => '/pharmacy/new/capture/$kind';
+  static const medReview = '/pharmacy/new/review';
+  static const medLaunch = '/pharmacy/new/launch';
+  static const medMap = '/pharmacy/map';
+  static String medAlert(String id) => '/pharmacy/alerts/$id';
+  static String medResponses(String id) => '/pharmacy/alerts/$id/responses';
+  static String medUnlock(String alertId, String responseId) =>
+      '/pharmacy/alerts/$alertId/unlock/$responseId';
+  static String medReservation(String id) => '/pharmacy/reservations/$id';
+  static String medPickup(String id) => '/pharmacy/reservations/$id/pickup';
   static const checkout = '/checkout';
   static String order(String id) => '$orders/$id';
 
@@ -66,7 +90,7 @@ String? redirectFor(
   final allowed = switch (auth) {
     AuthStarting() => const [Routes.splash],
     AuthSignedOut() when !onboardingSeen => const [Routes.onboarding],
-    AuthSignedOut() => const [Routes.login],
+    AuthSignedOut() => const [Routes.login, Routes.code, Routes.signup],
     AuthNeedsProfile() => const [Routes.welcome],
     AuthSignedIn() => const [
       Routes.home,
@@ -77,6 +101,9 @@ String? redirectFor(
       Routes.products,
       Routes.cart,
       Routes.checkout,
+      Routes.pharmacy,
+      Routes.restaurants,
+      Routes.properties,
     ],
     AuthOffline() => const [Routes.offline],
   };
@@ -110,7 +137,23 @@ final routerProvider = Provider<GoRouter>((ref) {
         path: Routes.onboarding,
         builder: (context, state) => const OnboardingScreen(),
       ),
-      ...authRoutes(),
+      GoRoute(
+        path: Routes.login,
+        // Connexion par numéro : numéro, code (WhatsApp ou SMS), puis
+        // « Faisons connaissance » pour un numéro nouveau.
+        builder: (context, state) => const PhoneScreen(),
+        routes: [
+          // Sous /login : le retour depuis le code revient au numéro.
+          GoRoute(
+            path: 'code',
+            builder: (context, state) => const PhoneCodeScreen(),
+          ),
+          GoRoute(
+            path: 'signup',
+            builder: (context, state) => const PhoneSignupScreen(),
+          ),
+        ],
+      ),
       GoRoute(
         path: Routes.welcome,
         builder: (context, state) => const ProfileScreen(),
@@ -130,14 +173,6 @@ final routerProvider = Provider<GoRouter>((ref) {
                   path: path,
                   builder: (context, state) => screen,
                   routes: [
-                    // Changement de mot de passe au-dessus de la barre.
-                    if (path == Routes.profile)
-                      GoRoute(
-                        path: 'password',
-                        parentNavigatorKey: rootKey,
-                        builder: (context, state) =>
-                            const ChangePasswordScreen(),
-                      ),
                     // Suivi au-dessus de la barre du bas ; « retour » revient
                     // à l'onglet Commandes.
                     if (path == Routes.orders)
@@ -189,6 +224,100 @@ final routerProvider = Provider<GoRouter>((ref) {
         path: Routes.checkout,
         parentNavigatorKey: rootKey,
         builder: (context, state) => const CheckoutScreen(),
+      ),
+      GoRoute(
+        path: Routes.pharmacy,
+        parentNavigatorKey: rootKey,
+        builder: (context, state) => const PharmacyHubScreen(),
+        routes: [
+          GoRoute(
+            path: 'map',
+            parentNavigatorKey: rootKey,
+            builder: (context, state) => const OnDutyMapScreen(),
+          ),
+          GoRoute(
+            path: 'new',
+            parentNavigatorKey: rootKey,
+            builder: (context, state) => const NewAlertScreen(),
+            routes: [
+              GoRoute(
+                path: 'items',
+                parentNavigatorKey: rootKey,
+                builder: (context, state) => const AlertItemsScreen(),
+              ),
+              GoRoute(
+                path: 'capture/:kind',
+                parentNavigatorKey: rootKey,
+                builder: (context, state) =>
+                    AlertCaptureScreen(kind: state.pathParameters['kind']!),
+              ),
+              GoRoute(
+                path: 'review',
+                parentNavigatorKey: rootKey,
+                builder: (context, state) => const AlertReviewScreen(),
+              ),
+              GoRoute(
+                path: 'launch',
+                parentNavigatorKey: rootKey,
+                builder: (context, state) => const AlertLaunchScreen(),
+              ),
+            ],
+          ),
+          GoRoute(
+            path: 'alerts/:id',
+            parentNavigatorKey: rootKey,
+            builder: (context, state) =>
+                AlertScreen(alertId: state.pathParameters['id']!),
+            routes: [
+              GoRoute(
+                path: 'responses',
+                parentNavigatorKey: rootKey,
+                builder: (context, state) =>
+                    ResponsesScreen(alertId: state.pathParameters['id']!),
+              ),
+              GoRoute(
+                path: 'unlock/:responseId',
+                parentNavigatorKey: rootKey,
+                builder: (context, state) => UnlockScreen(
+                  alertId: state.pathParameters['id']!,
+                  responseId: state.pathParameters['responseId']!,
+                ),
+              ),
+            ],
+          ),
+          GoRoute(
+            path: 'reservations/:id',
+            parentNavigatorKey: rootKey,
+            builder: (context, state) =>
+                ReservationScreen(reservationId: state.pathParameters['id']!),
+            routes: [
+              GoRoute(
+                path: 'pickup',
+                parentNavigatorKey: rootKey,
+                builder: (context, state) =>
+                    PickupScreen(reservationId: state.pathParameters['id']!),
+              ),
+            ],
+          ),
+        ],
+      ),
+      GoRoute(
+        path: Routes.restaurants,
+        parentNavigatorKey: rootKey,
+        builder: (context, state) => const RestaurantsScreen(),
+      ),
+      GoRoute(
+        path: Routes.properties,
+        parentNavigatorKey: rootKey,
+        builder: (context, state) => const PropertiesScreen(),
+        routes: [
+          GoRoute(
+            path: ':id',
+            parentNavigatorKey: rootKey,
+            builder: (context, state) =>
+                PropertyScreen(propertyId: state.pathParameters['id']!),
+          ),
+        ],
       ),
       GoRoute(
         path: Routes.cart,

@@ -19,7 +19,7 @@ void main() {
       expect(go(const AuthSignedOut(), Routes.splash), Routes.login);
       expect(go(const AuthSignedOut(), Routes.home), Routes.login);
       expect(go(AuthNeedsProfile(user), Routes.login), Routes.welcome);
-      expect(go(AuthSignedIn(user), AuthRoutes.signupCode), Routes.home);
+      expect(go(AuthSignedIn(user), Routes.code), Routes.home);
       expect(go(const AuthOffline(), Routes.home), Routes.offline);
     });
 
@@ -27,16 +27,8 @@ void main() {
       expect(go(const AuthStarting(), Routes.splash), isNull);
       expect(go(const AuthSignedOut(), Routes.onboarding, seen: false), isNull);
       expect(go(const AuthSignedOut(), Routes.login), isNull);
-      for (final screen in [
-        AuthRoutes.signup,
-        AuthRoutes.signupCode,
-        AuthRoutes.signupPassword,
-        AuthRoutes.forgot,
-        AuthRoutes.forgotCode,
-        AuthRoutes.forgotPassword,
-      ]) {
-        expect(go(const AuthSignedOut(), screen), isNull, reason: screen);
-      }
+      expect(go(const AuthSignedOut(), Routes.code), isNull);
+      expect(go(const AuthSignedOut(), Routes.signup), isNull);
       expect(go(AuthNeedsProfile(user), Routes.welcome), isNull);
       expect(
         go(AuthNeedsProfile(user), Routes.profile),

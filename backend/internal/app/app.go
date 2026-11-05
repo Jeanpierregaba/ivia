@@ -11,6 +11,7 @@ import (
 	"net/http"
 	"time"
 
+	"github.com/google/uuid"
 	"github.com/jackc/pgx/v5/pgxpool"
 
 	"ivia/backend/internal/admin"
@@ -22,6 +23,7 @@ import (
 	"ivia/backend/internal/notifications"
 	"ivia/backend/internal/orders"
 	"ivia/backend/internal/payments"
+	"ivia/backend/internal/pharmacy"
 	"ivia/backend/internal/platform/apperr"
 	"ivia/backend/internal/platform/config"
 	"ivia/backend/internal/platform/database"
@@ -31,6 +33,7 @@ import (
 	"ivia/backend/internal/platform/jobs"
 	"ivia/backend/internal/platform/storage"
 	"ivia/backend/internal/promo"
+	"ivia/backend/internal/properties"
 	"ivia/backend/internal/reports"
 	"ivia/backend/internal/search"
 	"ivia/backend/internal/settlements"
@@ -67,6 +70,8 @@ type App struct {
 	Delivery      *delivery.Service
 	Settlements   *settlements.Service
 	Promo         *promo.Service
+	Pharmacy      *pharmacy.Service
+	Properties    *properties.Service
 
 	// Implémentations factices exposées en local et dans les tests (nil sinon).
 	DevOTP      *auth.LogSender
@@ -113,9 +118,15 @@ func New(cfg config.Config, logger *slog.Logger, pool *pgxpool.Pool, opts Option
 	a.Admin = admin.NewService(db)
 	a.Geo = geo.NewService(db, a.Admin)
 	a.Users = users.NewService(db, a.Geo, a.Admin)
-	a.Auth = auth.NewService(db, a.Users, otpSender, logger, auth.Options{Secret: cfg.AuthSecret, SessionTTL: cfg.SessionTTL, GoogleClientIDs: cfg.GoogleClientIDs})
+	a.Auth = auth.NewService(db, a.Users, otpSender, logger, auth.Options{
+		Secret: cfg.AuthSecret, SessionTTL: cfg.SessionTTL, GoogleClientIDs: cfg.GoogleClientIDs,
+		PhoneChannels: a.phoneChannels(), PhoneCodesPerHour: cfg.PhoneCodesPerHour,
+	})
+	a.Auth.SetAuditor(a.Admin)
 	a.Uploads = uploads.NewService(objectStore)
+	a.Users.SetAvatars(a.Uploads)
 	a.Notifications = notifications.NewService(db, enq, a.Users, push, logger)
+	a.Auth.SetNotifier(authNotifier{a.Notifications})
 	a.Shops = shops.NewService(db, a.Geo, a.Users, a.Uploads, a.Admin, a.Notifications)
 	a.Stock = stock.NewService(db)
 	a.Catalog = catalog.NewService(db, a.Shops, a.Stock, a.Uploads, a.Admin)
@@ -131,16 +142,24 @@ func New(cfg config.Config, logger *slog.Logger, pool *pgxpool.Pool, opts Option
 	})
 	a.Settlements = settlements.NewService(db, a.Orders, a.Shops, a.Admin, a.Notifications)
 	a.Promo = promo.NewService(db, a.Uploads, a.Catalog, a.Orders, a.Admin)
+	a.Pharmacy = pharmacy.NewService(pharmacy.Deps{
+		DB: db, Jobs: enq, Admin: a.Admin, Users: a.Users, Geo: a.Geo, Uploads: a.Uploads, Notify: a.Notifications,
+		Payments: a.Payments, Delivery: a.Delivery, Logger: logger,
+	})
+
+	a.Properties = properties.NewService(db, a.Uploads)
 
 	// Suppression de compte : les modules qui bloquent, puis ceux qui effacent leurs données.
 	a.Users.AddDeletionGuard(a.Orders)
 	a.Users.AddDeletionGuard(a.Delivery)
+	a.Users.AddDeletionGuard(a.Pharmacy)
 	a.Users.AddDeletionHook(a.Auth)
 	a.Users.AddDeletionHook(a.Orders)
 	a.Users.AddDeletionHook(a.Delivery)
 	a.Users.AddDeletionHook(a.Shops)
 	a.Users.AddDeletionHook(a.Cart)
 	a.Users.AddDeletionHook(a.Notifications)
+	a.Users.AddDeletionHook(a.Pharmacy)
 
 	reg := jobs.NewRegistry()
 	a.Auth.RegisterJobs(reg)
@@ -148,6 +167,7 @@ func New(cfg config.Config, logger *slog.Logger, pool *pgxpool.Pool, opts Option
 	a.Orders.RegisterJobs(reg)
 	a.Payments.RegisterJobs(reg)
 	a.Delivery.RegisterJobs(reg)
+	a.Pharmacy.RegisterJobs(reg)
 	a.Uploads.RegisterJobs(reg, logger)
 	if a.Queue, err = jobs.New(pool, reg, jobs.Options{RunWorkers: cfg.RunWorkers, PollInterval: opts.PollInterval, Logger: logger, Reporter: a.Errors}); err != nil {
 		return nil, err
@@ -178,6 +198,12 @@ func (a *App) routes() (http.Handler, []string) {
 	delivery.NewHandler(a.Delivery).Register(rt)
 	settlements.NewHandler(a.Settlements).Register(rt)
 	promo.NewHandler(a.Promo).Register(rt)
+	a.Properties.Register(rt)
+	var devPayments *payments.FakeProvider
+	if a.Config.DevToolsEnabled() {
+		devPayments = a.FakePayment
+	}
+	pharmacy.NewHandler(a.Pharmacy, devPayments).Register(rt)
 	reports.NewHandler(a.Orders, a.Delivery, a.Payments, a.Shops, a.Users, a.Admin).Register(rt)
 
 	if a.Config.Env != config.EnvProduction { // documentation interactive : local, test, staging
@@ -188,6 +214,7 @@ func (a *App) routes() (http.Handler, []string) {
 		if a.LocalStore != nil {
 			rt.Raw("/dev/storage/", a.LocalStore.Handler())
 		}
+		rt.Auth("POST /v1/dev/medicine-alerts/{id}/auto-respond", a.devAutoRespond)
 		if a.DevOTP != nil {
 			// Dernier code envoyé à une adresse : automatisation des tests des apps en local.
 			// POST : l'adresse ne doit jamais apparaître dans une URL.
@@ -223,19 +250,65 @@ func (a *App) buildStorage() (storage.ObjectStore, error) {
 	return nil, fmt.Errorf("stockage inconnu : %s", a.Config.Storage)
 }
 
+// buildOTPSender assemble les expéditeurs de codes : e-mail (OTP_SENDER), WhatsApp
+// (PHONE_OTP_SENDER) et SMS (SMS_SENDER). En local, chaque code est aussi gardé pour
+// POST /v1/dev/otp.
 func (a *App) buildOTPSender() (auth.OTPSender, error) {
-	switch a.Config.OTPSender {
+	cfg := a.Config
+	dev := func() *auth.LogSender {
+		if a.DevOTP == nil {
+			a.DevOTP = &auth.LogSender{Logger: a.Logger}
+		}
+		return a.DevOTP
+	}
+	var r auth.ChannelRouter
+	switch cfg.OTPSender {
 	case "brevo":
-		return &auth.BrevoSender{APIKey: a.Config.BrevoAPIKey, SenderEmail: a.Config.BrevoSenderMail, SenderName: a.Config.BrevoSenderName}, nil
+		r.Email = &auth.BrevoSender{APIKey: cfg.BrevoAPIKey, SenderEmail: cfg.BrevoSenderMail, SenderName: cfg.BrevoSenderName}
 	case "log":
-		a.DevOTP = &auth.LogSender{Logger: a.Logger}
-		return a.DevOTP, nil
+		r.Email = dev()
 	case "smtp":
 		// E-mail dans la boîte locale Mailpit, et code gardé pour POST /v1/dev/otp.
-		a.DevOTP = &auth.LogSender{Logger: a.Logger}
-		return auth.TeeSender{&auth.SMTPSender{Addr: a.Config.SMTPAddr, From: a.Config.SMTPFrom}, a.DevOTP}, nil
+		r.Email = auth.TeeSender{&auth.SMTPSender{Addr: cfg.SMTPAddr, From: cfg.SMTPFrom}, dev()}
+	default:
+		return nil, fmt.Errorf("envoi OTP inconnu : %s", cfg.OTPSender)
 	}
-	return nil, fmt.Errorf("envoi OTP inconnu : %s", a.Config.OTPSender)
+	switch cfg.PhoneOTPSender {
+	case "whatsapp":
+		r.WhatsApp = &auth.WhatsAppSender{PhoneNumberID: cfg.WhatsAppPhoneNumberID, AccessToken: cfg.WhatsAppAccessToken,
+			Template: cfg.WhatsAppTemplate, Language: cfg.WhatsAppTemplateLang}
+	case "log":
+		r.WhatsApp = dev()
+	}
+	if cfg.SMSSender == "log" {
+		r.SMS = dev()
+	}
+	return r, nil
+}
+
+// phoneChannels : canaux ouverts pour la connexion par numéro, WhatsApp d'abord.
+func (a *App) phoneChannels() []auth.Channel {
+	var out []auth.Channel
+	if a.Config.PhoneOTPSender == "whatsapp" || a.Config.PhoneOTPSender == "log" {
+		out = append(out, auth.ChannelWhatsApp)
+	}
+	// SMS toujours proposé dès que la connexion par numéro est ouverte : tant que le fournisseur
+	// n'est pas branché (SMS_SENDER=none), l'envoi par SMS échoue et le code part par WhatsApp.
+	if len(out) > 0 {
+		out = append(out, auth.ChannelSMS)
+	}
+	return out
+}
+
+// authNotifier relie les alertes de sécurité du module auth aux notifications.
+type authNotifier struct{ n *notifications.Service }
+
+func (a authNotifier) NotifyAdmins(ctx context.Context, kind, title, body string, data map[string]string) error {
+	return a.n.NotifyAdmins(ctx, kind, title, body, data)
+}
+
+func (a authNotifier) NotifyUser(ctx context.Context, userID uuid.UUID, app, kind, title, body string, data map[string]string) error {
+	return a.n.Notify(ctx, notifications.Message{UserID: userID, App: notifications.App(app), Kind: kind, Title: title, Body: body, Data: data})
 }
 
 func (a *App) buildPush() (notifications.PushSender, error) {

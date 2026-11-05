@@ -1,6 +1,6 @@
 # 0011 — Connexion par mot de passe et par Google, double vérification des admins
 
-- **Statut** : Accepté
+- **Statut** : Accepté ; remplacé en partie par [0012](0012-connexion-numero-whatsapp-jetons-totp.md) (connexion des apps mobiles par numéro)
 - **Date** : 2026-11-03
 - **Remplace** : la connexion par code seule de l'[ADR 0006](0006-authentification-otp-sessions.md)
   (les sessions opaques de l'ADR 0006 restent inchangées)

@@ -184,30 +184,6 @@ void main() {
   Iterable<RecordedRequest> creates() =>
       server.calls('POST', '/v1/seller/shops/$shopId/products');
 
-  testWidgets('Compte : « Changer le mot de passe », puis retour', (
-    tester,
-  ) async {
-    server.on(
-      'GET',
-      '/v1/auth/session',
-      (_) => FakeResponse.json(200, {
-        'mfa_verified': false,
-        'has_password': true,
-        'expires_at': '2026-12-30T08:00:00Z',
-      }),
-    );
-    await launch(tester);
-    await tester.tap(find.byIcon(Icons.person_outline));
-    await tester.pumpAndSettle();
-    await tapText(tester, 'Changer le mot de passe');
-    expect(find.text('Mot de passe actuel'), findsOneWidget);
-    // Au-dessus de la barre du bas.
-    expect(find.byType(IviaBottomNav), findsNothing);
-    await tester.tap(find.byTooltip('Retour'));
-    await tester.pumpAndSettle();
-    expect(find.text('Compte'), findsWidgets);
-  });
-
   group('catalogue', () {
     testWidgets('onglets, compteurs, lignes et barre du bas', (tester) async {
       catalog
@@ -749,6 +725,11 @@ void main() {
     await tester.tap(find.byIcon(Icons.person_outline));
     await tester.pumpAndSettle();
     expect(find.text('Awa Mensah'), findsOneWidget);
+    await tester.scrollUntilVisible(
+      find.text('Se déconnecter'),
+      200,
+      scrollable: find.byType(Scrollable).last,
+    );
     await tapText(tester, 'Se déconnecter');
     expect(server.calls('POST', '/v1/auth/logout'), hasLength(1));
     expect(find.text('Espace marchand'), findsOneWidget);
@@ -1126,15 +1107,30 @@ void main() {
       await tester.pumpAndSettle();
       await tester.tap(find.byIcon(Icons.person_outline));
       await tester.pumpAndSettle();
-      await tapText(tester, 'Se déconnecter');
-      server.on(
-        'POST',
-        '/v1/auth/login',
-        (_) => FakeResponse.json(200, {...sessionBody(), 'user': seller()}),
+      await tester.scrollUntilVisible(
+        find.text('Se déconnecter'),
+        200,
+        scrollable: find.byType(Scrollable).last,
       );
-      await tester.enterText(field('Adresse e-mail'), 'afi@test.tg');
-      await tester.enterText(field('Mot de passe'), 'pagne-wax-2026');
-      await tapText(tester, 'Se connecter');
+      await tapText(tester, 'Se déconnecter');
+      server
+        ..on(
+          'POST',
+          '/v1/auth/phone/code',
+          (_) => FakeResponse.json(202, phoneOtpBody),
+        )
+        ..on(
+          'POST',
+          '/v1/auth/phone/verify',
+          (_) => FakeResponse.json(200, {
+            'status': 'signed_in',
+            'session': {...phoneSessionBody(), 'user': seller()},
+          }),
+        );
+      await tester.enterText(find.byType(TextField), '90 12 34 56');
+      await tapText(tester, 'Recevoir le code sur WhatsApp');
+      await tester.enterText(find.byType(TextField), '481902');
+      await tester.pumpAndSettle();
       await tester.tap(find.byIcon(Icons.grid_view_rounded));
       await tester.pumpAndSettle();
       expect(lastList().query['status'], 'active');

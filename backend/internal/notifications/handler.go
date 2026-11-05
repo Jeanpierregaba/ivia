@@ -25,14 +25,14 @@ func (h *Handler) Register(rt *httpapi.Router) {
 
 // appParam lit l'app concernée et vérifie que l'utilisateur a le rôle correspondant.
 func appParam(r *http.Request, q *httpapi.Query) (App, error) {
-	app := App(q.Enum("app", "buyer", "buyer", "seller", "driver", "admin"))
+	app := App(q.Enum("app", "buyer", "buyer", "seller", "driver", "admin", "pharmacy"))
 	if err := q.Err(); err != nil {
 		return "", err
 	}
 	p := identity.MustFromContext(r.Context())
 	required := map[App]identity.Role{
 		AppBuyer: identity.RoleBuyer, AppSeller: identity.RoleSeller,
-		AppDriver: identity.RoleDriver, AppAdmin: identity.RoleAdmin,
+		AppDriver: identity.RoleDriver, AppAdmin: identity.RoleAdmin, AppPharmacy: identity.RolePharmacist,
 	}[app]
 	if !p.HasRole(required) {
 		return "", apperr.Forbidden("forbidden", "Votre compte n'a pas accès à cette fonctionnalité.")

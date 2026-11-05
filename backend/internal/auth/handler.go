@@ -26,6 +26,23 @@ func (h *Handler) Register(rt *httpapi.Router) {
 	rt.Public("POST /v1/auth/otp", h.requestOTP)
 	rt.Public("POST /v1/auth/verify", h.verify)
 
+	// Connexion par numéro (ADR 0012) : apps mobiles.
+	rt.Public("POST /v1/auth/phone/code", h.phoneCode)
+	rt.Public("POST /v1/auth/phone/verify", h.phoneVerify)
+	rt.Public("POST /v1/auth/phone/signup", h.phoneSignup)
+	rt.Public("POST /v1/auth/refresh", h.refresh)
+	rt.Auth("POST /v1/me/phone/code", h.phoneChangeCode)
+	rt.Auth("POST /v1/me/phone", h.phoneChange)
+	rt.Auth("GET /v1/me/sessions", h.listSessions)
+	rt.Auth("DELETE /v1/me/sessions/{id}", h.revokeSession)
+
+	// Application d'authentification (back-office).
+	rt.Auth("POST /v1/auth/mfa/totp/setup", h.totpSetup)
+	rt.Auth("POST /v1/auth/mfa/totp/confirm", h.totpConfirm)
+	rt.Auth("POST /v1/auth/mfa/totp/recovery-codes", h.totpRecovery)
+	rt.Auth("POST /v1/auth/mfa/totp/disable", h.totpDisable)
+	rt.Roles("POST /v1/admin/users/{id}/mfa/reset", h.adminResetTOTP, identity.RoleAdmin)
+
 	rt.Public("GET /v1/auth/providers", h.providers)
 	rt.Public("POST /v1/auth/signup/code", h.emailCode(h.svc.RequestSignupCode))
 	rt.Public("POST /v1/auth/signup", h.signup)
@@ -43,7 +60,7 @@ func (h *Handler) Register(rt *httpapi.Router) {
 }
 
 func (h *Handler) providers(w http.ResponseWriter, _ *http.Request) error {
-	return httpapi.OK(w, map[string]bool{"password": true, "google": h.svc.GoogleEnabled()})
+	return httpapi.OK(w, map[string]bool{"password": true, "google": h.svc.GoogleEnabled(), "phone": h.svc.PhoneEnabled()})
 }
 
 func (h *Handler) emailCode(send func(ctx context.Context, email, ip string) (OTPRequested, error)) httpapi.HandlerFunc {
@@ -235,4 +252,172 @@ func (w *purgeWorker) Work(ctx context.Context, _ *river.Job[PurgeArgs]) error {
 func (s *Service) RegisterJobs(reg *jobs.Registry) {
 	river.AddWorker(reg.Workers, &purgeWorker{svc: s})
 	reg.AddPeriodic(24*time.Hour, func() river.JobArgs { return PurgeArgs{} })
+}
+
+func (h *Handler) phoneCode(w http.ResponseWriter, r *http.Request) error {
+	var in PhoneCodeInput
+	if err := httpapi.Decode(r, &in); err != nil {
+		return err
+	}
+	out, err := h.svc.RequestPhoneCode(r.Context(), in, httpapi.ClientIP(r.Context()))
+	if err != nil {
+		return err
+	}
+	httpapi.WriteJSON(w, http.StatusAccepted, out)
+	return nil
+}
+
+func (h *Handler) phoneVerify(w http.ResponseWriter, r *http.Request) error {
+	var in PhoneVerifyInput
+	if err := httpapi.Decode(r, &in); err != nil {
+		return err
+	}
+	out, err := h.svc.VerifyPhone(r.Context(), in, r.UserAgent(), httpapi.ClientIP(r.Context()))
+	if err != nil {
+		return err
+	}
+	return httpapi.OK(w, out)
+}
+
+func (h *Handler) phoneSignup(w http.ResponseWriter, r *http.Request) error {
+	var in PhoneSignupInput
+	if err := httpapi.Decode(r, &in); err != nil {
+		return err
+	}
+	sess, err := h.svc.PhoneSignup(r.Context(), in, r.UserAgent())
+	if err != nil {
+		return err
+	}
+	return httpapi.Created(w, sess)
+}
+
+func (h *Handler) refresh(w http.ResponseWriter, r *http.Request) error {
+	var in struct {
+		RefreshToken string `json:"refresh_token"`
+	}
+	if err := httpapi.Decode(r, &in); err != nil {
+		return err
+	}
+	sess, err := h.svc.Refresh(r.Context(), in.RefreshToken)
+	if err != nil {
+		return err
+	}
+	return httpapi.OK(w, sess)
+}
+
+func (h *Handler) phoneChangeCode(w http.ResponseWriter, r *http.Request) error {
+	var in struct {
+		Phone   string  `json:"phone"`
+		Channel Channel `json:"channel"`
+	}
+	if err := httpapi.Decode(r, &in); err != nil {
+		return err
+	}
+	p := identity.MustFromContext(r.Context())
+	out, err := h.svc.RequestPhoneChange(r.Context(), p.UserID, in.Phone, in.Channel, httpapi.ClientIP(r.Context()))
+	if err != nil {
+		return err
+	}
+	httpapi.WriteJSON(w, http.StatusAccepted, out)
+	return nil
+}
+
+func (h *Handler) phoneChange(w http.ResponseWriter, r *http.Request) error {
+	var in struct {
+		Phone string `json:"phone"`
+		Code  string `json:"code"`
+	}
+	if err := httpapi.Decode(r, &in); err != nil {
+		return err
+	}
+	p := identity.MustFromContext(r.Context())
+	user, err := h.svc.ConfirmPhoneChange(r.Context(), p.UserID, in.Phone, in.Code, httpapi.ClientIP(r.Context()))
+	if err != nil {
+		return err
+	}
+	return httpapi.OK(w, user)
+}
+
+func (h *Handler) listSessions(w http.ResponseWriter, r *http.Request) error {
+	p := identity.MustFromContext(r.Context())
+	items, err := h.svc.ListSessions(r.Context(), p.UserID, p.SessionID)
+	if err != nil {
+		return err
+	}
+	return httpapi.OK(w, map[string]any{"items": items})
+}
+
+func (h *Handler) revokeSession(w http.ResponseWriter, r *http.Request) error {
+	id, err := httpapi.PathUUID(r, "id")
+	if err != nil {
+		return err
+	}
+	if err := h.svc.RevokeSession(r.Context(), identity.MustFromContext(r.Context()).UserID, id); err != nil {
+		return err
+	}
+	return httpapi.NoContent(w)
+}
+
+type codeInput struct {
+	Code string `json:"code"`
+}
+
+func (h *Handler) totpSetup(w http.ResponseWriter, r *http.Request) error {
+	out, err := h.svc.StartTOTP(r.Context(), identity.MustFromContext(r.Context()))
+	if err != nil {
+		return err
+	}
+	return httpapi.OK(w, out)
+}
+
+func (h *Handler) totpConfirm(w http.ResponseWriter, r *http.Request) error {
+	var in codeInput
+	if err := httpapi.Decode(r, &in); err != nil {
+		return err
+	}
+	out, err := h.svc.ConfirmTOTP(r.Context(), identity.MustFromContext(r.Context()), in.Code)
+	if err != nil {
+		return err
+	}
+	return httpapi.OK(w, out)
+}
+
+func (h *Handler) totpRecovery(w http.ResponseWriter, r *http.Request) error {
+	var in codeInput
+	if err := httpapi.Decode(r, &in); err != nil {
+		return err
+	}
+	out, err := h.svc.RegenerateRecoveryCodes(r.Context(), identity.MustFromContext(r.Context()), in.Code)
+	if err != nil {
+		return err
+	}
+	return httpapi.OK(w, out)
+}
+
+func (h *Handler) totpDisable(w http.ResponseWriter, r *http.Request) error {
+	var in codeInput
+	if err := httpapi.Decode(r, &in); err != nil {
+		return err
+	}
+	if err := h.svc.DisableTOTP(r.Context(), identity.MustFromContext(r.Context()), in.Code); err != nil {
+		return err
+	}
+	return httpapi.NoContent(w)
+}
+
+func (h *Handler) adminResetTOTP(w http.ResponseWriter, r *http.Request) error {
+	id, err := httpapi.PathUUID(r, "id")
+	if err != nil {
+		return err
+	}
+	var in struct {
+		Reason string `json:"reason"`
+	}
+	if err := httpapi.Decode(r, &in); err != nil {
+		return err
+	}
+	if err := h.svc.AdminResetTOTP(r.Context(), identity.MustFromContext(r.Context()), id, in.Reason); err != nil {
+		return err
+	}
+	return httpapi.NoContent(w)
 }

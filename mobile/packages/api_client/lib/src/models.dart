@@ -9,6 +9,8 @@ class User {
     required this.roles,
     required this.privacyConsentAt,
     required this.profileComplete,
+    this.phoneVerified = false,
+    this.avatarUrl,
   });
 
   factory User.fromJson(Map<String, dynamic> json) => User(
@@ -20,6 +22,8 @@ class User {
     roles: List<String>.from(json['roles'] as List),
     privacyConsentAt: _date(json['privacy_consent_at']),
     profileComplete: json['profile_complete'] as bool,
+    phoneVerified: json['phone_verified'] as bool? ?? false,
+    avatarUrl: json['avatar_url'] as String?,
   );
 
   final String id;
@@ -35,6 +39,13 @@ class User {
   /// Prénom, téléphone et consentement renseignés.
   final bool profileComplete;
 
+  /// Numéro prouvé par un code : identifiant de connexion, modifiable
+  /// seulement avec un nouveau code (`POST /v1/me/phone`).
+  final bool phoneVerified;
+
+  /// Photo de profil ; `null` : initiales.
+  final String? avatarUrl;
+
   Map<String, dynamic> toJson() => {
     'id': id,
     'email': email,
@@ -44,6 +55,8 @@ class User {
     'roles': roles,
     'privacy_consent_at': privacyConsentAt?.toUtc().toIso8601String(),
     'profile_complete': profileComplete,
+    'phone_verified': phoneVerified,
+    'avatar_url': avatarUrl,
   };
 }
 
@@ -53,16 +66,23 @@ class Session {
     required this.token,
     required this.isNewUser,
     required this.user,
+    this.refreshToken,
   });
 
   factory Session.fromJson(Map<String, dynamic> json) => Session(
     token: json['token'] as String,
-    isNewUser: json['is_new_user'] as bool,
+    refreshToken: json['refresh_token'] as String?,
+    isNewUser: json['is_new_user'] as bool? ?? false,
     user: User.fromJson(json['user'] as Map<String, dynamic>),
   );
 
-  /// Jeton opaque : jamais affiché ni journalisé.
+  /// Jeton opaque : jamais affiché ni journalisé. Avec [refreshToken],
+  /// c'est un jeton d'accès court, renouvelé automatiquement.
   final String token;
+
+  /// Connexion par numéro : jeton de rafraîchissement, changé à chaque
+  /// renouvellement ; gardé dans le stockage sécurisé uniquement.
+  final String? refreshToken;
   final bool isNewUser;
   final User user;
 }
@@ -96,15 +116,120 @@ class SessionInfo {
 
 /// Réponse à une demande de code (création de compte, mot de passe oublié).
 class OtpRequested {
-  const OtpRequested({required this.expiresIn, required this.resendAfter});
+  const OtpRequested({
+    required this.expiresIn,
+    required this.resendAfter,
+    this.channel = OtpChannel.email,
+  });
 
   factory OtpRequested.fromJson(Map<String, dynamic> json) => OtpRequested(
     expiresIn: Duration(seconds: json['expires_in_seconds'] as int),
     resendAfter: Duration(seconds: json['resend_after_seconds'] as int),
+    channel: OtpChannel.parse(json['channel'] as String? ?? 'email'),
   );
 
   final Duration expiresIn;
   final Duration resendAfter;
+
+  /// Canal réellement utilisé (WhatsApp, ou SMS en secours).
+  final OtpChannel channel;
+}
+
+/// Canal d'envoi d'un code.
+enum OtpChannel {
+  email('email'),
+  whatsapp('whatsapp'),
+  sms('sms');
+
+  const OtpChannel(this.code);
+
+  final String code;
+
+  static OtpChannel parse(String code) =>
+      values.firstWhere((c) => c.code == code, orElse: () => email);
+}
+
+/// Appareil qui se connecte (`device_id`, `device_name`, `app`).
+class DeviceInfo {
+  const DeviceInfo({required this.id, required this.name, required this.app});
+
+  /// Identifiant d'installation tiré au hasard ([SessionStore.deviceId]).
+  final String id;
+
+  /// Nom lisible (« Téléphone Android »).
+  final String name;
+
+  /// buyer, seller, driver ou pharmacy.
+  final String app;
+
+  Map<String, dynamic> toJson() => {
+    'device_id': id,
+    'device_name': name,
+    'app': app,
+  };
+}
+
+/// Résultat de `POST /v1/auth/phone/verify` : session ouverte (numéro
+/// connu) ou inscription à terminer (numéro nouveau).
+sealed class PhoneVerifyResult {
+  const PhoneVerifyResult();
+
+  factory PhoneVerifyResult.fromJson(Map<String, dynamic> json) =>
+      switch (json['status']) {
+        'signup_required' => PhoneSignupRequired(
+          token: json['signup_token'] as String,
+          expiresAt: DateTime.parse(json['signup_expires_at'] as String),
+        ),
+        _ => PhoneSignedIn(
+          Session.fromJson(json['session'] as Map<String, dynamic>),
+        ),
+      };
+}
+
+final class PhoneSignedIn extends PhoneVerifyResult {
+  const PhoneSignedIn(this.session);
+
+  final Session session;
+}
+
+/// Numéro prouvé, compte à créer avec le nom avant [expiresAt].
+final class PhoneSignupRequired extends PhoneVerifyResult {
+  const PhoneSignupRequired({required this.token, required this.expiresAt});
+
+  /// Jeton d'inscription à usage unique : gardé en mémoire seulement.
+  final String token;
+  final DateTime expiresAt;
+}
+
+/// Session active, vue par son titulaire (« Appareils connectés »).
+class SessionView {
+  const SessionView({
+    required this.id,
+    required this.deviceName,
+    required this.userAgent,
+    required this.lastUsedAt,
+    required this.createdAt,
+    required this.current,
+    this.app,
+  });
+
+  factory SessionView.fromJson(Map<String, dynamic> json) => SessionView(
+    id: json['id'] as String,
+    deviceName: json['device_name'] as String,
+    userAgent: json['user_agent'] as String,
+    app: json['app'] as String?,
+    createdAt: DateTime.parse(json['created_at'] as String),
+    lastUsedAt: DateTime.parse(json['last_used_at'] as String),
+    current: json['current'] as bool,
+  );
+
+  final String id;
+  final String deviceName;
+  final String userAgent;
+  final String? app;
+  final DateTime createdAt;
+  final DateTime lastUsedAt;
+  final bool current;
 }
 
 /// Position (schéma `Point`).
@@ -692,9 +817,13 @@ class SearchQuery {
     this.maxPrice,
     this.inStockOnly = false,
     this.sort = SearchSort.relevance,
+    this.shopCategoryId,
   });
 
   final String text;
+
+  /// Catégorie de boutique (« Restauration »…).
+  final String? shopCategoryId;
 
   /// Position de l'acheteur : distances calculées, tri par distance permis.
   final GeoPoint? point;
@@ -728,6 +857,7 @@ class SearchQuery {
       if (p != null) 'lng': p.lng.toStringAsFixed(3),
       if (p != null && radiusM != null) 'radius_m': '$radiusM',
       'neighborhood_id': ?neighborhoodId,
+      'shop_category_id': ?shopCategoryId,
       if (products) ...{
         'category_id': ?categoryId,
         'shop_id': ?shopId,

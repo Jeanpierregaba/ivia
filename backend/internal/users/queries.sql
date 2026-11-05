@@ -8,6 +8,27 @@ SELECT * FROM users WHERE email = $1 AND deleted_at IS NULL;
 -- Sans effet (aucune ligne) si l'e-mail existe déjà : inscription simultanée.
 INSERT INTO users (email) VALUES ($1) ON CONFLICT (email) DO NOTHING RETURNING *;
 
+-- name: GetUserByPhone :one
+SELECT * FROM users WHERE phone = $1 AND deleted_at IS NULL;
+
+-- name: CreateUserWithPhone :one
+-- Compte créé après la vérification du numéro (connexion par numéro) : numéro vérifié, nom et
+-- consentement datés. Sans effet (aucune ligne) si le numéro est déjà pris.
+INSERT INTO users (phone, phone_verified_at, first_name, last_name, privacy_consent_at)
+VALUES (sqlc.arg(phone), now(), sqlc.arg(first_name), sqlc.arg(last_name), now())
+ON CONFLICT (phone) DO NOTHING
+RETURNING *;
+
+-- name: MarkPhoneVerified :exec
+UPDATE users SET phone_verified_at = now(), updated_at = now()
+WHERE id = $1 AND phone_verified_at IS NULL;
+
+-- name: SetVerifiedPhone :one
+-- Changement de numéro confirmé par un code.
+UPDATE users SET phone = sqlc.arg(phone), phone_verified_at = now(), updated_at = now()
+WHERE id = sqlc.arg(id) AND deleted_at IS NULL
+RETURNING *;
+
 -- name: UpdateProfile :one
 UPDATE users
 SET first_name = sqlc.arg(first_name),
@@ -24,7 +45,7 @@ RETURNING *;
 
 -- name: AnonymizeUser :exec
 UPDATE users
-SET email = NULL, phone = NULL, first_name = '', last_name = '',
+SET email = NULL, phone = NULL, phone_verified_at = NULL, avatar_key = NULL, first_name = '', last_name = '',
     deleted_at = now(), updated_at = now()
 WHERE id = $1 AND deleted_at IS NULL;
 
@@ -126,3 +147,8 @@ SELECT token FROM device_tokens WHERE user_id = $1 AND app = $2;
 -- name: ListUserIDsByRole :many
 SELECT r.user_id FROM user_roles r JOIN users u ON u.id = r.user_id
 WHERE r.role = $1 AND u.deleted_at IS NULL;
+
+-- name: SetAvatar :one
+UPDATE users SET avatar_key = sqlc.narg(avatar_key), updated_at = now()
+WHERE id = sqlc.arg(id) AND deleted_at IS NULL
+RETURNING *;

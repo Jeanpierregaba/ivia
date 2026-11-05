@@ -191,6 +191,28 @@ Map<String, dynamic> userBody({
   'created_at': '2026-10-31T08:00:00Z',
 };
 
+/// Réponse type de `POST /v1/auth/phone/code`.
+const phoneOtpBody = {
+  'channel': 'whatsapp',
+  'expires_in_seconds': 300,
+  'resend_after_seconds': 60,
+};
+
+/// Session type d'une connexion par numéro : jeton d'accès court et jeton de
+/// rafraîchissement.
+Map<String, dynamic> phoneSessionBody({
+  bool newUser = false,
+  String token = 'jeton-acces',
+  String refresh = 'jeton-rafraichissement',
+}) => {
+  'token': token,
+  'refresh_token': refresh,
+  'access_expires_at': '2026-11-05T10:15:00Z',
+  'expires_at': '2027-01-04T10:00:00Z',
+  'is_new_user': newUser,
+  'user': {...userBody(complete: true), 'email': null, 'phone_verified': true},
+};
+
 /// Session type (schéma `Session`).
 Map<String, dynamic> sessionBody({bool complete = false}) => {
   'token': 'jeton-secret',

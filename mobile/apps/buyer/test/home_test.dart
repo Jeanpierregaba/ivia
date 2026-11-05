@@ -151,7 +151,7 @@ void main() {
 
     await tester.tap(find.byIcon(Icons.home_outlined));
     await tester.pumpAndSettle();
-    await tester.tap(find.text('Alimentation'));
+    await tester.tap(find.widgetWithText(IviaChip, 'Alimentation'));
     await tester.pumpAndSettle();
     expect(
       container.read(searchFiltersProvider).categoryId,
@@ -161,7 +161,7 @@ void main() {
     await tester.tap(find.byIcon(Icons.home_outlined));
     await tester.pumpAndSettle();
     await tester.tap(
-      find.bySemanticsLabel('Voir tout : Boutiques autour de vous'),
+      find.bySemanticsLabel('Voir tout : Boutiques près de vous'),
     );
     await tester.pumpAndSettle();
     final filters = container.read(searchFiltersProvider);
@@ -247,7 +247,7 @@ void main() {
     await app.launch(tester);
     final home = app.searches('/v1/search/shops').last.query;
     await tester.tap(
-      find.bySemanticsLabel('Voir tout : Boutiques autour de vous'),
+      find.bySemanticsLabel('Voir tout : Boutiques près de vous'),
     );
     await tester.pumpAndSettle();
     final all = app.searches('/v1/search/shops').last.query;

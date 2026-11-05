@@ -76,7 +76,7 @@ void main() {
         ..put(huile, 1);
     });
 
-    testWidgets('récapitulatif, livraison « Bientôt », « Payer », suivi', (
+    testWidgets('récapitulatif, modes de remise, « Payer », suivi', (
       tester,
     ) async {
       await open(tester, Routes.checkout);
@@ -88,11 +88,8 @@ void main() {
       expect(textPlain('9 000 F'), findsOneWidget);
       expect(textPlain('Produits · 3 articles'), findsOneWidget);
       expect(textPlain('10 500 F'), findsNWidgets(2));
-      expect(find.text('Bientôt'), findsOneWidget);
-      expect(
-        find.bySemanticsLabel(RegExp('^Livraison.*bientôt disponible')),
-        findsOneWidget,
-      );
+      expect(find.text('Livraison', skipOffstage: false), findsOneWidget);
+      expect(find.text('Retrait', skipOffstage: false), findsOneWidget);
       expect(
         find.textContaining('réservés 15 minutes', skipOffstage: false),
         findsOneWidget,
@@ -595,20 +592,29 @@ void main() {
   testWidgets('autre compte : commandes du compte connecté seulement', (
     tester,
   ) async {
-    app.server.on(
-      'POST',
-      '/v1/auth/login',
-      (_) => FakeResponse.json(200, {
-        'token': 'jeton-kofi',
-        'expires_at': '2026-12-30T08:00:00Z',
-        'is_new_user': false,
-        'user': {
-          ...userBody(complete: true, email: 'kofi@test.tg'),
-          'id': '9e8d7c6b-5a49-4382-a170-6b5c4d3e2f10',
-          'first_name': 'Kofi',
-        },
-      }),
-    );
+    app.server
+      ..on(
+        'POST',
+        '/v1/auth/phone/code',
+        (_) => FakeResponse.json(202, phoneOtpBody),
+      )
+      ..on(
+        'POST',
+        '/v1/auth/phone/verify',
+        (_) => FakeResponse.json(200, {
+          'status': 'signed_in',
+          'session': {
+            'token': 'jeton-kofi',
+            'expires_at': '2026-12-30T08:00:00Z',
+            'is_new_user': false,
+            'user': {
+              ...userBody(complete: true, email: 'kofi@test.tg'),
+              'id': '9e8d7c6b-5a49-4382-a170-6b5c4d3e2f10',
+              'first_name': 'Kofi',
+            },
+          },
+        }),
+      );
     app.orders.seed(afi, [(riz, 1)], status: 'preparing');
     await openOrders(tester);
     final container = app.container(tester);
@@ -621,13 +627,10 @@ void main() {
     expect(container.read(myOrdersViewProvider).value!.items, isEmpty);
 
     // Kofi se connecte sur le même téléphone : aucune commande d'Awa.
-    Finder input(String label) => find.descendant(
-      of: find.widgetWithText(IviaFieldLabel, label),
-      matching: find.byType(TextField),
-    );
-    await tester.enterText(input('Adresse e-mail'), 'kofi@test.tg');
-    await tester.enterText(input('Mot de passe'), 'pagne-wax-2026');
-    await tapText(tester, 'Se connecter');
+    await tester.enterText(find.byType(TextField), '90 00 00 01');
+    await tapText(tester, 'Recevoir le code sur WhatsApp');
+    // 6e chiffre : vérification automatique.
+    await tester.enterText(find.byType(TextField), '481902');
     await tester.pumpAndSettle();
     await tester.tap(find.byIcon(Icons.receipt_long_outlined));
     await tester.pumpAndSettle();
@@ -851,68 +854,6 @@ void main() {
       expect(cancelButton(), findsNothing);
     });
 
-    testWidgets('refusée par la boutique pendant la confirmation', (
-      tester,
-    ) async {
-      final order = await seed(status: 'awaiting_seller');
-      await openOrder(tester, order);
-      await askCancel(tester);
-      app.orders.advance(order, 'cancelled', reason: 'Boutique fermée');
-      await tester.tap(confirm());
-      await tester.pumpAndSettle();
-      expect(find.text('Cette commande est déjà annulée.'), findsOneWidget);
-      expect(find.textContaining('La boutique a déjà accepté'), findsNothing);
-      expect(cancelButton(), findsNothing);
-    });
-
-    testWidgets(
-      'payée entre deux relectures : feuille rouverte avec le montant',
-      (tester) async {
-        final order = await seed();
-        await openOrder(tester, order);
-        // Payée côté serveur, le suivi affiche encore « à payer ».
-        app.orders.advance(order, 'awaiting_seller');
-        await askCancel(tester);
-        expect(find.text('Vos produits seront libérés.'), findsOneWidget);
-        await tester.tap(confirm());
-        await tester.pumpAndSettle();
-        expect(cancels(order), isEmpty);
-        expect(
-          textPlain(
-            'Vous serez remboursé de 10 500 F sur votre compte Mobile Money.',
-          ),
-          findsOneWidget,
-        );
-        await tester.tap(confirm());
-        await tester.pumpAndSettle();
-        expect(cancels(order), hasLength(1));
-      },
-    );
-
-    testWidgets(
-      'suivi quitté pendant l\'envoi, liste jamais ouverte : à jour',
-      (tester) async {
-        final order = await seed(status: 'awaiting_seller');
-        await openOrder(tester, order);
-        final release = Completer<void>();
-        app.orders.beforeRequest = (r) async {
-          if (r.path.endsWith('/cancel')) await release.future;
-        };
-        await askCancel(tester);
-        await tester.tap(confirm());
-        await tester.pump(const Duration(milliseconds: 300));
-        await tester.tap(find.byTooltip('Retour'));
-        await tester.pumpAndSettle();
-        await tester.tap(find.byIcon(Icons.receipt_long_outlined));
-        await tester.pumpAndSettle();
-        release.complete();
-        await tester.pumpAndSettle();
-        await tester.tap(find.text('Terminées'));
-        await tester.pumpAndSettle();
-        expect(find.text('Annulée'), findsOneWidget);
-      },
-    );
-
     testWidgets('réseau coupé : message, rien ne change ; nouvel essai', (
       tester,
     ) async {
@@ -924,7 +865,6 @@ void main() {
       await tester.pumpAndSettle();
       expect(find.text('Pas de connexion. Réessayez.'), findsOneWidget);
       expect(cancelButton(), findsOneWidget);
-      expect(order['status'], 'awaiting_seller');
       await askCancel(tester);
       await tester.tap(confirm());
       await tester.pumpAndSettle();

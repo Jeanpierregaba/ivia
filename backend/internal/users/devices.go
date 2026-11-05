@@ -22,7 +22,7 @@ func (s *Service) RegisterDevice(ctx context.Context, userID uuid.UUID, in Devic
 	v := validate.New()
 	v.Text("token", in.Token, 1, 4096)
 	v.Check(in.Platform == "android" || in.Platform == "ios", "platform", "Valeur attendue : android ou ios.")
-	v.Check(in.App == "buyer" || in.App == "seller" || in.App == "driver", "app", "Valeur attendue : buyer, seller ou driver.")
+	v.Check(in.App == "buyer" || in.App == "seller" || in.App == "driver" || in.App == "pharmacy", "app", "Valeur attendue : buyer, seller, driver ou pharmacy.")
 	if err := v.Err(); err != nil {
 		return err
 	}

@@ -352,13 +352,22 @@ func (s *Service) GoogleSignIn(ctx context.Context, idToken, userAgent, ip strin
 
 // SessionInfo décrit la session courante.
 type SessionInfo struct {
-	MFAVerified bool      `json:"mfa_verified"`
-	HasPassword bool      `json:"has_password"`
-	ExpiresAt   time.Time `json:"expires_at"`
+	MFAVerified bool `json:"mfa_verified"`
+	HasPassword bool `json:"has_password"`
+	// MFAMethod : second facteur attendu, « totp » (application d'authentification) ou « email ».
+	MFAMethod string `json:"mfa_method"`
+	// RecoveryCodesLeft : codes de secours restants (application d'authentification activée).
+	RecoveryCodesLeft int       `json:"recovery_codes_left"`
+	ExpiresAt         time.Time `json:"expires_at"`
 }
 
 // RequestMFACode envoie le code de vérification à l'e-mail du compte connecté.
 func (s *Service) RequestMFACode(ctx context.Context, p identity.Principal, ip string) (OTPRequested, error) {
+	if on, err := s.TOTPEnabled(ctx, p.UserID); err != nil {
+		return OTPRequested{}, err
+	} else if on {
+		return OTPRequested{}, errTOTPRequired // pas de retour à l'e-mail une fois l'application activée
+	}
 	email, err := s.accountEmail(ctx, p.UserID)
 	if err != nil {
 		return OTPRequested{}, err
@@ -369,6 +378,26 @@ func (s *Service) RequestMFACode(ctx context.Context, p identity.Principal, ip s
 // VerifyMFA vérifie le code et marque la session comme vérifiée, pour AdminSessionCap au plus.
 // Seule une session vérifiée ouvre les routes admin.
 func (s *Service) VerifyMFA(ctx context.Context, p identity.Principal, code, ip string) (SessionInfo, error) {
+	totp, hasTOTP, err := s.totpState(ctx, p.UserID)
+	if err != nil {
+		return SessionInfo{}, err
+	}
+	if hasTOTP && totp.ConfirmedAt != nil {
+		err = s.db.InTx(ctx, func(ctx context.Context) error {
+			if err := s.verifySecondFactor(ctx, p.UserID, totp, code); err != nil {
+				return err
+			}
+			_, err := store.New(s.db.Conn(ctx)).MarkSessionMFA(ctx, store.MarkSessionMFAParams{ID: p.SessionID, Cap: time.Now().Add(AdminSessionCap)})
+			if database.IsNoRows(err) {
+				return errInvalidSession
+			}
+			return err
+		})
+		if err != nil {
+			return SessionInfo{}, err
+		}
+		return s.SessionInfo(ctx, p)
+	}
 	email, err := s.accountEmail(ctx, p.UserID)
 	if err != nil {
 		return SessionInfo{}, err
@@ -407,7 +436,18 @@ func (s *Service) SessionInfo(ctx context.Context, p identity.Principal) (Sessio
 	if pwErr != nil && !database.IsNoRows(pwErr) {
 		return SessionInfo{}, fmt.Errorf("lecture du mot de passe : %w", pwErr)
 	}
-	return SessionInfo{MFAVerified: sess.MfaVerifiedAt != nil, HasPassword: pwErr == nil, ExpiresAt: sess.ExpiresAt}, nil
+	info := SessionInfo{MFAVerified: sess.MfaVerifiedAt != nil, HasPassword: pwErr == nil, MFAMethod: "email", ExpiresAt: sess.ExpiresAt}
+	if on, err := s.TOTPEnabled(ctx, p.UserID); err != nil {
+		return SessionInfo{}, err
+	} else if on {
+		info.MFAMethod = "totp"
+		left, err := q.CountRecoveryCodesLeft(ctx, p.UserID)
+		if err != nil {
+			return SessionInfo{}, fmt.Errorf("codes de secours : %w", err)
+		}
+		info.RecoveryCodesLeft = int(left)
+	}
+	return info, nil
 }
 
 func (s *Service) accountEmail(ctx context.Context, userID uuid.UUID) (string, error) {

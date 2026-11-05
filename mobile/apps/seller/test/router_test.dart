@@ -23,8 +23,7 @@ void main() {
       Routes.onboarding,
     );
     expect(go(const AuthSignedOut(), Routes.home), Routes.login);
-    expect(go(const AuthSignedOut(), AuthRoutes.signupPassword), isNull);
-    expect(go(const AuthSignedOut(), AuthRoutes.forgotCode), isNull);
+    expect(go(const AuthSignedOut(), Routes.code), isNull);
     expect(go(const AuthOffline(), Routes.home), Routes.offline);
   });
 
