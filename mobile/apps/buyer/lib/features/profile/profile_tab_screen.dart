@@ -82,6 +82,15 @@ class ProfileTabScreen extends ConsumerWidget {
           _Card(
             children: [
               _Row(
+                title: 'Changer de numéro',
+                subtitle: 'Confirmé par un code',
+                onTap: () => Navigator.of(context).push(
+                  MaterialPageRoute<void>(
+                    builder: (_) => const ChangePhoneScreen(),
+                  ),
+                ),
+              ),
+              _Row(
                 title: 'Appareils connectés',
                 subtitle: 'Voir et déconnecter vos appareils',
                 onTap: () => Navigator.of(context).push(

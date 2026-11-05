@@ -6,6 +6,8 @@ import 'api_exception.dart';
 import 'models.dart';
 import 'promo.dart';
 
+part 'pharmacy.dart';
+
 /// Client de l'API REST `/v1` (contrat : backend/api/openapi.yaml).
 ///
 /// Aucun journal des requêtes : jeton, e-mail et code ne doivent jamais

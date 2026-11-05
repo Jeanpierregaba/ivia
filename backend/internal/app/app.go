@@ -285,7 +285,9 @@ func (a *App) phoneChannels() []auth.Channel {
 	if a.Config.PhoneOTPSender == "whatsapp" || a.Config.PhoneOTPSender == "log" {
 		out = append(out, auth.ChannelWhatsApp)
 	}
-	if a.Config.SMSSender == "log" {
+	// SMS toujours proposé dès que la connexion par numéro est ouverte : tant que le fournisseur
+	// n'est pas branché (SMS_SENDER=none), l'envoi par SMS échoue et le code part par WhatsApp.
+	if len(out) > 0 {
 		out = append(out, auth.ChannelSMS)
 	}
 	return out

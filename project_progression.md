@@ -12,8 +12,8 @@
 | Apps mobiles (Flutter)      |  **~50 %** | Acheteur jusqu'à la commande en retrait, catalogue marchand, dossier livreur ; paiement et livraison à faire |
 | Infrastructure / mise en ligne | **~60 %** | Images Docker, Compose, Caddy, sauvegardes, CI prêts ; serveurs à louer |
 | Publicité IVI / marketing   |  **~90 %** | API, back-office, jeu de démo et app acheteur faits ; reste à saisir les prix IVI |
-| Module pharmacie (029)      |  **~45 %** | Backend aligné sur les maquettes P01–P14 (déblocage par pharmacie, livreur trouvé avant paiement, sans commission) ; apps et écrans du back-office à faire |
-| Connexion v2 (001, ADR 0012) | **~90 %** | Backend, app acheteur et back-office faits ; reste la mise en service WhatsApp (identifiants Meta) et le fournisseur SMS |
+| Module pharmacie (029)      |  **~70 %** | Backend fait ; app acheteur P01–P14 faite (alerte, réponses, déblocage, retrait ou livreur ivia, paiement) ; app pharmacie, app livreur et écrans du back-office à faire |
+| Connexion v2 (001, ADR 0012) | **~95 %** | Tout est codé (changement de numéro compris) ; reste la mise en service WhatsApp (+228 99 30 99 45, voir docs/whatsapp-mise-en-service.md) et le fournisseur SMS |
 | Démarches hors code         |  **~10 %** | Société, agrégateur de paiement, Play Store, Meta, domaine                 |
 
 ---
@@ -124,6 +124,9 @@ Next.js 16, TypeScript strict, Tailwind 4, même langage visuel que les apps (lo
 - **Acheteur** : accueil (zone par position ou quartier, catégories, boutiques, nouveautés), recherche avec filtres et tri, fiches boutique et produit, panier (008), commande en retrait et suivi avec code de remise (009, en relecture).
 - **Marchand** : création de la boutique, écran « en cours de validation » avec dépôt de la pièce d'identité et du RCCM, catalogue (produits, photos, brouillons, retrait, stock) (005).
 - **Livreur** : dossier de candidature avec documents (018).
+- **Accueil A01** (nouveau) : « Livrer à », « Tout ce qu'il vous faut, tout près de vous. », recherche « Pharmacie, plat, taxi… », les 8 services (Pharmacie, Alimentation, E-Bazar actifs ; Restaurant, Taxi, Immobilier, Conciergerie, Coursier « bientôt »), bannières à la une, boutiques près de vous, **pharmacies de garde** avec appel direct.
+- **Alerte médicament (P01 à P14)** (nouveau) : médicaments (base avec autocomplétion ou saisie libre, quantités), photos d'ordonnance ou de boîte, générique, rayon 2/5/10 km avec le nombre de pharmacies ; suivi en direct (contactées, vues, réponses), réponses classées par distance avec disponibilités et prix ; déblocage d'une pharmacie (Mobile Money) ; réservation avec code à 4 chiffres et mise de côté ; **retrait sur place** ou **livreur ivia** (adresse, devis, recherche du livreur, paiement une fois le livreur trouvé, suivi, appel) ; relance avec un autre rayon ; annulation.
+- **Changer de numéro** (nouveau) : code envoyé au nouveau numéro.
 - **Publicité IVI (acheteur)** : carrousel de bannières dans un ordre tiré au hasard qui défile seul ; section « Produits vedettes » ; produits mis en avant glissés dans l'accueil et la navigation du catalogue ; prix promotionnel avec prix normal barré, badges et caractéristiques ; fenêtres et interstitiels plein écran selon les réglages de l'admin (délai, intervalle, plafond par session, rotation), toujours fermables, jamais pendant le panier, la commande ou le paiement ; « Commander maintenant » passe par le panier habituel ; « Visiter le site officiel IVI » ouvre le navigateur ; statistiques anonymes envoyées par lots.
 
 ## 4. Infrastructure — fait
@@ -146,7 +149,6 @@ Next.js 16, TypeScript strict, Tailwind 4, même langage visuel que les apps (lo
 - [ ] Choisir le fournisseur SMS (secours de WhatsApp) ; d'ici là, pas de SMS hors local.
 
 **Connexion v2**
-- [ ] App acheteur : « Changer de numéro » (l'API est prête).
 - [ ] Marchand : même parcours quand ses maquettes seront fournies.
 
 **Back-office**
@@ -155,9 +157,8 @@ Next.js 16, TypeScript strict, Tailwind 4, même langage visuel que les apps (lo
 
 **Module pharmacie**
 - [ ] App pharmacie (Flutter) : inscription et pièces, ouverture et garde, alertes reçues, réponses, réservations, solde.
-- [ ] App acheteur : écrans de l'alerte médicament (maquettes P01 à P14 : produits et photos, rayon, suivi, déblocage, retrait ou livreur ivia, paiement, code de remise).
 - [ ] App livreur : courses pharmacie (attendre le paiement du client, vérification de l'ordonnance).
-- [ ] Accueil acheteur (maquette A01) : flux d'accueil `/v1/home` (8 services, bannières gérées dans le back-office, boutiques proches, pharmacies de garde) ; restaurants, immobilier, taxi et conciergerie n'ont pas encore de module.
+- [ ] Restaurants, immobilier, taxi, conciergerie et coursier : pas encore de module (tuiles « bientôt » sur l'accueil).
 
 **Publicité IVI**
 - [ ] **Remplacer les prix de démonstration des 5 produits IVI** par les vrais prix (back-office, Produits IVI).

@@ -13,6 +13,8 @@ import '../promo/promo_state.dart';
 import '../promo/promo_widgets.dart';
 import '../search/product_grid.dart';
 import '../search/search_state.dart';
+import '../pharmacy/pharmacy_hub_screen.dart';
+import '../pharmacy/pharmacy_state.dart';
 import 'area_sheet.dart';
 import 'home_providers.dart';
 import 'shop_card.dart';
@@ -93,6 +95,8 @@ class _HomeScreenState extends ConsumerState<HomeScreen> {
         child: ListView(
           // Tirer pour actualiser, même quand l'accueil est court.
           physics: const AlwaysScrollableScrollPhysics(),
+          // Sections préparées avant d'être visibles (boutiques sous les services).
+          cacheExtent: 1500,
           padding: const EdgeInsets.symmetric(vertical: IviaSpacing.lg),
           children: [
             _pad(
@@ -105,17 +109,25 @@ class _HomeScreenState extends ConsumerState<HomeScreen> {
               ),
             ),
             const SizedBox(height: IviaSpacing.xl),
+            if (firstName.isNotEmpty)
+              _pad(
+                Text(
+                  'Bonjour $firstName',
+                  style: textTheme.bodyLarge?.copyWith(
+                    color: IviaColors.textSecondary,
+                  ),
+                ),
+              ),
+            // Maquette A01.
             _pad(
               Semantics(
                 header: true,
                 child: Text.rich(
                   TextSpan(
-                    text: firstName.isEmpty
-                        ? 'Bonjour,\n'
-                        : 'Bonjour $firstName,\n',
+                    text: "Tout ce qu'il vous faut,\n",
                     children: [
                       TextSpan(
-                        text: 'que cherchez-vous ?',
+                        text: 'tout près de vous.',
                         style: TextStyle(color: brand.highlight),
                       ),
                     ],
@@ -126,6 +138,14 @@ class _HomeScreenState extends ConsumerState<HomeScreen> {
             ),
             const SizedBox(height: IviaSpacing.xl),
             _pad(_SearchEntry(onTap: () => _search(focus: true))),
+            const SizedBox(height: IviaSpacing.lg),
+            _pad(
+              _ServicesGrid(
+                onPharmacy: () => context.push(Routes.pharmacy),
+                onShops: () => _search(tab: SearchTab.shops),
+                onProducts: () => _search(),
+              ),
+            ),
             const PromoHeroCarousel(),
             if (area case AreaUnknown(:final failure?)) ...[
               const SizedBox(height: IviaSpacing.lg),
@@ -170,7 +190,7 @@ class _HomeScreenState extends ConsumerState<HomeScreen> {
               const FeaturedProductsStrip(),
               _pad(
                 _SectionTitle(
-                  title: 'Boutiques autour de vous',
+                  title: 'Boutiques près de vous',
                   onSeeAll: () => _search(
                     tab: SearchTab.shops,
                     sort: area.point == null
@@ -181,6 +201,7 @@ class _HomeScreenState extends ConsumerState<HomeScreen> {
               ),
               const SizedBox(height: IviaSpacing.md),
               _ShopsSection(),
+              const _OnDutySection(),
               const PromoInlineBanner(placement: PromoPlacement.homeFeed),
               const SizedBox(height: IviaSpacing.xxl),
               _pad(
@@ -244,7 +265,7 @@ class _AreaButton extends StatelessWidget {
                   child: Column(
                     crossAxisAlignment: CrossAxisAlignment.start,
                     children: [
-                      Text('Près de', style: textTheme.bodySmall),
+                      Text('Livrer à', style: textTheme.bodySmall),
                       Row(
                         mainAxisSize: MainAxisSize.min,
                         children: [
@@ -302,7 +323,7 @@ class _SearchEntry extends StatelessWidget {
                 const SizedBox(width: IviaSpacing.md),
                 Expanded(
                   child: Text(
-                    'Produit ou boutique…',
+                    'Pharmacie, plat, taxi…',
                     style: Theme.of(context).textTheme.bodyLarge
                         ?.copyWith(color: IviaColors.textMuted),
                   ),
@@ -505,4 +526,154 @@ class _SectionLoading extends StatelessWidget {
     padding: EdgeInsets.all(IviaSpacing.xl),
     child: Center(child: CircularProgressIndicator()),
   );
+}
+
+/// Les 8 services de la maquette A01 ; ceux sans module affichent
+/// « Bientôt disponible ».
+class _ServicesGrid extends StatelessWidget {
+  const _ServicesGrid({
+    required this.onPharmacy,
+    required this.onShops,
+    required this.onProducts,
+  });
+
+  final VoidCallback onPharmacy, onShops, onProducts;
+
+  @override
+  Widget build(BuildContext context) {
+    void soon(String name) => ScaffoldMessenger.of(context)
+      ..hideCurrentSnackBar()
+      ..showSnackBar(
+        SnackBar(content: Text('$name : bientôt disponible sur ivia.')),
+      );
+    const red = Color(0xFFFDE8EA), blue = Color(0xFFE5EEF8);
+    const navy = Color(0xFF0E2E54);
+    final services = <(IconData, String, Color, Color, VoidCallback)>[
+      (Icons.add_box_outlined, 'Pharmacie', blue, navy, onPharmacy),
+      (
+        Icons.shopping_basket_outlined,
+        'Alimentation',
+        red,
+        IviaColors.primary,
+        onShops,
+      ),
+      (
+        Icons.restaurant,
+        'Restaurant',
+        red,
+        IviaColors.primary,
+        () => soon('Restaurant'),
+      ),
+      (Icons.directions_car_outlined, 'Taxi', blue, navy, () => soon('Taxi')),
+      (
+        Icons.storefront_outlined,
+        'E-Bazar',
+        red,
+        IviaColors.primary,
+        onProducts,
+      ),
+      (
+        Icons.article_outlined,
+        'Immobilier',
+        blue,
+        navy,
+        () => soon('Immobilier'),
+      ),
+      (
+        Icons.room_service_outlined,
+        'Conciergerie',
+        blue,
+        navy,
+        () => soon('Conciergerie'),
+      ),
+      (
+        Icons.pedal_bike,
+        'Coursier',
+        red,
+        IviaColors.primary,
+        () => soon('Coursier'),
+      ),
+    ];
+    return GridView.count(
+      crossAxisCount: 4,
+      shrinkWrap: true,
+      physics: const NeverScrollableScrollPhysics(),
+      mainAxisSpacing: IviaSpacing.sm,
+      crossAxisSpacing: IviaSpacing.sm,
+      childAspectRatio: MediaQuery.textScalerOf(context).scale(1) > 1.3
+          ? 0.6
+          : 0.85,
+      children: [
+        for (final (icon, label, bg, fg, onTap) in services)
+          Material(
+            color: IviaColors.surface,
+            borderRadius: BorderRadius.circular(IviaRadius.large),
+            child: InkWell(
+              borderRadius: BorderRadius.circular(IviaRadius.large),
+              onTap: onTap,
+              child: Column(
+                mainAxisAlignment: MainAxisAlignment.center,
+                children: [
+                  Container(
+                    width: 44,
+                    height: 44,
+                    decoration: BoxDecoration(
+                      color: bg,
+                      borderRadius: BorderRadius.circular(12),
+                    ),
+                    child: Icon(icon, color: fg),
+                  ),
+                  const SizedBox(height: 6),
+                  Text(
+                    label,
+                    maxLines: 1,
+                    overflow: TextOverflow.ellipsis,
+                    style: Theme.of(context).textTheme.labelMedium
+                        ?.copyWith(fontWeight: FontWeight.w700),
+                  ),
+                ],
+              ),
+            ),
+          ),
+      ],
+    );
+  }
+}
+
+/// « Pharmacies de garde » (A01) : les 3 plus proches.
+class _OnDutySection extends ConsumerWidget {
+  const _OnDutySection();
+
+  @override
+  Widget build(BuildContext context, WidgetRef ref) {
+    final items = ref.watch(onDutyPharmaciesProvider).value ?? const [];
+    if (items.isEmpty) return const SizedBox.shrink();
+    return Padding(
+      padding: const EdgeInsets.fromLTRB(
+        IviaSpacing.screen,
+        IviaSpacing.xxl,
+        IviaSpacing.screen,
+        0,
+      ),
+      child: Column(
+        crossAxisAlignment: CrossAxisAlignment.start,
+        children: [
+          _SectionTitle(
+            title: 'Pharmacies de garde',
+            onSeeAll: () => context.push(Routes.pharmacy),
+          ),
+          Container(
+            padding: const EdgeInsets.symmetric(horizontal: IviaSpacing.md),
+            decoration: BoxDecoration(
+              color: IviaColors.surface,
+              borderRadius: BorderRadius.circular(IviaRadius.large),
+            ),
+            child: Column(
+              children: [for (final p in items) OnDutyTile(pharmacy: p)],
+            ),
+          ),
+        ],
+      ),
+    );
+  }
 }

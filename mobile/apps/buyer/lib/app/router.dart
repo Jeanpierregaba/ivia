@@ -9,6 +9,10 @@ import '../features/checkout/checkout_screen.dart';
 import '../features/home/home_screen.dart';
 import '../features/onboarding/onboarding_screen.dart';
 import '../features/orders/order_screen.dart';
+import '../features/pharmacy/alert_screen.dart';
+import '../features/pharmacy/new_alert_screen.dart';
+import '../features/pharmacy/pharmacy_hub_screen.dart';
+import '../features/pharmacy/reservation_screen.dart';
 import '../features/orders/orders_screen.dart';
 import '../features/payment/payment_screen.dart';
 import '../features/payment/payment_wait_screen.dart';
@@ -42,6 +46,12 @@ abstract final class Routes {
   static String shop(String id) => '$shops/$id';
   static String product(String id) => '$products/$id';
   static const cart = '/cart';
+
+  // Alerte médicament (P01 à P14).
+  static const pharmacy = '/pharmacy';
+  static const medNewAlert = '/pharmacy/new';
+  static String medAlert(String id) => '/pharmacy/alerts/$id';
+  static String medReservation(String id) => '/pharmacy/reservations/$id';
   static const checkout = '/checkout';
   static String order(String id) => '$orders/$id';
 
@@ -78,6 +88,7 @@ String? redirectFor(
       Routes.products,
       Routes.cart,
       Routes.checkout,
+      Routes.pharmacy,
     ],
     AuthOffline() => const [Routes.offline],
   };
@@ -198,6 +209,30 @@ final routerProvider = Provider<GoRouter>((ref) {
         path: Routes.checkout,
         parentNavigatorKey: rootKey,
         builder: (context, state) => const CheckoutScreen(),
+      ),
+      GoRoute(
+        path: Routes.pharmacy,
+        parentNavigatorKey: rootKey,
+        builder: (context, state) => const PharmacyHubScreen(),
+        routes: [
+          GoRoute(
+            path: 'new',
+            parentNavigatorKey: rootKey,
+            builder: (context, state) => const NewAlertScreen(),
+          ),
+          GoRoute(
+            path: 'alerts/:id',
+            parentNavigatorKey: rootKey,
+            builder: (context, state) =>
+                AlertScreen(alertId: state.pathParameters['id']!),
+          ),
+          GoRoute(
+            path: 'reservations/:id',
+            parentNavigatorKey: rootKey,
+            builder: (context, state) =>
+                ReservationScreen(reservationId: state.pathParameters['id']!),
+          ),
+        ],
       ),
       GoRoute(
         path: Routes.cart,

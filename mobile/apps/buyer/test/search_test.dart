@@ -101,7 +101,10 @@ void main() {
     expect(products().last.query['radius_m'], '2000');
 
     await tapText(tester, 'Catégorie');
-    await tapText(tester, 'Alimentation');
+    // Feuille des catégories (la tuile « Alimentation » de l'accueil reste
+    // dans l'onglet caché).
+    await tester.tap(find.text('Alimentation').last);
+    await tester.pumpAndSettle();
     expect(
       products().last.query['category_id'],
       'c1000000-0000-4000-8000-000000000001',
@@ -212,7 +215,7 @@ void main() {
 
   testWidgets('depuis l\'accueil : catégorie appliquée', (tester) async {
     await app.launch(tester);
-    await tester.tap(find.text('Alimentation'));
+    await tester.tap(find.widgetWithText(IviaChip, 'Alimentation'));
     await tester.pumpAndSettle();
     expect(
       products().last.query['category_id'],
@@ -346,7 +349,7 @@ void main() {
       ),
     );
     await tester.pumpAndSettle();
-    await tester.tap(find.text('Alimentation'));
+    await tester.tap(find.widgetWithText(IviaChip, 'Alimentation'));
     await tester.pumpAndSettle();
     await tester.pump(searchDelay);
     await tester.pumpAndSettle();

@@ -9,6 +9,7 @@ export 'src/async_button.dart';
 export 'src/auth_controller.dart';
 export 'src/auth_routes.dart';
 export 'src/button_progress.dart';
+export 'src/change_phone_screen.dart';
 export 'src/code_screen.dart';
 export 'src/devices_screen.dart';
 export 'src/document_photo_row.dart';
