@@ -15,5 +15,4 @@ const driverIdentity = AppIdentity(
 );
 
 String _codeHint(Duration expiresIn) =>
-    "Même compte sur toutes les apps ivia : utilisez l'e-mail de votre "
-    'compte acheteur si vous en avez un.';
+    'Même compte sur toutes les apps ivia : utilisez le même numéro.';

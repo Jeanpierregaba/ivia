@@ -15,8 +15,6 @@ import 'package:ivia_driver/main.dart';
 import 'package:ivia_ui/ivia_ui.dart';
 import 'package:shared_preferences/shared_preferences.dart';
 
-const _email = 'kossi@test.tg';
-
 /// Image PNG de 1 × 1 pixel.
 final _png = base64Decode(
   'iVBORw0KGgoAAAANSUhEUgAAAAEAAAABCAYAAAAfFcSJAAAADUlEQVR42mNkYPhfDwAChwGA60e6kgAAAABJRU5ErkJggg==',
@@ -76,13 +74,17 @@ void main() {
     serverVehicle = 'motorbike';
     var upload = 0;
     server = FakeApiServer()
-      ..on('POST', '/v1/auth/otp', (_) => FakeResponse.json(202, otpBody))
       ..on(
         'POST',
-        '/v1/auth/verify',
+        '/v1/auth/phone/code',
+        (_) => FakeResponse.json(202, phoneOtpBody),
+      )
+      ..on(
+        'POST',
+        '/v1/auth/phone/verify',
         (_) => FakeResponse.json(200, {
-          ...sessionBody(),
-          'user': _user(complete: false),
+          'status': 'signed_in',
+          'session': {...phoneSessionBody(), 'user': _user(complete: false)},
         }),
       )
       ..on('POST', '/v1/auth/logout', (_) => FakeResponse.json(204, null))
@@ -179,11 +181,10 @@ void main() {
       SharedPreferences.setMockInitialValues({'onboarding_seen': true});
 
   Future<void> login(WidgetTester tester) async {
-    await tester.enterText(find.byType(TextField), _email);
-    await tapText(tester, 'Recevoir le code');
+    await tester.enterText(find.byType(TextField), '90 12 34 56');
+    await tapText(tester, 'Recevoir le code sur WhatsApp');
     await tester.enterText(find.byType(TextField), '481902');
-    await tester.pump();
-    await tapText(tester, 'Vérifier le code');
+    await tester.pumpAndSettle();
   }
 
   Future<void> signedInWith(Map<String, dynamic> user) async {
@@ -354,8 +355,11 @@ void main() {
     testWidgets('profil complet : aucun champ de profil', (tester) async {
       server.on(
         'POST',
-        '/v1/auth/verify',
-        (_) => FakeResponse.json(200, {...sessionBody(), 'user': _user()}),
+        '/v1/auth/phone/verify',
+        (_) => FakeResponse.json(200, {
+          'status': 'signed_in',
+          'session': {...phoneSessionBody(), 'user': _user()},
+        }),
       );
       await launchApp(tester);
       await login(tester);
@@ -656,7 +660,7 @@ void main() {
       );
       await tester.fling(find.text('Compte créé'), const Offset(0, 400), 1000);
       await tester.pumpAndSettle();
-      expect(find.text('Vous êtes livreur ivia'), findsOneWidget);
+      expect(find.text('Profil'), findsOneWidget);
     });
 
     testWidgets('refusé : motif, correction préremplie, renvoi', (

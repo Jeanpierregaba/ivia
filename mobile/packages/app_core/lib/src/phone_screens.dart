@@ -132,9 +132,31 @@ class _PhoneScreenState extends ConsumerState<PhoneScreen> {
     return _AuthPage(
       children: [
         const SizedBox(height: IviaSpacing.huge),
-        Align(
-          alignment: Alignment.centerLeft,
-          child: IviaLogoTile(size: 76, color: identity.brand.accent),
+        Wrap(
+          spacing: IviaSpacing.md,
+          runSpacing: IviaSpacing.sm,
+          crossAxisAlignment: WrapCrossAlignment.center,
+          children: [
+            IviaLogoTile(size: 76, color: identity.brand.accent),
+            if (identity.loginBadge case final badge?)
+              Container(
+                padding: const EdgeInsets.symmetric(
+                  horizontal: 14,
+                  vertical: 7,
+                ),
+                decoration: BoxDecoration(
+                  color: identity.brand.accentSoft,
+                  borderRadius: BorderRadius.circular(30),
+                ),
+                child: Text(
+                  badge,
+                  style: textTheme.labelLarge?.copyWith(
+                    color: identity.brand.accent,
+                    fontWeight: FontWeight.w800,
+                  ),
+                ),
+              ),
+          ],
         ),
         const SizedBox(height: IviaSpacing.xxl),
         Semantics(

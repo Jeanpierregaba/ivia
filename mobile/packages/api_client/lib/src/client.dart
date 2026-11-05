@@ -9,6 +9,7 @@ import 'promo.dart';
 part 'driver_work.dart';
 part 'pharmacist.dart';
 part 'pharmacy.dart';
+part 'seller_money.dart';
 
 /// Client de l'API REST `/v1` (contrat : backend/api/openapi.yaml).
 ///

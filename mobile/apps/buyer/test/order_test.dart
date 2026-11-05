@@ -76,7 +76,7 @@ void main() {
         ..put(huile, 1);
     });
 
-    testWidgets('récapitulatif, livraison « Bientôt », « Payer », suivi', (
+    testWidgets('récapitulatif, modes de remise, « Payer », suivi', (
       tester,
     ) async {
       await open(tester, Routes.checkout);
@@ -88,11 +88,8 @@ void main() {
       expect(textPlain('9 000 F'), findsOneWidget);
       expect(textPlain('Produits · 3 articles'), findsOneWidget);
       expect(textPlain('10 500 F'), findsNWidgets(2));
-      expect(find.text('Bientôt'), findsOneWidget);
-      expect(
-        find.bySemanticsLabel(RegExp('^Livraison.*bientôt disponible')),
-        findsOneWidget,
-      );
+      expect(find.text('Livraison', skipOffstage: false), findsOneWidget);
+      expect(find.text('Retrait', skipOffstage: false), findsOneWidget);
       expect(
         find.textContaining('réservés 15 minutes', skipOffstage: false),
         findsOneWidget,

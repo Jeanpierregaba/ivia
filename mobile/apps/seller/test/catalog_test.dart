@@ -725,6 +725,11 @@ void main() {
     await tester.tap(find.byIcon(Icons.person_outline));
     await tester.pumpAndSettle();
     expect(find.text('Awa Mensah'), findsOneWidget);
+    await tester.scrollUntilVisible(
+      find.text('Se déconnecter'),
+      200,
+      scrollable: find.byType(Scrollable).last,
+    );
     await tapText(tester, 'Se déconnecter');
     expect(server.calls('POST', '/v1/auth/logout'), hasLength(1));
     expect(find.text('Espace marchand'), findsOneWidget);
@@ -1102,19 +1107,30 @@ void main() {
       await tester.pumpAndSettle();
       await tester.tap(find.byIcon(Icons.person_outline));
       await tester.pumpAndSettle();
+      await tester.scrollUntilVisible(
+        find.text('Se déconnecter'),
+        200,
+        scrollable: find.byType(Scrollable).last,
+      );
       await tapText(tester, 'Se déconnecter');
       server
-        ..on('POST', '/v1/auth/otp', (_) => FakeResponse.json(202, otpBody))
         ..on(
           'POST',
-          '/v1/auth/verify',
-          (_) => FakeResponse.json(200, {...sessionBody(), 'user': seller()}),
+          '/v1/auth/phone/code',
+          (_) => FakeResponse.json(202, phoneOtpBody),
+        )
+        ..on(
+          'POST',
+          '/v1/auth/phone/verify',
+          (_) => FakeResponse.json(200, {
+            'status': 'signed_in',
+            'session': {...phoneSessionBody(), 'user': seller()},
+          }),
         );
-      await tester.enterText(find.byType(TextField), 'afi@test.tg');
-      await tapText(tester, 'Recevoir le code');
+      await tester.enterText(find.byType(TextField), '90 12 34 56');
+      await tapText(tester, 'Recevoir le code sur WhatsApp');
       await tester.enterText(find.byType(TextField), '481902');
-      await tester.pump();
-      await tapText(tester, 'Vérifier le code');
+      await tester.pumpAndSettle();
       await tester.tap(find.byIcon(Icons.grid_view_rounded));
       await tester.pumpAndSettle();
       expect(lastList().query['status'], 'active');

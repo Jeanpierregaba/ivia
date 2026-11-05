@@ -6,12 +6,13 @@ const sellerIdentity = AppIdentity(
   brand: IviaAppBrand.seller,
   loginTitle: 'Espace marchand',
   loginBody:
-      'Connectez-vous avec votre e-mail. Vous avez déjà un compte ivia ? '
-      'Utilisez le même.',
+      'Connectez-vous avec votre numéro de téléphone. Vous avez déjà un compte '
+      'ivia ? Utilisez le même numéro.',
   loginBadge: 'Marchand',
   codeHint: _codeHint,
+  loginMethod: LoginMethod.phone,
+  appCode: 'seller',
 );
 
 String _codeHint(Duration expiresIn) =>
-    "Même compte sur toutes les apps ivia : utilisez l'e-mail de votre "
-    'compte acheteur si vous en avez un.';
+    'Même compte sur toutes les apps ivia : utilisez le même numéro.';

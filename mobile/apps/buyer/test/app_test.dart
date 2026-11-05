@@ -107,6 +107,11 @@ void main() {
   Future<void> tapText(WidgetTester tester, String text) async {
     // Fait défiler jusqu'au bouton, comme l'utilisateur (petit écran).
     final target = find.text(text, skipOffstage: false);
+    // Listes longues (profil) : l'élément n'est construit qu'en s'en approchant.
+    for (var i = 0; i < 12 && target.evaluate().isEmpty; i++) {
+      await tester.drag(find.byType(Scrollable).last, const Offset(0, -300));
+      await tester.pumpAndSettle();
+    }
     await tester.ensureVisible(target);
     await tester.pumpAndSettle();
     await tester.tap(target);

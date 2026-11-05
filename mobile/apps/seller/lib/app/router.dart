@@ -28,6 +28,7 @@ abstract final class Routes {
   static const onboarding = '/onboarding';
   static const login = AuthRoutes.login;
   static const code = AuthRoutes.code;
+  static const signup = AuthRoutes.signup;
   static const offline = '/offline';
   static const shopNew = '/shop/new';
   static const shopPending = '/shop/pending';
@@ -61,7 +62,7 @@ String? redirectFor(
   final allowed = switch (auth) {
     AuthStarting() => const [Routes.splash],
     AuthSignedOut() when !onboardingSeen => const [Routes.onboarding],
-    AuthSignedOut() => const [Routes.login, Routes.code],
+    AuthSignedOut() => const [Routes.login, Routes.code, Routes.signup],
     AuthOffline() => const [Routes.offline],
     AuthSignedIn() || AuthNeedsProfile() => _shopScreens(shop),
   };
@@ -119,11 +120,15 @@ final routerProvider = Provider<GoRouter>((ref) {
       ),
       GoRoute(
         path: Routes.login,
-        builder: (context, state) => const EmailScreen(),
+        builder: (context, state) => const PhoneScreen(),
         routes: [
           GoRoute(
             path: 'code',
-            builder: (context, state) => const CodeScreen(),
+            builder: (context, state) => const PhoneCodeScreen(),
+          ),
+          GoRoute(
+            path: 'signup',
+            builder: (context, state) => const PhoneSignupScreen(),
           ),
         ],
       ),
