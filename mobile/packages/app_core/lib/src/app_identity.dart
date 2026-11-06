@@ -1,6 +1,8 @@
 import 'package:flutter_riverpod/flutter_riverpod.dart';
 import 'package:ivia_ui/ivia_ui.dart';
 
+import 'location_prompt.dart';
+
 /// Ce qui distingue une app dans les écrans communs (connexion).
 class AppIdentity {
   const AppIdentity({
@@ -8,6 +10,7 @@ class AppIdentity {
     required this.loginTitle,
     required this.loginBody,
     required this.codeHint,
+    required this.locationPrompt,
     this.loginBadge,
     this.appCode = 'buyer',
   });
@@ -27,6 +30,9 @@ class AppIdentity {
 
   /// Encart de l'écran du code, selon la validité du code.
   final String Function(Duration expiresIn) codeHint;
+
+  /// Écran d'autorisation de la localisation (spec 030).
+  final LocationPromptCopy locationPrompt;
 }
 
 /// Fourni par chaque app (`main()` et tests).

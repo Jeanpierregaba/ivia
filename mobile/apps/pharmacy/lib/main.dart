@@ -19,6 +19,16 @@ const pharmacyIdentity = AppIdentity(
   loginBadge: 'Pharmacie',
   codeHint: _codeHint,
   appCode: 'pharmacy',
+  locationPrompt: LocationPromptCopy(
+    space: 'Pharmacie',
+    center: Icons.local_pharmacy,
+    satellites: [Icons.person, Icons.person, Icons.person, Icons.person],
+    title: 'Les alertes',
+    titleAccent: 'de votre quartier',
+    body:
+        'Activez la localisation pour recevoir les demandes des clients '
+        'proches.',
+  ),
 );
 
 String _codeHint(Duration expiresIn) =>

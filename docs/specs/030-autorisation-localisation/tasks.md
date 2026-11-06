@@ -6,7 +6,7 @@
       `DeviceLocationService` ; mise à jour des faux services des tests des apps ; tests.
 - [x] 2. `ui` : `IviaLocationRadar` (cercles, pastille centrale, 4 pastilles), mise en page
       `IviaLocationPrompt` et teinte de `IviaLogo` ; tests de rendu, police à 200 %.
-- [ ] 3. `app_core` : `LocationPromptCopy` dans `AppIdentity`, `LocationPromptScreen`,
+- [x] 3. `app_core` : `LocationPromptCopy` dans `AppIdentity`, `LocationPromptScreen`,
       `LocationPromptStore` et `locationPromptDoneProvider`, `askForLocation` ; tests (Refuser,
       Autoriser accepté ou refusé, refus définitif qui ouvre les réglages, double appui, déjà
       autorisé, stockage illisible, retour système).

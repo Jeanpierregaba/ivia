@@ -17,6 +17,7 @@ export 'src/form_fields.dart';
 export 'src/formats.dart';
 export 'src/legal_text.dart';
 export 'src/location.dart';
+export 'src/location_prompt.dart';
 export 'src/messages.dart';
 export 'src/offline_screen.dart';
 export 'src/onboarding_store.dart';

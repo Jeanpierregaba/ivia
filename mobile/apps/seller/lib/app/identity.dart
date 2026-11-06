@@ -1,3 +1,4 @@
+import 'package:flutter/material.dart';
 import 'package:ivia_app_core/ivia_app_core.dart';
 import 'package:ivia_ui/ivia_ui.dart';
 
@@ -11,6 +12,19 @@ const sellerIdentity = AppIdentity(
   loginBadge: 'Marchand',
   codeHint: _codeHint,
   appCode: 'seller',
+  locationPrompt: LocationPromptCopy(
+    space: 'Business',
+    center: Icons.storefront,
+    satellites: [
+      Icons.storefront,
+      Icons.apartment,
+      Icons.restaurant,
+      Icons.construction,
+    ],
+    title: 'Soyez visible',
+    titleAccent: 'dans votre quartier',
+    body: 'Activez la localisation pour placer votre activité sur la carte.',
+  ),
 );
 
 String _codeHint(Duration expiresIn) =>
