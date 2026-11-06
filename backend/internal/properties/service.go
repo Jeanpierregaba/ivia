@@ -10,6 +10,7 @@ import (
 
 	"github.com/google/uuid"
 
+	"ivia/backend/internal/admin"
 	"ivia/backend/internal/platform/apperr"
 	"ivia/backend/internal/platform/database"
 	"ivia/backend/internal/platform/httpapi"
@@ -40,17 +41,23 @@ type Property struct {
 // Seed est une annonce de démonstration.
 type Seed = store.UpsertPropertyParams
 
-// PublicURLs donne l'adresse publique d'un fichier (module uploads).
-type PublicURLs interface{ PublicURL(key string) string }
+// Files donne l'adresse publique d'une photo et vérifie celles envoyées par un admin (module uploads).
+type Files interface {
+	PublicURL(key string) string
+	CheckPropertyPhoto(ctx context.Context, userID uuid.UUID, key string) error
+}
 
 // Service gère les annonces.
 type Service struct {
-	db   *database.DB
-	urls PublicURLs
+	db    *database.DB
+	urls  Files
+	admin *admin.Service
 }
 
 // NewService crée le service.
-func NewService(db *database.DB, urls PublicURLs) *Service { return &Service{db: db, urls: urls} }
+func NewService(db *database.DB, urls Files, adm *admin.Service) *Service {
+	return &Service{db: db, urls: urls, admin: adm}
+}
 
 func (s *Service) photos(keys []string) []string {
 	out := make([]string, len(keys))
@@ -110,6 +117,7 @@ func (s *Service) Seed(ctx context.Context, in Seed) (bool, error) {
 
 // Register enregistre les routes publiques.
 func (s *Service) Register(rt *httpapi.Router) {
+	s.registerAdmin(rt)
 	rt.Public("GET /v1/properties", func(w http.ResponseWriter, r *http.Request) error {
 		q := httpapi.NewQuery(r)
 		lat, lng := q.Float("lat", -90, 90), q.Float("lng", -180, 180)

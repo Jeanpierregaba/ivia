@@ -147,3 +147,45 @@ export const ROLE_LABEL: Record<string, string> = {
   driver: "Livreur",
   admin: "Admin",
 };
+
+export const PHARMACY_STATUS: Record<string, { label: string; tone: Tone }> = {
+  pending_review: { label: "À valider", tone: "warning" },
+  approved: { label: "Validée", tone: "success" },
+  rejected: { label: "Refusée", tone: "error" },
+  suspended: { label: "Suspendue", tone: "error" },
+};
+
+export const PHARMACY_DOCUMENT: Record<string, string> = {
+  opening_authorization: "Autorisation d'ouverture",
+  order_registration: "Inscription à l'Ordre des pharmaciens",
+  owner_id: "Pièce d'identité du titulaire",
+};
+
+export const MEDICINE_ALERT_STATUS: Record<string, { label: string; tone: Tone }> = {
+  searching: { label: "En recherche", tone: "info" },
+  answered: { label: "Avec réponses", tone: "success" },
+  no_response: { label: "Sans réponse", tone: "warning" },
+  unlocked: { label: "Débloquée", tone: "success" },
+  fulfilled: { label: "Terminée", tone: "muted" },
+  cancelled: { label: "Annulée", tone: "muted" },
+};
+
+export const MEDICINE_PAYMENT_STATUS: Record<string, { label: string; tone: Tone }> = {
+  pending: { label: "En attente", tone: "warning" },
+  succeeded: { label: "Réussi", tone: "success" },
+  failed: { label: "Échoué", tone: "error" },
+  expired: { label: "Expiré", tone: "muted" },
+  refund_pending: { label: "Remboursement en cours", tone: "warning" },
+  refunded: { label: "Remboursé", tone: "muted" },
+};
+
+export const PROPERTY_KIND: Record<string, string> = { rent: "À louer", sale: "À vendre" };
+
+export const PROPERTY_TYPE: Record<string, string> = {
+  house: "Maison",
+  villa: "Villa",
+  apartment: "Appartement",
+  land: "Terrain",
+  office: "Bureau",
+  room: "Chambre",
+};

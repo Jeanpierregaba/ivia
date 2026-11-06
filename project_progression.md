@@ -12,7 +12,7 @@
 | Apps mobiles (Flutter)      |  **~50 %** | Acheteur jusqu'à la commande en retrait, catalogue marchand, dossier livreur ; paiement et livraison à faire |
 | Infrastructure / mise en ligne | **~60 %** | Images Docker, Compose, Caddy, sauvegardes, CI prêts ; serveurs à louer |
 | Publicité IVI / marketing   |  **~90 %** | API, back-office, jeu de démo et app acheteur faits ; reste à saisir les prix IVI |
-| Module pharmacie (029)      |  **~70 %** | Backend fait ; app acheteur P01–P14 faite (alerte, réponses, déblocage, retrait ou livreur ivia, paiement) ; app pharmacie et app livreur faites ; écrans du back-office à faire |
+| Module pharmacie (029)      |  **~70 %** | Backend fait ; app acheteur P01–P14 faite (alerte, réponses, déblocage, retrait ou livreur ivia, paiement) ; app pharmacie, app livreur et écrans du back-office faits |
 | Connexion v2 (001, ADR 0012) | **~95 %** | Tout est codé (changement de numéro compris) ; reste la mise en service WhatsApp (+228 99 30 99 45, voir docs/whatsapp-mise-en-service.md) et le fournisseur SMS |
 | Démarches hors code         |  **~10 %** | Société, agrégateur de paiement, Play Store, Meta, domaine                 |
 
@@ -115,6 +115,8 @@ Next.js 16, TypeScript strict, Tailwind 4, même langage visuel que les apps (lo
 - **Publicité** : visuels en cartes (aperçu, statut de diffusion, chiffres), publication avec envoi d'image et aperçu, arrêt/reprise, suppression ; indicateurs et graphique par jour ; tableau des produits promus ; réglages de diffusion.
 - **Produits IVI** : liste (mis en avant d'abord, filtre gamme IVI), fiche complète : photos (ajout, retrait), prix, mise en vente, stock, promotion datée, badges, rang, caractéristiques.
 - Pages d'erreur, chargement et 404 soignées ; image Docker, job CI.
+
+- **Santé et immobilier** (nouveau) : pharmacies (dossier, pièces, décision, planning de garde, solde et reversements), alertes médicament, paiements santé avec remboursement, base des médicaments, réglages ; annonces immobilières (publier, modifier, retirer, photos), journalisées.
 
 ## 3. Apps mobiles (`mobile/`, Flutter) — fait
 
