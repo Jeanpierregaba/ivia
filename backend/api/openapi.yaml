@@ -8496,12 +8496,7 @@ paths:
         content:
           application/json:
             schema:
-              type: object
-              properties:
-                title: {type: string}
-                description: {type: string}
-                price_xof: {type: integer, format: int64}
-              required: [title]
+              "$ref": "#/components/schemas/BusinessItemInput"
       responses:
         "201":
           description: "Succès"
@@ -8515,7 +8510,66 @@ paths:
             application/json:
               schema:
                 "$ref": "#/components/schemas/Error"
+  "/v1/business/spaces/{id}/availability":
+    put:
+      summary: "Enregistrer les horaires de l'espace"
+      tags:
+        - Business
+      operationId: putBusinessSpaceAvailability
+      parameters:
+        - {name: id, in: path, required: true, schema: {type: string, format: uuid}}
+      requestBody:
+        required: true
+        content:
+          application/json:
+            schema:
+              type: object
+              properties:
+                availability:
+                  type: array
+                  items:
+                    "$ref": "#/components/schemas/BusinessDaySlot"
+              required: [availability]
+      responses:
+        "200":
+          description: "Succès"
+          content:
+            application/json:
+              schema:
+                "$ref": "#/components/schemas/BusinessSpace"
+        default:
+          description: "Erreur (voir `code`)"
+          content:
+            application/json:
+              schema:
+                "$ref": "#/components/schemas/Error"
   "/v1/business/items/{id}":
+    put:
+      summary: "Modifier une annonce ou un service"
+      tags:
+        - Business
+      operationId: putBusinessItem
+      parameters:
+        - {name: id, in: path, required: true, schema: {type: string, format: uuid}}
+      requestBody:
+        required: true
+        content:
+          application/json:
+            schema:
+              "$ref": "#/components/schemas/BusinessItemInput"
+      responses:
+        "200":
+          description: "Succès"
+          content:
+            application/json:
+              schema:
+                "$ref": "#/components/schemas/BusinessItem"
+        default:
+          description: "Erreur (voir `code`)"
+          content:
+            application/json:
+              schema:
+                "$ref": "#/components/schemas/Error"
     delete:
       summary: "Retirer un bien ou un service"
       tags:
@@ -8585,7 +8639,7 @@ paths:
         - Admin
       operationId: getAdminBusinessSpaces
       parameters:
-        - {name: status, in: query, required: false, schema: {type: string, enum: [draft, pending_review, needs_changes, rejected, approved, suspended]}}
+        - {name: status, in: query, required: false, schema: {type: string, enum: [draft, pending_review, changes_requested, rejected, active, suspended]}}
         - {name: sector, in: query, required: false, schema: {type: string, enum: [shop, real_estate, artisan, restaurant]}}
         - {name: limit, in: query, required: false, schema: {type: integer, minimum: 1, maximum: 100, default: 20}}
         - {name: offset, in: query, required: false, schema: {type: integer, minimum: 0, maximum: 10000, default: 0}}
@@ -8654,7 +8708,7 @@ paths:
             schema:
               type: object
               properties:
-                decision: {type: string, enum: [approve, needs_changes, reject, suspend, reinstate]}
+                decision: {type: string, enum: [approve, request_changes, reject, suspend, reinstate]}
                 reason: {type: string, maxLength: 500}
               required: [decision]
       responses:
@@ -9910,6 +9964,12 @@ components:
         trades: {type: array, items: {type: string}}
         cuisine: {type: string}
         opening_hours: {type: string}
+        radius_km: {type: integer, minimum: 1, maximum: 100}
+        travel_included: {type: boolean}
+        availability:
+          type: array
+          items:
+            "$ref": "#/components/schemas/BusinessDaySlot"
     BusinessSpaceInput:
       type: object
       properties:
@@ -9927,7 +9987,7 @@ components:
         logo_url: {type: [string, "null"]}
         photo_urls: {type: array, items: {type: string}}
         shop_id: {type: [string, "null"], format: uuid}
-        status: {type: string, enum: [draft, pending_review, needs_changes, rejected, approved, suspended]}
+        status: {type: string, enum: [draft, pending_review, changes_requested, rejected, active, suspended]}
         status_reason: {type: string}
         access: {type: string, enum: [full, restricted, correction, blocked], description: "Droits de la session selon le statut de l'espace."}
         payout:
@@ -9970,8 +10030,30 @@ components:
         title: {type: string}
         description: {type: string}
         price_xof: {type: integer, format: int64}
+        status: {type: string, enum: [draft, active, archived]}
+        attributes: {type: object, additionalProperties: true}
+        photo_keys: {type: array, items: {type: string}}
+        photo_urls: {type: array, items: {type: string}}
         created_at: {type: string, format: date-time}
-      required: [id, title, description, price_xof, created_at]
+      required: [id, title, description, price_xof, status, attributes, photo_keys, photo_urls, created_at]
+    BusinessItemInput:
+      type: object
+      properties:
+        title: {type: string, minLength: 2, maxLength: 120}
+        description: {type: string, maxLength: 2000}
+        price_xof: {type: integer, format: int64, minimum: 0}
+        status: {type: string, enum: [draft, active, archived], description: "active reste en brouillon tant que l'espace n'est pas validé."}
+        attributes: {type: object, additionalProperties: true}
+        photo_keys: {type: array, maxItems: 8, items: {type: string}}
+      required: [title, status]
+    BusinessDaySlot:
+      type: object
+      properties:
+        day: {type: integer, minimum: 1, maximum: 7}
+        open: {type: boolean}
+        from: {type: string}
+        to: {type: string}
+      required: [day, open, from, to]
     AdminPropertyInput:
       type: object
       properties:

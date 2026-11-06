@@ -6,6 +6,7 @@ import 'package:go_router/go_router.dart';
 import 'package:ivia_api_client/ivia_api_client.dart';
 import 'package:ivia_ui/ivia_ui.dart';
 
+import '../../app/business_state.dart';
 import '../../app/router.dart';
 import '../../app/seller_shop.dart';
 import 'catalog_actions.dart';
@@ -166,7 +167,14 @@ class _CatalogScreenState extends ConsumerState<CatalogScreen> {
                               Semantics(
                                 header: true,
                                 child: Text(
-                                  'Catalogue',
+                                  ref
+                                              .watch(businessGateProvider)
+                                              .value
+                                              ?.opened
+                                              ?.sector ==
+                                          'restaurant'
+                                      ? 'Menu'
+                                      : 'Catalogue',
                                   style: textTheme.headlineLarge,
                                 ),
                               ),

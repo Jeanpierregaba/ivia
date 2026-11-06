@@ -41,9 +41,9 @@ const (
 const (
 	StatusDraft        = "draft"
 	StatusPending      = "pending_review"
-	StatusNeedsChanges = "needs_changes"
+	StatusNeedsChanges = "changes_requested"
 	StatusRejected     = "rejected"
-	StatusApproved     = "approved"
+	StatusApproved     = "active"
 	StatusSuspended    = "suspended"
 )
 
@@ -93,6 +93,17 @@ type Details struct {
 	Trades         []string   `json:"trades,omitempty"`
 	Cuisine        string     `json:"cuisine,omitempty"`
 	OpeningHours   string     `json:"opening_hours,omitempty"`
+	RadiusKm       *int32     `json:"radius_km,omitempty"`
+	TravelIncluded *bool      `json:"travel_included,omitempty"`
+	Availability   []DaySlot  `json:"availability,omitempty"`
+}
+
+// DaySlot est l'horaire d'un jour (1 = lundi).
+type DaySlot struct {
+	Day  int32  `json:"day"`
+	Open bool   `json:"open"`
+	From string `json:"from"`
+	To   string `json:"to"`
 }
 
 // Document est un justificatif ; URL est renseignée pour le back-office seulement.
@@ -141,11 +152,25 @@ type Space struct {
 
 // Item est un bien ou un service préparé par une agence ou un artisan.
 type Item struct {
-	ID          uuid.UUID `json:"id"`
-	Title       string    `json:"title"`
-	Description string    `json:"description"`
-	PriceXOF    int64     `json:"price_xof"`
-	CreatedAt   time.Time `json:"created_at"`
+	ID          uuid.UUID       `json:"id"`
+	Title       string          `json:"title"`
+	Description string          `json:"description"`
+	PriceXOF    int64           `json:"price_xof"`
+	Status      string          `json:"status"`
+	Attributes  json.RawMessage `json:"attributes"`
+	PhotoKeys   []string        `json:"photo_keys"`
+	PhotoURLs   []string        `json:"photo_urls"`
+	CreatedAt   time.Time       `json:"created_at"`
+}
+
+// ItemInput est la saisie d'une annonce ou d'un service.
+type ItemInput struct {
+	Title       string          `json:"title"`
+	Description string          `json:"description"`
+	PriceXOF    int64           `json:"price_xof"`
+	Status      string          `json:"status"`
+	Attributes  json.RawMessage `json:"attributes"`
+	PhotoKeys   []string        `json:"photo_keys"`
 }
 
 // Input est le formulaire d'un espace.
@@ -279,6 +304,10 @@ func validateInput(in *Input) error {
 	v := validate.New()
 	v.Check(slices.Contains(sectors, in.Sector), "sector", "Secteur inconnu.")
 	v.Text("name", in.Name, 2, 100)
+	if d.RadiusKm != nil {
+		v.Check(*d.RadiusKm >= 1 && *d.RadiusKm <= 100, "radius_km", "Zone entre 1 et 100 km.")
+	}
+	checkSlots(v, d.Availability)
 	v.Text("description", d.Description, 0, 1000)
 	v.Text("address_text", d.AddressText, 0, 300)
 	v.Check(len(d.PhotoKeys) <= maxPhotos, "photo_keys", "8 photos au plus.")
@@ -308,6 +337,18 @@ func validateInput(in *Input) error {
 		located()
 	}
 	return v.Err()
+}
+
+var timeRe = regexp.MustCompile(`^([01][0-9]|2[0-3]):[0-5][0-9]$`)
+
+func checkSlots(v validate.Errors, slots []DaySlot) {
+	v.Check(len(slots) <= 7, "availability", "Un horaire par jour.")
+	for _, d := range slots {
+		v.Check(d.Day >= 1 && d.Day <= 7, "availability", "Jour inconnu.")
+		if d.Open {
+			v.Check(timeRe.MatchString(d.From) && timeRe.MatchString(d.To) && d.From < d.To, "availability", "Heure de fin après l'heure de début.")
+		}
+	}
 }
 
 func cleanList(in []string) []string {
@@ -655,11 +696,11 @@ var decisions = map[string]struct {
 	body   string
 	reason bool
 }{
-	"approve":       {[]string{StatusPending}, StatusApproved, "Espace activé", "Votre espace est actif et visible des clients.", false},
-	"needs_changes": {[]string{StatusPending}, StatusNeedsChanges, "Compléments demandés", "Votre dossier est à compléter.", true},
-	"reject":        {[]string{StatusPending}, StatusRejected, "Dossier refusé", "Votre dossier n'a pas été validé.", true},
-	"suspend":       {[]string{StatusApproved}, StatusSuspended, "Espace suspendu", "Votre espace est suspendu.", true},
-	"reinstate":     {[]string{StatusSuspended}, StatusApproved, "Espace rétabli", "Votre espace est de nouveau actif.", false},
+	"approve":         {[]string{StatusPending}, StatusApproved, "Espace activé", "Votre espace est actif et visible des clients.", false},
+	"request_changes": {[]string{StatusPending}, StatusNeedsChanges, "Compléments demandés", "Votre dossier est à compléter.", true},
+	"reject":          {[]string{StatusPending}, StatusRejected, "Dossier refusé", "Votre dossier n'a pas été validé.", true},
+	"suspend":         {[]string{StatusApproved}, StatusSuspended, "Espace suspendu", "Votre espace est suspendu.", true},
+	"reinstate":       {[]string{StatusSuspended}, StatusApproved, "Espace rétabli", "Votre espace est de nouveau actif.", false},
 }
 
 // AdminList retourne les dossiers.
@@ -695,7 +736,7 @@ func (s *Service) Review(ctx context.Context, adminID, id uuid.UUID, decision, r
 	reason = validate.Clean(reason)
 	v := validate.New()
 	v.Check(ok, "decision", "Décision inconnue.")
-	v.Check(!t.reason || len(reason) >= 3, "reason", "Motif obligatoire (il sera communiqué au marchand).")
+	v.Check(!t.reason || len(reason) >= 3, "reason", "Motif obligatoire (il sera communiqué au professionnel).")
 	if err := v.Err(); err != nil {
 		return Space{}, err
 	}
@@ -722,7 +763,7 @@ func (s *Service) Review(ctx context.Context, adminID, id uuid.UUID, decision, r
 			}
 		}
 		// Les compléments demandés laissent la boutique en attente.
-		if r.ShopID != nil && decision != "needs_changes" {
+		if r.ShopID != nil && decision != "request_changes" {
 			if _, err := s.shops.ReviewLinked(ctx, adminID, *r.ShopID, decision, reason); err != nil {
 				return err
 			}
@@ -810,64 +851,161 @@ func (s *Service) Close(ctx context.Context, sessionID uuid.UUID) error {
 
 // --- Brouillon : biens et services ---------------------------------------------------------
 
-// Items retourne les biens ou services d'un espace.
+func (s *Service) itemView(id uuid.UUID, title, description string, price int64, status string, attrs []byte, keys []string, at time.Time) Item {
+	urls := make([]string, len(keys))
+	for i, k := range keys {
+		urls[i] = s.uploads.PublicURL(k)
+	}
+	return Item{ID: id, Title: title, Description: description, PriceXOF: price, Status: status, Attributes: attrs, PhotoKeys: keys, PhotoURLs: urls, CreatedAt: at}
+}
+
+// Items retourne les annonces ou services d'un espace.
 func (s *Service) Items(ctx context.Context, owner, id uuid.UUID) ([]Item, error) {
 	if _, err := s.owned(ctx, owner, id); err != nil {
 		return nil, err
 	}
 	rows, err := s.q(ctx).ListItems(ctx, id)
 	if err != nil {
-		return nil, fmt.Errorf("brouillon : %w", err)
+		return nil, fmt.Errorf("contenu de l'espace : %w", err)
 	}
 	out := make([]Item, len(rows))
 	for i, r := range rows {
-		out[i] = Item{ID: r.ID, Title: r.Title, Description: r.Description, PriceXOF: r.PriceXof, CreatedAt: r.CreatedAt}
+		out[i] = s.itemView(r.ID, r.Title, r.Description, r.PriceXof, r.Status, r.Attributes, r.PhotoKeys, r.CreatedAt)
 	}
 	return out, nil
 }
 
-// AddItem ajoute un bien ou un service.
-func (s *Service) AddItem(ctx context.Context, owner, id uuid.UUID, title, description string, price int64) (Item, error) {
-	title, description = validate.Clean(title), validate.Clean(description)
+// checkItem valide la saisie. Rien n'est publié avant la validation de l'espace : un élément reste
+// alors en brouillon.
+func (s *Service) checkItem(ctx context.Context, owner uuid.UUID, spaceStatus string, in *ItemInput, existing []string) error {
+	in.Title, in.Description = validate.Clean(in.Title), validate.Clean(in.Description)
 	v := validate.New()
-	v.Text("title", title, 2, 120)
-	v.Text("description", description, 0, 2000)
-	v.Check(price >= 0, "price_xof", "Prix en FCFA.")
-	if err := v.Err(); err != nil {
-		return Item{}, err
+	v.Text("title", in.Title, 2, 120)
+	v.Text("description", in.Description, 0, 2000)
+	v.Check(in.PriceXOF >= 0, "price_xof", "Prix en FCFA.")
+	v.Check(in.Status == "draft" || in.Status == "active" || in.Status == "archived", "status", "État inconnu.")
+	v.Check(len(in.Attributes) <= 4096, "attributes", "Trop de détails.")
+	v.Check(len(in.PhotoKeys) <= maxPhotos, "photo_keys", "8 photos au plus.")
+	if len(in.Attributes) == 0 {
+		in.Attributes = json.RawMessage("{}")
 	}
+	if !json.Valid(in.Attributes) {
+		v.Add("attributes", "Détails invalides.")
+	}
+	if err := v.Err(); err != nil {
+		return err
+	}
+	if spaceStatus == StatusSuspended {
+		return errEditing
+	}
+	if in.Status == "active" && spaceStatus != StatusApproved {
+		in.Status = "draft"
+	}
+	if in.PhotoKeys == nil {
+		in.PhotoKeys = []string{}
+	}
+	for _, k := range in.PhotoKeys {
+		if slices.Contains(existing, k) {
+			continue
+		}
+		if err := s.uploads.Check(ctx, uploads.BusinessPhoto, owner, k, "photo_keys"); err != nil {
+			return err
+		}
+	}
+	return nil
+}
+
+// AddItem ajoute une annonce ou un service.
+func (s *Service) AddItem(ctx context.Context, owner, id uuid.UUID, in ItemInput) (Item, error) {
 	r, err := s.owned(ctx, owner, id)
 	if err != nil {
 		return Item{}, err
 	}
-	if r.Status == StatusSuspended {
-		return Item{}, errEditing
+	if err := s.checkItem(ctx, owner, r.Status, &in, nil); err != nil {
+		return Item{}, err
 	}
 	q := s.q(ctx)
 	n, err := q.CountItems(ctx, id)
 	if err != nil {
-		return Item{}, fmt.Errorf("décompte du brouillon : %w", err)
+		return Item{}, fmt.Errorf("décompte du contenu : %w", err)
 	}
 	if n >= maxItems {
 		return Item{}, apperr.Conflict("too_many_items", "Vous avez atteint le nombre maximal d'éléments.")
 	}
-	row, err := q.CreateItem(ctx, store.CreateItemParams{SpaceID: id, Title: title, Description: description, PriceXof: price})
+	row, err := q.CreateItem(ctx, store.CreateItemParams{SpaceID: id, Title: in.Title, Description: in.Description, PriceXof: in.PriceXOF, Status: in.Status, Attributes: in.Attributes, PhotoKeys: in.PhotoKeys})
 	if err != nil {
-		return Item{}, fmt.Errorf("ajout au brouillon : %w", err)
+		return Item{}, fmt.Errorf("ajout du contenu : %w", err)
 	}
-	return Item{ID: row.ID, Title: row.Title, Description: row.Description, PriceXOF: row.PriceXof, CreatedAt: row.CreatedAt}, nil
+	return s.itemView(row.ID, row.Title, row.Description, row.PriceXof, row.Status, row.Attributes, row.PhotoKeys, row.CreatedAt), nil
 }
 
-// DeleteItem retire un bien ou un service du compte.
+// UpdateItem modifie une annonce ou un service du compte.
+func (s *Service) UpdateItem(ctx context.Context, owner, id uuid.UUID, in ItemInput) (Item, error) {
+	cur, err := s.q(ctx).GetItemOfOwner(ctx, store.GetItemOfOwnerParams{ID: id, OwnerID: owner})
+	if database.IsNoRows(err) {
+		return Item{}, apperr.NotFound("business_item_not_found", "Élément introuvable.")
+	}
+	if err != nil {
+		return Item{}, fmt.Errorf("contenu de l'espace : %w", err)
+	}
+	if err := s.checkItem(ctx, owner, cur.SpaceStatus, &in, cur.PhotoKeys); err != nil {
+		return Item{}, err
+	}
+	row, err := s.q(ctx).UpdateItem(ctx, store.UpdateItemParams{ID: id, Title: in.Title, Description: in.Description, PriceXof: in.PriceXOF, Status: in.Status, Attributes: in.Attributes, PhotoKeys: in.PhotoKeys})
+	if err != nil {
+		return Item{}, fmt.Errorf("modification du contenu : %w", err)
+	}
+	return s.itemView(row.ID, row.Title, row.Description, row.PriceXof, row.Status, row.Attributes, row.PhotoKeys, row.CreatedAt), nil
+}
+
+// DeleteItem retire un élément du compte.
 func (s *Service) DeleteItem(ctx context.Context, owner, id uuid.UUID) error {
 	n, err := s.q(ctx).DeleteItem(ctx, store.DeleteItemParams{ID: id, OwnerID: owner})
 	if err != nil {
-		return fmt.Errorf("retrait du brouillon : %w", err)
+		return fmt.Errorf("retrait du contenu : %w", err)
 	}
 	if n == 0 {
 		return apperr.NotFound("business_item_not_found", "Élément introuvable.")
 	}
 	return nil
+}
+
+// SetAvailability enregistre les horaires de l'espace, à tout moment sauf suspension.
+func (s *Service) SetAvailability(ctx context.Context, owner, id uuid.UUID, slots []DaySlot) (Space, error) {
+	v := validate.New()
+	checkSlots(v, slots)
+	if err := v.Err(); err != nil {
+		return Space{}, err
+	}
+	var out Space
+	err := s.db.InTx(ctx, func(ctx context.Context) error {
+		r, err := s.lockOwned(ctx, owner, id)
+		if err != nil {
+			return err
+		}
+		if r.Status == StatusSuspended {
+			return errEditing
+		}
+		var d Details
+		if err := json.Unmarshal(r.Details, &d); err != nil {
+			return fmt.Errorf("détails de l'espace : %w", err)
+		}
+		d.Availability = slots
+		raw, err := json.Marshal(d)
+		if err != nil {
+			return fmt.Errorf("détails de l'espace : %w", err)
+		}
+		q := s.q(ctx)
+		if err := q.UpdateSpaceDetails(ctx, store.UpdateSpaceDetailsParams{ID: id, Name: r.Name, Details: raw}); err != nil {
+			return fmt.Errorf("horaires de l'espace : %w", err)
+		}
+		if r, err = q.GetSpace(ctx, id); err != nil {
+			return fmt.Errorf("espace : %w", err)
+		}
+		out, err = s.view(ctx, r, false)
+		return err
+	})
+	return out, err
 }
 
 // --- Code PIN ------------------------------------------------------------------------------

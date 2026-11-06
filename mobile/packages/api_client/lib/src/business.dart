@@ -66,27 +66,41 @@ class BusinessSpace {
   String get sectorLabel => businessSectorLabels[sector] ?? sector;
   bool get usesShop => sector == 'shop' || sector == 'restaurant';
   bool get editable =>
-      status == 'draft' || status == 'needs_changes' || status == 'rejected';
+      status == 'draft' ||
+      status == 'changes_requested' ||
+      status == 'rejected';
 
   String get statusLabel => switch (status) {
     'draft' => 'Dossier à terminer',
     'pending_review' => 'En attente de validation',
-    'needs_changes' => 'À compléter',
+    'changes_requested' => 'À compléter',
     'rejected' => 'Refusé',
-    'approved' => 'Actif',
+    'active' => 'Actif',
     'suspended' => 'Suspendu',
     _ => status,
   };
 }
 
+/// Annonce (agence) ou service (artisan) : draft, active ou archived.
 class BusinessItem {
   BusinessItem.fromJson(Map<String, dynamic> j)
     : id = j['id'] as String,
       title = j['title'] as String? ?? '',
       description = j['description'] as String? ?? '',
-      priceXof = _i(j['price_xof']);
-  final String id, title, description;
+      priceXof = _i(j['price_xof']),
+      status = j['status'] as String? ?? 'draft',
+      attributes =
+          (j['attributes'] as Map?)?.cast<String, dynamic>() ?? const {},
+      photoKeys = [
+        for (final k in (j['photo_keys'] as List? ?? const [])) k as String,
+      ],
+      photoUrls = [
+        for (final u in (j['photo_urls'] as List? ?? const [])) u as String,
+      ];
+  final String id, title, description, status;
   final int priceXof;
+  final Map<String, dynamic> attributes;
+  final List<String> photoKeys, photoUrls;
 }
 
 extension BusinessApi on IviaApiClient {
@@ -178,15 +192,42 @@ extension BusinessApi on IviaApiClient {
     return [for (final i in _list(j['items'])) BusinessItem.fromJson(i)];
   }
 
-  Future<void> addBusinessItem(
-    String spaceId, {
+  Future<BusinessItem> saveBusinessItem({
+    required String spaceId,
+    String? itemId,
     required String title,
     String description = '',
     int priceXof = 0,
-  }) => _send(
-    'POST',
-    '/v1/business/spaces/$spaceId/items',
-    data: {'title': title, 'description': description, 'price_xof': priceXof},
+    required String status,
+    Map<String, dynamic> attributes = const {},
+    List<String> photoKeys = const [],
+  }) async {
+    final data = {
+      'title': title,
+      'description': description,
+      'price_xof': priceXof,
+      'status': status,
+      'attributes': attributes,
+      'photo_keys': photoKeys,
+    };
+    return BusinessItem.fromJson(
+      itemId == null
+          ? await _send(
+              'POST',
+              '/v1/business/spaces/$spaceId/items',
+              data: data,
+            )
+          : await _send('PUT', '/v1/business/items/$itemId', data: data),
+    );
+  }
+
+  Future<void> setBusinessAvailability(
+    String spaceId,
+    List<Map<String, dynamic>> days,
+  ) => _send(
+    'PUT',
+    '/v1/business/spaces/$spaceId/availability',
+    data: {'availability': days},
   );
 
   Future<void> deleteBusinessItem(String id) =>

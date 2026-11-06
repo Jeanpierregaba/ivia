@@ -142,8 +142,8 @@ export default async function BusinessSpacePage({ params }: { params: Promise<{ 
                 action={reviewSpace}
                 label="Demander des compléments"
                 variant="outline"
-                hidden={hidden("needs_changes")}
-                confirm={{ title: "Demander des compléments ?", body: "Le marchand reçoit le motif et corrige son dossier." }}
+                hidden={hidden("request_changes")}
+                confirm={{ title: "Demander des compléments ?", body: "Le professionnel reçoit le motif et corrige son dossier." }}
                 reason={{ label: "Ce qu'il faut compléter", required: true }}
               />
               <ActionForm
@@ -151,12 +151,12 @@ export default async function BusinessSpacePage({ params }: { params: Promise<{ 
                 label="Refuser"
                 variant="danger"
                 hidden={hidden("reject")}
-                confirm={{ title: `Refuser ${s.name} ?`, body: "Le motif est communiqué au marchand." }}
+                confirm={{ title: `Refuser ${s.name} ?`, body: "Le motif est communiqué au professionnel." }}
                 reason={{ label: "Motif du refus", required: true }}
               />
             </>
           )}
-          {s.status === "approved" && (
+          {s.status === "active" && (
             <ActionForm
               action={reviewSpace}
               label="Suspendre"
@@ -175,8 +175,8 @@ export default async function BusinessSpacePage({ params }: { params: Promise<{ 
               confirm={{ title: `Rétablir ${s.name} ?`, body: "L'espace redevient actif." }}
             />
           )}
-          {!["pending_review", "approved", "suspended"].includes(s.status) && (
-            <p className="text-text-secondary">En attente du marchand : aucune décision à prendre.</p>
+          {!["pending_review", "active", "suspended"].includes(s.status) && (
+            <p className="text-text-secondary">En attente du professionnel : aucune décision à prendre.</p>
           )}
         </div>
       </Card>

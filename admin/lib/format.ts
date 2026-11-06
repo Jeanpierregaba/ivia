@@ -200,9 +200,9 @@ export const BUSINESS_SECTOR: Record<string, string> = {
 export const BUSINESS_STATUS: Record<string, { label: string; tone: Tone }> = {
   draft: { label: "Brouillon", tone: "muted" },
   pending_review: { label: "À examiner", tone: "warning" },
-  needs_changes: { label: "À compléter", tone: "info" },
+  changes_requested: { label: "À compléter", tone: "info" },
   rejected: { label: "Refusé", tone: "error" },
-  approved: { label: "Actif", tone: "success" },
+  active: { label: "Actif", tone: "success" },
   suspended: { label: "Suspendu", tone: "error" },
 };
 

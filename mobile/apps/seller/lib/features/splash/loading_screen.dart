@@ -11,7 +11,7 @@ class LoadingScreen extends StatelessWidget {
       brand: IviaAppBrand.seller,
       tile: true,
       title: 'Business',
-      tagline: 'Vendez dans votre quartier.',
+      tagline: 'Votre activité, pilotée d\'ici.',
     );
   }
 }

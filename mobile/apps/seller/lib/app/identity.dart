@@ -1,5 +1,8 @@
 import 'package:ivia_app_core/ivia_app_core.dart';
+import 'package:flutter/material.dart';
 import 'package:ivia_ui/ivia_ui.dart';
+
+import '../features/business/pro_ui.dart';
 
 /// Identité de l'app Ivia Business dans les écrans communs de connexion.
 const sellerIdentity = AppIdentity(
@@ -12,7 +15,59 @@ const sellerIdentity = AppIdentity(
   codeHint: _codeHint,
   loginMethod: LoginMethod.phone,
   appCode: 'seller',
+  authHero: _hero,
 );
 
 String _codeHint(Duration expiresIn) =>
     'Même compte sur toutes les apps ivia : utilisez le même numéro.';
+
+Widget _hero(BuildContext context) {
+  final t = Theme.of(context).textTheme;
+  return Reveal(
+    child: Container(
+      margin: const EdgeInsets.only(bottom: 4),
+      padding: const EdgeInsets.all(20),
+      decoration: const BoxDecoration(
+        color: Pro.ink,
+        borderRadius: BorderRadius.all(Radius.circular(Pro.radius)),
+        border: Border(
+          bottom: BorderSide(color: IviaColors.cobaltBlue, width: 3),
+        ),
+      ),
+      child: Column(
+        crossAxisAlignment: CrossAxisAlignment.start,
+        children: [
+          Row(
+            children: [
+              const IviaLogoTile(size: 44, color: IviaColors.cobaltBlue),
+              const SizedBox(width: 10),
+              Text(
+                'Business',
+                style: t.titleMedium?.copyWith(
+                  color: Colors.white,
+                  fontWeight: FontWeight.w800,
+                ),
+              ),
+            ],
+          ),
+          const SizedBox(height: 18),
+          Semantics(
+            header: true,
+            child: Text(
+              'Votre activité vous attend',
+              style: t.headlineSmall?.copyWith(
+                color: Colors.white,
+                fontWeight: FontWeight.w800,
+              ),
+            ),
+          ),
+          const SizedBox(height: 6),
+          Text(
+            'Connectez-vous avec votre numéro. Même compte que l\'app ivia.',
+            style: t.bodyMedium?.copyWith(color: Colors.white70),
+          ),
+        ],
+      ),
+    ),
+  );
+}

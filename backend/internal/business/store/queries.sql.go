@@ -7,6 +7,7 @@ package store
 
 import (
 	"context"
+	"time"
 
 	"github.com/google/uuid"
 )
@@ -100,7 +101,8 @@ func (q *Queries) CountSpacesOfOwner(ctx context.Context, ownerID uuid.UUID) (in
 }
 
 const createItem = `-- name: CreateItem :one
-INSERT INTO business_items (space_id, title, description, price_xof) VALUES ($1, $2, $3, $4) RETURNING id, space_id, title, description, price_xof, created_at
+INSERT INTO business_items (space_id, title, description, price_xof, status, attributes, photo_keys)
+VALUES ($1, $2, $3, $4, $5, $6, $7) RETURNING id, space_id, title, description, price_xof, created_at, status, attributes, photo_keys, updated_at
 `
 
 type CreateItemParams struct {
@@ -108,6 +110,9 @@ type CreateItemParams struct {
 	Title       string
 	Description string
 	PriceXof    int64
+	Status      string
+	Attributes  []byte
+	PhotoKeys   []string
 }
 
 func (q *Queries) CreateItem(ctx context.Context, arg CreateItemParams) (BusinessItem, error) {
@@ -116,6 +121,9 @@ func (q *Queries) CreateItem(ctx context.Context, arg CreateItemParams) (Busines
 		arg.Title,
 		arg.Description,
 		arg.PriceXof,
+		arg.Status,
+		arg.Attributes,
+		arg.PhotoKeys,
 	)
 	var i BusinessItem
 	err := row.Scan(
@@ -125,6 +133,10 @@ func (q *Queries) CreateItem(ctx context.Context, arg CreateItemParams) (Busines
 		&i.Description,
 		&i.PriceXof,
 		&i.CreatedAt,
+		&i.Status,
+		&i.Attributes,
+		&i.PhotoKeys,
+		&i.UpdatedAt,
 	)
 	return i, err
 }
@@ -245,6 +257,50 @@ func (q *Queries) GetDocumentKey(ctx context.Context, arg GetDocumentKeyParams) 
 	return object_key, err
 }
 
+const getItemOfOwner = `-- name: GetItemOfOwner :one
+SELECT i.id, i.space_id, i.title, i.description, i.price_xof, i.created_at, i.status, i.attributes, i.photo_keys, i.updated_at, s.status AS space_status FROM business_items i
+JOIN business_spaces s ON s.id = i.space_id
+WHERE i.id = $1 AND s.owner_id = $2
+`
+
+type GetItemOfOwnerParams struct {
+	ID      uuid.UUID
+	OwnerID uuid.UUID
+}
+
+type GetItemOfOwnerRow struct {
+	ID          uuid.UUID
+	SpaceID     uuid.UUID
+	Title       string
+	Description string
+	PriceXof    int64
+	CreatedAt   time.Time
+	Status      string
+	Attributes  []byte
+	PhotoKeys   []string
+	UpdatedAt   time.Time
+	SpaceStatus string
+}
+
+func (q *Queries) GetItemOfOwner(ctx context.Context, arg GetItemOfOwnerParams) (GetItemOfOwnerRow, error) {
+	row := q.db.QueryRow(ctx, getItemOfOwner, arg.ID, arg.OwnerID)
+	var i GetItemOfOwnerRow
+	err := row.Scan(
+		&i.ID,
+		&i.SpaceID,
+		&i.Title,
+		&i.Description,
+		&i.PriceXof,
+		&i.CreatedAt,
+		&i.Status,
+		&i.Attributes,
+		&i.PhotoKeys,
+		&i.UpdatedAt,
+		&i.SpaceStatus,
+	)
+	return i, err
+}
+
 const getPinHash = `-- name: GetPinHash :one
 SELECT pin_hash FROM business_pins WHERE user_id = $1
 `
@@ -315,7 +371,7 @@ func (q *Queries) ListDocuments(ctx context.Context, spaceID uuid.UUID) ([]Busin
 }
 
 const listItems = `-- name: ListItems :many
-SELECT id, space_id, title, description, price_xof, created_at FROM business_items WHERE space_id = $1 ORDER BY created_at DESC
+SELECT id, space_id, title, description, price_xof, created_at, status, attributes, photo_keys, updated_at FROM business_items WHERE space_id = $1 ORDER BY created_at DESC
 `
 
 func (q *Queries) ListItems(ctx context.Context, spaceID uuid.UUID) ([]BusinessItem, error) {
@@ -334,6 +390,10 @@ func (q *Queries) ListItems(ctx context.Context, spaceID uuid.UUID) ([]BusinessI
 			&i.Description,
 			&i.PriceXof,
 			&i.CreatedAt,
+			&i.Status,
+			&i.Attributes,
+			&i.PhotoKeys,
+			&i.UpdatedAt,
 		); err != nil {
 			return nil, err
 		}
@@ -580,6 +640,48 @@ type SyncSpaceFromShopParams struct {
 func (q *Queries) SyncSpaceFromShop(ctx context.Context, arg SyncSpaceFromShopParams) error {
 	_, err := q.db.Exec(ctx, syncSpaceFromShop, arg.ShopID, arg.Status, arg.StatusReason)
 	return err
+}
+
+const updateItem = `-- name: UpdateItem :one
+UPDATE business_items SET title = $2, description = $3, price_xof = $4, status = $5, attributes = $6, photo_keys = $7,
+       updated_at = now()
+WHERE id = $1 RETURNING id, space_id, title, description, price_xof, created_at, status, attributes, photo_keys, updated_at
+`
+
+type UpdateItemParams struct {
+	ID          uuid.UUID
+	Title       string
+	Description string
+	PriceXof    int64
+	Status      string
+	Attributes  []byte
+	PhotoKeys   []string
+}
+
+func (q *Queries) UpdateItem(ctx context.Context, arg UpdateItemParams) (BusinessItem, error) {
+	row := q.db.QueryRow(ctx, updateItem,
+		arg.ID,
+		arg.Title,
+		arg.Description,
+		arg.PriceXof,
+		arg.Status,
+		arg.Attributes,
+		arg.PhotoKeys,
+	)
+	var i BusinessItem
+	err := row.Scan(
+		&i.ID,
+		&i.SpaceID,
+		&i.Title,
+		&i.Description,
+		&i.PriceXof,
+		&i.CreatedAt,
+		&i.Status,
+		&i.Attributes,
+		&i.PhotoKeys,
+		&i.UpdatedAt,
+	)
+	return i, err
 }
 
 const updateSpaceDetails = `-- name: UpdateSpaceDetails :exec

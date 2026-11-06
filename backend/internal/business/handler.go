@@ -103,20 +103,32 @@ func (s *Service) Register(rt *httpapi.Router) {
 		if err != nil {
 			return err
 		}
-		var in struct {
-			Title       string `json:"title"`
-			Description string `json:"description"`
-			PriceXOF    int64  `json:"price_xof"`
-		}
+		var in ItemInput
 		if err := httpapi.Decode(r, &in); err != nil {
 			return err
 		}
-		v, err := s.AddItem(r.Context(), who(r).UserID, id, in.Title, in.Description, in.PriceXOF)
+		v, err := s.AddItem(r.Context(), who(r).UserID, id, in)
 		if err != nil {
 			return err
 		}
 		return httpapi.Created(w, v)
 	})
+	rt.Auth("PUT /v1/business/items/{id}", withSpace(func(r *http.Request, p identity.Principal, id uuid.UUID) (any, error) {
+		var in ItemInput
+		if err := httpapi.Decode(r, &in); err != nil {
+			return nil, err
+		}
+		return s.UpdateItem(r.Context(), p.UserID, id, in)
+	}))
+	rt.Auth("PUT /v1/business/spaces/{id}/availability", withSpace(func(r *http.Request, p identity.Principal, id uuid.UUID) (any, error) {
+		var in struct {
+			Availability []DaySlot `json:"availability"`
+		}
+		if err := httpapi.Decode(r, &in); err != nil {
+			return nil, err
+		}
+		return s.SetAvailability(r.Context(), p.UserID, id, in.Availability)
+	}))
 	rt.Auth("DELETE /v1/business/items/{id}", func(w http.ResponseWriter, r *http.Request) error {
 		id, err := httpapi.PathUUID(r, "id")
 		if err != nil {

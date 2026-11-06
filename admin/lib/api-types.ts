@@ -3865,6 +3865,23 @@ export interface paths {
         patch?: never;
         trace?: never;
     };
+    "/v1/business/spaces/{id}/availability": {
+        parameters: {
+            query?: never;
+            header?: never;
+            path?: never;
+            cookie?: never;
+        };
+        get?: never;
+        /** Enregistrer les horaires de l'espace */
+        put: operations["putBusinessSpaceAvailability"];
+        post?: never;
+        delete?: never;
+        options?: never;
+        head?: never;
+        patch?: never;
+        trace?: never;
+    };
     "/v1/business/items/{id}": {
         parameters: {
             query?: never;
@@ -3873,7 +3890,8 @@ export interface paths {
             cookie?: never;
         };
         get?: never;
-        put?: never;
+        /** Modifier une annonce ou un service */
+        put: operations["putBusinessItem"];
         post?: never;
         /** Retirer un bien ou un service */
         delete: operations["deleteBusinessItem"];
@@ -4438,6 +4456,9 @@ export interface components {
             trades?: string[];
             cuisine?: string;
             opening_hours?: string;
+            radius_km?: number;
+            travel_included?: boolean;
+            availability?: components["schemas"]["BusinessDaySlot"][];
         };
         BusinessSpaceInput: {
             /** @enum {string} */
@@ -4457,7 +4478,7 @@ export interface components {
             /** Format: uuid */
             shop_id: string | null;
             /** @enum {string} */
-            status: "draft" | "pending_review" | "needs_changes" | "rejected" | "approved" | "suspended";
+            status: "draft" | "pending_review" | "changes_requested" | "rejected" | "active" | "suspended";
             status_reason: string;
             /**
              * @description Droits de la session selon le statut de l'espace.
@@ -4501,8 +4522,36 @@ export interface components {
             description: string;
             /** Format: int64 */
             price_xof: number;
+            /** @enum {string} */
+            status: "draft" | "active" | "archived";
+            attributes: {
+                [key: string]: unknown;
+            };
+            photo_keys: string[];
+            photo_urls: string[];
             /** Format: date-time */
             created_at: string;
+        };
+        BusinessItemInput: {
+            title: string;
+            description?: string;
+            /** Format: int64 */
+            price_xof?: number;
+            /**
+             * @description active reste en brouillon tant que l'espace n'est pas validé.
+             * @enum {string}
+             */
+            status: "draft" | "active" | "archived";
+            attributes?: {
+                [key: string]: unknown;
+            };
+            photo_keys?: string[];
+        };
+        BusinessDaySlot: {
+            day: number;
+            open: boolean;
+            from: string;
+            to: string;
         };
         AdminPropertyInput: {
             title: string;
@@ -14768,17 +14817,84 @@ export interface operations {
         };
         requestBody: {
             content: {
-                "application/json": {
-                    title: string;
-                    description?: string;
-                    /** Format: int64 */
-                    price_xof?: number;
-                };
+                "application/json": components["schemas"]["BusinessItemInput"];
             };
         };
         responses: {
             /** @description Succès */
             201: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["BusinessItem"];
+                };
+            };
+            /** @description Erreur (voir `code`) */
+            default: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["Error"];
+                };
+            };
+        };
+    };
+    putBusinessSpaceAvailability: {
+        parameters: {
+            query?: never;
+            header?: never;
+            path: {
+                id: string;
+            };
+            cookie?: never;
+        };
+        requestBody: {
+            content: {
+                "application/json": {
+                    availability: components["schemas"]["BusinessDaySlot"][];
+                };
+            };
+        };
+        responses: {
+            /** @description Succès */
+            200: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["BusinessSpace"];
+                };
+            };
+            /** @description Erreur (voir `code`) */
+            default: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["Error"];
+                };
+            };
+        };
+    };
+    putBusinessItem: {
+        parameters: {
+            query?: never;
+            header?: never;
+            path: {
+                id: string;
+            };
+            cookie?: never;
+        };
+        requestBody: {
+            content: {
+                "application/json": components["schemas"]["BusinessItemInput"];
+            };
+        };
+        responses: {
+            /** @description Succès */
+            200: {
                 headers: {
                     [name: string]: unknown;
                 };
@@ -14894,7 +15010,7 @@ export interface operations {
     getAdminBusinessSpaces: {
         parameters: {
             query?: {
-                status?: "draft" | "pending_review" | "needs_changes" | "rejected" | "approved" | "suspended";
+                status?: "draft" | "pending_review" | "changes_requested" | "rejected" | "active" | "suspended";
                 sector?: "shop" | "real_estate" | "artisan" | "restaurant";
                 limit?: number;
                 offset?: number;
@@ -14972,7 +15088,7 @@ export interface operations {
             content: {
                 "application/json": {
                     /** @enum {string} */
-                    decision: "approve" | "needs_changes" | "reject" | "suspend" | "reinstate";
+                    decision: "approve" | "request_changes" | "reject" | "suspend" | "reinstate";
                     reason?: string;
                 };
             };

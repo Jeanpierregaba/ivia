@@ -131,43 +131,49 @@ class _PhoneScreenState extends ConsumerState<PhoneScreen> {
     final busy = _sending != null;
     return _AuthPage(
       children: [
-        const SizedBox(height: IviaSpacing.huge),
-        Wrap(
-          spacing: IviaSpacing.md,
-          runSpacing: IviaSpacing.sm,
-          crossAxisAlignment: WrapCrossAlignment.center,
-          children: [
-            IviaLogoTile(size: 76, color: identity.brand.accent),
-            if (identity.loginBadge case final badge?)
-              Container(
-                padding: const EdgeInsets.symmetric(
-                  horizontal: 14,
-                  vertical: 7,
-                ),
-                decoration: BoxDecoration(
-                  color: identity.brand.accentSoft,
-                  borderRadius: BorderRadius.circular(30),
-                ),
-                child: Text(
-                  badge,
-                  style: textTheme.labelLarge?.copyWith(
-                    color: identity.brand.accent,
-                    fontWeight: FontWeight.w800,
+        if (identity.authHero case final hero?)
+          hero(context)
+        else ...[
+          const SizedBox(height: IviaSpacing.huge),
+          Wrap(
+            spacing: IviaSpacing.md,
+            runSpacing: IviaSpacing.sm,
+            crossAxisAlignment: WrapCrossAlignment.center,
+            children: [
+              IviaLogoTile(size: 76, color: identity.brand.accent),
+              if (identity.loginBadge case final badge?)
+                Container(
+                  padding: const EdgeInsets.symmetric(
+                    horizontal: 14,
+                    vertical: 7,
+                  ),
+                  decoration: BoxDecoration(
+                    color: identity.brand.accentSoft,
+                    borderRadius: BorderRadius.circular(30),
+                  ),
+                  child: Text(
+                    badge,
+                    style: textTheme.labelLarge?.copyWith(
+                      color: identity.brand.accent,
+                      fontWeight: FontWeight.w800,
+                    ),
                   ),
                 ),
-              ),
-          ],
-        ),
-        const SizedBox(height: IviaSpacing.xxl),
-        Semantics(
-          header: true,
-          child: Text(identity.loginTitle, style: textTheme.headlineMedium),
-        ),
-        const SizedBox(height: IviaSpacing.sm),
-        Text(
-          identity.loginBody,
-          style: textTheme.bodyLarge?.copyWith(color: IviaColors.textSecondary),
-        ),
+            ],
+          ),
+          const SizedBox(height: IviaSpacing.xxl),
+          Semantics(
+            header: true,
+            child: Text(identity.loginTitle, style: textTheme.headlineMedium),
+          ),
+          const SizedBox(height: IviaSpacing.sm),
+          Text(
+            identity.loginBody,
+            style: textTheme.bodyLarge?.copyWith(
+              color: IviaColors.textSecondary,
+            ),
+          ),
+        ],
         const SizedBox(height: IviaSpacing.xxxl),
         TogoPhoneField(
           label: 'Numéro de téléphone',

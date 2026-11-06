@@ -97,8 +97,8 @@ List<String> _spaceScreens(
         : const [Routes.businessChoose, Routes.businessNew];
   }
   return switch (opened.status) {
-    'approved' when opened.usesShop => _shopScreens(shop),
-    'approved' => const [Routes.businessModule],
+    'active' when opened.usesShop => _shopScreens(shop),
+    'active' => const [Routes.businessModule],
     'pending_review' when opened.usesShop => const [
       Routes.businessStatus,
       Routes.catalog,

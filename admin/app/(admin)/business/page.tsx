@@ -19,8 +19,8 @@ export const metadata = { title: "Ivia Business" };
 const LIMIT = 20;
 const TABS = [
   { value: "pending_review", label: "À examiner" },
-  { value: "needs_changes", label: "À compléter" },
-  { value: "approved", label: "Actifs" },
+  { value: "changes_requested", label: "À compléter" },
+  { value: "active", label: "Actifs" },
   { value: "rejected", label: "Refusés" },
   { value: "suspended", label: "Suspendus" },
   { value: "draft", label: "Brouillons" },

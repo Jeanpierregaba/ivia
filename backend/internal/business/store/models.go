@@ -25,6 +25,10 @@ type BusinessItem struct {
 	Description string
 	PriceXof    int64
 	CreatedAt   time.Time
+	Status      string
+	Attributes  []byte
+	PhotoKeys   []string
+	UpdatedAt   time.Time
 }
 
 type BusinessSpace struct {

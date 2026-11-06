@@ -67,7 +67,18 @@ SELECT * FROM business_items WHERE space_id = $1 ORDER BY created_at DESC;
 SELECT count(*) FROM business_items WHERE space_id = $1;
 
 -- name: CreateItem :one
-INSERT INTO business_items (space_id, title, description, price_xof) VALUES ($1, $2, $3, $4) RETURNING *;
+INSERT INTO business_items (space_id, title, description, price_xof, status, attributes, photo_keys)
+VALUES ($1, $2, $3, $4, $5, $6, $7) RETURNING *;
+
+-- name: GetItemOfOwner :one
+SELECT i.*, s.status AS space_status FROM business_items i
+JOIN business_spaces s ON s.id = i.space_id
+WHERE i.id = $1 AND s.owner_id = $2;
+
+-- name: UpdateItem :one
+UPDATE business_items SET title = $2, description = $3, price_xof = $4, status = $5, attributes = $6, photo_keys = $7,
+       updated_at = now()
+WHERE id = $1 RETURNING *;
 
 -- name: DeleteItem :execrows
 DELETE FROM business_items i USING business_spaces s

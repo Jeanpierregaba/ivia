@@ -1,3 +1,4 @@
+import 'package:flutter/widgets.dart';
 import 'package:flutter_riverpod/flutter_riverpod.dart';
 import 'package:ivia_ui/ivia_ui.dart';
 
@@ -11,6 +12,7 @@ class AppIdentity {
     this.loginBadge,
     this.loginMethod = LoginMethod.email,
     this.appCode = 'buyer',
+    this.authHero,
   });
 
   /// Connexion par e-mail (v1) ou par numéro (v2, ADR 0012).
@@ -19,6 +21,9 @@ class AppIdentity {
   /// Code de l'app envoyé au serveur (alertes de sécurité) : buyer, seller,
   /// driver ou pharmacy.
   final String appCode;
+
+  /// En-tête de l'écran de connexion à la place du logo et du titre communs.
+  final WidgetBuilder? authHero;
 
   final IviaAppBrand brand;
 
