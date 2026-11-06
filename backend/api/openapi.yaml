@@ -1224,6 +1224,7 @@ paths:
                     - pharmacy_document
                     - pharmacy_alert_photo
                     - avatar
+                    - property_photo
                 content_type:
                   type: string
                   enum:
@@ -8065,6 +8066,154 @@ paths:
             application/json:
               schema:
                 "$ref": "#/components/schemas/Error"
+  "/v1/admin/properties":
+    get:
+      summary: "Annonces immobilières, retirées comprises"
+      tags:
+        - Admin
+      operationId: getAdminProperties
+      parameters:
+        - {name: q, in: query, required: false, schema: {type: string, maxLength: 100}}
+        - {name: state, in: query, required: false, schema: {type: string, enum: [active, withdrawn]}}
+        - {name: limit, in: query, required: false, schema: {type: integer, minimum: 1, maximum: 100, default: 20}}
+        - {name: offset, in: query, required: false, schema: {type: integer, minimum: 0, maximum: 10000, default: 0}}
+      x-roles:
+        - admin
+      responses:
+        "200":
+          description: "Succès"
+          content:
+            application/json:
+              schema:
+                type: object
+                properties:
+                  items:
+                    type: array
+                    items:
+                      "$ref": "#/components/schemas/AdminProperty"
+                  next_offset:
+                    type:
+                      - integer
+                      - "null"
+                required:
+                  - items
+                  - next_offset
+        default:
+          description: "Erreur (voir `code`)"
+          content:
+            application/json:
+              schema:
+                "$ref": "#/components/schemas/Error"
+    post:
+      summary: "Publier une annonce (journalisé)"
+      tags:
+        - Admin
+      operationId: postAdminProperties
+      x-roles:
+        - admin
+      requestBody:
+        required: true
+        content:
+          application/json:
+            schema:
+              "$ref": "#/components/schemas/AdminPropertyInput"
+      responses:
+        "201":
+          description: "Créée"
+          content:
+            application/json:
+              schema:
+                "$ref": "#/components/schemas/AdminProperty"
+        default:
+          description: "Erreur (voir `code`)"
+          content:
+            application/json:
+              schema:
+                "$ref": "#/components/schemas/Error"
+  "/v1/admin/properties/{id}":
+    get:
+      summary: "Fiche d'une annonce"
+      tags:
+        - Admin
+      operationId: getAdminPropertyById
+      parameters:
+        - {name: id, in: path, required: true, schema: {type: string, format: uuid}}
+      x-roles:
+        - admin
+      responses:
+        "200":
+          description: "Succès"
+          content:
+            application/json:
+              schema:
+                "$ref": "#/components/schemas/AdminProperty"
+        default:
+          description: "Erreur (voir `code`)"
+          content:
+            application/json:
+              schema:
+                "$ref": "#/components/schemas/Error"
+    put:
+      summary: "Modifier une annonce (journalisé)"
+      tags:
+        - Admin
+      operationId: putAdminPropertyById
+      parameters:
+        - {name: id, in: path, required: true, schema: {type: string, format: uuid}}
+      x-roles:
+        - admin
+      requestBody:
+        required: true
+        content:
+          application/json:
+            schema:
+              "$ref": "#/components/schemas/AdminPropertyInput"
+      responses:
+        "200":
+          description: "Succès"
+          content:
+            application/json:
+              schema:
+                "$ref": "#/components/schemas/AdminProperty"
+        default:
+          description: "Erreur (voir `code`)"
+          content:
+            application/json:
+              schema:
+                "$ref": "#/components/schemas/Error"
+  "/v1/admin/properties/{id}/active":
+    put:
+      summary: "Publier ou retirer une annonce (journalisé, motif obligatoire pour un retrait)"
+      tags:
+        - Admin
+      operationId: putAdminPropertyActive
+      parameters:
+        - {name: id, in: path, required: true, schema: {type: string, format: uuid}}
+      x-roles:
+        - admin
+      requestBody:
+        required: true
+        content:
+          application/json:
+            schema:
+              type: object
+              properties:
+                is_active: {type: boolean}
+                reason: {type: string, maxLength: 500}
+              required: [is_active]
+      responses:
+        "200":
+          description: "Succès"
+          content:
+            application/json:
+              schema:
+                "$ref": "#/components/schemas/AdminProperty"
+        default:
+          description: "Erreur (voir `code`)"
+          content:
+            application/json:
+              schema:
+                "$ref": "#/components/schemas/Error"
   "/v1/admin/medicines":
     get:
       summary: "Base de médicaments"
@@ -9288,6 +9437,35 @@ components:
           maxItems: 10
       required:
         - recovery_codes
+    AdminPropertyInput:
+      type: object
+      properties:
+        title: {type: string, minLength: 3, maxLength: 120}
+        kind: {type: string, enum: [sale, rent]}
+        property_type: {type: string, enum: [house, villa, apartment, land, office, room]}
+        price_xof: {type: integer, format: int64, minimum: 1}
+        bedrooms: {type: integer, minimum: 0, maximum: 30}
+        surface_m2: {type: integer, minimum: 0, maximum: 100000}
+        neighborhood: {type: string, minLength: 2, maxLength: 80}
+        address_text: {type: string, maxLength: 300}
+        lat: {type: number}
+        lng: {type: number}
+        description: {type: string, maxLength: 2000}
+        photo_keys: {type: array, minItems: 1, maxItems: 8, items: {type: string}, description: "Clés POST /v1/uploads, usage property_photo."}
+        contact_name: {type: string, maxLength: 80}
+        contact_phone: {type: string, pattern: '^\+228[0-9]{8}$'}
+        is_active: {type: boolean}
+        reason: {type: string, maxLength: 500}
+      required: [title, kind, property_type, price_xof, neighborhood, lat, lng, photo_keys, contact_phone, is_active]
+    AdminProperty:
+      allOf:
+        - "$ref": "#/components/schemas/Property"
+        - type: object
+          properties:
+            photo_keys: {type: array, items: {type: string}}
+            is_active: {type: boolean}
+            updated_at: {type: string, format: date-time}
+          required: [photo_keys, is_active, updated_at]
     Property:
       type: object
       properties:

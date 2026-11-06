@@ -147,7 +147,7 @@ func New(cfg config.Config, logger *slog.Logger, pool *pgxpool.Pool, opts Option
 		Payments: a.Payments, Delivery: a.Delivery, Logger: logger,
 	})
 
-	a.Properties = properties.NewService(db, a.Uploads)
+	a.Properties = properties.NewService(db, a.Uploads, a.Admin)
 
 	// Suppression de compte : les modules qui bloquent, puis ceux qui effacent leurs données.
 	a.Users.AddDeletionGuard(a.Orders)

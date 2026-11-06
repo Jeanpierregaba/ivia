@@ -38,6 +38,8 @@ const (
 	PharmacyAlertPhoto Purpose = "pharmacy_alert_photo"
 	// Avatar : photo de profil d'un compte (stockage public).
 	Avatar Purpose = "avatar"
+	// PropertyPhoto : photo d'une annonce immobilière, publique, déposée par l'équipe ivia.
+	PropertyPhoto Purpose = "property_photo"
 )
 
 // Limites imposées à la signature (SECURITY.md).
@@ -70,6 +72,7 @@ var rules = map[Purpose]rule{
 	PharmacyDocument:   {prefix: "pharmacies", vis: storage.Private, types: documents},
 	PharmacyAlertPhoto: {prefix: "pharmacy-alerts", vis: storage.Private, types: images},
 	Avatar:             {prefix: "avatars", vis: storage.Public, types: images},
+	PropertyPhoto:      {prefix: "properties", vis: storage.Public, types: images, roles: []identity.Role{identity.RoleAdmin}},
 }
 
 // Service signe les envois et vérifie les clés.
@@ -136,6 +139,11 @@ func (s *Service) PublicURL(key string) string { return s.store.PublicURL(key) }
 // CheckAvatar vérifie une photo de profil envoyée par l'utilisateur (users.Avatars).
 func (s *Service) CheckAvatar(ctx context.Context, userID uuid.UUID, key string) error {
 	return s.Check(ctx, Avatar, userID, key, "avatar_key")
+}
+
+// CheckPropertyPhoto vérifie une photo d'annonce envoyée par un admin (properties.Files).
+func (s *Service) CheckPropertyPhoto(ctx context.Context, userID uuid.UUID, key string) error {
+	return s.Check(ctx, PropertyPhoto, userID, key, "photo_keys")
 }
 
 // PrivateURL retourne une URL de lecture temporaire d'un document privé (admins uniquement).

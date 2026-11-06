@@ -12,6 +12,146 @@ import (
 	"github.com/google/uuid"
 )
 
+const adminGetProperty = `-- name: AdminGetProperty :one
+SELECT p.id, p.title, p.kind, p.property_type, p.price_xof, p.bedrooms, p.surface_m2, p.neighborhood,
+       p.address_text, ST_Y(p.location::geometry)::float8 AS lat, ST_X(p.location::geometry)::float8 AS lng,
+       p.description, p.photo_keys, p.contact_name, p.contact_phone, p.is_active, p.created_at, p.updated_at
+FROM properties p WHERE p.id = $1
+`
+
+type AdminGetPropertyRow struct {
+	ID           uuid.UUID
+	Title        string
+	Kind         string
+	PropertyType string
+	PriceXof     int64
+	Bedrooms     int32
+	SurfaceM2    int32
+	Neighborhood string
+	AddressText  string
+	Lat          float64
+	Lng          float64
+	Description  string
+	PhotoKeys    []string
+	ContactName  string
+	ContactPhone string
+	IsActive     bool
+	CreatedAt    time.Time
+	UpdatedAt    time.Time
+}
+
+func (q *Queries) AdminGetProperty(ctx context.Context, id uuid.UUID) (AdminGetPropertyRow, error) {
+	row := q.db.QueryRow(ctx, adminGetProperty, id)
+	var i AdminGetPropertyRow
+	err := row.Scan(
+		&i.ID,
+		&i.Title,
+		&i.Kind,
+		&i.PropertyType,
+		&i.PriceXof,
+		&i.Bedrooms,
+		&i.SurfaceM2,
+		&i.Neighborhood,
+		&i.AddressText,
+		&i.Lat,
+		&i.Lng,
+		&i.Description,
+		&i.PhotoKeys,
+		&i.ContactName,
+		&i.ContactPhone,
+		&i.IsActive,
+		&i.CreatedAt,
+		&i.UpdatedAt,
+	)
+	return i, err
+}
+
+const adminListProperties = `-- name: AdminListProperties :many
+SELECT p.id, p.title, p.kind, p.property_type, p.price_xof, p.bedrooms, p.surface_m2, p.neighborhood,
+       p.address_text, ST_Y(p.location::geometry)::float8 AS lat, ST_X(p.location::geometry)::float8 AS lng,
+       p.description, p.photo_keys, p.contact_name, p.contact_phone, p.is_active, p.created_at, p.updated_at
+FROM properties p
+WHERE ($1::text IS NULL
+       OR strpos(lower(p.title), lower($1::text)) > 0
+       OR strpos(lower(p.neighborhood), lower($1::text)) > 0)
+  AND ($2::boolean IS NULL OR p.is_active = $2::boolean)
+ORDER BY p.created_at DESC, p.id
+LIMIT $4 OFFSET $3
+`
+
+type AdminListPropertiesParams struct {
+	Search *string
+	Active *bool
+	Off    int32
+	Lim    int32
+}
+
+type AdminListPropertiesRow struct {
+	ID           uuid.UUID
+	Title        string
+	Kind         string
+	PropertyType string
+	PriceXof     int64
+	Bedrooms     int32
+	SurfaceM2    int32
+	Neighborhood string
+	AddressText  string
+	Lat          float64
+	Lng          float64
+	Description  string
+	PhotoKeys    []string
+	ContactName  string
+	ContactPhone string
+	IsActive     bool
+	CreatedAt    time.Time
+	UpdatedAt    time.Time
+}
+
+// Back-office : toutes les annonces, retirées comprises, les plus récentes d'abord.
+func (q *Queries) AdminListProperties(ctx context.Context, arg AdminListPropertiesParams) ([]AdminListPropertiesRow, error) {
+	rows, err := q.db.Query(ctx, adminListProperties,
+		arg.Search,
+		arg.Active,
+		arg.Off,
+		arg.Lim,
+	)
+	if err != nil {
+		return nil, err
+	}
+	defer rows.Close()
+	items := []AdminListPropertiesRow{}
+	for rows.Next() {
+		var i AdminListPropertiesRow
+		if err := rows.Scan(
+			&i.ID,
+			&i.Title,
+			&i.Kind,
+			&i.PropertyType,
+			&i.PriceXof,
+			&i.Bedrooms,
+			&i.SurfaceM2,
+			&i.Neighborhood,
+			&i.AddressText,
+			&i.Lat,
+			&i.Lng,
+			&i.Description,
+			&i.PhotoKeys,
+			&i.ContactName,
+			&i.ContactPhone,
+			&i.IsActive,
+			&i.CreatedAt,
+			&i.UpdatedAt,
+		); err != nil {
+			return nil, err
+		}
+		items = append(items, i)
+	}
+	if err := rows.Err(); err != nil {
+		return nil, err
+	}
+	return items, nil
+}
+
 const countPropertyPhotos = `-- name: CountPropertyPhotos :one
 SELECT cardinality(photo_keys) FROM properties WHERE title = $1 AND neighborhood = $2
 `
@@ -76,6 +216,57 @@ func (q *Queries) GetProperty(ctx context.Context, id uuid.UUID) (GetPropertyRow
 		&i.CreatedAt,
 	)
 	return i, err
+}
+
+const insertProperty = `-- name: InsertProperty :one
+INSERT INTO properties (title, kind, property_type, price_xof, bedrooms, surface_m2, neighborhood, address_text,
+                        location, description, photo_keys, contact_name, contact_phone, is_active)
+VALUES ($1, $2, $3, $4, $5,
+        $6, $7, $8,
+        ST_SetSRID(ST_MakePoint($9::float8, $10::float8), 4326)::geography,
+        $11, $12, $13, $14, $15)
+RETURNING id
+`
+
+type InsertPropertyParams struct {
+	Title        string
+	Kind         string
+	PropertyType string
+	PriceXof     int64
+	Bedrooms     int32
+	SurfaceM2    int32
+	Neighborhood string
+	AddressText  string
+	Lng          float64
+	Lat          float64
+	Description  string
+	PhotoKeys    []string
+	ContactName  string
+	ContactPhone string
+	IsActive     bool
+}
+
+func (q *Queries) InsertProperty(ctx context.Context, arg InsertPropertyParams) (uuid.UUID, error) {
+	row := q.db.QueryRow(ctx, insertProperty,
+		arg.Title,
+		arg.Kind,
+		arg.PropertyType,
+		arg.PriceXof,
+		arg.Bedrooms,
+		arg.SurfaceM2,
+		arg.Neighborhood,
+		arg.AddressText,
+		arg.Lng,
+		arg.Lat,
+		arg.Description,
+		arg.PhotoKeys,
+		arg.ContactName,
+		arg.ContactPhone,
+		arg.IsActive,
+	)
+	var id uuid.UUID
+	err := row.Scan(&id)
+	return id, err
 }
 
 const listProperties = `-- name: ListProperties :many
@@ -160,6 +351,125 @@ func (q *Queries) ListProperties(ctx context.Context, arg ListPropertiesParams) 
 		return nil, err
 	}
 	return items, nil
+}
+
+const lockProperty = `-- name: LockProperty :one
+SELECT p.id, p.title, p.kind, p.property_type, p.price_xof, p.bedrooms, p.surface_m2, p.neighborhood,
+       p.address_text, ST_Y(p.location::geometry)::float8 AS lat, ST_X(p.location::geometry)::float8 AS lng,
+       p.description, p.photo_keys, p.contact_name, p.contact_phone, p.is_active, p.created_at, p.updated_at
+FROM properties p WHERE p.id = $1 FOR UPDATE
+`
+
+type LockPropertyRow struct {
+	ID           uuid.UUID
+	Title        string
+	Kind         string
+	PropertyType string
+	PriceXof     int64
+	Bedrooms     int32
+	SurfaceM2    int32
+	Neighborhood string
+	AddressText  string
+	Lat          float64
+	Lng          float64
+	Description  string
+	PhotoKeys    []string
+	ContactName  string
+	ContactPhone string
+	IsActive     bool
+	CreatedAt    time.Time
+	UpdatedAt    time.Time
+}
+
+func (q *Queries) LockProperty(ctx context.Context, id uuid.UUID) (LockPropertyRow, error) {
+	row := q.db.QueryRow(ctx, lockProperty, id)
+	var i LockPropertyRow
+	err := row.Scan(
+		&i.ID,
+		&i.Title,
+		&i.Kind,
+		&i.PropertyType,
+		&i.PriceXof,
+		&i.Bedrooms,
+		&i.SurfaceM2,
+		&i.Neighborhood,
+		&i.AddressText,
+		&i.Lat,
+		&i.Lng,
+		&i.Description,
+		&i.PhotoKeys,
+		&i.ContactName,
+		&i.ContactPhone,
+		&i.IsActive,
+		&i.CreatedAt,
+		&i.UpdatedAt,
+	)
+	return i, err
+}
+
+const setPropertyActive = `-- name: SetPropertyActive :exec
+UPDATE properties SET is_active = $2, updated_at = now() WHERE id = $1
+`
+
+type SetPropertyActiveParams struct {
+	ID       uuid.UUID
+	IsActive bool
+}
+
+func (q *Queries) SetPropertyActive(ctx context.Context, arg SetPropertyActiveParams) error {
+	_, err := q.db.Exec(ctx, setPropertyActive, arg.ID, arg.IsActive)
+	return err
+}
+
+const updateProperty = `-- name: UpdateProperty :exec
+UPDATE properties SET title = $1, kind = $2, property_type = $3,
+       price_xof = $4, bedrooms = $5, surface_m2 = $6,
+       neighborhood = $7, address_text = $8,
+       location = ST_SetSRID(ST_MakePoint($9::float8, $10::float8), 4326)::geography,
+       description = $11, photo_keys = $12, contact_name = $13,
+       contact_phone = $14, is_active = $15, updated_at = now()
+WHERE id = $16
+`
+
+type UpdatePropertyParams struct {
+	Title        string
+	Kind         string
+	PropertyType string
+	PriceXof     int64
+	Bedrooms     int32
+	SurfaceM2    int32
+	Neighborhood string
+	AddressText  string
+	Lng          float64
+	Lat          float64
+	Description  string
+	PhotoKeys    []string
+	ContactName  string
+	ContactPhone string
+	IsActive     bool
+	ID           uuid.UUID
+}
+
+func (q *Queries) UpdateProperty(ctx context.Context, arg UpdatePropertyParams) error {
+	_, err := q.db.Exec(ctx, updateProperty,
+		arg.Title,
+		arg.Kind,
+		arg.PropertyType,
+		arg.PriceXof,
+		arg.Bedrooms,
+		arg.SurfaceM2,
+		arg.Neighborhood,
+		arg.AddressText,
+		arg.Lng,
+		arg.Lat,
+		arg.Description,
+		arg.PhotoKeys,
+		arg.ContactName,
+		arg.ContactPhone,
+		arg.IsActive,
+		arg.ID,
+	)
+	return err
 }
 
 const upsertProperty = `-- name: UpsertProperty :one

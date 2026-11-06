@@ -8,7 +8,7 @@ import { api, ApiError } from "./api";
 const TYPES = ["image/jpeg", "image/png", "image/webp"];
 const MAX_BYTES = 5 << 20;
 
-export type UploadPurpose = "product_image" | "promo_visual";
+export type UploadPurpose = "product_image" | "promo_visual" | "property_photo";
 
 /** Dépose une image et retourne sa clé ; null si aucun fichier n'a été choisi. */
 export async function uploadImage(

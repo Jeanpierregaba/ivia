@@ -3103,6 +3103,63 @@ export interface paths {
         patch?: never;
         trace?: never;
     };
+    "/v1/dev/medicine-alerts/{id}/auto-respond": {
+        parameters: {
+            query?: never;
+            header?: never;
+            path?: never;
+            cookie?: never;
+        };
+        get?: never;
+        put?: never;
+        /**
+         * Faire répondre les pharmacies de démonstration (local et tests uniquement)
+         * @description Les pharmacies créées par `manage seed-demo` qui ont reçu l'alerte y répondent (tous les produits disponibles, prix de démonstration). Route absente hors local.
+         */
+        post: operations["postDevMedicineAlertsByIdAutoRespond"];
+        delete?: never;
+        options?: never;
+        head?: never;
+        patch?: never;
+        trace?: never;
+    };
+    "/v1/properties": {
+        parameters: {
+            query?: never;
+            header?: never;
+            path?: never;
+            cookie?: never;
+        };
+        /**
+         * Biens immobiliers à vendre ou à louer
+         * @description Annonces actives, les plus proches de lat/lng d'abord. Accès public.
+         */
+        get: operations["getProperties"];
+        put?: never;
+        post?: never;
+        delete?: never;
+        options?: never;
+        head?: never;
+        patch?: never;
+        trace?: never;
+    };
+    "/v1/properties/{id}": {
+        parameters: {
+            query?: never;
+            header?: never;
+            path?: never;
+            cookie?: never;
+        };
+        /** Fiche d'un bien immobilier */
+        get: operations["getPropertyById"];
+        put?: never;
+        post?: never;
+        delete?: never;
+        options?: never;
+        head?: never;
+        patch?: never;
+        trace?: never;
+    };
     "/v1/pharmacy/application": {
         parameters: {
             query?: never;
@@ -3615,6 +3672,59 @@ export interface paths {
         patch?: never;
         trace?: never;
     };
+    "/v1/admin/properties": {
+        parameters: {
+            query?: never;
+            header?: never;
+            path?: never;
+            cookie?: never;
+        };
+        /** Annonces immobilières, retirées comprises */
+        get: operations["getAdminProperties"];
+        put?: never;
+        /** Publier une annonce (journalisé) */
+        post: operations["postAdminProperties"];
+        delete?: never;
+        options?: never;
+        head?: never;
+        patch?: never;
+        trace?: never;
+    };
+    "/v1/admin/properties/{id}": {
+        parameters: {
+            query?: never;
+            header?: never;
+            path?: never;
+            cookie?: never;
+        };
+        /** Fiche d'une annonce */
+        get: operations["getAdminPropertyById"];
+        /** Modifier une annonce (journalisé) */
+        put: operations["putAdminPropertyById"];
+        post?: never;
+        delete?: never;
+        options?: never;
+        head?: never;
+        patch?: never;
+        trace?: never;
+    };
+    "/v1/admin/properties/{id}/active": {
+        parameters: {
+            query?: never;
+            header?: never;
+            path?: never;
+            cookie?: never;
+        };
+        get?: never;
+        /** Publier ou retirer une annonce (journalisé, motif obligatoire pour un retrait) */
+        put: operations["putAdminPropertyActive"];
+        post?: never;
+        delete?: never;
+        options?: never;
+        head?: never;
+        patch?: never;
+        trace?: never;
+    };
     "/v1/admin/medicines": {
         parameters: {
             query?: never;
@@ -3958,6 +4068,8 @@ export interface components {
              * @description Date d'acceptation de la politique de confidentialité.
              */
             privacy_consent_at: string | null;
+            /** @description Photo de profil. */
+            avatar_url?: string | null;
             /** @description Numéro prouvé par un code : c'est l'identifiant de connexion, modifiable seulement par /v1/me/phone. */
             phone_verified: boolean;
             /** @description Prénom, téléphone et consentement renseignés : requis pour commander ou postuler comme livreur. */
@@ -4082,6 +4194,58 @@ export interface components {
         };
         RecoveryCodes: {
             recovery_codes: string[];
+        };
+        AdminPropertyInput: {
+            title: string;
+            /** @enum {string} */
+            kind: "sale" | "rent";
+            /** @enum {string} */
+            property_type: "house" | "villa" | "apartment" | "land" | "office" | "room";
+            /** Format: int64 */
+            price_xof: number;
+            bedrooms?: number;
+            surface_m2?: number;
+            neighborhood: string;
+            address_text?: string;
+            lat: number;
+            lng: number;
+            description?: string;
+            /** @description Clés POST /v1/uploads, usage property_photo. */
+            photo_keys: string[];
+            contact_name?: string;
+            contact_phone: string;
+            is_active: boolean;
+            reason?: string;
+        };
+        AdminProperty: components["schemas"]["Property"] & {
+            photo_keys: string[];
+            is_active: boolean;
+            /** Format: date-time */
+            updated_at: string;
+        };
+        Property: {
+            /** Format: uuid */
+            id: string;
+            title: string;
+            /** @enum {string} */
+            kind: "sale" | "rent";
+            /** @enum {string} */
+            property_type: "house" | "villa" | "apartment" | "land" | "office" | "room";
+            /** @description Prix de vente, ou loyer mensuel pour une location. */
+            price_xof: number;
+            bedrooms: number;
+            surface_m2: number;
+            neighborhood: string;
+            address_text: string;
+            lat: number;
+            lng: number;
+            description: string;
+            photo_urls: string[];
+            contact_name: string;
+            contact_phone: string;
+            distance_m?: number;
+            /** Format: date-time */
+            created_at: string;
         };
         Address: {
             /** Format: uuid */
@@ -7111,6 +7275,8 @@ export interface operations {
                     phone?: string;
                     /** @description `true` enregistre le consentement à la politique de confidentialité (daté par le serveur à la première acceptation). `false` est refusé (`validation_failed`) : le consentement se retire en supprimant son compte. */
                     accept_privacy_policy?: boolean;
+                    /** @description Photo envoyée avec POST /v1/uploads (usage avatar) ; chaîne vide : photo retirée. */
+                    avatar_key?: string;
                 };
             };
         };
@@ -7375,7 +7541,7 @@ export interface operations {
             content: {
                 "application/json": {
                     /** @enum {string} */
-                    purpose: "product_image" | "shop_logo" | "driver_document" | "merchant_document" | "promo_visual" | "pharmacy_document" | "pharmacy_alert_photo";
+                    purpose: "product_image" | "shop_logo" | "driver_document" | "merchant_document" | "promo_visual" | "pharmacy_document" | "pharmacy_alert_photo" | "avatar" | "property_photo";
                     /** @enum {string} */
                     content_type: "image/jpeg" | "image/png" | "image/webp" | "application/pdf";
                     size_bytes: number;
@@ -12596,6 +12762,106 @@ export interface operations {
             };
         };
     };
+    postDevMedicineAlertsByIdAutoRespond: {
+        parameters: {
+            query?: never;
+            header?: never;
+            path: {
+                id: string;
+            };
+            cookie?: never;
+        };
+        requestBody?: never;
+        responses: {
+            /** @description Succès */
+            200: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": {
+                        responses: number;
+                    };
+                };
+            };
+            /** @description Erreur (voir `code`) */
+            default: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["Error"];
+                };
+            };
+        };
+    };
+    getProperties: {
+        parameters: {
+            query?: {
+                lat?: number;
+                lng?: number;
+                kind?: "sale" | "rent";
+                limit?: number;
+            };
+            header?: never;
+            path?: never;
+            cookie?: never;
+        };
+        requestBody?: never;
+        responses: {
+            /** @description Succès */
+            200: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": {
+                        items: components["schemas"]["Property"][];
+                    };
+                };
+            };
+            /** @description Erreur (voir `code`) */
+            default: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["Error"];
+                };
+            };
+        };
+    };
+    getPropertyById: {
+        parameters: {
+            query?: never;
+            header?: never;
+            path: {
+                id: string;
+            };
+            cookie?: never;
+        };
+        requestBody?: never;
+        responses: {
+            /** @description Succès */
+            200: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["Property"];
+                };
+            };
+            /** @description Erreur (voir `code`) */
+            default: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["Error"];
+                };
+            };
+        };
+    };
     postPharmacyApplication: {
         parameters: {
             query?: never;
@@ -13633,6 +13899,180 @@ export interface operations {
                     [name: string]: unknown;
                 };
                 content?: never;
+            };
+            /** @description Erreur (voir `code`) */
+            default: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["Error"];
+                };
+            };
+        };
+    };
+    getAdminProperties: {
+        parameters: {
+            query?: {
+                q?: string;
+                state?: "active" | "withdrawn";
+                limit?: number;
+                offset?: number;
+            };
+            header?: never;
+            path?: never;
+            cookie?: never;
+        };
+        requestBody?: never;
+        responses: {
+            /** @description Succès */
+            200: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": {
+                        items: components["schemas"]["AdminProperty"][];
+                        next_offset: number | null;
+                    };
+                };
+            };
+            /** @description Erreur (voir `code`) */
+            default: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["Error"];
+                };
+            };
+        };
+    };
+    postAdminProperties: {
+        parameters: {
+            query?: never;
+            header?: never;
+            path?: never;
+            cookie?: never;
+        };
+        requestBody: {
+            content: {
+                "application/json": components["schemas"]["AdminPropertyInput"];
+            };
+        };
+        responses: {
+            /** @description Créée */
+            201: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["AdminProperty"];
+                };
+            };
+            /** @description Erreur (voir `code`) */
+            default: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["Error"];
+                };
+            };
+        };
+    };
+    getAdminPropertyById: {
+        parameters: {
+            query?: never;
+            header?: never;
+            path: {
+                id: string;
+            };
+            cookie?: never;
+        };
+        requestBody?: never;
+        responses: {
+            /** @description Succès */
+            200: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["AdminProperty"];
+                };
+            };
+            /** @description Erreur (voir `code`) */
+            default: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["Error"];
+                };
+            };
+        };
+    };
+    putAdminPropertyById: {
+        parameters: {
+            query?: never;
+            header?: never;
+            path: {
+                id: string;
+            };
+            cookie?: never;
+        };
+        requestBody: {
+            content: {
+                "application/json": components["schemas"]["AdminPropertyInput"];
+            };
+        };
+        responses: {
+            /** @description Succès */
+            200: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["AdminProperty"];
+                };
+            };
+            /** @description Erreur (voir `code`) */
+            default: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["Error"];
+                };
+            };
+        };
+    };
+    putAdminPropertyActive: {
+        parameters: {
+            query?: never;
+            header?: never;
+            path: {
+                id: string;
+            };
+            cookie?: never;
+        };
+        requestBody: {
+            content: {
+                "application/json": {
+                    is_active: boolean;
+                    reason?: string;
+                };
+            };
+        };
+        responses: {
+            /** @description Succès */
+            200: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["AdminProperty"];
+                };
             };
             /** @description Erreur (voir `code`) */
             default: {

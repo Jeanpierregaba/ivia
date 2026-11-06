@@ -2,7 +2,13 @@
 
 import {
   Banknote,
+  BellRing,
   BookOpen,
+  Building2,
+  Cross,
+  HandCoins,
+  Pill,
+  SlidersHorizontal,
   ClipboardList,
   CreditCard,
   Download,
@@ -49,6 +55,17 @@ const sections: { title: string; items: Item[] }[] = [
     items: [
       { href: "/shops", label: "Boutiques", icon: Store, count: "shops" },
       { href: "/drivers", label: "Livreurs", icon: Truck, count: "drivers" },
+      { href: "/properties", label: "Immobilier", icon: Building2 },
+    ],
+  },
+  {
+    title: "Santé",
+    items: [
+      { href: "/pharmacies", label: "Pharmacies", icon: Cross },
+      { href: "/medicine-alerts", label: "Alertes médicament", icon: BellRing },
+      { href: "/medicine-payments", label: "Paiements santé", icon: HandCoins },
+      { href: "/medicines", label: "Médicaments", icon: Pill },
+      { href: "/pharmacy-settings", label: "Réglages santé", icon: SlidersHorizontal },
     ],
   },
   {
