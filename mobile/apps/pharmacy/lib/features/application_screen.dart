@@ -34,6 +34,10 @@ class _ApplicationScreenState extends ConsumerState<ApplicationScreen> {
   }
 
   Future<void> _submit() async {
+    if (_busy) return;
+    // Position de l'officine : écran d'autorisation d'abord s'il le faut.
+    await askForLocation(context, ref);
+    if (!mounted) return;
     setState(() {
       _busy = true;
       _errors = {};

@@ -17,7 +17,7 @@
       l'épingle de la boutique ; tests.
 - [x] 6. App livreur : textes et icônes, route et redirection, `main.dart`, permission Android ;
       écran au passage en ligne ; tests.
-- [ ] 7. App pharmacie : textes et icônes, route et redirection (splash ⇒ localisation ⇒
+- [x] 7. App pharmacie : textes et icônes, route et redirection (splash ⇒ localisation ⇒
       connexion), `main.dart`, permissions iOS et Android ; écran avant l'envoi du dossier ;
       premiers tests.
 - [ ] 8. `docs/DESIGN.md` ; vérification sur le simulateur iPhone 17 Pro (premier lancement des

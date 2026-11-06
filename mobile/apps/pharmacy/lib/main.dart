@@ -45,6 +45,9 @@ final pharmacyProfileProvider = FutureProvider<PharmacyProfile?>((ref) async {
 
 abstract final class Routes {
   static const splash = '/';
+
+  /// Autorisation de la localisation, juste après le splash (spec 030).
+  static const location = '/location';
   static const login = AuthRoutes.login;
   static const code = AuthRoutes.code;
   static const signup = AuthRoutes.signup;
@@ -58,6 +61,7 @@ final routerProvider = Provider<GoRouter>((ref) {
   final refresh = ValueNotifier(0);
   ref.listen(authControllerProvider, (_, _) => refresh.value++);
   ref.listen(pharmacyProfileProvider, (_, _) => refresh.value++);
+  ref.listen(locationPromptDoneProvider, (_, _) => refresh.value++);
   final router = GoRouter(
     initialLocation: Routes.splash,
     refreshListenable: refresh,
@@ -66,6 +70,8 @@ final routerProvider = Provider<GoRouter>((ref) {
       final profile = ref.read(pharmacyProfileProvider);
       final allowed = switch (auth) {
         AuthStarting() => const [Routes.splash],
+        // Après le splash, avant tout le reste : une fois (spec 030).
+        _ when !ref.read(locationPromptDoneProvider) => const [Routes.location],
         AuthSignedOut() => const [Routes.login, Routes.code, Routes.signup],
         AuthOffline() => const [Routes.offline],
         AuthNeedsProfile() => const [Routes.welcome],
@@ -89,6 +95,10 @@ final routerProvider = Provider<GoRouter>((ref) {
           title: 'Pharmacie',
           tagline: 'Les patients près de chez vous.',
         ),
+      ),
+      GoRoute(
+        path: Routes.location,
+        builder: (_, _) => const LaunchLocationPromptScreen(),
       ),
       GoRoute(
         path: Routes.login,
@@ -118,11 +128,16 @@ Future<void> main() async {
   WidgetsFlutterBinding.ensureInitialized();
   await SystemChrome.setPreferredOrientations([DeviceOrientation.portraitUp]);
   await clearSessionAfterReinstall(SessionStore());
+  // Position de l'officine : précise.
+  const location = DeviceLocationService();
+  final locationPrompt = await LocationPromptStore.open(location);
   await IviaLogo.precache(IviaAppBrand.pharmacy.logoOnLight);
   runApp(
     ProviderScope(
       overrides: [
         appIdentityProvider.overrideWithValue(pharmacyIdentity),
+        locationServiceProvider.overrideWithValue(location),
+        locationPromptStoreProvider.overrideWithValue(locationPrompt),
         apiClientProvider.overrideWithValue(
           IviaApiClient(config: ApiConfig.fromEnvironment()),
         ),
