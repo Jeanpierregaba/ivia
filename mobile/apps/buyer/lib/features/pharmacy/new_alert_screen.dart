@@ -873,7 +873,7 @@ class _AlertLaunchScreenState extends ConsumerState<AlertLaunchScreen> {
       _error = null;
       _preview = null;
     });
-    final p = await alertPosition(ref);
+    final p = await alertPosition(context, ref);
     if (!mounted) return;
     if (p == null) {
       setState(

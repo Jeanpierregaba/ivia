@@ -10,7 +10,7 @@
       `LocationPromptStore` et `locationPromptDoneProvider`, `askForLocation` ; tests (Refuser,
       Autoriser accepté ou refusé, refus définitif qui ouvre les réglages, double appui, déjà
       autorisé, stockage illisible, retour système).
-- [ ] 4. App acheteur : textes et icônes, route `/location` et redirection (splash ⇒ localisation
+- [x] 4. App acheteur : textes et icônes, route `/location` et redirection (splash ⇒ localisation
       ⇒ présentation), `main.dart` ; écran avant « Utiliser ma position », l'alerte médicament et
       l'ajout d'une adresse ; tests (routeur, premier lancement, Accueil sans écran).
 - [ ] 5. App marchand : textes et icônes, route et redirection, `main.dart` ; écran avant

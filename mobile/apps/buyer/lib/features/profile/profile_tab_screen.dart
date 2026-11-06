@@ -714,7 +714,8 @@ class _AddressesScreenState extends ConsumerState<AddressesScreen> {
         ],
       ),
     );
-    if (ok != true) return;
+    if (ok != true || !mounted) return;
+    await askForLocation(context, ref);
     final pos = await ref.read(locationServiceProvider).current();
     final p = pos.point ?? const GeoPoint(lat: 6.1480, lng: 1.2150);
     try {

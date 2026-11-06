@@ -55,7 +55,11 @@ class BuyerHarness {
   static Future<void> resetStorage({
     Map<String, Object> prefs = const {},
   }) async {
-    SharedPreferences.setMockInitialValues({'onboarding_seen': true, ...prefs});
+    SharedPreferences.setMockInitialValues({
+      'onboarding_seen': true,
+      'location_prompt_done': true,
+      ...prefs,
+    });
     FlutterSecureStorage.setMockInitialValues({});
     await SessionStore().save(
       'jeton-secret',
@@ -73,6 +77,7 @@ class BuyerHarness {
     }
     final onboarding = await OnboardingStore.open();
     final area = await AreaStore.open();
+    final locationPrompt = await LocationPromptStore.open(location);
     await tester.pumpWidget(const SizedBox());
     await tester.pumpWidget(
       ProviderScope(
@@ -81,6 +86,7 @@ class BuyerHarness {
           onboardingStoreProvider.overrideWithValue(onboarding),
           areaStoreProvider.overrideWithValue(area),
           locationServiceProvider.overrideWithValue(location),
+          locationPromptStoreProvider.overrideWithValue(locationPrompt),
           appIdentityProvider.overrideWithValue(buyerIdentity),
           devPaymentsProvider.overrideWithValue(devPayments),
           apiClientProvider.overrideWithValue(

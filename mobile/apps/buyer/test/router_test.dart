@@ -10,6 +10,29 @@ void main() {
     String? go(AuthState s, String location, {bool seen = true}) =>
         redirectFor(s, onboardingSeen: seen, location: location);
 
+    test("écran de localisation : après le splash, avant tout", () {
+      for (final s in [const AuthSignedOut(), AuthSignedIn(user)]) {
+        expect(
+          redirectFor(
+            s,
+            onboardingSeen: false,
+            location: Routes.home,
+            locationPromptDone: false,
+          ),
+          Routes.location,
+        );
+      }
+      expect(
+        redirectFor(
+          const AuthStarting(),
+          onboardingSeen: false,
+          location: Routes.home,
+          locationPromptDone: false,
+        ),
+        Routes.splash,
+      );
+    });
+
     test('chaque état mène à son écran', () {
       expect(go(const AuthStarting(), Routes.home), Routes.splash);
       expect(

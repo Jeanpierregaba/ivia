@@ -51,10 +51,12 @@ final medReservationProvider = FutureProvider.autoDispose
       (ref, id) => ref.read(apiClientProvider).medReservation(id),
     );
 
-/// Position de l'alerte : celle de la zone de l'accueil, sinon le GPS.
-Future<GeoPoint?> alertPosition(WidgetRef ref) async {
+/// Position de l'alerte : celle de la zone de l'accueil, sinon le GPS
+/// (écran d'autorisation d'abord, s'il le faut).
+Future<GeoPoint?> alertPosition(BuildContext context, WidgetRef ref) async {
   final point = _areaPoint(ref.read(buyerAreaProvider));
   if (point != null) return point;
+  if (!await askForLocation(context, ref)) return null;
   try {
     // Navigateur : la demande d'autorisation peut rester sans réponse.
     return (await ref

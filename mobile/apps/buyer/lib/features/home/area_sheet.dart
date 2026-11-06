@@ -1,6 +1,7 @@
 import 'package:flutter/material.dart';
 import 'package:flutter_riverpod/flutter_riverpod.dart';
 import 'package:ivia_api_client/ivia_api_client.dart';
+import 'package:ivia_app_core/ivia_app_core.dart';
 import 'package:ivia_ui/ivia_ui.dart';
 
 import '../../app/buyer_area.dart';
@@ -19,8 +20,13 @@ class _AreaSheet extends ConsumerWidget {
 
   Future<void> _locate(BuildContext context, WidgetRef ref) async {
     final messenger = ScaffoldMessenger.of(context);
+    // Écran d'autorisation au-dessus de la feuille ; refusé, la lecture
+    // échoue avec le message habituel.
+    await askForLocation(context, ref);
+    if (!context.mounted) return;
+    final area = ref.read(buyerAreaProvider.notifier);
     Navigator.pop(context);
-    final failure = await ref.read(buyerAreaProvider.notifier).locate();
+    final failure = await area.locate();
     if (failure != null) {
       messenger.showSnackBar(
         SnackBar(content: Text(locationFailureMessage(failure))),

@@ -62,14 +62,21 @@ void main() {
       ..on('POST', '/v1/auth/logout', (_) => FakeResponse.json(204, null));
   });
 
-  /// Lance l'app comme main(), avec le stockage tel qu'il est.
+  /// Position du dernier lancement (jamais le GPS du poste de test).
+  late FakeLocationService location;
+
+  /// Lance l'app comme main(), avec le stockage tel qu'il est ; position
+  /// autorisée sauf [access] contraire.
   Future<void> launchApp(
     WidgetTester tester, {
     Duration minSplash = Duration.zero,
     bool settle = true,
+    LocationAccess access = LocationAccess.granted,
   }) async {
     final store = await OnboardingStore.open();
     final area = await AreaStore.open();
+    location = _DeniedLocation()..state = access;
+    final locationPrompt = await LocationPromptStore.open(location);
     // Nouvel arbre : simule un redémarrage de l'app.
     await tester.pumpWidget(const SizedBox());
     await tester.pumpWidget(
@@ -77,8 +84,8 @@ void main() {
         overrides: [
           onboardingStoreProvider.overrideWithValue(store),
           areaStoreProvider.overrideWithValue(area),
-          // Jamais le GPS du poste de test : position refusée.
-          locationServiceProvider.overrideWithValue(_DeniedLocation()),
+          locationServiceProvider.overrideWithValue(location),
+          locationPromptStoreProvider.overrideWithValue(locationPrompt),
           appIdentityProvider.overrideWithValue(buyerIdentity),
           apiClientProvider.overrideWithValue(
             IviaApiClient(
@@ -161,6 +168,55 @@ void main() {
   /// L'écran du code a un compte à rebours : on le laisse finir.
   Future<void> finishCountdown(WidgetTester tester) =>
       tester.pump(const Duration(seconds: 61));
+
+  group('autorisation de la localisation (030)', () {
+    const title = "Tout ce qu'il vous faut, près de vous";
+
+    testWidgets('premier lancement : écran après le splash, « Refuser »', (
+      tester,
+    ) async {
+      await launchApp(tester, access: LocationAccess.askable);
+      expect(find.text(title, findRichText: true), findsOneWidget);
+      expect(find.byType(IviaOnboarding), findsNothing);
+      await tapText(tester, 'Refuser');
+      expect(find.text(_firstTitle), findsOneWidget);
+      expect(location.requests, 0);
+      expect(
+        (await SharedPreferences.getInstance()).getBool('location_prompt_done'),
+        isTrue,
+      );
+
+      // Relancée : plus d'écran, même sans autorisation.
+      await launchApp(tester, access: LocationAccess.askable);
+      expect(find.text(title, findRichText: true), findsNothing);
+      expect(find.text(_firstTitle), findsOneWidget);
+    });
+
+    testWidgets('« Autoriser » : fenêtre du système, puis présentation', (
+      tester,
+    ) async {
+      await launchApp(tester, access: LocationAccess.askable);
+      await tapText(tester, 'Autoriser la localisation');
+      expect(location.requests, 1);
+      expect(find.text(_firstTitle), findsOneWidget);
+    });
+
+    testWidgets('refus définitif : « Autoriser » ouvre les réglages', (
+      tester,
+    ) async {
+      await launchApp(tester, access: LocationAccess.deniedForever);
+      await tapText(tester, 'Autoriser la localisation');
+      expect(location.settingsOpened, 1);
+      expect(location.requests, 0);
+      expect(find.text(_firstTitle), findsOneWidget);
+    });
+
+    testWidgets('position déjà autorisée : pas d\'écran', (tester) async {
+      await launchApp(tester);
+      expect(find.text(title, findRichText: true), findsNothing);
+      expect(find.text(_firstTitle), findsOneWidget);
+    });
+  });
 
   group('démarrage et présentation', () {
     testWidgets("l'app utilise le thème ivia", (tester) async {

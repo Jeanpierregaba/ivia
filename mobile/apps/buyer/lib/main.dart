@@ -19,6 +19,9 @@ Future<void> main() async {
   await clearSessionAfterReinstall(SessionStore());
   final onboarding = await OnboardingStore.open();
   final area = await AreaStore.open();
+  // « Autour de moi » : la précision d'un quartier suffit.
+  const location = DeviceLocationService(approximate: true);
+  final locationPrompt = await LocationPromptStore.open(location);
   // Logotype du splash de chargement prêt dès sa première image.
   await IviaLogo.precache(IviaLogoColor.white);
   runApp(
@@ -26,10 +29,8 @@ Future<void> main() async {
       overrides: [
         onboardingStoreProvider.overrideWithValue(onboarding),
         areaStoreProvider.overrideWithValue(area),
-        // « Autour de moi » : la précision d'un quartier suffit.
-        locationServiceProvider.overrideWithValue(
-          const DeviceLocationService(approximate: true),
-        ),
+        locationServiceProvider.overrideWithValue(location),
+        locationPromptStoreProvider.overrideWithValue(locationPrompt),
         appIdentityProvider.overrideWithValue(buyerIdentity),
         apiClientProvider.overrideWithValue(
           IviaApiClient(config: ApiConfig.fromEnvironment()),
