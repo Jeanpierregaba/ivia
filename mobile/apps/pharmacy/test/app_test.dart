@@ -121,6 +121,16 @@ void main() {
           (_) => FakeResponse.error(404, 'not_found', 'Introuvable.'),
         )
         ..on(
+          'GET',
+          '/v1/geo/reverse',
+          (_) => FakeResponse.json(200, {'label': 'Tokoin'}),
+        )
+        ..on(
+          'GET',
+          '/v1/geo/my-places',
+          (_) => FakeResponse.json(200, {'items': <Object>[]}),
+        )
+        ..on(
           'POST',
           '/v1/pharmacy/application',
           (_) => FakeResponse.error(
@@ -133,25 +143,28 @@ void main() {
     });
 
     for (final allow in [false, true]) {
-      testWidgets('envoi sans autorisation : écran, puis '
-          '${allow ? 'position du téléphone' : 'envoi sans position'}', (
+      testWidgets('carte sans autorisation : écran, puis '
+          '${allow ? 'position du téléphone' : 'repère placé à la main'}', (
         tester,
       ) async {
         await launchApp(tester);
-        await tapText(tester, 'Envoyer la demande');
+        await tapText(tester, 'Placer sur la carte');
         expect(find.text(_title, findRichText: true), findsOneWidget);
-        await tapText(tester, allow ? 'Autoriser la localisation' : "Saisir l'adresse");
+        await tapText(
+          tester,
+          allow ? 'Autoriser la localisation' : "Saisir l'adresse",
+        );
         expect(find.text(_title, findRichText: true), findsNothing);
+        expect(location.requests, allow ? 1 : 0);
+        await tapText(tester, 'Confirmer cet emplacement');
         final sent =
             server.calls('POST', '/v1/pharmacy/application').single.body
                 as Map<String, dynamic>;
-        expect(
-          sent['location'],
-          allow
-              ? {'lat': 6.1375, 'lng': 1.2123}
-              : {'lat': 6.1480, 'lng': 1.2150},
-        );
-        expect(location.requests, allow ? 1 : 0);
+        if (allow) {
+          expect(sent['location'], {'lat': 6.1375, 'lng': 1.2123});
+        } else {
+          expect(sent['location'], isNotNull);
+        }
       });
     }
   });

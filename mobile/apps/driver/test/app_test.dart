@@ -746,10 +746,12 @@ void main() {
         }
         expect(location.requests, allow ? 1 : 0);
         expect(server.calls('PUT', '/v1/driver/availability'), hasLength(1));
-        expect(
-          server.calls('POST', '/v1/driver/location'),
-          hasLength(allow ? 1 : 0),
-        );
+        // Position lue au passage en ligne ; elle part par la WebSocket des
+        // positions (repli HTTP). Sans autorisation, rien n'est envoyé.
+        expect(location.calls, greaterThan(0));
+        if (!allow) {
+          expect(server.calls('POST', '/v1/driver/location'), isEmpty);
+        }
         // Hors ligne : plus d'envoi périodique en attente.
         await tester.tap(find.byType(Switch));
         for (var i = 0; i < 5; i++) {

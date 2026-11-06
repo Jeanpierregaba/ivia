@@ -94,12 +94,7 @@ class IviaLocationRadar extends StatelessWidget {
             clipBehavior: Clip.none,
             alignment: Alignment.center,
             children: [
-              reveal(
-                t,
-                0.92,
-                0.2,
-                disc(320, border: const Color(0x38FFFFFF)),
-              ),
+              reveal(t, 0.92, 0.2, disc(320, border: const Color(0x38FFFFFF))),
               reveal(
                 t,
                 0.92,

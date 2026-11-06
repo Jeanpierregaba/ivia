@@ -234,21 +234,22 @@ void main() {
       expect(find.text(firstTitle, findRichText: true), findsOneWidget);
     });
 
-    testWidgets("localisation (030) : écran après le splash, « Saisir l'adresse »", (
-      tester,
-    ) async {
-      location.state = LocationAccess.askable;
-      await launchApp(tester);
-      expect(find.text('Business'), findsOneWidget);
-      expect(
-        find.text('Soyez visible dans votre quartier', findRichText: true),
-        findsOneWidget,
-      );
-      expect(find.text(firstTitle, findRichText: true), findsNothing);
-      await tapText(tester, "Saisir l'adresse");
-      expect(find.text(firstTitle, findRichText: true), findsOneWidget);
-      expect(location.requests, 0);
-    });
+    testWidgets(
+      "localisation (030) : écran après le splash, « Saisir l'adresse »",
+      (tester) async {
+        location.state = LocationAccess.askable;
+        await launchApp(tester);
+        expect(find.text('Business'), findsOneWidget);
+        expect(
+          find.text('Soyez visible dans votre quartier', findRichText: true),
+          findsOneWidget,
+        );
+        expect(find.text(firstTitle, findRichText: true), findsNothing);
+        await tapText(tester, "Saisir l'adresse");
+        expect(find.text(firstTitle, findRichText: true), findsOneWidget);
+        expect(location.requests, 0);
+      },
+    );
 
     testWidgets('présentation : « Suivant », « Commencer », puis connexion', (
       tester,

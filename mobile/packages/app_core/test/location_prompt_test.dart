@@ -135,7 +135,9 @@ void main() {
       expect(find.byIcon(Icons.two_wheeler), findsOneWidget);
     });
 
-    testWidgets('« Plus tard » : suite, sans fenêtre du système', (tester) async {
+    testWidgets('« Plus tard » : suite, sans fenêtre du système', (
+      tester,
+    ) async {
       await pumpScreen(tester);
       await tester.tap(find.text('Plus tard'));
       expect(done, 1);

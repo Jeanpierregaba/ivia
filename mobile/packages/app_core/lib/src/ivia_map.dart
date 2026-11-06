@@ -11,6 +11,7 @@ import 'package:ivia_ui/ivia_ui.dart';
 import 'package:latlong2/latlong.dart' as ll;
 
 import 'location.dart';
+import 'location_prompt.dart';
 import 'providers.dart';
 
 /// Google Maps dès que la clé de l'app est configurée (`--dart-define=IVIA_GOOGLE_MAPS=true`).
@@ -274,7 +275,15 @@ class _PlacePickerScreenState extends ConsumerState<PlacePickerScreen> {
     super.initState();
     _reverse(_center);
     _loadMine();
-    if (widget.initial == null) _locate();
+    // Ouvert par l'utilisateur (ajout d'une adresse, dossier pharmacie) :
+    // sans autorisation, l'écran de la 030 s'affiche avant la lecture.
+    if (widget.initial == null) {
+      WidgetsBinding.instance.addPostFrameCallback((_) async {
+        if (!mounted) return;
+        await askForLocation(context, ref);
+        if (mounted) await _locate();
+      });
+    }
   }
 
   @override
