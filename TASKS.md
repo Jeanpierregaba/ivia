@@ -12,13 +12,13 @@ docs/specs/NNN-nom/tasks.md. Les petites tâches isolées (bug, retouche) peuven
 - [ ] 018 — Espace livreur : lancement, connexion, dossier de candidature ([spec](docs/specs/018-espace-livreur/spec.md)) : relu et corrigé ; appareil photo à vérifier sur un vrai téléphone
 - [ ] 004 — Espace marchand : lancement, connexion, création de la boutique ([spec](docs/specs/004-espace-marchand/spec.md)) : relu et corrigé ; reste les clés Google Maps (vérification de la carte)
 - [ ] 027 — Splash et présentation des 3 apps ([spec](docs/specs/027-splash-onboarding/spec.md)) : reste la vérification sur Android, la validation des textes et des couleurs par le designer
+- [ ] 030 — vérifier sur un émulateur ou un téléphone Android (fenêtre du système, refus définitif ⇒ réglages, barre de navigation)
+- [ ] Position par défaut silencieuse : si la localisation est refusée, le dossier pharmacie et l'ajout d'une adresse acheteur envoient un point fixe de Lomé (6.1480, 1.2150) ; demander plutôt la position sur une carte ou le quartier
 
 Fin du squelette (étapes 8-9 du cadrage) :
 - [x] Mobile (frontend) — convertir `mobile/` en pub workspace : `apps/buyer`, `apps/seller`, `apps/driver`, `packages/api_client`, `packages/ui` (ADR 0002) ; mettre à jour les commandes Mobile d'`AGENTS.md` et le job `mobile` de la CI
 - [x] Back-office (frontend) — créer `admin/` avec Next.js 16, TypeScript, Tailwind, pnpm (ADR 0003) ; ajouter ses commandes à `AGENTS.md`, un job `admin` à la CI et `prettier` au hook de formatage
 - [x] Outillage — gitleaks en CI (job `secrets`, 2026-11-02) ; secrets de production en fichiers (`infra/init-secrets.sh`)
-- [ ] 030 — vérifier sur un émulateur ou un téléphone Android (fenêtre du système, refus définitif ⇒ réglages, barre de navigation)
-- [ ] Position par défaut silencieuse : si la localisation est refusée, le dossier pharmacie et l'ajout d'une adresse acheteur envoient un point fixe de Lomé (6.1480, 1.2150) ; demander plutôt la position sur une carte ou le quartier
 
 ## À faire
 
