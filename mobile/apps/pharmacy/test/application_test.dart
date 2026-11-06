@@ -385,4 +385,79 @@ void main() {
       expect(find.text('3 sur 5'), findsOneWidget);
     });
   });
+
+  group('en cours de validation (F08)', () {
+    const allDocs = ['opening_authorization', 'owner_id', 'storefront_photo'];
+
+    setUp(() {
+      profile = pharmacyBody(
+        documents: allDocs,
+        payout: true,
+        status: 'submitted',
+      );
+      app.server.on(
+        'GET',
+        '/v1/pharmacy/me/duty-shifts',
+        (_) => FakeResponse.json(200, {'items': <Object>[]}),
+      );
+    });
+
+    testWidgets('frise, planning, statut relu en tirant', (tester) async {
+      await app.launch(tester);
+      expect(
+        find.text('Votre pharmacie est en cours de validation'),
+        findsOneWidget,
+      );
+      for (final t in [
+        'Compte créé',
+        'Dossier envoyé',
+        'Pharmacie du Boulevard',
+        'Vérification par ivia',
+        'En cours',
+        'Réception des alertes',
+        'Dès la validation',
+      ]) {
+        expect(find.text(t), findsOneWidget, reason: t);
+      }
+      final before = app.server.calls('GET', '/v1/pharmacy/me').length;
+      await tester.fling(
+        find.byType(ListView).first,
+        const Offset(0, 400),
+        1000,
+      );
+      await tester.pumpAndSettle();
+      expect(
+        app.server.calls('GET', '/v1/pharmacy/me').length,
+        greaterThan(before),
+      );
+
+      await tapText(tester, 'Préparer mon planning de garde');
+      expect(find.text('Planning de garde'), findsOneWidget);
+      expect(find.text('Passer cette étape'), findsNothing);
+    });
+
+    testWidgets('pharmacie suspendue : même écran, texte de suspension', (
+      tester,
+    ) async {
+      profile = pharmacyBody(
+        documents: allDocs,
+        payout: true,
+        status: 'approved',
+        suspended: true,
+      );
+      await app.launch(tester);
+      expect(find.text('Votre pharmacie est suspendue'), findsOneWidget);
+      expect(find.text('Suspendue'), findsOneWidget);
+    });
+
+    testWidgets('police à 200 % sur 320 dp : l\'écran tient', (tester) async {
+      tester.view.physicalSize = const Size(320, 640);
+      tester.view.devicePixelRatio = 1;
+      tester.platformDispatcher.textScaleFactorTestValue = 2;
+      addTearDown(tester.view.reset);
+      addTearDown(tester.platformDispatcher.clearTextScaleFactorTestValue);
+      await app.launch(tester);
+      expect(tester.takeException(), isNull);
+    });
+  });
 }

@@ -30,7 +30,7 @@
       - compte de versement ;
       - « Envoyer pour validation » grisé tant qu'il manque quelque chose ;
       - motif des compléments demandés.
-- [ ] 9. F08 : anneau, frise à 4 étapes, « Préparer mon planning de garde », actualisation en
+- [x] 9. F08 : anneau, frise à 4 étapes, « Préparer mon planning de garde », actualisation en
       tirant, pharmacie suspendue.
 
 **Espace pharmacie**
