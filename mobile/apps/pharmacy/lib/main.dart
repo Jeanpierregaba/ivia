@@ -94,11 +94,24 @@ final routerProvider = Provider<GoRouter>((ref) {
     routes: [
       GoRoute(
         path: Routes.splash,
-        builder: (_, _) => const IviaLoadingSplash(
+        builder: (_, _) => IviaLoadingSplash(
           brand: IviaAppBrand.pharmacy,
           tile: true,
           title: 'Pharmacie',
-          tagline: 'Les patients près de chez vous.',
+          tagline: 'Répondez aux urgences de votre quartier.',
+          // Maquette F00 : tuile de 132 dp, logotype vert.
+          tileStyle: const IviaSplashTile(
+            size: 132,
+            radiusRatio: 0.242,
+            logoRatio: 0.595,
+            logoTint: IviaPharmacyColors.green,
+          ),
+          titleStyle: const TextStyle(fontSize: 24),
+          taglineStyle: const TextStyle(
+            fontSize: 16,
+            color: IviaPharmacyColors.onGreenMuted,
+          ),
+          centerGroup: true,
         ),
       ),
       GoRoute(
@@ -151,7 +164,7 @@ Future<void> main() async {
   // Position de l'officine : précise.
   const location = DeviceLocationService();
   final locationPrompt = await LocationPromptStore.open(location);
-  await IviaLogo.precache(IviaAppBrand.pharmacy.logoOnLight);
+  await IviaLogo.precache(IviaLogoColor.white);
   runApp(
     ProviderScope(
       overrides: [

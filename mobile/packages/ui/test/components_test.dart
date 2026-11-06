@@ -80,6 +80,43 @@ void main() {
     semantics.dispose();
   });
 
+  testWidgets('splash pharmacie : tuile de 132 dp, groupe centré', (
+    tester,
+  ) async {
+    await pump(
+      tester,
+      const IviaLoadingSplash(
+        brand: IviaAppBrand.pharmacy,
+        tile: true,
+        title: 'Pharmacie',
+        tagline: 'Répondez aux urgences de votre quartier.',
+        tileStyle: IviaSplashTile(
+          size: 132,
+          radiusRatio: 0.242,
+          logoRatio: 0.595,
+          logoTint: IviaPharmacyColors.green,
+        ),
+        centerGroup: true,
+      ),
+    );
+    final logo = tester.widget<IviaLogo>(find.byType(IviaLogo));
+    expect(logo.tint, IviaPharmacyColors.green);
+    expect(
+      tester.getSize(find.byType(IviaLogo)).width,
+      closeTo(132 * 0.595, 0.5),
+    );
+    // Ensemble centré : autant de place au-dessus de la tuile que sous le
+    // slogan.
+    final screen = tester.getSize(find.byType(Scaffold)).height;
+    final top =
+        tester.getTopLeft(find.byType(IviaLogo)).dy -
+        (132 - 132 * 0.595 / IviaLogo.aspectRatio) / 2;
+    final bottom = tester
+        .getBottomLeft(find.text('Répondez aux urgences de votre quartier.'))
+        .dy;
+    expect(top, closeTo(screen - bottom, 1));
+  });
+
   testWidgets('splash : barre d\'état claire', (tester) async {
     await pump(
       tester,

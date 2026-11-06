@@ -11,6 +11,27 @@ import 'tokens.dart';
 /// Deux variantes, comme les splashs natifs (`flutter_native_splash.yaml`) :
 /// logotype blanc de 174 dp (acheteur), ou tuile blanche de 172 dp portant le
 /// logotype de la couleur de l'app ([tile], marchand).
+/// Tuile du splash : taille, coins et logotype. Par défaut, celle du splash
+/// natif du marchand.
+class IviaSplashTile {
+  const IviaSplashTile({
+    this.size = IviaLoadingSplash.tileSize,
+    this.radiusRatio = 0.213,
+    this.logoRatio = 354 / 516,
+    this.logoTint,
+  });
+
+  final double size;
+
+  /// Rayon des coins et largeur du logotype, en part de [size].
+  final double radiusRatio;
+  final double logoRatio;
+
+  /// Logotype blanc teinté (vert de la pharmacie) à la place de celui de la
+  /// marque.
+  final Color? logoTint;
+}
+
 class IviaLoadingSplash extends StatefulWidget {
   const IviaLoadingSplash({
     super.key,
@@ -18,6 +39,10 @@ class IviaLoadingSplash extends StatefulWidget {
     required this.tagline,
     this.title,
     this.tile = false,
+    this.tileStyle = const IviaSplashTile(),
+    this.titleStyle,
+    this.taglineStyle,
+    this.centerGroup = false,
   });
 
   final IviaAppBrand brand;
@@ -26,6 +51,15 @@ class IviaLoadingSplash extends StatefulWidget {
   /// Nom de l'app sous le visuel (« Marchand »).
   final String? title;
   final bool tile;
+  final IviaSplashTile tileStyle;
+
+  /// Retouches du titre et du slogan, fusionnées avec leurs styles.
+  final TextStyle? titleStyle;
+  final TextStyle? taglineStyle;
+
+  /// Centre l'ensemble visuel, titre et slogan (pharmacie, sans visuel au
+  /// splash natif) plutôt que le visuel seul.
+  final bool centerGroup;
 
   /// Tailles des splashs natifs.
   static const logoWidth = 174.0;
@@ -63,7 +97,7 @@ class _IviaLoadingSplashState extends State<IviaLoadingSplash>
   Widget build(BuildContext context) {
     final textTheme = Theme.of(context).textTheme;
     final visualHeight = widget.tile
-        ? IviaLoadingSplash.tileSize
+        ? widget.tileStyle.size
         : IviaLoadingSplash.logoWidth / IviaLogo.aspectRatio;
     return AnnotatedRegion<SystemUiOverlayStyle>(
       value: SystemUiOverlayStyle.light,
@@ -71,43 +105,38 @@ class _IviaLoadingSplashState extends State<IviaLoadingSplash>
         color: widget.brand.accent,
         child: Stack(
           children: [
-            Center(child: widget.tile ? _tile() : _wordmark()),
-            // Textes sous le visuel, sans décaler celui-ci (40 dp sous le
-            // logotype, maquette acheteur ; 24 dp sous la tuile, marchand).
-            Positioned(
-              left: IviaSpacing.screen,
-              right: IviaSpacing.screen,
-              top:
-                  MediaQuery.sizeOf(context).height / 2 +
-                  visualHeight / 2 +
-                  (widget.tile ? IviaSpacing.xxl : IviaSpacing.huge),
-              child: Column(
-                children: [
-                  if (widget.title case final title?) ...[
-                    Text(
-                      title,
-                      textAlign: TextAlign.center,
-                      style: textTheme.headlineSmall?.copyWith(
-                        color: Colors.white,
+            if (widget.centerGroup)
+              Center(
+                child: SingleChildScrollView(
+                  padding: const EdgeInsets.all(IviaSpacing.screen),
+                  child: Column(
+                    mainAxisSize: MainAxisSize.min,
+                    children: [
+                      widget.tile ? _tile() : _wordmark(),
+                      SizedBox(
+                        height: widget.tile
+                            ? IviaSpacing.xxl
+                            : IviaSpacing.huge,
                       ),
-                    ),
-                    const SizedBox(height: IviaSpacing.lg),
-                  ],
-                  Text(
-                    widget.tagline,
-                    textAlign: TextAlign.center,
-                    // Acheteur : titre en 700, seul usage permis du blanc sur
-                    // Imperial (docs/DESIGN.md, Contrastes). Sur Berkeley, le
-                    // texte courant est libre.
-                    style: widget.tile
-                        ? textTheme.bodyLarge?.copyWith(
-                            color: Colors.white.withValues(alpha: 0.8),
-                          )
-                        : textTheme.titleMedium?.copyWith(color: Colors.white),
+                      _texts(textTheme),
+                    ],
                   ),
-                ],
+                ),
+              )
+            else ...[
+              Center(child: widget.tile ? _tile() : _wordmark()),
+              // Textes sous le visuel, sans décaler celui-ci (40 dp sous le
+              // logotype, maquette acheteur ; 24 dp sous la tuile, marchand).
+              Positioned(
+                left: IviaSpacing.screen,
+                right: IviaSpacing.screen,
+                top:
+                    MediaQuery.sizeOf(context).height / 2 +
+                    visualHeight / 2 +
+                    (widget.tile ? IviaSpacing.xxl : IviaSpacing.huge),
+                child: _texts(textTheme),
               ),
-            ),
+            ],
             Positioned(
               left: 0,
               right: 0,
@@ -131,6 +160,35 @@ class _IviaLoadingSplashState extends State<IviaLoadingSplash>
     );
   }
 
+  Widget _texts(TextTheme textTheme) => Column(
+    children: [
+      if (widget.title case final title?) ...[
+        Text(
+          title,
+          textAlign: TextAlign.center,
+          style: textTheme.headlineSmall
+              ?.copyWith(color: Colors.white)
+              .merge(widget.titleStyle),
+        ),
+        const SizedBox(height: IviaSpacing.lg),
+      ],
+      Text(
+        widget.tagline,
+        textAlign: TextAlign.center,
+        // Acheteur : titre en 700, seul usage permis du blanc sur
+        // Imperial (docs/DESIGN.md, Contrastes). Sur Berkeley, le
+        // texte courant est libre.
+        style:
+            (widget.tile
+                    ? textTheme.bodyLarge?.copyWith(
+                        color: Colors.white.withValues(alpha: 0.8),
+                      )
+                    : textTheme.titleMedium?.copyWith(color: Colors.white))
+                ?.merge(widget.taglineStyle),
+      ),
+    ],
+  );
+
   Widget _wordmark() => const IviaLogo(
     color: IviaLogoColor.white,
     height: IviaLoadingSplash.logoWidth / IviaLogo.aspectRatio,
@@ -138,19 +196,25 @@ class _IviaLoadingSplashState extends State<IviaLoadingSplash>
 
   /// Mêmes proportions que l'image du splash natif (rayon 21,3 %, logotype
   /// aux 354/516 de la tuile).
-  Widget _tile() => Container(
-    width: IviaLoadingSplash.tileSize,
-    height: IviaLoadingSplash.tileSize,
-    alignment: Alignment.center,
-    decoration: BoxDecoration(
-      color: Colors.white,
-      borderRadius: BorderRadius.circular(IviaLoadingSplash.tileSize * 0.213),
-    ),
-    child: IviaLogo(
-      color: widget.brand.logoOnLight,
-      height: IviaLoadingSplash.tileSize * 354 / 516 / IviaLogo.aspectRatio,
-    ),
-  );
+  Widget _tile() {
+    final style = widget.tileStyle;
+    return Container(
+      width: style.size,
+      height: style.size,
+      alignment: Alignment.center,
+      decoration: BoxDecoration(
+        color: Colors.white,
+        borderRadius: BorderRadius.circular(style.size * style.radiusRatio),
+      ),
+      child: IviaLogo(
+        color: style.logoTint == null
+            ? widget.brand.logoOnLight
+            : IviaLogoColor.white,
+        tint: style.logoTint,
+        height: style.size * style.logoRatio / IviaLogo.aspectRatio,
+      ),
+    );
+  }
 
   /// Le point actif est blanc, les autres plus transparents ; il avance
   /// d'un cran par tiers de cycle.

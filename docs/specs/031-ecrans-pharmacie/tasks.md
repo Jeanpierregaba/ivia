@@ -14,7 +14,7 @@
       - avec leurs tests.
 
 **Lancement**
-- [ ] 3. Splash F00 : couleur de fond facultative dans `IviaLoadingSplash`.
+- [x] 3. Splash F00 : tuile, logotype vert et groupe centré (`IviaSplashTile`, `centerGroup`), splash natif vert.
 - [ ] 4. Présentation en 3 pages, avec ses illustrations et le retour facultatif dans
       `IviaOnboarding`. Route placée après la localisation et montrée une fois.
 - [ ] 5. Connexion F04 et code F05 : options facultatives d'`AppIdentity` (conditions
