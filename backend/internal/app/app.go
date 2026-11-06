@@ -21,6 +21,7 @@ import (
 	"ivia/backend/internal/catalog"
 	"ivia/backend/internal/delivery"
 	"ivia/backend/internal/geo"
+	"ivia/backend/internal/mapping"
 	"ivia/backend/internal/notifications"
 	"ivia/backend/internal/orders"
 	"ivia/backend/internal/payments"
@@ -74,6 +75,7 @@ type App struct {
 	Pharmacy      *pharmacy.Service
 	Properties    *properties.Service
 	Business      *business.Service
+	Mapping       *mapping.Service
 
 	// Implémentations factices exposées en local et dans les tests (nil sinon).
 	DevOTP      *auth.LogSender
@@ -150,6 +152,13 @@ func New(cfg config.Config, logger *slog.Logger, pool *pgxpool.Pool, opts Option
 	})
 
 	a.Properties = properties.NewService(db, a.Uploads, a.Admin)
+	if a.Mapping, err = mapping.New(db, a.Admin, logger, mapping.Config{
+		Routing: cfg.GeoRoutingProvider, Geocoding: cfg.GeoGeocodingProvider, Places: cfg.GeoPlacesProvider,
+		OSRMCar: cfg.OSRMURL, OSRMMoto: cfg.OSRMMotoURL, NominatimURL: cfg.NominatimURL,
+		GooglePlacesKey: cfg.GooglePlacesAPIKey, RedisURL: cfg.RedisURL,
+	}); err != nil {
+		return nil, fmt.Errorf("carte : %w", err)
+	}
 	a.Business = business.NewService(db, a.Shops, a.Users, a.Uploads, a.Admin, a.Notifications)
 
 	// Suppression de compte : les modules qui bloquent, puis ceux qui effacent leurs données.
@@ -161,6 +170,7 @@ func New(cfg config.Config, logger *slog.Logger, pool *pgxpool.Pool, opts Option
 	a.Users.AddDeletionHook(a.Delivery)
 	a.Users.AddDeletionHook(a.Shops)
 	a.Users.AddDeletionHook(a.Business)
+	a.Users.AddDeletionHook(a.Mapping)
 	a.Users.AddDeletionHook(a.Cart)
 	a.Users.AddDeletionHook(a.Notifications)
 	a.Users.AddDeletionHook(a.Pharmacy)
@@ -172,6 +182,7 @@ func New(cfg config.Config, logger *slog.Logger, pool *pgxpool.Pool, opts Option
 	a.Payments.RegisterJobs(reg)
 	a.Delivery.RegisterJobs(reg)
 	a.Pharmacy.RegisterJobs(reg)
+	a.Mapping.RegisterJobs(reg)
 	a.Uploads.RegisterJobs(reg, logger)
 	if a.Queue, err = jobs.New(pool, reg, jobs.Options{RunWorkers: cfg.RunWorkers, PollInterval: opts.PollInterval, Logger: logger, Reporter: a.Errors}); err != nil {
 		return nil, err
@@ -204,6 +215,7 @@ func (a *App) routes() (http.Handler, []string) {
 	promo.NewHandler(a.Promo).Register(rt)
 	a.Properties.Register(rt)
 	a.Business.Register(rt)
+	a.Mapping.Register(rt, a.Delivery)
 	var devPayments *payments.FakeProvider
 	if a.Config.DevToolsEnabled() {
 		devPayments = a.FakePayment

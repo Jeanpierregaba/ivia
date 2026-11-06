@@ -32,6 +32,17 @@ Push-Location $root
 docker compose up -d --wait | Out-Null
 Pop-Location
 
+# Carte : OSRM et Redis si les données sont préparées (tools/geo/preparer-osrm.sh). Sinon, itinéraires
+# estimés à vol d'oiseau, sans rien de plus à faire tourner.
+if (Test-Path (Join-Path $root 'geo-data\osrm-car	ogo-latest.osrm.mldgr')) {
+  Push-Location $root
+  docker compose --profile geo up -d redis osrm-car | Out-Null
+  Pop-Location
+  $env:GEO_ROUTING_PROVIDER = 'osrm'
+  $env:OSRM_URL = 'http://127.0.0.1:5000'
+  $env:REDIS_URL = 'redis://127.0.0.1:6379/0'
+}
+
 # API locale : codes de connexion dans le journal, images servies par l'aperçu acheteur.
 $env:APP_ENV = 'local'
 $env:OTP_SENDER = 'smtp'

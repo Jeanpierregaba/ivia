@@ -8859,6 +8859,467 @@ paths:
             application/json:
               schema:
                 "$ref": "#/components/schemas/Error"
+  "/v1/geo/places/autocomplete":
+    get:
+      summary: "Recherche de lieux : lieux personnels, base Ivia, puis Google en secours"
+      tags:
+        - Carte
+      operationId: getGeoPlacesAutocomplete
+      parameters:
+        - {name: q, in: query, required: true, schema: {type: string, maxLength: 120}, description: "3 caractères au moins."}
+        - {name: session, in: query, required: false, schema: {type: string, maxLength: 64}}
+        - {name: lat, in: query, required: false, schema: {type: number}}
+        - {name: lng, in: query, required: false, schema: {type: number}}
+      responses:
+        "200":
+          description: "Succès"
+          content:
+            application/json:
+              schema:
+                type: object
+                properties:
+                  items:
+                    type: array
+                    items:
+                      "$ref": "#/components/schemas/GeoSuggestion"
+                required: [items]
+        default:
+          description: "Erreur (voir `code`)"
+          content:
+            application/json:
+              schema:
+                "$ref": "#/components/schemas/Error"
+  "/v1/geo/places/{id}":
+    get:
+      summary: "Détail d'un lieu (Ivia, ou google:<id> : il entre alors dans la base Ivia)"
+      tags:
+        - Carte
+      operationId: getGeoPlaceById
+      parameters:
+        - {name: id, in: path, required: true, schema: {type: string}}
+        - {name: session, in: query, required: false, schema: {type: string, maxLength: 64}}
+      responses:
+        "200":
+          description: "Succès"
+          content:
+            application/json:
+              schema:
+                "$ref": "#/components/schemas/GeoPlace"
+        default:
+          description: "Erreur (voir `code`)"
+          content:
+            application/json:
+              schema:
+                "$ref": "#/components/schemas/Error"
+  "/v1/geo/reverse":
+    get:
+      summary: "Adresse d'une position (lieu Ivia à moins de 50 m, Nominatim, sinon coordonnées)"
+      tags:
+        - Carte
+      operationId: getGeoReverse
+      parameters:
+        - {name: lat, in: query, required: true, schema: {type: number}}
+        - {name: lng, in: query, required: true, schema: {type: number}}
+      responses:
+        "200":
+          description: "Succès"
+          content:
+            application/json:
+              schema:
+                type: object
+                properties:
+                  label: {type: string}
+                required: [label]
+        default:
+          description: "Erreur (voir `code`)"
+          content:
+            application/json:
+              schema:
+                "$ref": "#/components/schemas/Error"
+  "/v1/geo/route":
+    post:
+      summary: "Itinéraire, distance et durée (repli à vol d'oiseau si le routage est indisponible)"
+      tags:
+        - Carte
+      operationId: postGeoRoute
+      requestBody:
+        required: true
+        content:
+          application/json:
+            schema:
+              type: object
+              properties:
+                origin: {"$ref": "#/components/schemas/GeoLatLng"}
+                destination: {"$ref": "#/components/schemas/GeoLatLng"}
+                waypoints: {type: array, maxItems: 10, items: {"$ref": "#/components/schemas/GeoLatLng"}}
+                profile: {type: string, enum: [car, moto]}
+              required: [origin, destination]
+      responses:
+        "200":
+          description: "Succès"
+          content:
+            application/json:
+              schema:
+                "$ref": "#/components/schemas/GeoRoute"
+        default:
+          description: "Erreur (voir `code`)"
+          content:
+            application/json:
+              schema:
+                "$ref": "#/components/schemas/Error"
+  "/v1/rides/estimate":
+    post:
+      summary: "Estimation de prix au tarif de la zone du départ, avec les livreurs proches"
+      tags:
+        - Carte
+      operationId: postRidesEstimate
+      requestBody:
+        required: true
+        content:
+          application/json:
+            schema:
+              type: object
+              properties:
+                origin: {"$ref": "#/components/schemas/GeoLatLng"}
+                destination: {"$ref": "#/components/schemas/GeoLatLng"}
+                vehicle: {type: string, enum: [car, moto]}
+              required: [origin, destination, vehicle]
+      responses:
+        "200":
+          description: "Succès"
+          content:
+            application/json:
+              schema:
+                "$ref": "#/components/schemas/RideEstimate"
+        default:
+          description: "Erreur (voir `code`)"
+          content:
+            application/json:
+              schema:
+                "$ref": "#/components/schemas/Error"
+  "/v1/geo/my-places":
+    get:
+      summary: "Mes lieux : Maison, Travail, favoris, récents"
+      tags:
+        - Carte
+      operationId: getGeoMyPlaces
+      responses:
+        "200":
+          description: "Succès"
+          content:
+            application/json:
+              schema:
+                type: object
+                properties:
+                  items:
+                    type: array
+                    items:
+                      "$ref": "#/components/schemas/UserPlace"
+                required: [items]
+        default:
+          description: "Erreur (voir `code`)"
+          content:
+            application/json:
+              schema:
+                "$ref": "#/components/schemas/Error"
+    post:
+      summary: "Ajouter un lieu personnel"
+      tags:
+        - Carte
+      operationId: postGeoMyPlaces
+      requestBody:
+        required: true
+        content:
+          application/json:
+            schema:
+              "$ref": "#/components/schemas/UserPlace"
+      responses:
+        "201":
+          description: "Succès"
+          content:
+            application/json:
+              schema:
+                "$ref": "#/components/schemas/UserPlace"
+        default:
+          description: "Erreur (voir `code`)"
+          content:
+            application/json:
+              schema:
+                "$ref": "#/components/schemas/Error"
+  "/v1/geo/my-places/{id}":
+    delete:
+      summary: "Retirer un lieu personnel"
+      tags:
+        - Carte
+      operationId: deleteGeoMyPlace
+      parameters:
+        - {name: id, in: path, required: true, schema: {type: string, format: uuid}}
+      responses:
+        "204":
+          description: "Fait"
+        default:
+          description: "Erreur (voir `code`)"
+          content:
+            application/json:
+              schema:
+                "$ref": "#/components/schemas/Error"
+  "/v1/ws/driver/location":
+    get:
+      summary: "WebSocket : positions du livreur toutes les 3 à 5 s (lat, lng, heading, speed, accuracy)"
+      tags:
+        - Carte
+      operationId: getWsDriverLocation
+      x-roles:
+        - driver
+      responses:
+        "101":
+          description: "Connexion WebSocket"
+        default:
+          description: "Erreur (voir `code`)"
+          content:
+            application/json:
+              schema:
+                "$ref": "#/components/schemas/Error"
+  "/v1/ws/orders/{id}/tracking":
+    get:
+      summary: "WebSocket : position du livreur pour l'acheteur de la commande"
+      tags:
+        - Carte
+      operationId: getWsOrderTracking
+      parameters:
+        - {name: id, in: path, required: true, schema: {type: string, format: uuid}}
+      responses:
+        "101":
+          description: "Connexion WebSocket"
+        default:
+          description: "Erreur (voir `code`)"
+          content:
+            application/json:
+              schema:
+                "$ref": "#/components/schemas/Error"
+  "/v1/admin/geo/metrics":
+    get:
+      summary: "Fournisseurs actifs et compteurs (appels Google, résolution locale, cache)"
+      tags:
+        - Admin
+      operationId: getAdminGeoMetrics
+      x-roles:
+        - admin
+      responses:
+        "200":
+          description: "Succès"
+          content:
+            application/json:
+              schema:
+                "$ref": "#/components/schemas/GeoMetrics"
+        default:
+          description: "Erreur (voir `code`)"
+          content:
+            application/json:
+              schema:
+                "$ref": "#/components/schemas/Error"
+  "/v1/admin/places":
+    get:
+      summary: "Lieux connus"
+      tags:
+        - Admin
+      operationId: getAdminPlaces
+      parameters:
+        - {name: q, in: query, required: false, schema: {type: string, maxLength: 120}}
+        - {name: limit, in: query, required: false, schema: {type: integer, minimum: 1, maximum: 100, default: 20}}
+        - {name: offset, in: query, required: false, schema: {type: integer, minimum: 0, maximum: 10000, default: 0}}
+      x-roles:
+        - admin
+      responses:
+        "200":
+          description: "Succès"
+          content:
+            application/json:
+              schema:
+                type: object
+                properties:
+                  items:
+                    type: array
+                    items:
+                      "$ref": "#/components/schemas/AdminPlace"
+                  next_offset:
+                    type:
+                      - integer
+                      - "null"
+                required: [items, next_offset]
+        default:
+          description: "Erreur (voir `code`)"
+          content:
+            application/json:
+              schema:
+                "$ref": "#/components/schemas/Error"
+    post:
+      summary: "Ajouter un lieu (journalisé)"
+      tags:
+        - Admin
+      operationId: postAdminPlaces
+      x-roles:
+        - admin
+      requestBody:
+        required: true
+        content:
+          application/json:
+            schema:
+              "$ref": "#/components/schemas/PlaceInput"
+      responses:
+        "201":
+          description: "Succès"
+          content:
+            application/json:
+              schema:
+                type: object
+                properties:
+                  id: {type: string, format: uuid}
+                required: [id]
+        default:
+          description: "Erreur (voir `code`)"
+          content:
+            application/json:
+              schema:
+                "$ref": "#/components/schemas/Error"
+  "/v1/admin/places/{id}":
+    put:
+      summary: "Modifier un lieu (journalisé)"
+      tags:
+        - Admin
+      operationId: putAdminPlace
+      parameters:
+        - {name: id, in: path, required: true, schema: {type: string, format: uuid}}
+      x-roles:
+        - admin
+      requestBody:
+        required: true
+        content:
+          application/json:
+            schema:
+              "$ref": "#/components/schemas/PlaceInput"
+      responses:
+        "200":
+          description: "Succès"
+          content:
+            application/json:
+              schema:
+                type: object
+                properties:
+                  id: {type: string, format: uuid}
+                required: [id]
+        default:
+          description: "Erreur (voir `code`)"
+          content:
+            application/json:
+              schema:
+                "$ref": "#/components/schemas/Error"
+  "/v1/admin/zones":
+    get:
+      summary: "Zones : desserte, tarifs, majoration"
+      tags:
+        - Admin
+      operationId: getAdminZones
+      x-roles:
+        - admin
+      responses:
+        "200":
+          description: "Succès"
+          content:
+            application/json:
+              schema:
+                type: object
+                properties:
+                  items:
+                    type: array
+                    items:
+                      "$ref": "#/components/schemas/GeoZone"
+                required: [items]
+        default:
+          description: "Erreur (voir `code`)"
+          content:
+            application/json:
+              schema:
+                "$ref": "#/components/schemas/Error"
+    post:
+      summary: "Ajouter une zone (journalisé)"
+      tags:
+        - Admin
+      operationId: postAdminZones
+      x-roles:
+        - admin
+      requestBody:
+        required: true
+        content:
+          application/json:
+            schema:
+              "$ref": "#/components/schemas/GeoZoneInput"
+      responses:
+        "201":
+          description: "Succès"
+          content:
+            application/json:
+              schema:
+                type: object
+                properties:
+                  id: {type: string, format: uuid}
+                required: [id]
+        default:
+          description: "Erreur (voir `code`)"
+          content:
+            application/json:
+              schema:
+                "$ref": "#/components/schemas/Error"
+  "/v1/admin/zones/{id}":
+    put:
+      summary: "Modifier une zone (journalisé)"
+      tags:
+        - Admin
+      operationId: putAdminZone
+      parameters:
+        - {name: id, in: path, required: true, schema: {type: string, format: uuid}}
+      x-roles:
+        - admin
+      requestBody:
+        required: true
+        content:
+          application/json:
+            schema:
+              "$ref": "#/components/schemas/GeoZoneInput"
+      responses:
+        "200":
+          description: "Succès"
+          content:
+            application/json:
+              schema:
+                type: object
+                properties:
+                  id: {type: string, format: uuid}
+                required: [id]
+        default:
+          description: "Erreur (voir `code`)"
+          content:
+            application/json:
+              schema:
+                "$ref": "#/components/schemas/Error"
+    delete:
+      summary: "Retirer une zone (journalisé)"
+      tags:
+        - Admin
+      operationId: deleteAdminZone
+      parameters:
+        - {name: id, in: path, required: true, schema: {type: string, format: uuid}}
+      x-roles:
+        - admin
+      responses:
+        "204":
+          description: "Fait"
+        default:
+          description: "Erreur (voir `code`)"
+          content:
+            application/json:
+              schema:
+                "$ref": "#/components/schemas/Error"
   "/v1/admin/medicines":
     get:
       summary: "Base de médicaments"
@@ -10189,6 +10650,120 @@ components:
         from: {type: string}
         to: {type: string}
       required: [day, open, from, to]
+    GeoLatLng:
+      type: object
+      properties:
+        lat: {type: number}
+        lng: {type: number}
+      required: [lat, lng]
+    GeoSuggestion:
+      type: object
+      properties:
+        id: {type: string}
+        name: {type: string}
+        address: {type: string}
+        source: {type: string, enum: [personal, ivia, google]}
+        lat: {type: number}
+        lng: {type: number}
+      required: [id, name, address, source]
+    GeoPlace:
+      type: object
+      properties:
+        id: {type: string}
+        name: {type: string}
+        address: {type: string}
+        location: {"$ref": "#/components/schemas/GeoLatLng"}
+        source: {type: string}
+      required: [id, name, address, location, source]
+    GeoRoute:
+      type: object
+      properties:
+        distance_m: {type: integer, format: int64}
+        duration_s: {type: integer, format: int64}
+        polyline: {type: string, description: "polyline6 ; vide si approximate."}
+        approximate: {type: boolean}
+      required: [distance_m, duration_s, polyline, approximate]
+    RideEstimate:
+      type: object
+      properties:
+        route: {"$ref": "#/components/schemas/GeoRoute"}
+        price_xof: {type: integer, format: int64}
+        zone: {type: string}
+        drivers_near: {type: integer}
+        pickup_eta_s: {type: integer, format: int64}
+      required: [route, price_xof, zone, drivers_near]
+    UserPlace:
+      type: object
+      properties:
+        id: {type: string, format: uuid}
+        label: {type: string}
+        type: {type: string, enum: [home, work, favorite, recent]}
+        address: {type: string}
+        location: {"$ref": "#/components/schemas/GeoLatLng"}
+      required: [label, type, location]
+    PlaceInput:
+      type: object
+      properties:
+        name: {type: string, minLength: 2, maxLength: 160}
+        aliases: {type: array, maxItems: 20, items: {type: string}}
+        category: {type: string, maxLength: 60}
+        address: {type: string, maxLength: 300}
+        location: {"$ref": "#/components/schemas/GeoLatLng"}
+        is_active: {type: boolean}
+      required: [name, location, is_active]
+    AdminPlace:
+      type: object
+      properties:
+        id: {type: string, format: uuid}
+        name: {type: string}
+        aliases: {type: array, items: {type: string}}
+        category: {type: string}
+        address: {type: string}
+        source: {type: string}
+        usage_count: {type: integer}
+        is_active: {type: boolean}
+        location: {"$ref": "#/components/schemas/GeoLatLng"}
+      required: [id, name, aliases, category, address, source, usage_count, is_active, location]
+    GeoZoneInput:
+      type: object
+      properties:
+        name: {type: string, minLength: 2, maxLength: 120}
+        type: {type: string, enum: [service_area, pricing, surge, airport]}
+        rules:
+          type: object
+          properties:
+            base_xof: {type: integer, format: int64}
+            per_km_xof: {type: integer, format: int64}
+            per_min_xof: {type: integer, format: int64}
+            multiplier: {type: number}
+        is_active: {type: boolean}
+        geojson: {type: object, additionalProperties: true, description: "Polygone GeoJSON."}
+      required: [name, type, is_active, geojson]
+    GeoZone:
+      allOf:
+        - "$ref": "#/components/schemas/GeoZoneInput"
+        - type: object
+          properties:
+            id: {type: string, format: uuid}
+          required: [id]
+    GeoMetrics:
+      type: object
+      properties:
+        routing: {type: string}
+        geocoding: {type: string}
+        places: {type: string}
+        redis: {type: boolean}
+        totals: {type: object, additionalProperties: {type: integer, format: int64}}
+        days:
+          type: array
+          items:
+            type: object
+            properties:
+              day: {type: string}
+              metric: {type: string}
+              value: {type: integer, format: int64}
+            required: [day, metric, value]
+      required: [routing, geocoding, places, redis, totals, days]
     AdminPropertyInput:
       type: object
       properties:

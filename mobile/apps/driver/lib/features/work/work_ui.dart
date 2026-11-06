@@ -1,9 +1,8 @@
 import 'package:flutter/material.dart';
-import 'package:flutter_map/flutter_map.dart';
 import 'package:go_router/go_router.dart';
 import 'package:ivia_api_client/ivia_api_client.dart';
+import 'package:ivia_app_core/ivia_app_core.dart';
 import 'package:ivia_ui/ivia_ui.dart';
-import 'package:latlong2/latlong.dart';
 import 'package:url_launcher/url_launcher.dart';
 
 /// Composants de l'app livreur, même langage visuel que l'app acheteur
@@ -219,7 +218,7 @@ class WButton extends StatelessWidget {
   );
 }
 
-/// Carte OpenStreetMap avec les points de la course.
+/// Carte avec les points de la course.
 class WMap extends StatelessWidget {
   const WMap({super.key, required this.points, this.zoom = 13.5});
   final List<(GeoPoint, IconData, Color)> points;
@@ -230,33 +229,12 @@ class WMap extends StatelessWidget {
     final center = points.isEmpty
         ? const GeoPoint(lat: 6.1480, lng: 1.2150)
         : points.first.$1;
-    return FlutterMap(
-      options: MapOptions(
-        initialCenter: LatLng(center.lat, center.lng),
-        initialZoom: zoom,
-      ),
-      children: [
-        TileLayer(
-          urlTemplate: 'https://tile.openstreetmap.org/{z}/{x}/{y}.png',
-          userAgentPackageName: 'tg.ivia.driver',
-        ),
-        MarkerLayer(
-          markers: [
-            for (final (p, icon, color) in points)
-              Marker(
-                point: LatLng(p.lat, p.lng),
-                width: 44,
-                height: 44,
-                child: Container(
-                  decoration: BoxDecoration(
-                    color: color,
-                    borderRadius: BorderRadius.circular(14),
-                  ),
-                  child: Icon(icon, color: Colors.white, size: 22),
-                ),
-              ),
-          ],
-        ),
+    return IviaMap(
+      center: center,
+      zoom: zoom,
+      markers: [
+        for (final (i, (p, icon, color)) in points.indexed)
+          IviaMapMarker(id: 'p$i', point: p, color: color, icon: icon),
       ],
     );
   }

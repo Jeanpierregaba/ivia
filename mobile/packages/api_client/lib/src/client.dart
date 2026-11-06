@@ -1,5 +1,8 @@
 import 'package:dio/dio.dart';
 import 'package:flutter/foundation.dart';
+import 'package:web_socket_channel/web_socket_channel.dart';
+
+import 'ws_connect_stub.dart' if (dart.library.io) 'ws_connect_io.dart';
 
 import 'api_config.dart';
 import 'api_exception.dart';
@@ -7,6 +10,7 @@ import 'models.dart';
 import 'promo.dart';
 
 part 'business.dart';
+part 'geo.dart';
 part 'driver_work.dart';
 part 'pharmacist.dart';
 part 'pharmacy.dart';

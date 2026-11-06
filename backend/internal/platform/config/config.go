@@ -55,8 +55,17 @@ type Config struct {
 	PaymentProvider      string // fake
 	PaymentWebhookSecret string
 
-	PushSender         string // log | fcm
-	FCMCredentialsFile string
+	PushSender string // log | fcm
+	// Carte (docs/decisions/0013). Par défaut, aucun service externe n'est appelé.
+	GeoRoutingProvider   string // haversine | osrm
+	GeoGeocodingProvider string // none | nominatim
+	GeoPlacesProvider    string // local | composite
+	OSRMURL              string
+	OSRMMotoURL          string
+	NominatimURL         string
+	GooglePlacesAPIKey   string
+	RedisURL             string
+	FCMCredentialsFile   string
 
 	Storage           string // local | r2
 	LocalStorageDir   string
@@ -134,6 +143,14 @@ func Load(getenv func(string) string) (Config, error) {
 		PaymentProvider:       get("PAYMENT_PROVIDER", "fake"),
 		PaymentWebhookSecret:  secrets["PAYMENT_WEBHOOK_SECRET"],
 		PushSender:            get("PUSH_SENDER", "log"),
+		GeoRoutingProvider:    get("GEO_ROUTING_PROVIDER", "haversine"),
+		GeoGeocodingProvider:  get("GEO_GEOCODING_PROVIDER", "none"),
+		GeoPlacesProvider:     get("GEO_PLACES_PROVIDER", "local"),
+		OSRMURL:               get("OSRM_URL", ""),
+		OSRMMotoURL:           get("OSRM_MOTO_URL", ""),
+		NominatimURL:          get("NOMINATIM_URL", ""),
+		GooglePlacesAPIKey:    get("GOOGLE_PLACES_API_KEY", ""),
+		RedisURL:              get("REDIS_URL", ""),
 		FCMCredentialsFile:    get("FCM_CREDENTIALS_FILE", ""),
 		Storage:               get("STORAGE", "local"),
 		LocalStorageDir:       get("LOCAL_STORAGE_DIR", "./var/uploads"),

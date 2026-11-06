@@ -699,7 +699,7 @@ class _AddressesScreenState extends ConsumerState<AddressesScreen> {
               ),
             ),
             const SizedBox(height: 8),
-            const Text('La position actuelle du téléphone est utilisée.'),
+            const Text('Vous placerez ensuite le point sur la carte.'),
           ],
         ),
         actions: [
@@ -715,16 +715,20 @@ class _AddressesScreenState extends ConsumerState<AddressesScreen> {
       ),
     );
     if (ok != true || !mounted) return;
-    await askForLocation(context, ref);
-    final pos = await ref.read(locationServiceProvider).current();
-    final p = pos.point ?? const GeoPoint(lat: 6.1480, lng: 1.2150);
+    final picked = await Navigator.of(context).push<PickedPlace>(
+      MaterialPageRoute(
+        builder: (_) => const PlacePickerScreen(title: 'Placer l\'adresse'),
+      ),
+    );
+    if (picked == null || !mounted) return;
+    final p = picked.point;
     try {
       await ref
           .read(apiClientProvider)
           .createAddress(
             label: label.text.trim().isEmpty ? 'Maison' : label.text.trim(),
             addressText: text.text.trim().isEmpty
-                ? 'Ma position'
+                ? picked.label
                 : text.text.trim(),
             location: p,
           );

@@ -471,14 +471,14 @@ class _AddressSheetState extends ConsumerState<_AddressSheet> {
   }
 
   Future<void> _create() async {
-    final p = await alertPosition(context, ref);
-    if (p == null) {
-      setState(
-        () => _error =
-            'Position indisponible : choisissez votre quartier sur l\'accueil.',
-      );
-      return;
-    }
+    final picked = await Navigator.of(context).push<PickedPlace>(
+      MaterialPageRoute(
+        builder: (_) => const PlacePickerScreen(title: 'Point de livraison'),
+      ),
+    );
+    if (picked == null || !mounted) return;
+    final p = picked.point;
+    if (_text.text.trim().isEmpty) _text.text = picked.label;
     try {
       final a = await ref
           .read(apiClientProvider)

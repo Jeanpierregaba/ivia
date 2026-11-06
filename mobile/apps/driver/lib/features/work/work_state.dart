@@ -1,6 +1,8 @@
+import 'dart:convert';
 import 'dart:async';
 
 import 'package:flutter_riverpod/flutter_riverpod.dart';
+import 'package:web_socket_channel/web_socket_channel.dart';
 import 'package:ivia_api_client/ivia_api_client.dart';
 import 'package:ivia_app_core/ivia_app_core.dart';
 
@@ -74,14 +76,52 @@ class WorkController extends Notifier<WorkState> {
     }
   }
 
+  // Temps réel sur téléphone : position toutes les 5 s en mouvement, 15 s à l'arrêt. Sans connexion
+  // temps réel (navigateur, coupure), envoi classique, qui renouvelle aussi le jeton.
+  WebSocketChannel? _socket;
+  GeoPoint? _lastSent;
+  DateTime? _lastSentAt;
+
+  void _closeSocket() {
+    _socket?.sink.close();
+    _socket = null;
+  }
+
+  void _openSocket() {
+    if (_socket != null) return;
+    final socket = _api.openSocket('/v1/ws/driver/location');
+    if (socket == null) return;
+    _socket = socket;
+    socket.stream.listen(
+      (_) {},
+      onError: (_) => _socket = null,
+      onDone: () => _socket = null,
+      cancelOnError: true,
+    );
+  }
+
   Future<void> _sendLocation() async {
     final p = (await ref.read(locationServiceProvider).current()).point;
-    if (p != null) {
-      try {
-        await _api.sendLocation(p);
-      } on ApiException {
-        // Prochain envoi dans 30 s.
-      }
+    if (p == null) return;
+    final last = _lastSent;
+    final at = _lastSentAt;
+    final moved =
+        last == null ||
+        (p.lat - last.lat).abs() + (p.lng - last.lng).abs() > 0.0001;
+    if (!moved && at != null && DateTime.now().difference(at).inSeconds < 15)
+      return;
+    _lastSent = p;
+    _lastSentAt = DateTime.now();
+    _openSocket();
+    final socket = _socket;
+    if (socket != null) {
+      socket.sink.add(jsonEncode({'lat': p.lat, 'lng': p.lng}));
+      return;
+    }
+    try {
+      await _api.sendLocation(p);
+    } on ApiException {
+      // Prochain envoi au tour suivant.
     }
   }
 
@@ -93,9 +133,11 @@ class WorkController extends Notifier<WorkState> {
       _gps?.cancel();
       if (online) {
         _gps = Timer.periodic(
-          const Duration(seconds: 30),
+          const Duration(seconds: 5),
           (_) => _sendLocation(),
         );
+      } else {
+        _closeSocket();
       }
       state = state.copy(online: online, busy: false, clearOffer: !online);
       await refresh();

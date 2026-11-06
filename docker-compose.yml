@@ -26,5 +26,38 @@ services:
       - "127.0.0.1:${MAILPIT_SMTP_PORT:-1025}:1025"
       - "127.0.0.1:${MAILPIT_WEB_PORT:-8025}:8025"
 
+  # Carte (docs/decisions/0013). Rien ne démarre sans « --profile geo » : ces services pèsent en RAM.
+  # Accessibles depuis le serveur seulement, jamais exposés publiquement.
+  redis:
+    image: redis:7-alpine
+    profiles: [geo]
+    ports:
+      - "127.0.0.1:${REDIS_PORT:-6379}:6379"
+
+  # Données à préparer une fois : tools/geo/preparer-osrm.sh
+  osrm-car:
+    image: ghcr.io/project-osrm/osrm-backend:v6.0.0
+    profiles: [geo]
+    command: osrm-routed --algorithm mld /data/togo-latest.osrm
+    volumes:
+      - ./geo-data/osrm-car:/data:ro
+    ports:
+      - "127.0.0.1:${OSRM_PORT:-5000}:5000"
+
+  # Import d'une trentaine de minutes au premier démarrage.
+  nominatim:
+    image: mediagis/nominatim:5.1
+    profiles: [geo]
+    environment:
+      PBF_URL: https://download.geofabrik.de/africa/togo-latest.osm.pbf
+      REPLICATION_URL: https://download.geofabrik.de/africa/togo-updates/
+      IMPORT_STYLE: address
+    volumes:
+      - nominatim-data:/var/lib/postgresql/16/main
+    ports:
+      # 8081 : le port 8080 du document est celui de l'API.
+      - "127.0.0.1:${NOMINATIM_PORT:-8081}:8080"
+
 volumes:
+  nominatim-data:
   postgres-data:

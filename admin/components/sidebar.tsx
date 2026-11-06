@@ -2,6 +2,9 @@
 
 import {
   Banknote,
+  ChartLine,
+  Hexagon,
+  MapPin,
   BellRing,
   BookOpen,
   Briefcase,
@@ -68,6 +71,14 @@ const sections: { title: string; items: Item[] }[] = [
       { href: "/medicine-payments", label: "Paiements santé", icon: HandCoins },
       { href: "/medicines", label: "Médicaments", icon: Pill },
       { href: "/pharmacy-settings", label: "Réglages santé", icon: SlidersHorizontal },
+    ],
+  },
+  {
+    title: "Carte",
+    items: [
+      { href: "/places", label: "Lieux", icon: MapPin },
+      { href: "/zones", label: "Zones et tarifs", icon: Hexagon },
+      { href: "/geo-metrics", label: "Coûts de la carte", icon: ChartLine },
     ],
   },
   {

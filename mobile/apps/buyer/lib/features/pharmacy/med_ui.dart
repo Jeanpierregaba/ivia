@@ -1,12 +1,10 @@
 import 'dart:typed_data';
 
 import 'package:flutter/material.dart';
-import 'package:flutter_map/flutter_map.dart';
 import 'package:flutter_riverpod/flutter_riverpod.dart';
 import 'package:go_router/go_router.dart';
 import 'package:ivia_api_client/ivia_api_client.dart';
 import 'package:ivia_ui/ivia_ui.dart';
-import 'package:latlong2/latlong.dart';
 import 'package:url_launcher/url_launcher.dart';
 
 /// Composants des écrans pharmacie (maquettes P01 à P14).
@@ -362,53 +360,24 @@ class MedMap extends StatelessWidget {
   final double zoom;
 
   @override
-  Widget build(BuildContext context) => FlutterMap(
-    options: MapOptions(
-      initialCenter: LatLng(center.lat, center.lng),
-      initialZoom: zoom,
-      interactionOptions: const InteractionOptions(
-        flags: InteractiveFlag.drag | InteractiveFlag.pinchZoom,
-      ),
-    ),
-    children: [
-      TileLayer(
-        urlTemplate: 'https://tile.openstreetmap.org/{z}/{x}/{y}.png',
-        userAgentPackageName: 'tg.ivia.buyer',
-      ),
-      MarkerLayer(
-        markers: [
-          for (final m in markers)
-            Marker(
-              point: LatLng(m.lat, m.lng),
-              width: 44,
-              height: 44,
-              child: Container(
-                decoration: BoxDecoration(
-                  color: Med.navy,
-                  borderRadius: BorderRadius.circular(14),
-                ),
-                child: const Icon(
-                  Icons.add_box_outlined,
-                  color: Colors.white,
-                  size: 22,
-                ),
-              ),
-            ),
-          if (me != null)
-            Marker(
-              point: LatLng(me!.lat, me!.lng),
-              width: 28,
-              height: 28,
-              child: Container(
-                decoration: BoxDecoration(
-                  color: IviaColors.primary,
-                  shape: BoxShape.circle,
-                  border: Border.all(color: Colors.white, width: 4),
-                ),
-              ),
-            ),
-        ],
-      ),
+  Widget build(BuildContext context) => IviaMap(
+    center: center,
+    zoom: zoom,
+    markers: [
+      for (final (i, m) in markers.indexed)
+        IviaMapMarker(
+          id: 'p$i',
+          point: m,
+          color: Med.navy,
+          icon: Icons.add_box_outlined,
+        ),
+      if (me != null)
+        IviaMapMarker(
+          id: 'me',
+          point: me!,
+          color: IviaColors.primary,
+          icon: Icons.person_pin_circle,
+        ),
     ],
   );
 }

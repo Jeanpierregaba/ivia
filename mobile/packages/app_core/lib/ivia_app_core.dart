@@ -15,6 +15,7 @@ export 'src/document_photo_row.dart';
 export 'src/first_launch.dart';
 export 'src/form_fields.dart';
 export 'src/formats.dart';
+export 'src/ivia_map.dart';
 export 'src/legal_text.dart';
 export 'src/location.dart';
 export 'src/location_prompt.dart';

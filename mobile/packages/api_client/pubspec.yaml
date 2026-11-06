@@ -8,6 +8,7 @@ environment:
 resolution: workspace
 
 dependencies:
+  web_socket_channel: ^3.0.3
   flutter:
     sdk: flutter
   dio: ^5.11.1

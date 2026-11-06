@@ -1,10 +1,8 @@
 import 'package:flutter/material.dart';
-import 'package:flutter_map/flutter_map.dart';
 import 'package:flutter_riverpod/flutter_riverpod.dart';
 import 'package:ivia_api_client/ivia_api_client.dart';
 import 'package:ivia_app_core/ivia_app_core.dart';
 import 'package:ivia_ui/ivia_ui.dart';
-import 'package:latlong2/latlong.dart';
 
 import '../main.dart';
 import 'push.dart';
@@ -95,12 +93,10 @@ class _PharmacyFormScreenState extends ConsumerState<PharmacyFormScreen> {
     text: widget.profile?.openingHours ?? 'Lun-Sam 8 h - 21 h',
   );
   late String? _neighborhood = widget.profile?.neighborhoodId;
-  final _map = MapController();
-  late var _center = LatLng(
-    widget.profile?.lat ?? 6.1480,
-    widget.profile?.lng ?? 1.2150,
+  late var _center = GeoPoint(
+    lat: widget.profile?.lat ?? 6.1480,
+    lng: widget.profile?.lng ?? 1.2150,
   );
-  var _onMap = false;
   var _errors = <String, String>{};
   var _busy = false;
 
@@ -109,19 +105,24 @@ class _PharmacyFormScreenState extends ConsumerState<PharmacyFormScreen> {
     for (final c in [_name, _license, _phone, _email, _address, _hours]) {
       c.dispose();
     }
-    _map.dispose();
     super.dispose();
   }
 
-  Future<void> _locate() async {
-    final p = (await ref.read(locationServiceProvider).current()).point;
-    if (!mounted) return;
-    if (p == null) {
-      _say(context, 'Position indisponible : déplacez la carte à la main.');
-      return;
-    }
-    _map.move(LatLng(p.lat, p.lng), 17);
-    setState(() => _center = LatLng(p.lat, p.lng));
+  /// Étape 2 : l'emplacement, puis l'enregistrement de la fiche.
+  Future<void> _place() async {
+    final picked = await Navigator.of(context).push<PickedPlace>(
+      MaterialPageRoute(
+        builder: (_) => PlacePickerScreen(
+          initial: widget.profile == null ? null : _center,
+          title: 'Placez votre pharmacie',
+          hint: 'Étape 2 sur 5 · Mettez le repère sur votre porte : les patients vous trouvent à cet endroit.',
+          confirmLabel: 'Confirmer cet emplacement',
+        ),
+      ),
+    );
+    if (picked == null || !mounted) return;
+    _center = picked.point;
+    await _save();
   }
 
   Future<void> _save() async {
@@ -140,7 +141,7 @@ class _PharmacyFormScreenState extends ConsumerState<PharmacyFormScreen> {
             email: _email.text.trim(),
             addressText: _address.text.trim(),
             neighborhoodId: _neighborhood,
-            location: GeoPoint(lat: _center.latitude, lng: _center.longitude),
+            location: _center,
             openingHours: _hours.text.trim(),
           );
       ref.invalidate(pharmacyProfileProvider);
@@ -148,10 +149,9 @@ class _PharmacyFormScreenState extends ConsumerState<PharmacyFormScreen> {
     } on ApiException catch (e) {
       // Une erreur sur la fiche ramène au formulaire.
       if (mounted) {
-        setState(() {
-          _errors = e.fields.isEmpty ? {'name': e.message} : e.fields;
-          _onMap = false;
-        });
+        setState(
+          () => _errors = e.fields.isEmpty ? {'name': e.message} : e.fields,
+        );
       }
     } finally {
       if (mounted) setState(() => _busy = false);
@@ -228,79 +228,17 @@ class _PharmacyFormScreenState extends ConsumerState<PharmacyFormScreen> {
         PButton(
           label: 'Placer sur la carte',
           icon: Icons.place_outlined,
-          onTap: () => setState(() => _onMap = true),
+          busy: _busy,
+          onTap: _place,
         ),
       ],
     );
   }
 
-  Widget _mapStep(TextTheme t) => Column(
-    crossAxisAlignment: CrossAxisAlignment.stretch,
-    children: [
-      const PTitle('Placez votre ', 'pharmacie'),
-      const SizedBox(height: 8),
-      Text(
-        'Étape 2 sur 5 · Déplacez la carte pour mettre le repère sur votre porte. Les patients vous trouvent à cet endroit.',
-        style: t.bodyMedium?.copyWith(color: P.muted),
-      ),
-      const SizedBox(height: 14),
-      ClipRRect(
-        borderRadius: BorderRadius.circular(P.radius),
-        child: SizedBox(
-          height: 340,
-          child: Stack(
-            alignment: Alignment.center,
-            children: [
-              FlutterMap(
-                mapController: _map,
-                options: MapOptions(
-                  initialCenter: _center,
-                  initialZoom: 16,
-                  onPositionChanged: (position, _) => _center = position.center,
-                ),
-                children: [
-                  TileLayer(
-                    urlTemplate:
-                        'https://tile.openstreetmap.org/{z}/{x}/{y}.png',
-                    userAgentPackageName: 'tg.ivia.pharmacy',
-                  ),
-                ],
-              ),
-              // La pointe du repère désigne le centre de la carte.
-              const IgnorePointer(
-                child: Padding(
-                  padding: EdgeInsets.only(bottom: 44),
-                  child: Icon(Icons.location_on, size: 44, color: P.green),
-                ),
-              ),
-            ],
-          ),
-        ),
-      ),
-      const SizedBox(height: 10),
-      OutlinedButton.icon(
-        onPressed: _locate,
-        icon: const Icon(Icons.my_location),
-        label: const Text('Utiliser ma position'),
-      ),
-      const SizedBox(height: 14),
-      PButton(
-        label: 'Confirmer cet emplacement',
-        icon: Icons.check,
-        busy: _busy,
-        onTap: _save,
-      ),
-      TextButton(
-        onPressed: () => setState(() => _onMap = false),
-        child: const Text('Retour'),
-      ),
-    ],
-  );
-
   @override
   Widget build(BuildContext context) {
     final t = Theme.of(context).textTheme;
-    final body = _onMap ? _mapStep(t) : _form(t);
+    final body = _form(t);
     if (widget.profile != null) {
       return Scaffold(
         backgroundColor: P.page,

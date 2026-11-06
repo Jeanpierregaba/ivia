@@ -52,6 +52,9 @@ sql:
     queries: internal/business/queries.sql
     gen: { go: { <<: *gen, out: internal/business/store } }
   - <<: *module
+    queries: internal/mapping/queries.sql
+    gen: { go: { <<: *gen, out: internal/mapping/store } }
+  - <<: *module
     queries: internal/properties/queries.sql
     gen: { go: { <<: *gen, out: internal/properties/store } }
   - <<: *module

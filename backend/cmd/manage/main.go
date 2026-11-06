@@ -22,6 +22,7 @@ import (
 
 const usage = `usage : manage <commande>
   grant-admin <email>   donne le rôle admin (crée le compte au besoin)
+  import-places <csv>   importe les lieux exportés par tools/geo/osm_pois.py
   seed-dev              crée des données de démonstration (local uniquement)
   seed-demo             jeu complet : boutiques, catalogue photographié, IVI, publicité,
                         acheteurs, livreurs, commandes à tous les statuts (local uniquement)
@@ -91,6 +92,15 @@ func run(args []string) error {
 		fmt.Println("  livreur  :", s.DriverEmail)
 		fmt.Println("  mot de passe des quatre comptes :", s.Password, "(local uniquement)")
 		return nil
+	case "import-places":
+		if len(args) != 2 {
+			return errors.New("usage : manage import-places <fichier.csv>")
+		}
+		a, err := app.New(cfg, logger, pool, app.Options{})
+		if err != nil {
+			return err
+		}
+		return importPlaces(ctx, a, args[1])
 	case "seed-demo":
 		a, err := app.New(cfg, logger, pool, app.Options{PollInterval: 100 * time.Millisecond})
 		if err != nil {

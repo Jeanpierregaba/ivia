@@ -277,6 +277,9 @@ class _OrderScreenState extends ConsumerState<OrderScreen> {
           IviaSpacing.xxl,
         ),
         children: [
+          if (order.status == OrderStatus.driverAssigned ||
+              order.status == OrderStatus.pickedUp)
+            LiveTrackingMap(orderId: order.id),
           Align(
             alignment: Alignment.centerLeft,
             child: IviaBackButton(onPressed: () => context.pop()),
