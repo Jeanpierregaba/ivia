@@ -215,7 +215,7 @@ void main() {
   }
 
   group('lancement et présentation', () {
-    const firstTitle = 'Une seule app pour toute votre activité.';
+    const firstTitle = 'Votre boutique en ligne, sans site web.';
 
     testWidgets('thème Berkeley et splash avec tuile', (tester) async {
       await launchApp(
@@ -256,7 +256,7 @@ void main() {
       await launchApp(tester);
       await tapText(tester, 'Suivant');
       expect(
-        find.text('Les clients du quartier vous trouvent.', findRichText: true),
+        find.text('Des commandes déjà payées.', findRichText: true),
         findsOneWidget,
       );
       await tapText(tester, 'Suivant');
