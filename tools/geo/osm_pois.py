@@ -9,8 +9,12 @@ d'OpenStreetMap, licence ODbL : mention à garder dans les mentions légales.
 import csv
 import json
 import sys
+import time
+import urllib.error
 import urllib.parse
 import urllib.request
+
+SERVERS = ['https://overpass-api.de/api/interpreter', 'https://overpass.kumi.systems/api/interpreter']
 
 FILTERS = {
     'market': '["amenity"="marketplace"]',
@@ -30,13 +34,7 @@ FILTERS = {
 def main(path):
     parts = ''.join(f'nwr{f}["name"](area.togo);' for f in FILTERS.values())
     query = f'[out:json][timeout:120];area["ISO3166-1"="TG"]["admin_level"="2"]->.togo;({parts});out center tags;'
-    req = urllib.request.Request(
-        'https://overpass-api.de/api/interpreter',
-        data=urllib.parse.urlencode({'data': query}).encode(),
-        headers={'User-Agent': 'ivia-import-lieux/1.0'},
-    )
-    with urllib.request.urlopen(req, timeout=180) as res:
-        elements = json.load(res)['elements']
+    elements = fetch(query)
     rows = []
     for e in elements:
         tags = e.get('tags', {})
@@ -53,6 +51,24 @@ def main(path):
         w.writerow(['external_id', 'name', 'category', 'lat', 'lng', 'address', 'aliases'])
         w.writerows(rows)
     print(f'{len(rows)} lieux écrits dans {path}')
+
+
+def fetch(query):
+    last = None
+    for attempt in range(6):
+        server = SERVERS[attempt % len(SERVERS)]
+        req = urllib.request.Request(
+            server,
+            data=urllib.parse.urlencode({'data': query}).encode(),
+            headers={'User-Agent': 'ivia-import-lieux/1.0'},
+        )
+        try:
+            with urllib.request.urlopen(req, timeout=180) as res:
+                return json.load(res)['elements']
+        except (urllib.error.URLError, TimeoutError, ValueError) as e:
+            last = e
+            time.sleep(20)
+    raise SystemExit(f'Overpass indisponible : {last}')
 
 
 def matches(filter_text, tags):

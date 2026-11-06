@@ -242,13 +242,6 @@ class WMap extends StatelessWidget {
 
 Future<void> call(String phone) => launchUrl(Uri.parse('tel:$phone'));
 
-Future<void> directions(GeoPoint to) => launchUrl(
-  Uri.parse(
-    'https://www.google.com/maps/dir/?api=1&destination=${to.lat},${to.lng}',
-  ),
-  mode: LaunchMode.externalApplication,
-);
-
 String hhmm(DateTime d) {
   final l = d.toLocal();
   return '${l.hour.toString().padLeft(2, '0')}:${l.minute.toString().padLeft(2, '0')}';

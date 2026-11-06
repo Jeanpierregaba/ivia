@@ -689,7 +689,17 @@ class _MissionViewState extends ConsumerState<MissionView> {
                         minimumSize: const Size.fromHeight(56),
                         shape: const StadiumBorder(),
                       ),
-                      onPressed: () => directions(p),
+                      onPressed: () => Navigator.of(context).push(
+                        MaterialPageRoute<void>(
+                          builder: (_) => RouteScreen(
+                            title: 'Itinéraire',
+                            destination: p,
+                            destinationLabel: goingToClient
+                                ? 'Client'
+                                : (m.pharmacy ? 'Pharmacie' : 'Boutique'),
+                          ),
+                        ),
+                      ),
                       icon: const Icon(Icons.directions_outlined),
                       label: Text(
                         goingToClient

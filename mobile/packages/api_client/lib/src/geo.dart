@@ -47,6 +47,14 @@ class GeoRoute {
   final bool approximate;
 }
 
+class RideEstimate {
+  RideEstimate.fromJson(Map<String, dynamic> j)
+    : priceXof = _i(j['price_xof']),
+      driversNear = _i(j['drivers_near']),
+      pickupEtaS = _i(j['pickup_eta_s']);
+  final int priceXof, driversNear, pickupEtaS;
+}
+
 class UserPlace {
   UserPlace.fromJson(Map<String, dynamic> j)
     : id = j['id'] as String,
@@ -110,6 +118,23 @@ extension GeoApi on IviaApiClient {
         'origin': {'lat': origin.lat, 'lng': origin.lng},
         'destination': {'lat': destination.lat, 'lng': destination.lng},
         'profile': profile,
+      },
+    ),
+  );
+
+  /// Prix du trajet ; refusé (422) si le départ n'a pas de tarif.
+  Future<RideEstimate> rideEstimate(
+    GeoPoint origin,
+    GeoPoint destination, {
+    required String vehicle,
+  }) async => RideEstimate.fromJson(
+    await _send(
+      'POST',
+      '/v1/rides/estimate',
+      data: {
+        'origin': {'lat': origin.lat, 'lng': origin.lng},
+        'destination': {'lat': destination.lat, 'lng': destination.lng},
+        'vehicle': vehicle,
       },
     ),
   );

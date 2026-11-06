@@ -34,7 +34,7 @@ Pop-Location
 
 # Carte : OSRM et Redis si les données sont préparées (tools/geo/preparer-osrm.sh). Sinon, itinéraires
 # estimés à vol d'oiseau, sans rien de plus à faire tourner.
-if (Test-Path (Join-Path $root 'geo-data\osrm-car	ogo-latest.osrm.mldgr')) {
+if (Test-Path (Join-Path $root 'geo-data\osrm-car\togo-latest.osrm.mldgr')) {
   Push-Location $root
   docker compose --profile geo up -d redis osrm-car | Out-Null
   Pop-Location

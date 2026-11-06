@@ -596,7 +596,21 @@ class _ServicesGrid extends StatelessWidget {
         IviaColors.primary,
         () => context.push(Routes.restaurants),
       ),
-      (Icons.directions_car_outlined, 'Taxi', blue, navy, () => soon('Taxi')),
+      (
+        Icons.directions_car_outlined,
+        'Taxi',
+        blue,
+        navy,
+        () => Navigator.of(context, rootNavigator: true).push(
+          MaterialPageRoute<void>(
+            builder: (_) => const RouteScreen(
+              title: 'Mon trajet',
+              withPrice: true,
+              profile: 'car',
+            ),
+          ),
+        ),
+      ),
       (
         Icons.storefront_outlined,
         'E-Bazar',
