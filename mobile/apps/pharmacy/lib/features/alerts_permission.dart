@@ -4,6 +4,7 @@ import 'package:flutter_riverpod/flutter_riverpod.dart';
 import 'package:ivia_ui/ivia_ui.dart';
 import 'package:permission_handler/permission_handler.dart';
 
+import 'push.dart';
 import 'ui.dart';
 
 /// Autorisations du téléphone accordées ? Sans objet sur le web.
@@ -43,6 +44,7 @@ class _AlertsPermissionScreenState
     setState(() => _busy = true);
     await Permission.notification.request();
     if (defaultTargetPlatform == TargetPlatform.android) {
+      await requestFullScreenAlerts();
       await Permission.ignoreBatteryOptimizations.request();
     }
     ref.invalidate(alertsReadyProvider);

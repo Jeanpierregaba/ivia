@@ -535,7 +535,7 @@ func (s *Service) broadcast(ctx context.Context, alertID uuid.UUID, p geo.Point,
 		if err := s.notify.Notify(ctx, notifications.Message{
 			UserID: r.OwnerID, App: notifications.AppPharmacy, Kind: "pharmacy_alert",
 			Title: "Alerte médicament", Body: fmt.Sprintf("Un client à %s cherche des produits. Répondez vite !", formatDistance(dist)),
-			Data: map[string]string{"alert_id": alertID.String()},
+			Data: map[string]string{"alert_id": alertID.String(), "urgent": "true"},
 		}); err != nil {
 			return 0, err
 		}

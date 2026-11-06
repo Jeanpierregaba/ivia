@@ -8,6 +8,7 @@ import 'package:ivia_ui/ivia_ui.dart';
 
 import '../main.dart';
 import 'application_screen.dart';
+import 'push.dart';
 import 'ui.dart';
 
 final inboxProvider = FutureProvider.autoDispose<List<InboxAlert>>(
@@ -1171,8 +1172,7 @@ class _OfficeTabState extends ConsumerState<_OfficeTab> {
                   'Se déconnecter',
                   style: TextStyle(color: P.red, fontWeight: FontWeight.w800),
                 ),
-                onTap: () =>
-                    ref.read(authControllerProvider.notifier).signOut(),
+                onTap: () => signOutPharmacy(ref),
               ),
             ],
           ),

@@ -200,6 +200,20 @@ class PharmacyEarnings {
 }
 
 extension PharmacistApi on IviaApiClient {
+  /// Jeton push de l'appareil, pour le compte connecté.
+  Future<void> registerPushToken(
+    String token, {
+    required String platform,
+    required String app,
+  }) => _send(
+    'PUT',
+    '/v1/me/devices',
+    data: {'token': token, 'platform': platform, 'app': app},
+  );
+
+  Future<void> unregisterPushToken(String token) =>
+      _send('DELETE', '/v1/me/devices', data: {'token': token});
+
   /// Pharmacie du compte ; `null` : pas encore inscrite.
   Future<PharmacyProfile?> pharmacyMe() async {
     try {

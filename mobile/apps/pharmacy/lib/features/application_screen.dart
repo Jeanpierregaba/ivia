@@ -7,6 +7,7 @@ import 'package:ivia_ui/ivia_ui.dart';
 import 'package:latlong2/latlong.dart';
 
 import '../main.dart';
+import 'push.dart';
 import 'ui.dart';
 
 void _say(BuildContext context, String message) =>
@@ -55,7 +56,7 @@ class _Frame extends ConsumerWidget {
                 const IviaLogoTile(size: 48, color: P.green),
                 const Spacer(),
                 TextButton(
-                  onPressed: ref.read(authControllerProvider.notifier).signOut,
+                  onPressed: () => signOutPharmacy(ref),
                   child: const Text('Se déconnecter'),
                 ),
               ],

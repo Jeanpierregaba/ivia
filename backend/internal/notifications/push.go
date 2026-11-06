@@ -95,18 +95,45 @@ func NewFCM(serviceAccountJSON []byte) (*FCM, error) {
 	}, nil
 }
 
+// fcmMessage construit le message. Urgent (données « urgent » = « true ») : sans bloc notification sur
+// Android, l'app est réveillée et fait sonner l'alerte elle-même ; sur iOS, notification sensible au
+// temps, le seul plein écran permis n'existant pas.
+func fcmMessage(token, title, body string, data map[string]string) map[string]any {
+	if data["urgent"] != "true" {
+		return map[string]any{
+			"token":        token,
+			"notification": map[string]string{"title": title, "body": body},
+			"data":         data,
+			"android":      map[string]any{"priority": "high"},
+		}
+	}
+	full := make(map[string]string, len(data)+2)
+	for k, v := range data {
+		full[k] = v
+	}
+	full["title"], full["body"] = title, body
+	return map[string]any{
+		"token":   token,
+		"data":    full,
+		"android": map[string]any{"priority": "high", "ttl": "600s"},
+		"apns": map[string]any{
+			"headers": map[string]string{"apns-priority": "10", "apns-push-type": "alert", "apns-expiration": "0"},
+			"payload": map[string]any{"aps": map[string]any{
+				"alert":              map[string]string{"title": title, "body": body},
+				"sound":              "default",
+				"interruption-level": "time-sensitive",
+			}},
+		},
+	}
+}
+
 // Send implémente PushSender.
 func (f *FCM) Send(ctx context.Context, token, title, body string, data map[string]string) error {
 	access, err := f.oauthToken(ctx)
 	if err != nil {
 		return err
 	}
-	payload, err := json.Marshal(map[string]any{"message": map[string]any{
-		"token":        token,
-		"notification": map[string]string{"title": title, "body": body},
-		"data":         data,
-		"android":      map[string]any{"priority": "high"},
-	}})
+	payload, err := json.Marshal(map[string]any{"message": fcmMessage(token, title, body, data)})
 	if err != nil {
 		return err
 	}

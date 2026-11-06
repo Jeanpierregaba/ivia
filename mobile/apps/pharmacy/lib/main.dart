@@ -8,6 +8,7 @@ import 'package:ivia_ui/ivia_ui.dart';
 
 import 'features/alerts_permission.dart';
 import 'features/application_screen.dart';
+import 'features/push.dart';
 import 'features/shell.dart';
 
 /// Identité de l'app pharmacie dans les écrans communs de connexion.
@@ -128,7 +129,17 @@ final routerProvider = Provider<GoRouter>((ref) {
         path: Routes.permissions,
         builder: (_, _) => const AlertsPermissionScreen(),
       ),
-      GoRoute(path: Routes.home, builder: (_, _) => const PharmacyShell()),
+      GoRoute(
+        path: Routes.home,
+        builder: (_, _) => const PharmacyShell(),
+        routes: [
+          GoRoute(
+            path: 'alert/:id',
+            builder: (_, state) =>
+                AlertDetailScreen(alertId: state.pathParameters['id']!),
+          ),
+        ],
+      ),
     ],
   );
   ref.onDispose(() {
@@ -142,6 +153,7 @@ Future<void> main() async {
   WidgetsFlutterBinding.ensureInitialized();
   await SystemChrome.setPreferredOrientations([DeviceOrientation.portraitUp]);
   await clearSessionAfterReinstall(SessionStore());
+  setUpPushBackground();
   // Position de l'officine : précise.
   const location = DeviceLocationService();
   final locationPrompt = await LocationPromptStore.open(location);
@@ -161,11 +173,32 @@ Future<void> main() async {
   );
 }
 
-class PharmacyApp extends ConsumerWidget {
+class PharmacyApp extends ConsumerStatefulWidget {
   const PharmacyApp({super.key});
 
   @override
-  Widget build(BuildContext context, WidgetRef ref) => MaterialApp.router(
+  ConsumerState<PharmacyApp> createState() => _PharmacyAppState();
+}
+
+class _PharmacyAppState extends ConsumerState<PharmacyApp> {
+  @override
+  void initState() {
+    super.initState();
+    final push = ref.read(pushProvider);
+    push.onOpenAlert = (id) =>
+        ref.read(routerProvider).push('${Routes.home}/alert/$id');
+    push.onAlertReceived = () => ref.invalidate(inboxProvider);
+    // Dès la connexion, y compris dossier en attente : la validation arrive aussi par push.
+    ref.listenManual(authControllerProvider.select((a) => a is AuthSignedIn), (
+      _,
+      signedIn,
+    ) {
+      if (signedIn) push.start();
+    }, fireImmediately: true);
+  }
+
+  @override
+  Widget build(BuildContext context) => MaterialApp.router(
     title: 'ivia Pharmacie',
     theme: IviaTheme.light(IviaAppBrand.pharmacy),
     routerConfig: ref.watch(routerProvider),
