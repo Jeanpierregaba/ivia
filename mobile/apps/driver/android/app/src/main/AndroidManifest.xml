@@ -1,6 +1,9 @@
 <manifest xmlns:android="http://schemas.android.com/apk/res/android">
     <!-- Appels à l'API ivia. -->
     <uses-permission android:name="android.permission.INTERNET"/>
+    <!-- Courses proches (spec 030) : position au premier plan seulement. -->
+    <uses-permission android:name="android.permission.ACCESS_COARSE_LOCATION"/>
+    <uses-permission android:name="android.permission.ACCESS_FINE_LOCATION"/>
     <application
         android:label="ivia Livreur"
         android:name="${applicationName}"

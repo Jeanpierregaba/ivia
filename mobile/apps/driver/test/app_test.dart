@@ -9,6 +9,7 @@ import 'package:flutter_test/flutter_test.dart';
 import 'package:ivia_api_client/ivia_api_client.dart';
 import 'package:ivia_api_client/testing.dart';
 import 'package:ivia_app_core/ivia_app_core.dart';
+import 'package:ivia_app_core/testing.dart';
 import 'package:ivia_driver/app/identity.dart';
 import 'package:ivia_driver/features/onboarding/onboarding_screen.dart';
 import 'package:ivia_driver/main.dart';
@@ -58,6 +59,7 @@ Map<String, dynamic> _user({bool complete = true}) =>
 void main() {
   late FakeApiServer server;
   late _FakePicker picker;
+  late FakeLocationService location;
   late List<Map<String, dynamic>> documentsSent;
 
   /// Dossier côté serveur : comme le backend, une pièce envoyée s'ajoute aux
@@ -69,6 +71,7 @@ void main() {
     SharedPreferences.setMockInitialValues({});
     FlutterSecureStorage.setMockInitialValues({});
     picker = _FakePicker();
+    location = FakeLocationService();
     documentsSent = [];
     serverDocuments = [];
     serverVehicle = 'motorbike';
@@ -140,6 +143,7 @@ void main() {
     PhotoPicker? photoPicker,
   }) async {
     final store = await OnboardingStore.open();
+    final locationPrompt = await LocationPromptStore.open(location);
     await tester.pumpWidget(const SizedBox());
     await tester.pumpWidget(
       ProviderScope(
@@ -159,6 +163,9 @@ void main() {
             ),
           ),
           photoPickerProvider.overrideWithValue(photoPicker ?? picker),
+          // Jamais le GPS du poste de test.
+          locationServiceProvider.overrideWithValue(location),
+          locationPromptStoreProvider.overrideWithValue(locationPrompt),
         ],
         child: const DriverApp(),
       ),
@@ -226,6 +233,22 @@ void main() {
   }
 
   group('lancement et présentation', () {
+    testWidgets('localisation (030) : écran après le splash, « Refuser »', (
+      tester,
+    ) async {
+      location.state = LocationAccess.askable;
+      await launchApp(tester);
+      expect(find.text('Livreur'), findsWidgets);
+      expect(
+        find.text('Des missions près de vous', findRichText: true),
+        findsOneWidget,
+      );
+      expect(find.byType(IviaOnboarding), findsNothing);
+      await tapText(tester, 'Refuser');
+      expect(find.byType(IviaOnboarding), findsOneWidget);
+      expect(location.requests, 0);
+    });
+
     testWidgets('thème Cobalt et splash avec tuile', (tester) async {
       await launchApp(
         tester,
@@ -662,6 +685,78 @@ void main() {
       await tester.pumpAndSettle();
       expect(find.text('Profil'), findsOneWidget);
     });
+
+    for (final allow in [false, true]) {
+      testWidgets('en ligne sans autorisation (030) : écran, puis '
+          '${allow ? 'position envoyée' : 'en ligne sans position'}', (
+        tester,
+      ) async {
+        await withDossier(review: 'approved', status: 'offline');
+        SharedPreferences.setMockInitialValues({
+          'onboarding_seen': true,
+          'location_prompt_done': true,
+        });
+        location.state = LocationAccess.askable;
+        server
+          ..on(
+            'GET',
+            '/v1/driver/missions/current',
+            (_) => FakeResponse.json(200, {'mission': null}),
+          )
+          ..on(
+            'GET',
+            '/v1/driver/pharmacy-missions/current',
+            (_) => FakeResponse.json(200, {'mission': null}),
+          )
+          ..on(
+            'GET',
+            '/v1/driver/offers/current',
+            (_) => FakeResponse.json(200, {'offer': null}),
+          )
+          ..on(
+            'GET',
+            '/v1/driver/pharmacy-offers/current',
+            (_) => FakeResponse.json(200, {'offer': null}),
+          )
+          ..on(
+            'PUT',
+            '/v1/driver/availability',
+            (_) => FakeResponse.json(204, null),
+          )
+          ..on(
+            'POST',
+            '/v1/driver/location',
+            (_) => FakeResponse.json(204, null),
+          );
+        await launchApp(tester);
+        await tester.tap(find.byType(Switch));
+        await tester.pumpAndSettle();
+        expect(
+          find.text('Des missions près de vous', findRichText: true),
+          findsOneWidget,
+        );
+        // En ligne : animation continue, pas de pumpAndSettle.
+        final choice = find.text(
+          allow ? 'Autoriser la localisation' : 'Refuser',
+        );
+        await tester.ensureVisible(choice);
+        await tester.tap(choice);
+        for (var i = 0; i < 5; i++) {
+          await tester.pump(const Duration(milliseconds: 300));
+        }
+        expect(location.requests, allow ? 1 : 0);
+        expect(server.calls('PUT', '/v1/driver/availability'), hasLength(1));
+        expect(
+          server.calls('POST', '/v1/driver/location'),
+          hasLength(allow ? 1 : 0),
+        );
+        // Hors ligne : plus d'envoi périodique en attente.
+        await tester.tap(find.byType(Switch));
+        for (var i = 0; i < 5; i++) {
+          await tester.pump(const Duration(milliseconds: 300));
+        }
+      });
+    }
 
     testWidgets('refusé : motif, correction préremplie, renvoi', (
       tester,

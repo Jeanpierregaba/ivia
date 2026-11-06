@@ -16,12 +16,16 @@ Future<void> main() async {
   await SystemChrome.setPreferredOrientations([DeviceOrientation.portraitUp]);
   await clearSessionAfterReinstall(SessionStore());
   final onboarding = await OnboardingStore.open();
+  const location = DeviceLocationService();
+  final locationPrompt = await LocationPromptStore.open(location);
   // Logotype de la tuile prêt dès la première image du splash de chargement.
   await IviaLogo.precache(IviaAppBrand.driver.logoOnLight);
   runApp(
     ProviderScope(
       overrides: [
         onboardingStoreProvider.overrideWithValue(onboarding),
+        locationServiceProvider.overrideWithValue(location),
+        locationPromptStoreProvider.overrideWithValue(locationPrompt),
         appIdentityProvider.overrideWithValue(driverIdentity),
         apiClientProvider.overrideWithValue(
           IviaApiClient(config: ApiConfig.fromEnvironment()),

@@ -152,7 +152,15 @@ class _HomeTab extends ConsumerWidget {
                       activeTrackColor: const Color(0xFF6CF0A4),
                       onChanged: work.busy
                           ? null
-                          : (v) => ref.read(workProvider.notifier).setOnline(v),
+                          : (v) async {
+                              // En ligne : écran d'autorisation d'abord s'il
+                              // le faut ; refusée, on passe quand même en ligne.
+                              if (v) await askForLocation(context, ref);
+                              if (!context.mounted) return;
+                              await ref
+                                  .read(workProvider.notifier)
+                                  .setOnline(v);
+                            },
                     ),
                   ),
                 ],

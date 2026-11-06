@@ -15,7 +15,7 @@
       l'ajout d'une adresse ; tests (routeur, premier lancement, Accueil sans écran).
 - [x] 5. App marchand : textes et icônes, route et redirection, `main.dart` ; écran avant
       l'épingle de la boutique ; tests.
-- [ ] 6. App livreur : textes et icônes, route et redirection, `main.dart`, permission Android ;
+- [x] 6. App livreur : textes et icônes, route et redirection, `main.dart`, permission Android ;
       écran au passage en ligne ; tests.
 - [ ] 7. App pharmacie : textes et icônes, route et redirection (splash ⇒ localisation ⇒
       connexion), `main.dart`, permissions iOS et Android ; écran avant l'envoi du dossier ;
