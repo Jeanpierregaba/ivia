@@ -305,4 +305,84 @@ void main() {
       expect(app.server.calls('POST', '/v1/auth/logout'), isEmpty);
     });
   });
+
+  group('étapes 4 et 5', () {
+    const allDocs = ['opening_authorization', 'owner_id', 'storefront_photo'];
+
+    setUp(() {
+      profile = pharmacyBody(documents: allDocs);
+      app.server
+        ..on(
+          'GET',
+          '/v1/pharmacy/me/duty-shifts',
+          (_) => FakeResponse.json(200, {'items': <Object>[]}),
+        )
+        ..on('PUT', '/v1/pharmacy/me/payout', (_) {
+          profile = pharmacyBody(documents: allDocs, payout: true);
+          return FakeResponse.json(200, {});
+        })
+        ..on('POST', '/v1/pharmacy/me/submit', (_) {
+          profile = pharmacyBody(
+            documents: allDocs,
+            payout: true,
+            status: 'submitted',
+          );
+          return FakeResponse.json(200, {});
+        });
+    });
+
+    PButton sendButton(WidgetTester tester) => tester.widget<PButton>(
+      find.widgetWithText(PButton, 'Envoyer pour validation'),
+    );
+
+    testWidgets('planning qu\'on passe, puis versement et envoi', (
+      tester,
+    ) async {
+      await app.launch(tester);
+      expect(find.text('Planning de garde'), findsOneWidget);
+      expect(find.text('4 sur 5'), findsOneWidget);
+      await tapText(tester, 'Passer cette étape');
+      expect(find.text('5 sur 5'), findsOneWidget);
+      expect(sendButton(tester).onTap, isNull);
+
+      await tester.enterText(fieldOf('Numéro Mobile Money'), '90 11 22 33');
+      await tester.enterText(fieldOf('Titulaire du compte'), 'Kodjo Mensah');
+      await tester.pump();
+      expect(sendButton(tester).onTap, isNotNull);
+      await tapText(tester, 'Envoyer pour validation');
+
+      expect(app.server.calls('PUT', '/v1/pharmacy/me/payout').single.body, {
+        'operator': 'flooz',
+        'phone': '+22890112233',
+        'holder': 'Kodjo Mensah',
+      });
+      expect(app.server.calls('POST', '/v1/pharmacy/me/submit'), hasLength(1));
+      expect(find.text('5 sur 5'), findsNothing);
+    });
+
+    testWidgets('compte déjà enregistré : envoi sans le ressaisir', (
+      tester,
+    ) async {
+      profile = pharmacyBody(documents: allDocs, payout: true);
+      await app.launch(tester);
+      expect(find.text('5 sur 5'), findsOneWidget);
+      expect(find.text('Compte enregistré'), findsOneWidget);
+      await tapText(tester, 'Envoyer pour validation');
+      expect(app.server.calls('PUT', '/v1/pharmacy/me/payout'), isEmpty);
+      expect(app.server.calls('POST', '/v1/pharmacy/me/submit'), hasLength(1));
+    });
+
+    testWidgets('retour : du versement au planning, puis aux pièces', (
+      tester,
+    ) async {
+      profile = pharmacyBody(documents: allDocs, payout: true);
+      await app.launch(tester);
+      await tester.tap(find.bySemanticsLabel('Retour'));
+      await tester.pumpAndSettle();
+      expect(find.text('4 sur 5'), findsOneWidget);
+      await tester.tap(find.bySemanticsLabel('Retour'));
+      await tester.pumpAndSettle();
+      expect(find.text('3 sur 5'), findsOneWidget);
+    });
+  });
 }

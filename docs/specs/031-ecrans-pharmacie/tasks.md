@@ -25,7 +25,7 @@
       Étape 1 (fiche et photo de devanture) et étape 2 (carte), puis création et envoi de la photo.
 - [x] 7. Étape 3 : pièces et case « Je certifie… ». La devanture est redemandée si son envoi a
       échoué.
-- [ ] 8. Étapes 4 et 5 :
+- [x] 8. Étapes 4 et 5 :
       - planning, qu'on peut passer ;
       - compte de versement ;
       - « Envoyer pour validation » grisé tant qu'il manque quelque chose ;

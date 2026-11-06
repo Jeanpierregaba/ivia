@@ -6,7 +6,8 @@ import 'package:ivia_api_client/ivia_api_client.dart';
 
 import '../../common/ui.dart';
 import '../push/push.dart';
-import 'application_screen.dart';
+import '../planning/planning_screen.dart';
+import 'payout_screen.dart';
 import 'step_details.dart';
 import 'step_documents.dart';
 
@@ -82,11 +83,14 @@ class _ApplicationFlowState extends ConsumerState<ApplicationFlow> {
         onNext: () => setState(() => _step = 4),
         header: _header('Documents'),
       );
-    } else {
-      body = DossierHub(
-        profile: profile,
-        onEditDetails: () => setState(() => _step = 1),
+    } else if (_step == 4) {
+      body = PlanningScreen(
+        step: 4,
+        onBack: _back,
+        onNext: () => setState(() => _step = 5),
       );
+    } else {
+      body = PayoutScreen(step: 5, onBack: _back);
     }
     return PopScope(
       canPop: false,

@@ -7,9 +7,15 @@ import 'package:ivia_ui/ivia_ui.dart';
 import '../../common/providers.dart';
 import '../../common/ui.dart';
 
-/// Planning de garde : créneau par créneau, ou import d'une liste.
+/// Planning de garde : créneau par créneau, ou import d'une liste. Dans le
+/// dossier ([step]), il se passe : « Passer cette étape » ou « Continuer ».
 class PlanningScreen extends ConsumerStatefulWidget {
-  const PlanningScreen({super.key});
+  const PlanningScreen({super.key, this.step, this.onBack, this.onNext});
+
+  /// Étape du dossier (« 4 sur 5 ») ; `null` hors du dossier.
+  final int? step;
+  final VoidCallback? onBack;
+  final VoidCallback? onNext;
 
   @override
   ConsumerState<PlanningScreen> createState() => _PlanningScreenState();
@@ -118,143 +124,180 @@ class _PlanningScreenState extends ConsumerState<PlanningScreen> {
     final t = Theme.of(context).textTheme;
     final shifts = ref.watch(shiftsProvider).value ?? const [];
     final day = _day;
+    final step = widget.step;
+    final next = widget.onNext;
     return Scaffold(
       backgroundColor: P.page,
-      appBar: AppBar(
-        backgroundColor: P.page,
-        title: const Text('Planning de garde'),
-      ),
-      body: ListView(
-        padding: const EdgeInsets.all(IviaSpacing.screen),
-        children: [
-          const _NightHours(),
-          const SizedBox(height: 12),
-          PCard(
-            child: Column(
-              crossAxisAlignment: CrossAxisAlignment.stretch,
-              children: [
-                Text(
-                  'Ajouter une garde',
-                  style: t.titleSmall?.copyWith(fontWeight: FontWeight.w800),
-                ),
-                const SizedBox(height: 10),
-                OutlinedButton.icon(
-                  icon: const Icon(Icons.calendar_today_outlined, size: 18),
-                  label: Text(day == null ? 'Choisir le jour' : _date(day)),
-                  onPressed: () async {
-                    final now = DateTime.now();
-                    final d = await showDatePicker(
-                      context: context,
-                      firstDate: now,
-                      lastDate: now.add(const Duration(days: 365)),
-                      initialDate: day ?? now,
-                    );
-                    if (d != null) setState(() => _day = d);
-                  },
-                ),
-                const SizedBox(height: 8),
-                Row(
-                  children: [
-                    Expanded(
-                      child: OutlinedButton(
-                        child: Text('De ${_from.format(context)}'),
-                        onPressed: () async {
-                          final v = await showTimePicker(
-                            context: context,
-                            initialTime: _from,
-                          );
-                          if (v != null) setState(() => _from = v);
-                        },
-                      ),
-                    ),
-                    const SizedBox(width: 8),
-                    Expanded(
-                      child: OutlinedButton(
-                        child: Text('À ${_to.format(context)}'),
-                        onPressed: () async {
-                          final v = await showTimePicker(
-                            context: context,
-                            initialTime: _to,
-                          );
-                          if (v != null) setState(() => _to = v);
-                        },
-                      ),
-                    ),
-                  ],
-                ),
-                const SizedBox(height: 10),
-                PButton(
-                  label: 'Ajouter',
-                  busy: _busy,
-                  onTap: day == null
-                      ? null
-                      : () => _send([_shift(day, _from, _to)]),
-                ),
-              ],
+      body: SafeArea(
+        child: Column(
+          children: [
+            PHeader(
+              title: 'Planning de garde',
+              trailing: step == null ? null : PStepPill(step: step, of: 5),
+              onBack: widget.onBack,
             ),
-          ),
-          const SizedBox(height: 12),
-          PCard(
-            child: Column(
-              crossAxisAlignment: CrossAxisAlignment.stretch,
-              children: [
-                Text(
-                  'Importer une liste',
-                  style: t.titleSmall?.copyWith(fontWeight: FontWeight.w800),
-                ),
-                const SizedBox(height: 4),
-                Text(
-                  'Une garde par ligne, 60 au plus.',
-                  style: t.bodySmall?.copyWith(color: P.muted),
-                ),
-                const SizedBox(height: 10),
-                TextField(
-                  controller: _import,
-                  minLines: 3,
-                  maxLines: 8,
-                  decoration: const InputDecoration(
-                    hintText: '08/11/2026 20:00 07:00\n15/11/2026 20:00 07:00',
+            Expanded(
+              child: ListView(
+                padding: const EdgeInsets.fromLTRB(P.gutter, 4, P.gutter, 8),
+                children: [
+                  const _NightHours(),
+                  const SizedBox(height: 12),
+                  PCard(
+                    child: Column(
+                      crossAxisAlignment: CrossAxisAlignment.stretch,
+                      children: [
+                        Text(
+                          'Ajouter une garde',
+                          style: t.titleSmall?.copyWith(
+                            fontWeight: FontWeight.w800,
+                          ),
+                        ),
+                        const SizedBox(height: 10),
+                        OutlinedButton.icon(
+                          icon: const Icon(
+                            Icons.calendar_today_outlined,
+                            size: 18,
+                          ),
+                          label: Text(
+                            day == null ? 'Choisir le jour' : _date(day),
+                          ),
+                          onPressed: () async {
+                            final now = DateTime.now();
+                            final d = await showDatePicker(
+                              context: context,
+                              firstDate: now,
+                              lastDate: now.add(const Duration(days: 365)),
+                              initialDate: day ?? now,
+                            );
+                            if (d != null) setState(() => _day = d);
+                          },
+                        ),
+                        const SizedBox(height: 8),
+                        Row(
+                          children: [
+                            Expanded(
+                              child: OutlinedButton(
+                                child: Text('De ${_from.format(context)}'),
+                                onPressed: () async {
+                                  final v = await showTimePicker(
+                                    context: context,
+                                    initialTime: _from,
+                                  );
+                                  if (v != null) setState(() => _from = v);
+                                },
+                              ),
+                            ),
+                            const SizedBox(width: 8),
+                            Expanded(
+                              child: OutlinedButton(
+                                child: Text('À ${_to.format(context)}'),
+                                onPressed: () async {
+                                  final v = await showTimePicker(
+                                    context: context,
+                                    initialTime: _to,
+                                  );
+                                  if (v != null) setState(() => _to = v);
+                                },
+                              ),
+                            ),
+                          ],
+                        ),
+                        const SizedBox(height: 10),
+                        PButton(
+                          label: 'Ajouter',
+                          busy: _busy,
+                          onTap: day == null
+                              ? null
+                              : () => _send([_shift(day, _from, _to)]),
+                        ),
+                      ],
+                    ),
                   ),
-                ),
-                const SizedBox(height: 10),
-                OutlinedButton(
-                  onPressed: _busy ? null : _importList,
-                  child: const Text('Importer'),
-                ),
-              ],
-            ),
-          ),
-          const SizedBox(height: 18),
-          Text(
-            'Gardes à venir',
-            style: t.titleMedium?.copyWith(fontWeight: FontWeight.w800),
-          ),
-          const SizedBox(height: 8),
-          if (shifts.isEmpty)
-            PCard(child: Text('Aucune garde planifiée.', style: t.bodyMedium)),
-          for (final s in shifts)
-            Padding(
-              padding: const EdgeInsets.only(bottom: 8),
-              child: PCard(
-                padding: const EdgeInsets.fromLTRB(16, 6, 6, 6),
-                child: Row(
-                  children: [
-                    Expanded(
+                  const SizedBox(height: 12),
+                  PCard(
+                    child: Column(
+                      crossAxisAlignment: CrossAxisAlignment.stretch,
+                      children: [
+                        Text(
+                          'Importer une liste',
+                          style: t.titleSmall?.copyWith(
+                            fontWeight: FontWeight.w800,
+                          ),
+                        ),
+                        const SizedBox(height: 4),
+                        Text(
+                          'Une garde par ligne, 60 au plus.',
+                          style: t.bodySmall?.copyWith(color: P.muted),
+                        ),
+                        const SizedBox(height: 10),
+                        TextField(
+                          controller: _import,
+                          minLines: 3,
+                          maxLines: 8,
+                          decoration: const InputDecoration(
+                            hintText: '08/11/2026 20:00 07:00\n15/11/2026 20:00 07:00',
+                          ),
+                        ),
+                        const SizedBox(height: 10),
+                        OutlinedButton(
+                          onPressed: _busy ? null : _importList,
+                          child: const Text('Importer'),
+                        ),
+                      ],
+                    ),
+                  ),
+                  const SizedBox(height: 18),
+                  Text(
+                    'Gardes à venir',
+                    style: t.titleMedium?.copyWith(fontWeight: FontWeight.w800),
+                  ),
+                  const SizedBox(height: 8),
+                  if (shifts.isEmpty)
+                    PCard(
                       child: Text(
-                        '${_date(s.startsAt.toLocal())} · ${hhmm(s.startsAt)} → ${hhmm(s.endsAt)}',
+                        'Aucune garde planifiée.',
                         style: t.bodyMedium,
                       ),
                     ),
-                    IconButton(
-                      tooltip: 'Retirer',
-                      icon: const Icon(Icons.delete_outline),
-                      onPressed: () => _delete(s.id),
+                  for (final s in shifts)
+                    Padding(
+                      padding: const EdgeInsets.only(bottom: 8),
+                      child: PCard(
+                        padding: const EdgeInsets.fromLTRB(16, 6, 6, 6),
+                        child: Row(
+                          children: [
+                            Expanded(
+                              child: Text(
+                                '${_date(s.startsAt.toLocal())} · ${hhmm(s.startsAt)} → ${hhmm(s.endsAt)}',
+                                style: t.bodyMedium,
+                              ),
+                            ),
+                            IconButton(
+                              tooltip: 'Retirer',
+                              icon: const Icon(Icons.delete_outline),
+                              onPressed: () => _delete(s.id),
+                            ),
+                          ],
+                        ),
+                      ),
                     ),
-                  ],
-                ),
+                ],
               ),
             ),
-        ],
+            if (next != null)
+              PBottomBar(
+                children: [
+                  PButton(
+                    label: shifts.isEmpty ? 'Passer cette étape' : 'Continuer',
+                    style: shifts.isEmpty
+                        ? PButtonStyle.outline
+                        : PButtonStyle.filled,
+                    onTap: next,
+                  ),
+                ],
+              ),
+          ],
+        ),
       ),
     );
   }
