@@ -160,7 +160,7 @@ export const PHARMACY_STATUS: Record<string, { label: string; tone: Tone }> = {
 export const PHARMACY_DOCUMENT: Record<string, string> = {
   opening_authorization: "Autorisation d'exercice",
   order_registration: "Inscription à l'Ordre des pharmaciens",
-  owner_id: "Pièce d'identité du titulaire",
+  owner_id: "Pièce d'identité du responsable",
   storefront_photo: "Photo de la devanture",
 };
 

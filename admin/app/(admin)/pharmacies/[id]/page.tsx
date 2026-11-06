@@ -69,9 +69,10 @@ export default async function PharmacyPage({ params }: { params: Promise<{ id: s
           <CardTitle icon={<Store size={18} aria-hidden="true" />}>Officine</CardTitle>
           <DefinitionList
             items={[
-              ["Titulaire", `${p.owner_first_name || "—"} · ${formatPhone(p.owner_phone)}`],
+              ["Responsable", `${p.owner_first_name || "—"} · ${formatPhone(p.owner_phone)}`],
               ["N° d'autorisation", p.license_number || "—"],
               ["E-mail", p.email || "—"],
+              ["Heures de nuit", `${p.night_from_hour} h à ${p.night_to_hour} h`],
               ["Horaires", p.opening_hours || "—"],
               ["État", [p.is_open && "Ouverte", p.on_duty && "De garde", p.open_24h && "24 h/24"].filter(Boolean).join(" · ") || "Fermée"],
               [
@@ -157,7 +158,7 @@ export default async function PharmacyPage({ params }: { params: Promise<{ id: s
               hidden={hidden("request_changes")}
               confirm={{
                 title: `Demander des compléments à ${p.name} ?`,
-                body: "Le titulaire reçoit le motif et complète son dossier.",
+                body: "Le responsable reçoit le motif et complète son dossier.",
               }}
               reason={{ label: "Ce qu'il faut compléter", required: true }}
             />
@@ -170,7 +171,7 @@ export default async function PharmacyPage({ params }: { params: Promise<{ id: s
               hidden={hidden("reject")}
               confirm={{
                 title: `Refuser le dossier de ${p.name} ?`,
-                body: "Le motif est communiqué au titulaire, qui peut corriger son dossier.",
+                body: "Le motif est communiqué au responsable, qui peut corriger son dossier.",
               }}
               reason={{ label: "Motif du refus", required: true }}
             />

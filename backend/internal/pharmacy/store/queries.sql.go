@@ -421,25 +421,21 @@ func (q *Queries) CountCourierOffers(ctx context.Context, reservationID uuid.UUI
 const countReachablePharmacies = `-- name: CountReachablePharmacies :one
 SELECT count(*)::bigint FROM pharmacies p
 WHERE p.review_status = 'approved' AND p.suspended_at IS NULL
-  AND (p.open_24h OR p.on_duty OR (p.is_open AND NOT $1::boolean) OR EXISTS (
+  AND (p.open_24h OR p.on_duty OR (p.is_open AND NOT pharmacy_night_now(
+        coalesce(p.night_from_hour, (SELECT st.night_from_hour FROM pharmacy_settings st WHERE st.id)),
+        coalesce(p.night_to_hour, (SELECT st.night_to_hour FROM pharmacy_settings st WHERE st.id)))::boolean) OR EXISTS (
         SELECT 1 FROM pharmacy_duty_shifts s WHERE s.pharmacy_id = p.id AND s.starts_at <= now() AND s.ends_at > now()))
-  AND ST_DWithin(p.location, ST_SetSRID(ST_MakePoint($2::float8, $3::float8), 4326)::geography, $4::float8)
+  AND ST_DWithin(p.location, ST_SetSRID(ST_MakePoint($1::float8, $2::float8), 4326)::geography, $3::float8)
 `
 
 type CountReachablePharmaciesParams struct {
-	Night   bool
 	Lng     float64
 	Lat     float64
 	RadiusM float64
 }
 
 func (q *Queries) CountReachablePharmacies(ctx context.Context, arg CountReachablePharmaciesParams) (int64, error) {
-	row := q.db.QueryRow(ctx, countReachablePharmacies,
-		arg.Night,
-		arg.Lng,
-		arg.Lat,
-		arg.RadiusM,
-	)
+	row := q.db.QueryRow(ctx, countReachablePharmacies, arg.Lng, arg.Lat, arg.RadiusM)
 	var column_1 int64
 	err := row.Scan(&column_1)
 	return column_1, err
@@ -888,10 +884,12 @@ SELECT p.id, p.owner_id,
        ST_Distance(p.location, ST_SetSRID(ST_MakePoint($1::float8, $2::float8), 4326)::geography)::float8 AS distance_m
 FROM pharmacies p
 WHERE p.review_status = 'approved' AND p.suspended_at IS NULL
-  AND (p.open_24h OR p.on_duty OR (p.is_open AND NOT $3::boolean) OR EXISTS (
+  AND (p.open_24h OR p.on_duty OR (p.is_open AND NOT pharmacy_night_now(
+        coalesce(p.night_from_hour, (SELECT st.night_from_hour FROM pharmacy_settings st WHERE st.id)),
+        coalesce(p.night_to_hour, (SELECT st.night_to_hour FROM pharmacy_settings st WHERE st.id)))::boolean) OR EXISTS (
         SELECT 1 FROM pharmacy_duty_shifts s WHERE s.pharmacy_id = p.id AND s.starts_at <= now() AND s.ends_at > now()))
-  AND ST_DWithin(p.location, ST_SetSRID(ST_MakePoint($1::float8, $2::float8), 4326)::geography, $4::float8)
-  AND NOT EXISTS (SELECT 1 FROM pharmacy_alert_targets t WHERE t.alert_id = $5 AND t.pharmacy_id = p.id)
+  AND ST_DWithin(p.location, ST_SetSRID(ST_MakePoint($1::float8, $2::float8), 4326)::geography, $3::float8)
+  AND NOT EXISTS (SELECT 1 FROM pharmacy_alert_targets t WHERE t.alert_id = $4 AND t.pharmacy_id = p.id)
 ORDER BY distance_m
 LIMIT 50
 `
@@ -899,7 +897,6 @@ LIMIT 50
 type FindReachablePharmaciesParams struct {
 	Lng     float64
 	Lat     float64
-	Night   bool
 	RadiusM float64
 	AlertID uuid.UUID
 }
@@ -916,7 +913,6 @@ func (q *Queries) FindReachablePharmacies(ctx context.Context, arg FindReachable
 	rows, err := q.db.Query(ctx, findReachablePharmacies,
 		arg.Lng,
 		arg.Lat,
-		arg.Night,
 		arg.RadiusM,
 		arg.AlertID,
 	)
@@ -2836,7 +2832,11 @@ func (q *Queries) PendingUnlockPayment(ctx context.Context, responseID *uuid.UUI
 }
 
 const pharmacyDossier = `-- name: PharmacyDossier :one
-SELECT submitted_at, payout_operator, payout_phone, payout_holder, email FROM pharmacies WHERE id = $1
+SELECT p.submitted_at, p.payout_operator, p.payout_phone, p.payout_holder, p.email,
+       coalesce(p.night_from_hour, st.night_from_hour)::int AS night_from,
+       coalesce(p.night_to_hour, st.night_to_hour)::int AS night_to
+FROM pharmacies p CROSS JOIN pharmacy_settings st
+WHERE p.id = $1 AND st.id
 `
 
 type PharmacyDossierRow struct {
@@ -2845,6 +2845,8 @@ type PharmacyDossierRow struct {
 	PayoutPhone    *string
 	PayoutHolder   string
 	Email          string
+	NightFrom      int32
+	NightTo        int32
 }
 
 func (q *Queries) PharmacyDossier(ctx context.Context, id uuid.UUID) (PharmacyDossierRow, error) {
@@ -2856,6 +2858,8 @@ func (q *Queries) PharmacyDossier(ctx context.Context, id uuid.UUID) (PharmacyDo
 		&i.PayoutPhone,
 		&i.PayoutHolder,
 		&i.Email,
+		&i.NightFrom,
+		&i.NightTo,
 	)
 	return i, err
 }
@@ -3129,6 +3133,21 @@ type SetPharmacyEmailParams struct {
 
 func (q *Queries) SetPharmacyEmail(ctx context.Context, arg SetPharmacyEmailParams) error {
 	_, err := q.db.Exec(ctx, setPharmacyEmail, arg.ID, arg.Email)
+	return err
+}
+
+const setPharmacyNightHours = `-- name: SetPharmacyNightHours :exec
+UPDATE pharmacies SET night_from_hour = $2, night_to_hour = $3, updated_at = now() WHERE id = $1
+`
+
+type SetPharmacyNightHoursParams struct {
+	ID            uuid.UUID
+	NightFromHour *int32
+	NightToHour   *int32
+}
+
+func (q *Queries) SetPharmacyNightHours(ctx context.Context, arg SetPharmacyNightHoursParams) error {
+	_, err := q.db.Exec(ctx, setPharmacyNightHours, arg.ID, arg.NightFromHour, arg.NightToHour)
 	return err
 }
 

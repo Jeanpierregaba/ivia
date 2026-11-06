@@ -132,7 +132,8 @@ type Settings struct {
 	// ProductCommissionBP : commission ivia sur les médicaments livrés (points de base). 0 par
 	// défaut : ivia est rémunéré par le forfait de déblocage ; jamais de commission sur un retrait.
 	ProductCommissionBP int32 `json:"product_commission_bp"`
-	// Plage de nuit, heures de Lomé : seules les gardes reçoivent les alertes. Début égal à fin : aucune.
+	// Heures de nuit par défaut (Lomé), tant que la pharmacie n'a pas choisi les siennes. Début égal à
+	// fin : aucune restriction.
 	NightFromHour int32     `json:"night_from_hour"`
 	NightToHour   int32     `json:"night_to_hour"`
 	UpdatedAt     time.Time `json:"updated_at"`

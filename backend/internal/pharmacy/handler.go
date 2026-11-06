@@ -76,6 +76,7 @@ func (h *Handler) Register(rt *httpapi.Router) {
 	rt.Auth("POST /v1/pharmacy/me/duty-shifts", h.addOwnShifts)
 	rt.Auth("DELETE /v1/pharmacy/me/duty-shifts/{id}", h.deleteOwnShift)
 	rt.Auth("PUT /v1/pharmacy/me/payout", h.setPayout)
+	rt.Auth("PUT /v1/pharmacy/me/night-hours", h.setNightHours)
 	rt.Auth("POST /v1/pharmacy/me/submit", h.submit)
 	rt.Roles("PUT /v1/pharmacy/me/status", h.setStatus, ph)
 	rt.Roles("GET /v1/pharmacy/inbox", h.inbox, ph)

@@ -6,8 +6,8 @@ import { api, failure, type ActionResult, type Schemas } from "@/lib/api";
 
 const REVIEW_DONE: Record<string, string> = {
   approve: "Pharmacie validée : elle peut recevoir les alertes.",
-  request_changes: "Compléments demandés au titulaire.",
-  reject: "Dossier refusé : le motif est envoyé au titulaire.",
+  request_changes: "Compléments demandés au responsable.",
+  reject: "Dossier refusé : le motif est envoyé au responsable.",
   suspend: "Pharmacie suspendue.",
   reinstate: "Pharmacie rétablie.",
 };

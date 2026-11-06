@@ -52,6 +52,8 @@ type Pharmacy struct {
 	Payout           *PayoutAccount `json:"payout"`
 	SubmittedAt      *time.Time     `json:"submitted_at"`
 	Email            string         `json:"email"`
+	NightFromHour    int32          `json:"night_from_hour"`
+	NightToHour      int32          `json:"night_to_hour"`
 	CreatedAt        time.Time      `json:"created_at"`
 	UpdatedAt        time.Time      `json:"updated_at"`
 }

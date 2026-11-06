@@ -104,7 +104,7 @@ export default async function PharmaciesPage({ searchParams }: Props) {
       {page.items.length === 0 ? (
         <EmptyState title="Rien à afficher" message="Aucune pharmacie dans cette liste pour le moment." />
       ) : (
-        <Table head={["Pharmacie", "Titulaire", "Pièces", "Statut", "Inscription", ""]}>
+        <Table head={["Pharmacie", "Responsable", "Pièces", "Statut", "Inscription", ""]}>
           {page.items.map((p) => (
             <tr key={p.id}>
               <Td>

@@ -100,7 +100,9 @@ SELECT p.id, p.owner_id,
        ST_Distance(p.location, ST_SetSRID(ST_MakePoint(sqlc.arg(lng)::float8, sqlc.arg(lat)::float8), 4326)::geography)::float8 AS distance_m
 FROM pharmacies p
 WHERE p.review_status = 'approved' AND p.suspended_at IS NULL
-  AND (p.open_24h OR p.on_duty OR (p.is_open AND NOT sqlc.arg(night)::boolean) OR EXISTS (
+  AND (p.open_24h OR p.on_duty OR (p.is_open AND NOT pharmacy_night_now(
+        coalesce(p.night_from_hour, (SELECT st.night_from_hour FROM pharmacy_settings st WHERE st.id)),
+        coalesce(p.night_to_hour, (SELECT st.night_to_hour FROM pharmacy_settings st WHERE st.id)))::boolean) OR EXISTS (
         SELECT 1 FROM pharmacy_duty_shifts s WHERE s.pharmacy_id = p.id AND s.starts_at <= now() AND s.ends_at > now()))
   AND ST_DWithin(p.location, ST_SetSRID(ST_MakePoint(sqlc.arg(lng)::float8, sqlc.arg(lat)::float8), 4326)::geography, sqlc.arg(radius_m)::float8)
   AND NOT EXISTS (SELECT 1 FROM pharmacy_alert_targets t WHERE t.alert_id = sqlc.arg(alert_id) AND t.pharmacy_id = p.id)
@@ -110,7 +112,9 @@ LIMIT 50;
 -- name: CountReachablePharmacies :one
 SELECT count(*)::bigint FROM pharmacies p
 WHERE p.review_status = 'approved' AND p.suspended_at IS NULL
-  AND (p.open_24h OR p.on_duty OR (p.is_open AND NOT sqlc.arg(night)::boolean) OR EXISTS (
+  AND (p.open_24h OR p.on_duty OR (p.is_open AND NOT pharmacy_night_now(
+        coalesce(p.night_from_hour, (SELECT st.night_from_hour FROM pharmacy_settings st WHERE st.id)),
+        coalesce(p.night_to_hour, (SELECT st.night_to_hour FROM pharmacy_settings st WHERE st.id)))::boolean) OR EXISTS (
         SELECT 1 FROM pharmacy_duty_shifts s WHERE s.pharmacy_id = p.id AND s.starts_at <= now() AND s.ends_at > now()))
   AND ST_DWithin(p.location, ST_SetSRID(ST_MakePoint(sqlc.arg(lng)::float8, sqlc.arg(lat)::float8), 4326)::geography, sqlc.arg(radius_m)::float8);
 
@@ -612,7 +616,11 @@ ON CONFLICT (owner_id) DO UPDATE SET is_open = true, on_duty = true, review_stat
 RETURNING id;
 
 -- name: PharmacyDossier :one
-SELECT submitted_at, payout_operator, payout_phone, payout_holder, email FROM pharmacies WHERE id = $1;
+SELECT p.submitted_at, p.payout_operator, p.payout_phone, p.payout_holder, p.email,
+       coalesce(p.night_from_hour, st.night_from_hour)::int AS night_from,
+       coalesce(p.night_to_hour, st.night_to_hour)::int AS night_to
+FROM pharmacies p CROSS JOIN pharmacy_settings st
+WHERE p.id = $1 AND st.id;
 
 -- name: SetPharmacyPayout :execrows
 UPDATE pharmacies SET payout_operator = $2, payout_phone = $3, payout_holder = $4, updated_at = now()
@@ -632,3 +640,6 @@ UPDATE pharmacies SET email = $2, updated_at = now() WHERE id = $1;
 
 -- name: ClearPharmacyEmail :exec
 UPDATE pharmacies SET email = '', updated_at = now() WHERE owner_id = $1;
+
+-- name: SetPharmacyNightHours :exec
+UPDATE pharmacies SET night_from_hour = $2, night_to_hour = $3, updated_at = now() WHERE id = $1;

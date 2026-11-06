@@ -3247,6 +3247,23 @@ export interface paths {
         patch?: never;
         trace?: never;
     };
+    "/v1/pharmacy/me/night-hours": {
+        parameters: {
+            query?: never;
+            header?: never;
+            path?: never;
+            cookie?: never;
+        };
+        get?: never;
+        /** Choisir ses heures de nuit : pendant ces heures, seules les gardes sont alertées */
+        put: operations["putPharmacyMeNightHours"];
+        post?: never;
+        delete?: never;
+        options?: never;
+        head?: never;
+        patch?: never;
+        trace?: never;
+    };
     "/v1/pharmacy/me/payout": {
         parameters: {
             query?: never;
@@ -5898,6 +5915,8 @@ export interface components {
         };
         /** @description Dossier d'une pharmacie (titulaire et admin). duty_until : fin de la garde planifiée en cours. */
         Pharmacy: {
+            night_from_hour?: number;
+            night_to_hour?: number;
             email?: string;
             payout?: null | {
                 /** @enum {string} */
@@ -5943,6 +5962,8 @@ export interface components {
         };
         /** @description Dossier avec le titulaire (back-office). */
         AdminPharmacy: {
+            night_from_hour?: number;
+            night_to_hour?: number;
             email?: string;
             payout?: null | {
                 /** @enum {string} */
@@ -6576,9 +6597,9 @@ export interface components {
         };
         /** @description Réglages de l'alerte médicament. */
         PharmacySettings: {
-            /** @description Début de la nuit, heure de Lomé. */
+            /** @description Début de la nuit par défaut, heure de Lomé. */
             night_from_hour?: number;
-            /** @description Fin de la nuit. Égale au début : pas de restriction. */
+            /** @description Fin de la nuit par défaut. Égale au début : pas de restriction. */
             night_to_hour?: number;
             enabled: boolean;
             /** Format: int64 */
@@ -6601,9 +6622,9 @@ export interface components {
         };
         /** @description Champs absents : inchangés. */
         PharmacySettingsInput: {
-            /** @description Début de la nuit, heure de Lomé. */
+            /** @description Début de la nuit par défaut, heure de Lomé. */
             night_from_hour?: number;
-            /** @description Fin de la nuit. Égale au début : pas de restriction. */
+            /** @description Fin de la nuit par défaut. Égale au début : pas de restriction. */
             night_to_hour?: number;
             enabled?: boolean;
             /** Format: int64 */
@@ -13524,6 +13545,42 @@ export interface operations {
                     [name: string]: unknown;
                 };
                 content?: never;
+            };
+            /** @description Erreur (voir `code`) */
+            default: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["Error"];
+                };
+            };
+        };
+    };
+    putPharmacyMeNightHours: {
+        parameters: {
+            query?: never;
+            header?: never;
+            path?: never;
+            cookie?: never;
+        };
+        requestBody: {
+            content: {
+                "application/json": {
+                    night_from_hour: number;
+                    night_to_hour: number;
+                };
+            };
+        };
+        responses: {
+            /** @description Succès */
+            200: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["Pharmacy"];
+                };
             };
             /** @description Erreur (voir `code`) */
             default: {

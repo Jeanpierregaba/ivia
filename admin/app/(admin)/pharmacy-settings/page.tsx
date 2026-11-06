@@ -64,8 +64,8 @@ export default async function PharmacySettingsPage() {
             {num("response_window_minutes", "Délai de réponse (min)")}
             {num("pickup_hold_minutes", "Mise de côté (min)")}
             {num("photo_retention_hours", "Conservation des photos (h)")}
-            {num("night_from_hour", "Début de la nuit (heure)", "La nuit, seules les gardes sont alertées")}
-            {num("night_to_hour", "Fin de la nuit (heure)", "Égale au début : pas de restriction")}
+            {num("night_from_hour", "Début de la nuit par défaut", "Chaque pharmacie peut choisir ses heures")}
+            {num("night_to_hour", "Fin de la nuit par défaut", "Égale au début : pas de restriction")}
           </div>
           <Field label="Motif du changement">
             <input name="reason" maxLength={500} className={fieldClass} />

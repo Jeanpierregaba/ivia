@@ -10,6 +10,8 @@ class PharmacyProfile {
       licenseNumber = j['license_number'] as String? ?? '',
       phone = j['phone'] as String? ?? '',
       email = j['email'] as String? ?? '',
+      nightFromHour = _i(j['night_from_hour']),
+      nightToHour = _i(j['night_to_hour']),
       addressText = j['address_text'] as String? ?? '',
       openingHours = j['opening_hours'] as String? ?? '',
       isOpen = j['is_open'] as bool? ?? false,
@@ -40,6 +42,7 @@ class PharmacyProfile {
       reviewStatus,
       reviewNote;
   final bool isOpen, onDuty, open24h, suspended;
+  final int nightFromHour, nightToHour;
   final DateTime? dutyUntil;
   final String? neighborhoodId, payoutMasked, payoutHolder;
   final double? lat, lng;
@@ -59,7 +62,7 @@ class PharmacyProfile {
 const pharmacyDocumentLabels = {
   'opening_authorization': 'Autorisation d\'exercice',
   'storefront_photo': 'Photo de la devanture',
-  'owner_id': 'Pièce d\'identité du titulaire',
+  'owner_id': 'Pièce d\'identité du responsable',
 };
 
 class InboxPhoto {
@@ -259,6 +262,13 @@ extension PharmacistApi on IviaApiClient {
     'PUT',
     '/v1/pharmacy/me/payout',
     data: {'operator': operator, 'phone': phone, 'holder': holder},
+  );
+
+  /// Heures de nuit de la pharmacie : seules les gardes sont alertées pendant ces heures.
+  Future<void> setPharmacyNightHours(int from, int to) => _send(
+    'PUT',
+    '/v1/pharmacy/me/night-hours',
+    data: {'night_from_hour': from, 'night_to_hour': to},
   );
 
   Future<void> submitPharmacy() => _send('POST', '/v1/pharmacy/me/submit');

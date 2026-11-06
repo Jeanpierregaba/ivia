@@ -817,11 +817,8 @@ class _PlanningScreenState extends ConsumerState<PlanningScreen> {
       body: ListView(
         padding: const EdgeInsets.all(IviaSpacing.screen),
         children: [
-          Text(
-            'La nuit, seules les pharmacies de garde reçoivent les alertes.',
-            style: t.bodyMedium?.copyWith(color: P.muted),
-          ),
-          const SizedBox(height: 14),
+          const _NightHours(),
+          const SizedBox(height: 12),
           PCard(
             child: Column(
               crossAxisAlignment: CrossAxisAlignment.stretch,
@@ -947,6 +944,86 @@ class _PlanningScreenState extends ConsumerState<PlanningScreen> {
                 ),
               ),
             ),
+        ],
+      ),
+    );
+  }
+}
+
+/// Heures de nuit choisies par la pharmacie.
+class _NightHours extends ConsumerStatefulWidget {
+  const _NightHours();
+
+  @override
+  ConsumerState<_NightHours> createState() => _NightHoursState();
+}
+
+class _NightHoursState extends ConsumerState<_NightHours> {
+  int? _from, _to;
+  var _busy = false;
+
+  Future<void> _save(int from, int to) async {
+    setState(() => _busy = true);
+    try {
+      await ref.read(apiClientProvider).setPharmacyNightHours(from, to);
+      ref.invalidate(pharmacyProfileProvider);
+      if (mounted) _say(context, 'Heures de nuit enregistrées.');
+    } on ApiException catch (e) {
+      if (mounted) _say(context, e.fields.values.firstOrNull ?? e.message);
+    } finally {
+      if (mounted) setState(() => _busy = false);
+    }
+  }
+
+  Widget _hour(String label, int value, ValueChanged<int> onChanged) =>
+      Expanded(
+        child: IviaFieldLabel(
+          label: label,
+          child: DropdownButtonFormField<int>(
+            initialValue: value,
+            items: [
+              for (var h = 0; h < 24; h++)
+                DropdownMenuItem(value: h, child: Text('$h h')),
+            ],
+            onChanged: (v) {
+              if (v != null) onChanged(v);
+            },
+          ),
+        ),
+      );
+
+  @override
+  Widget build(BuildContext context) {
+    final t = Theme.of(context).textTheme;
+    final p = ref.watch(pharmacyProfileProvider).value;
+    final from = _from ?? p?.nightFromHour ?? 20;
+    final to = _to ?? p?.nightToHour ?? 7;
+    return PCard(
+      child: Column(
+        crossAxisAlignment: CrossAxisAlignment.stretch,
+        children: [
+          Text(
+            'Vos heures de nuit',
+            style: t.titleSmall?.copyWith(fontWeight: FontWeight.w800),
+          ),
+          const SizedBox(height: 4),
+          Text(
+            'Pendant ces heures, vous ne recevez les alertes que si vous êtes de garde.',
+            style: t.bodySmall?.copyWith(color: P.muted),
+          ),
+          const SizedBox(height: 10),
+          Row(
+            children: [
+              _hour('De', from, (v) => setState(() => _from = v)),
+              const SizedBox(width: 10),
+              _hour('À', to, (v) => setState(() => _to = v)),
+            ],
+          ),
+          const SizedBox(height: 10),
+          OutlinedButton(
+            onPressed: _busy ? null : () => _save(from, to),
+            child: Text(_busy ? 'Patientez…' : 'Enregistrer mes heures'),
+          ),
         ],
       ),
     );

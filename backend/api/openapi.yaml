@@ -7208,6 +7208,35 @@ paths:
             application/json:
               schema:
                 "$ref": "#/components/schemas/Error"
+  "/v1/pharmacy/me/night-hours":
+    put:
+      summary: "Choisir ses heures de nuit : pendant ces heures, seules les gardes sont alertées"
+      tags:
+        - Pharmacie
+      operationId: putPharmacyMeNightHours
+      requestBody:
+        required: true
+        content:
+          application/json:
+            schema:
+              type: object
+              properties:
+                night_from_hour: {type: integer, minimum: 0, maximum: 23}
+                night_to_hour: {type: integer, minimum: 0, maximum: 23}
+              required: [night_from_hour, night_to_hour]
+      responses:
+        "200":
+          description: "Succès"
+          content:
+            application/json:
+              schema:
+                "$ref": "#/components/schemas/Pharmacy"
+        default:
+          description: "Erreur (voir `code`)"
+          content:
+            application/json:
+              schema:
+                "$ref": "#/components/schemas/Error"
   "/v1/pharmacy/me/payout":
     put:
       summary: "Renseigner le compte de versement (avant l'envoi du dossier)"
@@ -13021,6 +13050,8 @@ components:
       type: object
       description: "Dossier d'une pharmacie (titulaire et admin). duty_until : fin de la garde planifiée en cours."
       properties:
+        night_from_hour: {type: integer}
+        night_to_hour: {type: integer}
         email: {type: string}
         payout:
           oneOf:
@@ -13136,6 +13167,8 @@ components:
       type: object
       description: "Dossier avec le titulaire (back-office)."
       properties:
+        night_from_hour: {type: integer}
+        night_to_hour: {type: integer}
         email: {type: string}
         payout:
           oneOf:
@@ -14749,8 +14782,8 @@ components:
       type: object
       description: "Réglages de l'alerte médicament."
       properties:
-        night_from_hour: {type: integer, minimum: 0, maximum: 23, description: "Début de la nuit, heure de Lomé."}
-        night_to_hour: {type: integer, minimum: 0, maximum: 23, description: "Fin de la nuit. Égale au début : pas de restriction."}
+        night_from_hour: {type: integer, minimum: 0, maximum: 23, description: "Début de la nuit par défaut, heure de Lomé."}
+        night_to_hour: {type: integer, minimum: 0, maximum: 23, description: "Fin de la nuit par défaut. Égale au début : pas de restriction."}
         enabled:
           type: boolean
         unlock_fee_xof:
@@ -14824,8 +14857,8 @@ components:
       type: object
       description: "Champs absents : inchangés."
       properties:
-        night_from_hour: {type: integer, minimum: 0, maximum: 23, description: "Début de la nuit, heure de Lomé."}
-        night_to_hour: {type: integer, minimum: 0, maximum: 23, description: "Fin de la nuit. Égale au début : pas de restriction."}
+        night_from_hour: {type: integer, minimum: 0, maximum: 23, description: "Début de la nuit par défaut, heure de Lomé."}
+        night_to_hour: {type: integer, minimum: 0, maximum: 23, description: "Fin de la nuit par défaut. Égale au début : pas de restriction."}
         enabled:
           type: boolean
         unlock_fee_xof:

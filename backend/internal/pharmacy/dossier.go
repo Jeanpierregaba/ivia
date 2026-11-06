@@ -47,6 +47,7 @@ func (s *Service) withDossier(ctx context.Context, p *Pharmacy, full bool) error
 	}
 	p.SubmittedAt = r.SubmittedAt
 	p.Email = r.Email
+	p.NightFromHour, p.NightToHour = r.NightFrom, r.NightTo
 	if r.PayoutOperator != nil && r.PayoutPhone != nil {
 		phone := *r.PayoutPhone
 		p.Payout = &PayoutAccount{Operator: *r.PayoutOperator, PhoneMasked: "+228 •• •• •• " + phone[len(phone)-2:], Holder: r.PayoutHolder}
@@ -183,25 +184,37 @@ func (s *Service) DeleteOwnShift(ctx context.Context, ownerID, shiftID uuid.UUID
 	return nil
 }
 
-// nightAt indique si l'heure (Lomé, UTC toute l'année) tombe dans la plage de nuit.
-func nightAt(t time.Time, from, to int32) bool {
-	if from == to {
-		return false
+// SetNightHours enregistre les heures de nuit choisies par la pharmacie : pendant ces heures, elle
+// ne reçoit les alertes que si elle est de garde. Heures de Lomé.
+func (s *Service) SetNightHours(ctx context.Context, ownerID uuid.UUID, from, to int32) (Pharmacy, error) {
+	v := validate.New()
+	v.Check(from >= 0 && from <= 23, "night_from_hour", "Heure entre 0 et 23.")
+	v.Check(to >= 0 && to <= 23, "night_to_hour", "Heure entre 0 et 23.")
+	v.Check(from != to, "night_to_hour", "La fin doit différer du début.")
+	if err := v.Err(); err != nil {
+		return Pharmacy{}, err
 	}
-	h := int32(t.UTC().Hour())
-	if from < to {
-		return h >= from && h < to
+	id, err := s.pharmacyIDOf(ctx, ownerID)
+	if err != nil {
+		return Pharmacy{}, err
 	}
-	return h >= from || h < to
+	if err := s.q(ctx).SetPharmacyNightHours(ctx, store.SetPharmacyNightHoursParams{ID: id, NightFromHour: &from, NightToHour: &to}); err != nil {
+		return Pharmacy{}, fmt.Errorf("heures de nuit : %w", err)
+	}
+	p, _, err := s.pharmacyView(ctx, id, false)
+	return p, err
 }
 
-// isNight : la nuit, seules les pharmacies de garde reçoivent les alertes.
-func (s *Service) isNight(ctx context.Context) (bool, error) {
-	st, err := s.q(ctx).GetSettings(ctx)
-	if err != nil {
-		return false, fmt.Errorf("réglages de nuit : %w", err)
+func (h *Handler) setNightHours(w http.ResponseWriter, r *http.Request) error {
+	var in struct {
+		From int32 `json:"night_from_hour"`
+		To   int32 `json:"night_to_hour"`
 	}
-	return nightAt(time.Now(), st.NightFromHour, st.NightToHour), nil
+	if err := httpapi.Decode(r, &in); err != nil {
+		return err
+	}
+	p, err := h.svc.SetNightHours(r.Context(), me(r), in.From, in.To)
+	return ok(w, p, err)
 }
 
 func (h *Handler) setPayout(w http.ResponseWriter, r *http.Request) error {
