@@ -18,7 +18,6 @@ const pharmacyIdentity = AppIdentity(
       'en quelques secondes. Connexion avec votre numéro de téléphone.',
   loginBadge: 'Pharmacie',
   codeHint: _codeHint,
-  loginMethod: LoginMethod.phone,
   appCode: 'pharmacy',
 );
 

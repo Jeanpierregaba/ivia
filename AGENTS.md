@@ -77,16 +77,13 @@ Back-office (depuis `admin/`, pnpm 10, Node 20.9+ ; Node 24 en CI) :
 
 Mobile (pub workspace, depuis `mobile/` sauf mention) :
 - Installer : `flutter pub get` (un seul `pubspec.lock` pour tout le workspace)
-- Démarrer en local : depuis `apps/<buyer|seller|driver>`, `flutter run`
+- Démarrer en local : depuis `apps/<buyer|seller|driver|pharmacy>`, `flutter run`
   (`--dart-define=API_BASE_URL=http://…:8080` hors émulateur Android ; simulateur iOS :
-  `http://localhost:<PORT>`). Connexion par mot de passe (ADR 0011) : comptes de `seed-dev`
-  avec le mot de passe affiché par la commande (local seulement). Code reçu par e-mail
-  (création de compte, mot de passe oublié) : journaux de l'API, Mailpit ou `POST /v1/dev/otp` ;
-  avec `--dart-define=IVIA_DEV_OTP=true` (build debug, API locale), l'app le lit et le saisit
-  seule. Jamais en release : la route n'existe qu'en local et en test. Google : bouton affiché
-  seulement avec `--dart-define=GOOGLE_SERVER_CLIENT_ID=…` (client OAuth « web ») et, sur iOS,
-  `GOOGLE_IOS_CLIENT_ID=…` plus le schéma d'URL inversé dans `Info.plist`, et si l'API l'annonce
-  (`GOOGLE_CLIENT_IDS`). App acheteur :
+  `http://localhost:<PORT>`). Connexion par numéro (ADR 0012) : numéros des comptes de
+  `seed-dev` / `seed-demo` (ex. acheteur `90 00 01 02`). Code (WhatsApp ou SMS, rien n'est
+  envoyé en local) : journaux de l'API ou `POST /v1/dev/otp` ; avec
+  `--dart-define=IVIA_DEV_OTP=true` (build debug, API locale), l'app le lit et le saisit seule.
+  Jamais en release : la route n'existe qu'en local et en test. App acheteur :
   `--dart-define=IVIA_DEV_PAYMENT=true` ajoute « Simuler la validation » et « Simuler un refus »
   à l'attente du paiement (faux prestataire du serveur, debug seulement)
 - Lint : `dart format --output=none --set-exit-if-changed .`

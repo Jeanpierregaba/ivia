@@ -1,5 +1,8 @@
 # 029 — Connexion par mot de passe et par Google (3 apps)
 
+> **Remplacée** par l'[ADR 0012](../../decisions/0012-connexion-numero-whatsapp-jetons-totp.md)
+> (connexion par numéro). Code retiré des apps et d'`api_client` le 2026-11-06.
+
 ## Objectif
 
 Faire passer les **trois apps** (acheteur, marchand, livreur) à la connexion décidée par

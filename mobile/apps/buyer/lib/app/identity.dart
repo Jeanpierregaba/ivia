@@ -10,7 +10,6 @@ const buyerIdentity = AppIdentity(
       'téléphone. Nous vous envoyons un code sur WhatsApp.',
   codeHint: _codeHint,
   // Connexion par numéro (spec 001 v2, ADR 0012).
-  loginMethod: LoginMethod.phone,
   appCode: 'buyer',
 );
 

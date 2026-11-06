@@ -16,7 +16,7 @@ import 'phone_login_flow.dart';
 
 /// Écrans de la connexion par numéro (spec 001 v2, ADR 0012) : numéro, code
 /// reçu par WhatsApp ou SMS, puis « Faisons connaissance » pour un numéro
-/// nouveau. Communs aux apps qui choisissent [LoginMethod.phone].
+/// nouveau. Communs aux apps.
 
 /// Mise en page commune : défilement, marges, contenu étiré.
 class _AuthPage extends StatelessWidget {

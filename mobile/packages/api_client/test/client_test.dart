@@ -20,166 +20,6 @@ void main() {
     );
   });
 
-  group('connexion par mot de passe (ADR 0011)', () {
-    test('modes de connexion et état de la session', () async {
-      server
-        ..on(
-          'GET',
-          '/v1/auth/providers',
-          (_) => FakeResponse.json(200, {'password': true, 'google': false}),
-        )
-        ..on(
-          'GET',
-          '/v1/auth/session',
-          (_) => FakeResponse.json(200, {
-            'mfa_verified': false,
-            'has_password': false,
-            'expires_at': '2026-12-01T00:00:00Z',
-          }),
-        );
-      final providers = await client.authProviders();
-      expect(providers.password, isTrue);
-      expect(providers.google, isFalse);
-      expect((await client.sessionInfo()).hasPassword, isFalse);
-    });
-
-    test('connexion : e-mail nettoyé, mot de passe tel quel', () async {
-      server.on(
-        'POST',
-        '/v1/auth/login',
-        (_) => FakeResponse.json(200, sessionBody(complete: true)),
-      );
-      final session = await client.login(' Awa@Test.TG ', '  mot de passe  ');
-      expect(server.last.body, {
-        'email': 'awa@test.tg',
-        'password': '  mot de passe  ',
-      });
-      expect(session.token, isNotEmpty);
-    });
-
-    test('connexion refusée et compte bloqué : erreurs du serveur', () async {
-      server.on(
-        'POST',
-        '/v1/auth/login',
-        (_) => FakeResponse.error(
-          401,
-          'invalid_credentials',
-          'E-mail ou mot de passe incorrect.',
-        ),
-      );
-      await expectLater(
-        client.login('awa@test.tg', 'faux'),
-        throwsA(
-          isA<ApiException>().having(
-            (e) => e.code,
-            'code',
-            'invalid_credentials',
-          ),
-        ),
-      );
-      // Un 401 de connexion ne ferme pas la session (il n'y en a pas).
-      expect(unauthorized, 0);
-    });
-
-    test('création de compte : code puis mot de passe', () async {
-      server
-        ..on(
-          'POST',
-          '/v1/auth/signup/code',
-          (_) => FakeResponse.json(202, otpBody),
-        )
-        ..on(
-          'POST',
-          '/v1/auth/signup',
-          (_) => FakeResponse.json(201, sessionBody()),
-        );
-      final otp = await client.requestSignupCode('Awa@Test.tg');
-      expect(server.last.body, {'email': 'awa@test.tg'});
-      expect(otp.resendAfter, const Duration(seconds: 60));
-      final session = await client.signup(
-        'awa@test.tg',
-        '481902',
-        'pagne-wax-2026',
-      );
-      expect(server.last.body, {
-        'email': 'awa@test.tg',
-        'code': '481902',
-        'password': 'pagne-wax-2026',
-      });
-      expect(session.isNewUser, isTrue);
-    });
-
-    test('mot de passe oublié : code puis nouveau mot de passe', () async {
-      server
-        ..on(
-          'POST',
-          '/v1/auth/password/forgot',
-          (_) => FakeResponse.json(202, otpBody),
-        )
-        ..on(
-          'POST',
-          '/v1/auth/password/reset',
-          (_) => FakeResponse.json(200, sessionBody(complete: true)),
-        );
-      await client.requestPasswordReset('awa@test.tg');
-      expect(server.last.path, '/v1/auth/password/forgot');
-      expect(server.last.body, {'email': 'awa@test.tg'});
-      await client.resetPassword('awa@test.tg', '481902', 'nouveau-2026-ok');
-      expect(server.last.body, {
-        'email': 'awa@test.tg',
-        'code': '481902',
-        'password': 'nouveau-2026-ok',
-      });
-    });
-
-    test('Google : jeton envoyé tel quel', () async {
-      server.on(
-        'POST',
-        '/v1/auth/google',
-        (_) => FakeResponse.json(200, sessionBody()),
-      );
-      await client.signInWithGoogle('jeton.google.id');
-      expect(server.last.body, {'id_token': 'jeton.google.id'});
-    });
-
-    test('changer de mot de passe : actuel facultatif', () async {
-      server.on('POST', '/v1/me/password', (_) => FakeResponse.json(204, null));
-      await client.changePassword(
-        current: 'ancien-2026-ok',
-        next: 'nouveau-2026-ok',
-      );
-      expect(server.last.body, {
-        'current_password': 'ancien-2026-ok',
-        'new_password': 'nouveau-2026-ok',
-      });
-      await client.changePassword(next: 'premier-2026-ok');
-      expect(server.last.body, {'new_password': 'premier-2026-ok'});
-    });
-  });
-
-  test('création de compte : session, nouveau compte et profil', () async {
-    server.on(
-      'POST',
-      '/v1/auth/signup',
-      (_) => FakeResponse.json(201, sessionBody()),
-    );
-    final session = await client.signup(
-      '  Awa@Test.tg ',
-      '481902',
-      'pagne-wax-2026',
-    );
-    expect(server.last.body, {
-      'email': 'awa@test.tg',
-      'code': '481902',
-      'password': 'pagne-wax-2026',
-    });
-    expect(session.token, 'jeton-secret');
-    expect(session.isNewUser, isTrue);
-    expect(session.user.email, 'awa@test.tg');
-    expect(session.user.profileComplete, isFalse);
-    expect(server.last.headers['authorization'], isNull);
-  });
-
   test('le jeton est envoyé une fois défini, puis retiré', () async {
     server.on('GET', '/v1/me', (_) => FakeResponse.json(200, userBody()));
     client.token = 'jeton-secret';
@@ -261,11 +101,15 @@ void main() {
   test('401 sans jeton (code faux) : pas de signalement', () async {
     server.on(
       'POST',
-      '/v1/auth/signup',
+      '/v1/auth/phone/verify',
       (_) => FakeResponse.error(401, 'otp_invalid', 'Code incorrect.'),
     );
     await expectLater(
-      client.signup('a@b.tg', '000000', 'pagne-wax-2026'),
+      client.verifyPhone(
+        '+22890123456',
+        '000000',
+        const DeviceInfo(id: 'appareil-123456', name: 'iPhone', app: 'buyer'),
+      ),
       throwsA(isA<ApiException>().having((e) => e.code, 'code', 'otp_invalid')),
     );
     expect(unauthorized, 0);

@@ -108,93 +108,6 @@ class IviaApiClient {
   @visibleForTesting
   Dio get debugDio => _dio;
 
-  /// Modes de connexion ouverts (Google masqué sans configuration).
-  Future<AuthProviders> authProviders() async =>
-      AuthProviders.fromJson(await _send('GET', '/v1/auth/providers'));
-
-  /// État de la session courante (le compte a-t-il un mot de passe).
-  Future<SessionInfo> sessionInfo() async =>
-      SessionInfo.fromJson(await _send('GET', '/v1/auth/session'));
-
-  /// Connexion par mot de passe : 401 `invalid_credentials` que le compte
-  /// existe ou non ; 429 `account_locked` après 10 échecs.
-  Future<Session> login(String email, String password) async =>
-      Session.fromJson(
-        await _send(
-          'POST',
-          '/v1/auth/login',
-          data: {'email': normalizeEmail(email), 'password': password},
-        ),
-      );
-
-  /// Création de compte, étape 1 : code envoyé à l'adresse (même réponse
-  /// que le compte existe ou non).
-  Future<OtpRequested> requestSignupCode(String email) async =>
-      OtpRequested.fromJson(
-        await _send(
-          'POST',
-          '/v1/auth/signup/code',
-          data: {'email': normalizeEmail(email)},
-        ),
-      );
-
-  /// Création de compte, étape 2 : le code et le mot de passe ouvrent une
-  /// session (409 `account_exists` si le compte a déjà un mot de passe).
-  Future<Session> signup(String email, String code, String password) async =>
-      Session.fromJson(
-        await _send(
-          'POST',
-          '/v1/auth/signup',
-          data: {
-            'email': normalizeEmail(email),
-            'code': code,
-            'password': password,
-          },
-        ),
-      );
-
-  /// Mot de passe oublié, étape 1 : code envoyé si le compte existe (même
-  /// réponse sinon).
-  Future<OtpRequested> requestPasswordReset(String email) async =>
-      OtpRequested.fromJson(
-        await _send(
-          'POST',
-          '/v1/auth/password/forgot',
-          data: {'email': normalizeEmail(email)},
-        ),
-      );
-
-  /// Mot de passe oublié, étape 2 : nouveau mot de passe ; les autres
-  /// appareils sont déconnectés, une nouvelle session est ouverte.
-  Future<Session> resetPassword(
-    String email,
-    String code,
-    String password,
-  ) async => Session.fromJson(
-    await _send(
-      'POST',
-      '/v1/auth/password/reset',
-      data: {
-        'email': normalizeEmail(email),
-        'code': code,
-        'password': password,
-      },
-    ),
-  );
-
-  /// Connexion avec Google : le jeton d'identité est vérifié par le serveur.
-  Future<Session> signInWithGoogle(String idToken) async => Session.fromJson(
-    await _send('POST', '/v1/auth/google', data: {'id_token': idToken}),
-  );
-
-  /// Change le mot de passe ([current] exigé si le compte en a un) ; les
-  /// autres appareils sont déconnectés.
-  Future<void> changePassword({String? current, required String next}) => _send(
-    'POST',
-    '/v1/me/password',
-    data: {'current_password': ?current, 'new_password': next},
-  );
-
   // --- Connexion par numéro (ADR 0012) --------------------------------------
 
   /// Envoie un code par WhatsApp (SMS en secours, ou SMS si [channel] le
@@ -790,15 +703,15 @@ class IviaApiClient {
     }
   }
 
-  /// Dernier code envoyé à [email], lu sur la route de développement
-  /// `POST /v1/dev/otp` (API locale ou de test seulement) ; `null` si la
-  /// route n'existe pas ou n'a pas de code.
-  Future<String?> devOtp(String email) async {
+  /// Dernier code envoyé au numéro [phone] (format +228…), lu sur la route
+  /// de développement `POST /v1/dev/otp` (API locale ou de test seulement) ;
+  /// `null` si la route n'existe pas ou n'a pas de code.
+  Future<String?> devOtp(String phone) async {
     try {
       final json = await _send(
         'POST',
         '/v1/dev/otp',
-        data: {'recipient': normalizeEmail(email)},
+        data: {'recipient': phone.trim()},
       );
       return json['code'] as String?;
     } on ApiException {
@@ -811,8 +724,6 @@ class IviaApiClient {
   Future<void> deleteAccount() => _send('DELETE', '/v1/me');
 
   Future<void> logout() => _send('POST', '/v1/auth/logout');
-
-  static String normalizeEmail(String email) => email.trim().toLowerCase();
 
   static List<Choice> _items(Map<String, dynamic> json) => [
     for (final item in json['items'] as List)

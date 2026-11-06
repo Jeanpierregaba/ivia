@@ -10,7 +10,6 @@ const sellerIdentity = AppIdentity(
       'ivia ? Utilisez le même numéro.',
   loginBadge: 'Marchand',
   codeHint: _codeHint,
-  loginMethod: LoginMethod.phone,
   appCode: 'seller',
 );
 

@@ -10,7 +10,6 @@ const driverIdentity = AppIdentity(
       'après la validation de votre dossier par ivia.',
   loginBadge: 'Livreur',
   codeHint: _codeHint,
-  loginMethod: LoginMethod.phone,
   appCode: 'driver',
 );
 

@@ -69,7 +69,8 @@ class AuthController extends Notifier<AuthState> {
     await _start();
   }
 
-  /// Session ouverte (mot de passe, création, Google) : gardée sur le téléphone.
+  /// Session ouverte (code vérifié ou inscription terminée) : gardée sur le
+  /// téléphone.
   Future<void> signedIn(Session session) async {
     _generation++;
     await _store.save(

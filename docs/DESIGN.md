@@ -197,16 +197,13 @@ Maquettes : à venir (lien Figma à ajouter ici). Les statuts affichés suivent
   pilule ; logo en tuile sur la page 1, bouton retour rond ensuite ; « Passer » sauf sur la dernière
   page. Acheteur : illustrations des maquettes ; marchand et livreur : pictogramme dans une carte de
   leur couleur, en attendant leurs maquettes.
-- **Connexion** ([spec 029](specs/029-connexion-mot-de-passe/spec.md), ADR 0011) : « Bienvenue sur
-  ivia » (« Continuer avec Google » si disponible, puis « ou » ; e-mail ; mot de passe avec œil
-  « Afficher le mot de passe » ; « Mot de passe oublié ? » ; « Se connecter » ; « Pas encore de
-  compte ? Créer un compte » ; mentions légales). Après un refus : message et encart « Vous vous
-  connectiez avec un code reçu par e-mail ? Créez votre mot de passe. ». **Créer un compte** et
-  **Mot de passe oublié** : e-mail ⇒ « Vérifiez vos e-mails » (6 cases, collage accepté, « Renvoyer
-  le code » après 60 s, passage automatique à 6 chiffres) ⇒ « Choisissez un mot de passe » /
-  « Nouveau mot de passe » (aide « 10 caractères au moins… »). Puis « Faisons connaissance » si le
-  profil est incomplet (prénom, nom, téléphone +228, consentement). **Changer le mot de passe**
-  depuis l'écran Compte (actuel, sauf compte Google sans mot de passe ; nouveau).
+- **Connexion** ([spec 001](specs/001-connexion-otp/spec.md) v2, ADR 0012), commune aux apps :
+  numéro (+228, 8 chiffres) ⇒ « Recevoir le code sur WhatsApp » ou « Recevoir par SMS » (« Pas
+  de mot de passe : un code à 6 chiffres vous est envoyé à chaque connexion. ») ; mentions
+  légales. « Saisissez le code » : 6 chiffres, vérification au 6e, « Modifier le numéro »,
+  « Renvoyer le code » après le compte à rebours, SMS en secours. Numéro nouveau : « Faisons
+  connaissance » (prénom, nom, consentement). Profil : changer de numéro (code envoyé au nouveau
+  numéro), appareils connectés.
 - **Notifications** : liste chronologique, non lues en gras ; un appui ouvre la commande ou la mission.
 - **Profil** : informations, déconnexion, **suppression du compte** (confirmation explicite).
 

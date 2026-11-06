@@ -15,10 +15,9 @@ place **et** vérifié.
       expiration, e-mail vérifié).
 - [x] Back-office : double vérification par code exigée sur toutes les routes admin ; session
       admin limitée à 8 h.
-- [x] Apps mobiles ([029](specs/029-connexion-mot-de-passe/spec.md)) : mot de passe et code jamais
-      gardés sur le téléphone, journalisés ni mis dans une URL (adresse e-mail passée d'écran en
-      écran en mémoire) ; champs vidés en quittant l'écran, sans suggestions du clavier ; jeton
-      Google envoyé seulement à l'API, qui le vérifie.
+- [x] Apps mobiles : connexion par numéro uniquement (ADR 0012), sans mot de passe ni Google ;
+      code jamais gardé sur le téléphone, journalisé ni mis dans une URL ; jeton de
+      rafraîchissement et identifiant d'installation en stockage sécurisé.
 
 ## Secrets et configuration
 - [x] Aucun secret dans le code ni dans l'historique git : job `secrets` (gitleaks, historique
