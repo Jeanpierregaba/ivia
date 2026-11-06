@@ -3,7 +3,9 @@ import 'package:flutter_riverpod/flutter_riverpod.dart';
 import 'package:ivia_app_core/ivia_app_core.dart';
 import 'package:ivia_ui/ivia_ui.dart';
 
+import '../../app/business_state.dart';
 import '../../app/seller_shop.dart';
+import '../business/business_screens.dart';
 import 'revenue_screen.dart';
 
 /// Compte : identité, boutique, revenus et relevés, sécurité, déconnexion.
@@ -133,6 +135,30 @@ class AccountScreen extends ConsumerWidget {
                   ],
                 ),
               ),
+            ),
+          ),
+          const SizedBox(height: IviaSpacing.xl),
+          _Section('Mon activité'),
+          _Card(
+            padding: EdgeInsets.zero,
+            child: Column(
+              children: [
+                _Item(
+                  icon: Icons.swap_horiz,
+                  title: 'Mes espaces',
+                  onTap: ref.read(businessGateProvider.notifier).close,
+                ),
+                if (ref.watch(businessGateProvider).value?.opened
+                    case final space?) ...[
+                  const Divider(height: 1),
+                  _Item(
+                    icon: Icons.account_balance_outlined,
+                    title: 'Compte de versement',
+                    subtitle: space.payout?.phoneMasked,
+                    onTap: () => open(PayoutScreen(space: space)),
+                  ),
+                ],
+              ],
             ),
           ),
           const SizedBox(height: IviaSpacing.xl),

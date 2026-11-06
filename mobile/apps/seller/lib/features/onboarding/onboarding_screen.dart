@@ -41,7 +41,7 @@ class OnboardingScreen extends ConsumerWidget {
     // Une fois la présentation mémorisée, le routeur ouvre la connexion.
     return IviaOnboarding(
       brand: IviaAppBrand.seller,
-      appName: 'Marchand',
+      appName: 'Business',
       slides: onboardingSlides,
       onDone: ref.read(onboardingSeenProvider.notifier).complete,
     );

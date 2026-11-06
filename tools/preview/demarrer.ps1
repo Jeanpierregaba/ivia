@@ -2,7 +2,7 @@
 #
 #   API          http://localhost:8080
 #   Acheteur     http://localhost:8090   (cadre iPhone 17 Pro)
-#   Marchand     http://localhost:8091
+#   Business     http://localhost:8091
 #   Livreur      http://localhost:8092
 #   Pharmacie    http://localhost:8093
 #   Back-office  http://localhost:3000   (admin@ivia.local, mot de passe de démo)
@@ -45,7 +45,7 @@ $api = Start-Process -FilePath (Join-Path $backend 'bin\api.exe') -WorkingDirect
 $started += $api.Id
 
 # Apps Flutter (build web) dans le cadre iPhone, avec relais vers l'API.
-foreach ($app in @(@('buyer', 8090, 'ivia Acheteur'), @('seller', 8091, 'ivia Marchand'), @('driver', 8092, 'ivia Livreur'), @('pharmacy', 8093, 'ivia Pharmacie'))) {
+foreach ($app in @(@('buyer', 8090, 'ivia Acheteur'), @('seller', 8091, 'Ivia Business'), @('driver', 8092, 'ivia Livreur'), @('pharmacy', 8093, 'ivia Pharmacie'))) {
   $web = Join-Path $root ('mobile\apps\' + $app[0] + '\build\web')
   $p = Start-Process -FilePath 'python' -ArgumentList @('-I', (Join-Path $here 'serve.py'), $web, $app[1], ('"' + $app[2] + '"')) `
     -WindowStyle Hidden -PassThru
@@ -68,7 +68,7 @@ if (Test-Path $standalone) {
 $started | Set-Content $pids
 Write-Output 'Aperçu démarré :'
 Write-Output '  Acheteur     http://localhost:8090'
-Write-Output '  Marchand     http://localhost:8091'
+Write-Output '  Business     http://localhost:8091'
 Write-Output '  Livreur      http://localhost:8092'
 Write-Output '  Pharmacie    http://localhost:8093'
 Write-Output '  Back-office  http://localhost:3000'

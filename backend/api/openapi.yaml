@@ -1225,6 +1225,8 @@ paths:
                     - pharmacy_alert_photo
                     - avatar
                     - property_photo
+                    - business_document
+                    - business_photo
                 content_type:
                   type: string
                   enum:
@@ -8214,6 +8216,460 @@ paths:
             application/json:
               schema:
                 "$ref": "#/components/schemas/Error"
+  "/v1/business/spaces":
+    get:
+      summary: "Espaces du compte (vide : pas encore de compte Ivia Business)"
+      tags:
+        - Business
+      operationId: getBusinessSpaces
+      responses:
+        "200":
+          description: "Succès"
+          content:
+            application/json:
+              schema:
+                type: object
+                properties:
+                  items:
+                    type: array
+                    items:
+                      "$ref": "#/components/schemas/BusinessSpace"
+                required: [items]
+        default:
+          description: "Erreur (voir `code`)"
+          content:
+            application/json:
+              schema:
+                "$ref": "#/components/schemas/Error"
+    post:
+      summary: "Créer un espace en brouillon (secteur et formulaire)"
+      tags:
+        - Business
+      operationId: postBusinessSpaces
+      requestBody:
+        required: true
+        content:
+          application/json:
+            schema:
+              "$ref": "#/components/schemas/BusinessSpaceInput"
+      responses:
+        "201":
+          description: "Succès"
+          content:
+            application/json:
+              schema:
+                "$ref": "#/components/schemas/BusinessSpace"
+        default:
+          description: "Erreur (voir `code`)"
+          content:
+            application/json:
+              schema:
+                "$ref": "#/components/schemas/Error"
+  "/v1/business/spaces/{id}":
+    get:
+      summary: "Fiche d'un espace"
+      tags:
+        - Business
+      operationId: getBusinessSpaceById
+      parameters:
+        - {name: id, in: path, required: true, schema: {type: string, format: uuid}}
+      responses:
+        "200":
+          description: "Succès"
+          content:
+            application/json:
+              schema:
+                "$ref": "#/components/schemas/BusinessSpace"
+        default:
+          description: "Erreur (voir `code`)"
+          content:
+            application/json:
+              schema:
+                "$ref": "#/components/schemas/Error"
+    put:
+      summary: "Corriger le dossier (brouillon, à compléter, refusé)"
+      tags:
+        - Business
+      operationId: putBusinessSpaceById
+      parameters:
+        - {name: id, in: path, required: true, schema: {type: string, format: uuid}}
+      requestBody:
+        required: true
+        content:
+          application/json:
+            schema:
+              "$ref": "#/components/schemas/BusinessSpaceInput"
+      responses:
+        "200":
+          description: "Succès"
+          content:
+            application/json:
+              schema:
+                "$ref": "#/components/schemas/BusinessSpace"
+        default:
+          description: "Erreur (voir `code`)"
+          content:
+            application/json:
+              schema:
+                "$ref": "#/components/schemas/Error"
+  "/v1/business/spaces/{id}/documents":
+    post:
+      summary: "Déposer un justificatif (POST /v1/uploads, usage business_document)"
+      tags:
+        - Business
+      operationId: postBusinessSpaceDocuments
+      parameters:
+        - {name: id, in: path, required: true, schema: {type: string, format: uuid}}
+      requestBody:
+        required: true
+        content:
+          application/json:
+            schema:
+              type: object
+              properties:
+                kind: {type: string, enum: [id_card, selfie, rccm, business_registration, trade_proof, hygiene_certificate]}
+                object_key: {type: string}
+              required: [kind, object_key]
+      responses:
+        "200":
+          description: "Succès"
+          content:
+            application/json:
+              schema:
+                "$ref": "#/components/schemas/BusinessSpace"
+        default:
+          description: "Erreur (voir `code`)"
+          content:
+            application/json:
+              schema:
+                "$ref": "#/components/schemas/Error"
+  "/v1/business/spaces/{id}/payout":
+    put:
+      summary: "Renseigner le compte de versement (code PIN exigé une fois validé)"
+      tags:
+        - Business
+      operationId: putBusinessSpacePayout
+      parameters:
+        - {name: id, in: path, required: true, schema: {type: string, format: uuid}}
+      requestBody:
+        required: true
+        content:
+          application/json:
+            schema:
+              type: object
+              properties:
+                operator: {type: string, enum: [flooz, tmoney]}
+                phone: {type: string}
+                holder: {type: string}
+                pin: {type: string}
+              required: [operator, phone, holder]
+      responses:
+        "200":
+          description: "Succès"
+          content:
+            application/json:
+              schema:
+                "$ref": "#/components/schemas/BusinessSpace"
+        default:
+          description: "Erreur (voir `code`)"
+          content:
+            application/json:
+              schema:
+                "$ref": "#/components/schemas/Error"
+  "/v1/business/spaces/{id}/submit":
+    post:
+      summary: "Envoyer le dossier au back-office"
+      tags:
+        - Business
+      operationId: postBusinessSpaceSubmit
+      parameters:
+        - {name: id, in: path, required: true, schema: {type: string, format: uuid}}
+      responses:
+        "200":
+          description: "Succès"
+          content:
+            application/json:
+              schema:
+                "$ref": "#/components/schemas/BusinessSpace"
+        default:
+          description: "Erreur (voir `code`)"
+          content:
+            application/json:
+              schema:
+                "$ref": "#/components/schemas/Error"
+  "/v1/business/spaces/{id}/open":
+    post:
+      summary: "Lier la session à l'espace choisi"
+      tags:
+        - Business
+      operationId: postBusinessSpaceOpen
+      parameters:
+        - {name: id, in: path, required: true, schema: {type: string, format: uuid}}
+      responses:
+        "200":
+          description: "Succès"
+          content:
+            application/json:
+              schema:
+                "$ref": "#/components/schemas/BusinessSpace"
+        default:
+          description: "Erreur (voir `code`)"
+          content:
+            application/json:
+              schema:
+                "$ref": "#/components/schemas/Error"
+  "/v1/business/session":
+    get:
+      summary: "Espace ouvert par la session"
+      tags:
+        - Business
+      operationId: getBusinessSession
+      responses:
+        "200":
+          description: "Succès"
+          content:
+            application/json:
+              schema:
+                type: object
+                properties:
+                  space:
+                    oneOf:
+                      - "$ref": "#/components/schemas/BusinessSpace"
+                      - type: "null"
+                required: [space]
+        default:
+          description: "Erreur (voir `code`)"
+          content:
+            application/json:
+              schema:
+                "$ref": "#/components/schemas/Error"
+    delete:
+      summary: "Fermer l'espace (changer d'espace)"
+      tags:
+        - Business
+      operationId: deleteBusinessSession
+      responses:
+        "204":
+          description: "Fait"
+        default:
+          description: "Erreur (voir `code`)"
+          content:
+            application/json:
+              schema:
+                "$ref": "#/components/schemas/Error"
+  "/v1/business/spaces/{id}/items":
+    get:
+      summary: "Biens ou services préparés"
+      tags:
+        - Business
+      operationId: getBusinessSpaceItems
+      parameters:
+        - {name: id, in: path, required: true, schema: {type: string, format: uuid}}
+      responses:
+        "200":
+          description: "Succès"
+          content:
+            application/json:
+              schema:
+                type: object
+                properties:
+                  items:
+                    type: array
+                    items:
+                      "$ref": "#/components/schemas/BusinessItem"
+                required: [items]
+        default:
+          description: "Erreur (voir `code`)"
+          content:
+            application/json:
+              schema:
+                "$ref": "#/components/schemas/Error"
+    post:
+      summary: "Ajouter un bien ou un service"
+      tags:
+        - Business
+      operationId: postBusinessSpaceItems
+      parameters:
+        - {name: id, in: path, required: true, schema: {type: string, format: uuid}}
+      requestBody:
+        required: true
+        content:
+          application/json:
+            schema:
+              type: object
+              properties:
+                title: {type: string}
+                description: {type: string}
+                price_xof: {type: integer, format: int64}
+              required: [title]
+      responses:
+        "201":
+          description: "Succès"
+          content:
+            application/json:
+              schema:
+                "$ref": "#/components/schemas/BusinessItem"
+        default:
+          description: "Erreur (voir `code`)"
+          content:
+            application/json:
+              schema:
+                "$ref": "#/components/schemas/Error"
+  "/v1/business/items/{id}":
+    delete:
+      summary: "Retirer un bien ou un service"
+      tags:
+        - Business
+      operationId: deleteBusinessItem
+      parameters:
+        - {name: id, in: path, required: true, schema: {type: string, format: uuid}}
+      responses:
+        "204":
+          description: "Fait"
+        default:
+          description: "Erreur (voir `code`)"
+          content:
+            application/json:
+              schema:
+                "$ref": "#/components/schemas/Error"
+  "/v1/business/pin":
+    get:
+      summary: "Le compte a-t-il un code PIN ?"
+      tags:
+        - Business
+      operationId: getBusinessPin
+      responses:
+        "200":
+          description: "Succès"
+          content:
+            application/json:
+              schema:
+                type: object
+                properties:
+                  is_set: {type: boolean}
+                required: [is_set]
+        default:
+          description: "Erreur (voir `code`)"
+          content:
+            application/json:
+              schema:
+                "$ref": "#/components/schemas/Error"
+    put:
+      summary: "Créer ou changer le code PIN"
+      tags:
+        - Business
+      operationId: putBusinessPin
+      requestBody:
+        required: true
+        content:
+          application/json:
+            schema:
+              type: object
+              properties:
+                pin: {type: string}
+                current_pin: {type: string}
+              required: [pin]
+      responses:
+        "204":
+          description: "Fait"
+        default:
+          description: "Erreur (voir `code`)"
+          content:
+            application/json:
+              schema:
+                "$ref": "#/components/schemas/Error"
+  "/v1/admin/business/spaces":
+    get:
+      summary: "Dossiers Ivia Business"
+      tags:
+        - Admin
+      operationId: getAdminBusinessSpaces
+      parameters:
+        - {name: status, in: query, required: false, schema: {type: string, enum: [draft, pending_review, needs_changes, rejected, approved, suspended]}}
+        - {name: sector, in: query, required: false, schema: {type: string, enum: [shop, real_estate, artisan, restaurant]}}
+        - {name: limit, in: query, required: false, schema: {type: integer, minimum: 1, maximum: 100, default: 20}}
+        - {name: offset, in: query, required: false, schema: {type: integer, minimum: 0, maximum: 10000, default: 0}}
+      x-roles:
+        - admin
+      responses:
+        "200":
+          description: "Succès"
+          content:
+            application/json:
+              schema:
+                type: object
+                properties:
+                  items:
+                    type: array
+                    items:
+                      "$ref": "#/components/schemas/BusinessSpace"
+                  next_offset:
+                    type:
+                      - integer
+                      - "null"
+                required: [items, next_offset]
+        default:
+          description: "Erreur (voir `code`)"
+          content:
+            application/json:
+              schema:
+                "$ref": "#/components/schemas/Error"
+  "/v1/admin/business/spaces/{id}":
+    get:
+      summary: "Dossier d'un espace"
+      tags:
+        - Admin
+      operationId: getAdminBusinessSpaceById
+      parameters:
+        - {name: id, in: path, required: true, schema: {type: string, format: uuid}}
+      x-roles:
+        - admin
+      responses:
+        "200":
+          description: "Succès"
+          content:
+            application/json:
+              schema:
+                "$ref": "#/components/schemas/BusinessSpace"
+        default:
+          description: "Erreur (voir `code`)"
+          content:
+            application/json:
+              schema:
+                "$ref": "#/components/schemas/Error"
+  "/v1/admin/business/spaces/{id}/review":
+    post:
+      summary: "Décision sur un dossier (journalisée)"
+      tags:
+        - Admin
+      operationId: postAdminBusinessSpaceReview
+      parameters:
+        - {name: id, in: path, required: true, schema: {type: string, format: uuid}}
+      x-roles:
+        - admin
+      requestBody:
+        required: true
+        content:
+          application/json:
+            schema:
+              type: object
+              properties:
+                decision: {type: string, enum: [approve, needs_changes, reject, suspend, reinstate]}
+                reason: {type: string, maxLength: 500}
+              required: [decision]
+      responses:
+        "200":
+          description: "Succès"
+          content:
+            application/json:
+              schema:
+                "$ref": "#/components/schemas/BusinessSpace"
+        default:
+          description: "Erreur (voir `code`)"
+          content:
+            application/json:
+              schema:
+                "$ref": "#/components/schemas/Error"
   "/v1/admin/medicines":
     get:
       summary: "Base de médicaments"
@@ -9437,6 +9893,85 @@ components:
           maxItems: 10
       required:
         - recovery_codes
+    BusinessDetails:
+      type: object
+      properties:
+        description: {type: string}
+        phone: {type: string}
+        address_text: {type: string}
+        neighborhood_id: {type: string, format: uuid}
+        category_id: {type: string, format: uuid}
+        lat: {type: number}
+        lng: {type: number}
+        logo_key: {type: string}
+        photo_keys: {type: array, items: {type: string}}
+        rccm: {type: string}
+        zone: {type: string}
+        trades: {type: array, items: {type: string}}
+        cuisine: {type: string}
+        opening_hours: {type: string}
+    BusinessSpaceInput:
+      type: object
+      properties:
+        sector: {type: string, enum: [shop, real_estate, artisan, restaurant]}
+        name: {type: string, minLength: 2, maxLength: 100}
+        details: {"$ref": "#/components/schemas/BusinessDetails"}
+      required: [sector, name, details]
+    BusinessSpace:
+      type: object
+      properties:
+        id: {type: string, format: uuid}
+        sector: {type: string, enum: [shop, real_estate, artisan, restaurant]}
+        name: {type: string}
+        details: {"$ref": "#/components/schemas/BusinessDetails"}
+        logo_url: {type: [string, "null"]}
+        photo_urls: {type: array, items: {type: string}}
+        shop_id: {type: [string, "null"], format: uuid}
+        status: {type: string, enum: [draft, pending_review, needs_changes, rejected, approved, suspended]}
+        status_reason: {type: string}
+        access: {type: string, enum: [full, restricted, correction, blocked], description: "Droits de la session selon le statut de l'espace."}
+        payout:
+          oneOf:
+            - type: "null"
+            - type: object
+              properties:
+                operator: {type: string}
+                phone_masked: {type: string}
+                phone: {type: string, description: "Back-office seulement."}
+                holder: {type: string}
+              required: [operator, phone_masked, holder]
+        documents:
+          type: array
+          items:
+            type: object
+            properties:
+              kind: {type: string}
+              url: {type: string, description: "Lien temporaire, back-office seulement."}
+            required: [kind]
+        missing_documents: {type: array, items: {type: string}}
+        owner:
+          type: object
+          description: "Back-office seulement."
+          properties:
+            id: {type: string, format: uuid}
+            first_name: {type: string}
+            last_name: {type: string}
+            phone: {type: string}
+          required: [id, first_name, last_name, phone]
+        submitted_at: {type: [string, "null"], format: date-time}
+        reviewed_at: {type: [string, "null"], format: date-time}
+        created_at: {type: string, format: date-time}
+        updated_at: {type: string, format: date-time}
+      required: [id, sector, name, details, logo_url, photo_urls, shop_id, status, status_reason, access, payout, documents, missing_documents, submitted_at, reviewed_at, created_at, updated_at]
+    BusinessItem:
+      type: object
+      properties:
+        id: {type: string, format: uuid}
+        title: {type: string}
+        description: {type: string}
+        price_xof: {type: integer, format: int64}
+        created_at: {type: string, format: date-time}
+      required: [id, title, description, price_xof, created_at]
     AdminPropertyInput:
       type: object
       properties:

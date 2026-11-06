@@ -140,6 +140,8 @@ type Service struct {
 	uploads *uploads.Service
 	audit   *admin.Service
 	notify  *notifications.Service
+	// reviewHook : voir SetReviewHook.
+	reviewHook func(ctx context.Context, shopID uuid.UUID, decision, reason string) error
 }
 
 // NewService crée le service.
@@ -374,6 +376,32 @@ var reviewTransitions = map[string]struct {
 
 // Review applique une décision admin (approve, reject, suspend, reinstate), journalisée et notifiée.
 func (s *Service) Review(ctx context.Context, adminID, shopID uuid.UUID, decision, reason string) (Shop, error) {
+	return s.review(ctx, adminID, shopID, decision, reason, false)
+}
+
+// ReviewLinked applique une décision prise sur le dossier Ivia Business : le dossier a ses propres
+// justificatifs et prévient lui-même le titulaire.
+func (s *Service) ReviewLinked(ctx context.Context, adminID, shopID uuid.UUID, decision, reason string) (Shop, error) {
+	return s.review(ctx, adminID, shopID, decision, reason, true)
+}
+
+// ResubmitLinked remet en attente une boutique refusée dont le dossier est de nouveau envoyé.
+func (s *Service) ResubmitLinked(ctx context.Context, shopID uuid.UUID) error {
+	_, err := store.New(s.db.Conn(ctx)).SetShopStatus(ctx, store.SetShopStatusParams{
+		ID: shopID, NewStatus: "pending_review", Reason: "", FromStatuses: []string{"rejected"},
+	})
+	if err != nil {
+		return fmt.Errorf("remise en attente de la boutique : %w", err)
+	}
+	return nil
+}
+
+// SetReviewHook branche le dossier Ivia Business sur les décisions prises depuis la fiche boutique.
+func (s *Service) SetReviewHook(fn func(ctx context.Context, shopID uuid.UUID, decision, reason string) error) {
+	s.reviewHook = fn
+}
+
+func (s *Service) review(ctx context.Context, adminID, shopID uuid.UUID, decision, reason string, linked bool) (Shop, error) {
 	t, ok := reviewTransitions[decision]
 	if !ok {
 		return Shop{}, fmt.Errorf("décision inconnue : %s", decision)
@@ -388,7 +416,7 @@ func (s *Service) Review(ctx context.Context, adminID, shopID uuid.UUID, decisio
 		if err != nil {
 			return err
 		}
-		if decision == "approve" {
+		if decision == "approve" && !linked {
 			docs, err := s.Documents(ctx, before.OwnerID, false)
 			if err != nil {
 				return err
@@ -414,6 +442,14 @@ func (s *Service) Review(ctx context.Context, adminID, shopID uuid.UUID, decisio
 			Before: map[string]any{"status": before.Status}, After: map[string]any{"status": out.Status}, Reason: reason,
 		}); err != nil {
 			return err
+		}
+		if linked {
+			return nil
+		}
+		if s.reviewHook != nil {
+			if err := s.reviewHook(ctx, shopID, decision, reason); err != nil {
+				return err
+			}
 		}
 		body := t.notify
 		if reason != "" {

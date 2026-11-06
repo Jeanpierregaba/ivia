@@ -40,7 +40,7 @@ class SellerApp extends ConsumerWidget {
   @override
   Widget build(BuildContext context, WidgetRef ref) {
     return MaterialApp.router(
-      title: 'ivia Marchand',
+      title: 'Ivia Business',
       theme: IviaTheme.light(IviaAppBrand.seller),
       routerConfig: ref.watch(routerProvider),
       // Barre d'état sombre sur les écrans clairs ; le splash de chargement

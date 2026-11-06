@@ -2,6 +2,8 @@ import 'package:flutter_riverpod/flutter_riverpod.dart';
 import 'package:ivia_api_client/ivia_api_client.dart';
 import 'package:ivia_app_core/ivia_app_core.dart';
 
+import 'business_state.dart';
+
 /// Compte connecté vu par l'app marchand : identifiant et rôle seller.
 /// `null` : personne n'est connecté.
 (String, bool)? _account(AuthState auth) => switch (auth) {
@@ -26,12 +28,19 @@ class SellerShop extends AsyncNotifier<Shop?> {
   Future<Shop?> build() async {
     final account = ref.watch(authControllerProvider.select(_account));
     if (account == null || !account.$2) return null;
+    // Boutique de l'espace ouvert ; une agence ou un artisan n'en a pas.
+    ref.watch(businessGateProvider.select((g) => g.value?.opened?.shopId));
     return _fetch();
   }
 
   Future<Shop?> _fetch() async {
     final shops = await ref.read(apiClientProvider).myShops();
-    return shops.isEmpty ? null : shops.first;
+    final shopId = ref.read(businessGateProvider).value?.opened?.shopId;
+    if (shopId == null) return null;
+    for (final shop in shops) {
+      if (shop.id == shopId) return shop;
+    }
+    return null;
   }
 
   /// Changements locaux (création, pièces) : une relecture partie avant

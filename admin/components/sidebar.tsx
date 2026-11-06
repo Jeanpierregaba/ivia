@@ -4,6 +4,7 @@ import {
   Banknote,
   BellRing,
   BookOpen,
+  Briefcase,
   Building2,
   Cross,
   HandCoins,
@@ -53,6 +54,7 @@ const sections: { title: string; items: Item[] }[] = [
   {
     title: "Réseau",
     items: [
+      { href: "/business", label: "Ivia Business", icon: Briefcase },
       { href: "/shops", label: "Boutiques", icon: Store, count: "shops" },
       { href: "/drivers", label: "Livreurs", icon: Truck, count: "drivers" },
       { href: "/properties", label: "Immobilier", icon: Building2 },
