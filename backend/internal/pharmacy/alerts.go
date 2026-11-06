@@ -269,7 +269,11 @@ func (s *Service) Preview(ctx context.Context, buyerID uuid.UUID, addressID *uui
 		PhotoRetentionHours: settings.PhotoRetentionHours, Radii: make([]RadiusCount, 0, len(settings.RadiusOptionsM)),
 	}
 	for _, r := range settings.RadiusOptionsM {
-		n, err := s.q(ctx).CountReachablePharmacies(ctx, store.CountReachablePharmaciesParams{Lat: p.Lat, Lng: p.Lng, RadiusM: float64(r)})
+		night, err := s.isNight(ctx)
+		if err != nil {
+			return AlertPreview{}, err
+		}
+		n, err := s.q(ctx).CountReachablePharmacies(ctx, store.CountReachablePharmaciesParams{Lat: p.Lat, Lng: p.Lng, RadiusM: float64(r), Night: night})
 		if err != nil {
 			return AlertPreview{}, fmt.Errorf("pharmacies du rayon : %w", err)
 		}
@@ -517,7 +521,12 @@ func (s *Service) carriedPhotos(ctx context.Context, from *uuid.UUID) ([]AlertPh
 // broadcast sollicite les pharmacies joignables du rayon qui ne l'ont pas encore été.
 func (s *Service) broadcast(ctx context.Context, alertID uuid.UUID, p geo.Point, radius int32) (int, error) {
 	q := s.q(ctx)
+	night, err := s.isNight(ctx)
+	if err != nil {
+		return 0, err
+	}
 	rows, err := q.FindReachablePharmacies(ctx, store.FindReachablePharmaciesParams{
+		Night:   night,
 		AlertID: alertID, Lat: p.Lat, Lng: p.Lng, RadiusM: float64(radius),
 	})
 	if err != nil {

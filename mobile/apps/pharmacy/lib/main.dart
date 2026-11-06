@@ -6,6 +6,7 @@ import 'package:ivia_api_client/ivia_api_client.dart';
 import 'package:ivia_app_core/ivia_app_core.dart';
 import 'package:ivia_ui/ivia_ui.dart';
 
+import 'features/alerts_permission.dart';
 import 'features/application_screen.dart';
 import 'features/shell.dart';
 
@@ -54,6 +55,7 @@ abstract final class Routes {
   static const welcome = '/welcome';
   static const offline = '/offline';
   static const application = '/application';
+  static const permissions = '/permissions';
   static const home = '/home';
 }
 
@@ -61,6 +63,8 @@ final routerProvider = Provider<GoRouter>((ref) {
   final refresh = ValueNotifier(0);
   ref.listen(authControllerProvider, (_, _) => refresh.value++);
   ref.listen(pharmacyProfileProvider, (_, _) => refresh.value++);
+  ref.listen(alertsReadyProvider, (_, _) => refresh.value++);
+  ref.listen(alertsPromptSkippedProvider, (_, _) => refresh.value++);
   ref.listen(locationPromptDoneProvider, (_, _) => refresh.value++);
   final router = GoRouter(
     initialLocation: Routes.splash,
@@ -68,6 +72,10 @@ final routerProvider = Provider<GoRouter>((ref) {
     redirect: (context, state) {
       final auth = ref.read(authControllerProvider);
       final profile = ref.read(pharmacyProfileProvider);
+      // Sans ces autorisations, l'alerte ne sonne pas par-dessus l'écran verrouillé.
+      final askAlerts =
+          ref.read(alertsReadyProvider).value == false &&
+          !ref.read(alertsPromptSkippedProvider);
       final allowed = switch (auth) {
         AuthStarting() => const [Routes.splash],
         // Après le splash, avant tout le reste : une fois (spec 030).
@@ -76,6 +84,8 @@ final routerProvider = Provider<GoRouter>((ref) {
         AuthOffline() => const [Routes.offline],
         AuthNeedsProfile() => const [Routes.welcome],
         AuthSignedIn() when profile.isLoading => const [Routes.splash],
+        AuthSignedIn() when profile.value?.approved == true && askAlerts =>
+          const [Routes.permissions],
         AuthSignedIn() when profile.value?.approved == true => const [
           Routes.home,
         ],
@@ -113,6 +123,10 @@ final routerProvider = Provider<GoRouter>((ref) {
       GoRoute(
         path: Routes.application,
         builder: (_, _) => const ApplicationScreen(),
+      ),
+      GoRoute(
+        path: Routes.permissions,
+        builder: (_, _) => const AlertsPermissionScreen(),
       ),
       GoRoute(path: Routes.home, builder: (_, _) => const PharmacyShell()),
     ],

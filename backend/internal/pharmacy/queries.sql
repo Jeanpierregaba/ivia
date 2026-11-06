@@ -13,6 +13,7 @@ UPDATE pharmacy_settings SET
   response_window_minutes = sqlc.arg(response_window_minutes), pickup_hold_minutes = sqlc.arg(pickup_hold_minutes),
   photo_retention_days = sqlc.arg(photo_retention_days), radius_options_m = sqlc.arg(radius_options_m)::int[],
   photo_retention_hours = sqlc.arg(photo_retention_hours), auto_widen = sqlc.arg(auto_widen),
+  night_from_hour = sqlc.arg(night_from_hour), night_to_hour = sqlc.arg(night_to_hour),
   product_commission_bp = sqlc.arg(product_commission_bp), updated_at = now()
 WHERE id
 RETURNING *;
@@ -27,13 +28,13 @@ VALUES (sqlc.arg(owner_id), sqlc.arg(name), sqlc.arg(license_number), sqlc.arg(p
 RETURNING id;
 
 -- name: UpdateApplication :execrows
--- Dossier modifiable tant qu'il n'est pas validé ; un dossier refusé repart en vérification.
+-- Dossier modifiable tant qu'il n'est pas envoyé, ou après un retour du back-office.
 UPDATE pharmacies SET
   name = sqlc.arg(name), license_number = sqlc.arg(license_number), phone = sqlc.arg(phone),
   address_text = sqlc.arg(address_text), neighborhood_id = sqlc.narg(neighborhood_id),
   location = ST_SetSRID(ST_MakePoint(sqlc.arg(lng)::float8, sqlc.arg(lat)::float8), 4326)::geography,
-  opening_hours = sqlc.arg(opening_hours), review_status = 'pending_review', updated_at = now()
-WHERE id = sqlc.arg(id) AND review_status IN ('pending_review', 'rejected');
+  opening_hours = sqlc.arg(opening_hours), updated_at = now()
+WHERE id = sqlc.arg(id) AND review_status IN ('draft', 'changes_requested', 'rejected');
 
 -- name: UpdateContact :exec
 UPDATE pharmacies SET phone = sqlc.arg(phone), opening_hours = sqlc.arg(opening_hours), updated_at = now()
@@ -99,7 +100,7 @@ SELECT p.id, p.owner_id,
        ST_Distance(p.location, ST_SetSRID(ST_MakePoint(sqlc.arg(lng)::float8, sqlc.arg(lat)::float8), 4326)::geography)::float8 AS distance_m
 FROM pharmacies p
 WHERE p.review_status = 'approved' AND p.suspended_at IS NULL
-  AND (p.open_24h OR p.is_open OR p.on_duty OR EXISTS (
+  AND (p.open_24h OR p.on_duty OR (p.is_open AND NOT sqlc.arg(night)::boolean) OR EXISTS (
         SELECT 1 FROM pharmacy_duty_shifts s WHERE s.pharmacy_id = p.id AND s.starts_at <= now() AND s.ends_at > now()))
   AND ST_DWithin(p.location, ST_SetSRID(ST_MakePoint(sqlc.arg(lng)::float8, sqlc.arg(lat)::float8), 4326)::geography, sqlc.arg(radius_m)::float8)
   AND NOT EXISTS (SELECT 1 FROM pharmacy_alert_targets t WHERE t.alert_id = sqlc.arg(alert_id) AND t.pharmacy_id = p.id)
@@ -109,7 +110,7 @@ LIMIT 50;
 -- name: CountReachablePharmacies :one
 SELECT count(*)::bigint FROM pharmacies p
 WHERE p.review_status = 'approved' AND p.suspended_at IS NULL
-  AND (p.open_24h OR p.is_open OR p.on_duty OR EXISTS (
+  AND (p.open_24h OR p.on_duty OR (p.is_open AND NOT sqlc.arg(night)::boolean) OR EXISTS (
         SELECT 1 FROM pharmacy_duty_shifts s WHERE s.pharmacy_id = p.id AND s.starts_at <= now() AND s.ends_at > now()))
   AND ST_DWithin(p.location, ST_SetSRID(ST_MakePoint(sqlc.arg(lng)::float8, sqlc.arg(lat)::float8), 4326)::geography, sqlc.arg(radius_m)::float8);
 
@@ -609,3 +610,19 @@ VALUES (sqlc.arg(owner_id), sqlc.arg(name), sqlc.arg(license_number), sqlc.arg(p
 ON CONFLICT (owner_id) DO UPDATE SET is_open = true, on_duty = true, review_status = 'approved',
   suspended_at = NULL, updated_at = now()
 RETURNING id;
+
+-- name: PharmacyDossier :one
+SELECT submitted_at, payout_operator, payout_phone, payout_holder FROM pharmacies WHERE id = $1;
+
+-- name: SetPharmacyPayout :execrows
+UPDATE pharmacies SET payout_operator = $2, payout_phone = $3, payout_holder = $4, updated_at = now()
+WHERE id = $1 AND review_status IN ('draft', 'changes_requested', 'rejected');
+
+-- name: MarkPharmacySubmitted :exec
+UPDATE pharmacies SET review_status = 'pending_review', review_note = '', submitted_at = now(), updated_at = now() WHERE id = $1;
+
+-- name: ClearPharmacyPayout :exec
+UPDATE pharmacies SET payout_operator = NULL, payout_phone = NULL, payout_holder = '', updated_at = now() WHERE owner_id = $1;
+
+-- name: DeleteOwnDutyShift :one
+DELETE FROM pharmacy_duty_shifts WHERE id = $1 AND pharmacy_id = $2 RETURNING *;

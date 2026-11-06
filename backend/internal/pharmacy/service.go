@@ -52,9 +52,11 @@ const ReferencePrefix = "ivh"
 
 // Statuts de validation d'une pharmacie.
 const (
-	ReviewPending  = "pending_review"
-	ReviewApproved = "approved"
-	ReviewRejected = "rejected"
+	ReviewPending          = "pending_review"
+	ReviewDraft            = "draft"
+	ReviewChangesRequested = "changes_requested"
+	ReviewApproved         = "approved"
+	ReviewRejected         = "rejected"
 )
 
 // Types d'alerte.
@@ -129,8 +131,11 @@ type Settings struct {
 	AutoWiden bool `json:"auto_widen"`
 	// ProductCommissionBP : commission ivia sur les médicaments livrés (points de base). 0 par
 	// défaut : ivia est rémunéré par le forfait de déblocage ; jamais de commission sur un retrait.
-	ProductCommissionBP int32     `json:"product_commission_bp"`
-	UpdatedAt           time.Time `json:"updated_at"`
+	ProductCommissionBP int32 `json:"product_commission_bp"`
+	// Plage de nuit, heures de Lomé : seules les gardes reçoivent les alertes. Début égal à fin : aucune.
+	NightFromHour int32     `json:"night_from_hour"`
+	NightToHour   int32     `json:"night_to_hour"`
+	UpdatedAt     time.Time `json:"updated_at"`
 	// photoRetentionDays : ancienne colonne (00027), conservée telle quelle.
 	photoRetentionDays int32
 }
@@ -149,6 +154,8 @@ type SettingsPatch struct {
 	RadiusOptionsM        *[]int32 `json:"radius_options_m"`
 	AutoWiden             *bool    `json:"auto_widen"`
 	ProductCommissionBP   *int32   `json:"product_commission_bp"`
+	NightFromHour         *int32   `json:"night_from_hour"`
+	NightToHour           *int32   `json:"night_to_hour"`
 }
 
 // Service gère le module.
@@ -222,6 +229,8 @@ func (s *Service) UpdateSettings(ctx context.Context, adminID uuid.UUID, p Setti
 			RadiusOptionsM:        pick(p.RadiusOptionsM, cur.RadiusOptionsM),
 			AutoWiden:             pick(p.AutoWiden, cur.AutoWiden),
 			ProductCommissionBp:   pick(p.ProductCommissionBP, cur.ProductCommissionBP),
+			NightFromHour:         pick(p.NightFromHour, cur.NightFromHour),
+			NightToHour:           pick(p.NightToHour, cur.NightToHour),
 		}
 		v := validate.New()
 		v.Check(next.UnlockFeeXof >= 0 && next.UnlockFeeXof <= 100_000, "unlock_fee_xof", "Entre 0 et 100 000 FCFA.")
@@ -231,6 +240,7 @@ func (s *Service) UpdateSettings(ctx context.Context, adminID uuid.UUID, p Setti
 		v.Check(next.WidenAfterMinutes >= 1 && next.WidenAfterMinutes <= 60, "widen_after_minutes", "Entre 1 et 60 minutes.")
 		v.Check(next.ResponseWindowMinutes >= 2 && next.ResponseWindowMinutes <= 120, "response_window_minutes", "Entre 2 et 120 minutes.")
 		v.Check(next.PickupHoldMinutes >= 15 && next.PickupHoldMinutes <= 1440, "pickup_hold_minutes", "Entre 15 minutes et 24 heures.")
+		v.Check(next.NightFromHour >= 0 && next.NightFromHour <= 23 && next.NightToHour >= 0 && next.NightToHour <= 23, "night_from_hour", "Heure entre 0 et 23.")
 		v.Check(next.ProductCommissionBp >= 0 && next.ProductCommissionBp <= 5000, "product_commission_bp",
 			"Entre 0 et 5 000 points de base (50 %).")
 		v.Check(next.PhotoRetentionHours >= 1 && next.PhotoRetentionHours <= 8760, "photo_retention_hours", "Entre 1 heure et 1 an.")
@@ -259,7 +269,7 @@ func toSettings(r store.PharmacySetting) Settings {
 		Enabled: r.Enabled, UnlockFeeXOF: r.UnlockFeeXof, SearchRadiusM: r.SearchRadiusM, MaxRadiusM: r.MaxRadiusM,
 		TargetResponses: r.TargetResponses, WidenAfterMinutes: r.WidenAfterMinutes, ResponseWindowMinutes: r.ResponseWindowMinutes,
 		PickupHoldMinutes: r.PickupHoldMinutes, PhotoRetentionHours: r.PhotoRetentionHours, RadiusOptionsM: r.RadiusOptionsM,
-		AutoWiden: r.AutoWiden, ProductCommissionBP: r.ProductCommissionBp, UpdatedAt: r.UpdatedAt, photoRetentionDays: r.PhotoRetentionDays,
+		AutoWiden: r.AutoWiden, ProductCommissionBP: r.ProductCommissionBp, NightFromHour: r.NightFromHour, NightToHour: r.NightToHour, UpdatedAt: r.UpdatedAt, photoRetentionDays: r.PhotoRetentionDays,
 	}
 }
 

@@ -7,6 +7,7 @@ import 'package:ivia_app_core/ivia_app_core.dart';
 import 'package:ivia_ui/ivia_ui.dart';
 
 import '../main.dart';
+import 'application_screen.dart';
 import 'ui.dart';
 
 final inboxProvider = FutureProvider.autoDispose<List<InboxAlert>>(
@@ -1064,7 +1065,7 @@ class _OfficeTabState extends ConsumerState<_OfficeTab> {
           child: Column(
             children: [
               toggle(
-                'Ouverte',
+                'En service',
                 p.openingHours.isEmpty ? 'Horaires habituels' : p.openingHours,
                 p.isOpen,
                 (v) => _set(p, open: v),
@@ -1087,15 +1088,32 @@ class _OfficeTabState extends ConsumerState<_OfficeTab> {
           ),
         ),
         const SizedBox(height: 18),
-        Text(
-          'Planning de garde',
-          style: t.titleMedium?.copyWith(fontWeight: FontWeight.w800),
+        Row(
+          children: [
+            Expanded(
+              child: Text(
+                'Planning de garde',
+                style: t.titleMedium?.copyWith(fontWeight: FontWeight.w800),
+              ),
+            ),
+            TextButton(
+              onPressed: () async {
+                await Navigator.of(context).push(
+                  MaterialPageRoute<void>(
+                    builder: (_) => const PlanningScreen(),
+                  ),
+                );
+                ref.invalidate(shiftsProvider);
+              },
+              child: const Text('Gérer'),
+            ),
+          ],
         ),
         const SizedBox(height: 8),
         PCard(
           child: shifts.isEmpty
               ? Text(
-                  'Aucune garde planifiée par l\'Ordre ou par ivia.',
+                  'Aucune garde planifiée. La nuit, seules les pharmacies de garde reçoivent les alertes.',
                   style: t.bodyMedium,
                 )
               : Column(

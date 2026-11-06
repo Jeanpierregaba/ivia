@@ -21,9 +21,9 @@ import (
 )
 
 // RequiredDocuments : pièces sans lesquelles une pharmacie ne peut pas être validée.
-var RequiredDocuments = []string{"opening_authorization", "order_registration", "owner_id"}
+var RequiredDocuments = []string{"opening_authorization", "owner_id", "storefront_photo"}
 
-var documentKinds = []string{"opening_authorization", "order_registration", "owner_id", "other"}
+var documentKinds = []string{"opening_authorization", "order_registration", "owner_id", "storefront_photo", "other"}
 
 // Pharmacy est le dossier d'une pharmacie (vu par son titulaire et par l'admin).
 type Pharmacy struct {
@@ -41,16 +41,18 @@ type Pharmacy struct {
 	// DutyUntil : fin de la garde en cours selon le planning (nul hors garde planifiée).
 	DutyUntil *time.Time `json:"duty_until"`
 	// Status résume : pending_review, approved, rejected ou suspended.
-	Status           string     `json:"status"`
-	ReviewStatus     string     `json:"review_status"`
-	ReviewNote       string     `json:"review_note"`
-	ReviewedAt       *time.Time `json:"reviewed_at"`
-	SuspendedAt      *time.Time `json:"suspended_at"`
-	SuspensionReason string     `json:"suspension_reason"`
-	Documents        []Document `json:"documents"`
-	MissingDocuments []string   `json:"missing_documents"`
-	CreatedAt        time.Time  `json:"created_at"`
-	UpdatedAt        time.Time  `json:"updated_at"`
+	Status           string         `json:"status"`
+	ReviewStatus     string         `json:"review_status"`
+	ReviewNote       string         `json:"review_note"`
+	ReviewedAt       *time.Time     `json:"reviewed_at"`
+	SuspendedAt      *time.Time     `json:"suspended_at"`
+	SuspensionReason string         `json:"suspension_reason"`
+	Documents        []Document     `json:"documents"`
+	MissingDocuments []string       `json:"missing_documents"`
+	Payout           *PayoutAccount `json:"payout"`
+	SubmittedAt      *time.Time     `json:"submitted_at"`
+	CreatedAt        time.Time      `json:"created_at"`
+	UpdatedAt        time.Time      `json:"updated_at"`
 }
 
 // Document est une pièce du dossier. L'URL n'est fournie qu'aux admins.
@@ -141,6 +143,9 @@ func (s *Service) pharmacyView(ctx context.Context, id uuid.UUID, withURLs bool)
 			p.MissingDocuments = append(p.MissingDocuments, k)
 		}
 	}
+	if err := s.withDossier(ctx, &p, withURLs); err != nil {
+		return Pharmacy{}, r, err
+	}
 	return p, r, nil
 }
 
@@ -222,7 +227,7 @@ func (s *Service) Apply(ctx context.Context, ownerID uuid.UUID, in ApplicationIn
 				return fmt.Errorf("mise à jour du dossier : %w", err)
 			}
 			if n == 0 {
-				return apperr.Conflict("pharmacy_already_approved", "Votre pharmacie est validée : seuls le téléphone et les horaires se modifient (PATCH /v1/pharmacy/me).")
+				return apperr.Conflict("pharmacy_not_editable", "Dossier envoyé ou validé : il ne se modifie plus pour le moment.")
 			}
 			return nil
 		}
@@ -236,8 +241,7 @@ func (s *Service) Apply(ctx context.Context, ownerID uuid.UUID, in ApplicationIn
 		if err != nil {
 			return fmt.Errorf("inscription de la pharmacie : %w", err)
 		}
-		return s.notify.NotifyAdmins(ctx, "pharmacy_application", "Nouvelle pharmacie à valider",
-			in.Name+" demande à rejoindre ivia.", map[string]string{"pharmacy_id": id.String()})
+		return nil
 	})
 	if err != nil {
 		return Pharmacy{}, err
@@ -305,6 +309,13 @@ func (s *Service) AddDocument(ctx context.Context, ownerID uuid.UUID, kind, obje
 	if err != nil {
 		return Pharmacy{}, err
 	}
+	cur, err := s.q(ctx).GetPharmacy(ctx, id)
+	if err != nil {
+		return Pharmacy{}, fmt.Errorf("lecture de la pharmacie : %w", err)
+	}
+	if cur.ReviewStatus == ReviewPending {
+		return Pharmacy{}, apperr.Conflict("pharmacy_not_editable", "Votre dossier est en cours d'examen.")
+	}
 	v := validate.New()
 	v.Check(slices.Contains(documentKinds, kind), "kind", "Valeur attendue : "+strings.Join(documentKinds, ", ")+".")
 	if err := v.Err(); err != nil {
@@ -366,8 +377,8 @@ func (s *Service) AdminGet(ctx context.Context, id uuid.UUID, withURLs bool) (Ad
 func (s *Service) Review(ctx context.Context, adminID, id uuid.UUID, decision, reason string) (AdminPharmacy, error) {
 	reason = validate.Clean(reason)
 	v := validate.New()
-	v.Check(slices.Contains([]string{"approve", "reject", "suspend", "reinstate"}, decision), "decision",
-		"Valeur attendue : approve, reject, suspend ou reinstate.")
+	v.Check(slices.Contains([]string{"approve", "request_changes", "reject", "suspend", "reinstate"}, decision), "decision",
+		"Valeur attendue : approve, request_changes, reject, suspend ou reinstate.")
 	v.Check(decision == "approve" || decision == "reinstate" || len(reason) >= 3, "reason", "Motif obligatoire (3 caractères au moins).")
 	if err := v.Err(); err != nil {
 		return AdminPharmacy{}, err
@@ -391,6 +402,9 @@ func (s *Service) Review(ctx context.Context, adminID, id uuid.UUID, decision, r
 			if len(before.MissingDocuments) > 0 {
 				return apperr.Unprocessable("documents_missing", "Pièces manquantes : "+strings.Join(before.MissingDocuments, ", ")+".")
 			}
+			if cur.ReviewStatus != ReviewPending {
+				return apperr.Conflict("invalid_transition", "Ce dossier n'est pas en attente de validation.")
+			}
 			if _, err := q.SetReview(ctx, store.SetReviewParams{ID: id, ReviewStatus: ReviewApproved, ReviewNote: reason, ReviewedBy: &adminID}); err != nil {
 				return fmt.Errorf("validation : %w", err)
 			}
@@ -398,6 +412,14 @@ func (s *Service) Review(ctx context.Context, adminID, id uuid.UUID, decision, r
 				return err
 			}
 			kind, title, body = "pharmacy_approved", "Pharmacie validée", "Bienvenue sur ivia ! Ouvrez votre pharmacie pour recevoir les alertes."
+		case "request_changes":
+			if cur.ReviewStatus != ReviewPending {
+				return apperr.Conflict("invalid_transition", "Ce dossier n'est pas en attente de validation.")
+			}
+			if _, err := q.SetReview(ctx, store.SetReviewParams{ID: id, ReviewStatus: ReviewChangesRequested, ReviewNote: reason, ReviewedBy: &adminID}); err != nil {
+				return fmt.Errorf("demande de compléments : %w", err)
+			}
+			kind, title, body = "pharmacy_changes_requested", "Dossier à compléter", "Complétez votre dossier : "+reason
 		case "reject":
 			if cur.ReviewStatus == ReviewApproved {
 				return apperr.Conflict("invalid_transition", "Une pharmacie validée se suspend, elle ne se refuse pas.")
@@ -405,7 +427,7 @@ func (s *Service) Review(ctx context.Context, adminID, id uuid.UUID, decision, r
 			if _, err := q.SetReview(ctx, store.SetReviewParams{ID: id, ReviewStatus: ReviewRejected, ReviewNote: reason, ReviewedBy: &adminID}); err != nil {
 				return fmt.Errorf("refus : %w", err)
 			}
-			kind, title, body = "pharmacy_rejected", "Dossier à compléter", "Votre dossier n'a pas été validé : "+reason
+			kind, title, body = "pharmacy_rejected", "Dossier refusé", "Votre dossier n'a pas été validé : "+reason
 		case "suspend":
 			n, err := q.Suspend(ctx, store.SuspendParams{ID: id, Reason: reason})
 			if err != nil {

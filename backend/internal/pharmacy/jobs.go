@@ -183,6 +183,9 @@ func (s *Service) CheckAccountDeletable(ctx context.Context, userID uuid.UUID) e
 // OnAccountDeleted efface les photos d'alerte du client ; pour un titulaire, suspend la pharmacie
 // et efface ses pièces (users.DeletionHook).
 func (s *Service) OnAccountDeleted(ctx context.Context, userID uuid.UUID) error {
+	if err := s.q(ctx).ClearPharmacyPayout(ctx, userID); err != nil {
+		return fmt.Errorf("effacement du compte de versement : %w", err)
+	}
 	q := s.q(ctx)
 	photos, err := q.BuyerPhotoKeys(ctx, userID)
 	if err != nil {

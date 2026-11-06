@@ -22,6 +22,7 @@ export const metadata = { title: "Pharmacies" };
 const LIMIT = 20;
 const TABS = [
   { value: "pending_review", label: "À valider", query: "review_status=pending_review" },
+  { value: "changes_requested", label: "À compléter", query: "review_status=changes_requested" },
   { value: "approved", label: "Validées", query: "review_status=approved" },
   { value: "suspended", label: "Suspendues", query: "suspended_only=true" },
   { value: "rejected", label: "Refusées", query: "review_status=rejected" },

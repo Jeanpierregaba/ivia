@@ -174,4 +174,6 @@ type PharmacySetting struct {
 	PhotoRetentionHours   int32
 	AutoWiden             bool
 	ProductCommissionBp   int32
+	NightFromHour         int32
+	NightToHour           int32
 }

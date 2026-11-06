@@ -364,6 +364,15 @@ func (q *Queries) ChoosePickup(ctx context.Context, id uuid.UUID) (int64, error)
 	return result.RowsAffected(), nil
 }
 
+const clearPharmacyPayout = `-- name: ClearPharmacyPayout :exec
+UPDATE pharmacies SET payout_operator = NULL, payout_phone = NULL, payout_holder = '', updated_at = now() WHERE owner_id = $1
+`
+
+func (q *Queries) ClearPharmacyPayout(ctx context.Context, ownerID uuid.UUID) error {
+	_, err := q.db.Exec(ctx, clearPharmacyPayout, ownerID)
+	return err
+}
+
 const countActiveReservationsOf = `-- name: CountActiveReservationsOf :one
 SELECT count(*)::bigint FROM pharmacy_reservations r
 WHERE r.status IN ('paid', 'courier_assigned', 'picked_up')
@@ -403,19 +412,25 @@ func (q *Queries) CountCourierOffers(ctx context.Context, reservationID uuid.UUI
 const countReachablePharmacies = `-- name: CountReachablePharmacies :one
 SELECT count(*)::bigint FROM pharmacies p
 WHERE p.review_status = 'approved' AND p.suspended_at IS NULL
-  AND (p.open_24h OR p.is_open OR p.on_duty OR EXISTS (
+  AND (p.open_24h OR p.on_duty OR (p.is_open AND NOT $1::boolean) OR EXISTS (
         SELECT 1 FROM pharmacy_duty_shifts s WHERE s.pharmacy_id = p.id AND s.starts_at <= now() AND s.ends_at > now()))
-  AND ST_DWithin(p.location, ST_SetSRID(ST_MakePoint($1::float8, $2::float8), 4326)::geography, $3::float8)
+  AND ST_DWithin(p.location, ST_SetSRID(ST_MakePoint($2::float8, $3::float8), 4326)::geography, $4::float8)
 `
 
 type CountReachablePharmaciesParams struct {
+	Night   bool
 	Lng     float64
 	Lat     float64
 	RadiusM float64
 }
 
 func (q *Queries) CountReachablePharmacies(ctx context.Context, arg CountReachablePharmaciesParams) (int64, error) {
-	row := q.db.QueryRow(ctx, countReachablePharmacies, arg.Lng, arg.Lat, arg.RadiusM)
+	row := q.db.QueryRow(ctx, countReachablePharmacies,
+		arg.Night,
+		arg.Lng,
+		arg.Lat,
+		arg.RadiusM,
+	)
 	var column_1 int64
 	err := row.Scan(&column_1)
 	return column_1, err
@@ -744,6 +759,29 @@ func (q *Queries) DeleteDutyShift(ctx context.Context, id uuid.UUID) (PharmacyDu
 	return i, err
 }
 
+const deleteOwnDutyShift = `-- name: DeleteOwnDutyShift :one
+DELETE FROM pharmacy_duty_shifts WHERE id = $1 AND pharmacy_id = $2 RETURNING id, pharmacy_id, starts_at, ends_at, created_by, created_at
+`
+
+type DeleteOwnDutyShiftParams struct {
+	ID         uuid.UUID
+	PharmacyID uuid.UUID
+}
+
+func (q *Queries) DeleteOwnDutyShift(ctx context.Context, arg DeleteOwnDutyShiftParams) (PharmacyDutyShift, error) {
+	row := q.db.QueryRow(ctx, deleteOwnDutyShift, arg.ID, arg.PharmacyID)
+	var i PharmacyDutyShift
+	err := row.Scan(
+		&i.ID,
+		&i.PharmacyID,
+		&i.StartsAt,
+		&i.EndsAt,
+		&i.CreatedBy,
+		&i.CreatedAt,
+	)
+	return i, err
+}
+
 const deleteResponseLines = `-- name: DeleteResponseLines :exec
 DELETE FROM pharmacy_response_lines WHERE response_id = $1
 `
@@ -841,10 +879,10 @@ SELECT p.id, p.owner_id,
        ST_Distance(p.location, ST_SetSRID(ST_MakePoint($1::float8, $2::float8), 4326)::geography)::float8 AS distance_m
 FROM pharmacies p
 WHERE p.review_status = 'approved' AND p.suspended_at IS NULL
-  AND (p.open_24h OR p.is_open OR p.on_duty OR EXISTS (
+  AND (p.open_24h OR p.on_duty OR (p.is_open AND NOT $3::boolean) OR EXISTS (
         SELECT 1 FROM pharmacy_duty_shifts s WHERE s.pharmacy_id = p.id AND s.starts_at <= now() AND s.ends_at > now()))
-  AND ST_DWithin(p.location, ST_SetSRID(ST_MakePoint($1::float8, $2::float8), 4326)::geography, $3::float8)
-  AND NOT EXISTS (SELECT 1 FROM pharmacy_alert_targets t WHERE t.alert_id = $4 AND t.pharmacy_id = p.id)
+  AND ST_DWithin(p.location, ST_SetSRID(ST_MakePoint($1::float8, $2::float8), 4326)::geography, $4::float8)
+  AND NOT EXISTS (SELECT 1 FROM pharmacy_alert_targets t WHERE t.alert_id = $5 AND t.pharmacy_id = p.id)
 ORDER BY distance_m
 LIMIT 50
 `
@@ -852,6 +890,7 @@ LIMIT 50
 type FindReachablePharmaciesParams struct {
 	Lng     float64
 	Lat     float64
+	Night   bool
 	RadiusM float64
 	AlertID uuid.UUID
 }
@@ -868,6 +907,7 @@ func (q *Queries) FindReachablePharmacies(ctx context.Context, arg FindReachable
 	rows, err := q.db.Query(ctx, findReachablePharmacies,
 		arg.Lng,
 		arg.Lat,
+		arg.Night,
 		arg.RadiusM,
 		arg.AlertID,
 	)
@@ -1229,7 +1269,7 @@ func (q *Queries) GetResponse(ctx context.Context, id uuid.UUID) (PharmacyRespon
 const getSettings = `-- name: GetSettings :one
 
 
-SELECT id, enabled, unlock_fee_xof, search_radius_m, max_radius_m, target_responses, widen_after_minutes, response_window_minutes, pickup_hold_minutes, photo_retention_days, updated_at, radius_options_m, photo_retention_hours, auto_widen, product_commission_bp FROM pharmacy_settings WHERE id
+SELECT id, enabled, unlock_fee_xof, search_radius_m, max_radius_m, target_responses, widen_after_minutes, response_window_minutes, pickup_hold_minutes, photo_retention_days, updated_at, radius_options_m, photo_retention_hours, auto_widen, product_commission_bp, night_from_hour, night_to_hour FROM pharmacy_settings WHERE id
 `
 
 // Requêtes du module pharmacy (tables pharmacy_*, pharmacies).
@@ -1253,6 +1293,8 @@ func (q *Queries) GetSettings(ctx context.Context) (PharmacySetting, error) {
 		&i.PhotoRetentionHours,
 		&i.AutoWiden,
 		&i.ProductCommissionBp,
+		&i.NightFromHour,
+		&i.NightToHour,
 	)
 	return i, err
 }
@@ -2394,6 +2436,15 @@ func (q *Queries) MarkAlertPhotoPurged(ctx context.Context, id uuid.UUID) error 
 	return err
 }
 
+const markPharmacySubmitted = `-- name: MarkPharmacySubmitted :exec
+UPDATE pharmacies SET review_status = 'pending_review', review_note = '', submitted_at = now(), updated_at = now() WHERE id = $1
+`
+
+func (q *Queries) MarkPharmacySubmitted(ctx context.Context, id uuid.UUID) error {
+	_, err := q.db.Exec(ctx, markPharmacySubmitted, id)
+	return err
+}
+
 const markPhotoPurged = `-- name: MarkPhotoPurged :exec
 UPDATE pharmacy_alerts SET photo_key = NULL, photo_purged_at = now(), updated_at = now() WHERE id = $1
 `
@@ -2775,6 +2826,29 @@ func (q *Queries) PendingUnlockPayment(ctx context.Context, responseID *uuid.UUI
 	return i, err
 }
 
+const pharmacyDossier = `-- name: PharmacyDossier :one
+SELECT submitted_at, payout_operator, payout_phone, payout_holder FROM pharmacies WHERE id = $1
+`
+
+type PharmacyDossierRow struct {
+	SubmittedAt    *time.Time
+	PayoutOperator *string
+	PayoutPhone    *string
+	PayoutHolder   string
+}
+
+func (q *Queries) PharmacyDossier(ctx context.Context, id uuid.UUID) (PharmacyDossierRow, error) {
+	row := q.db.QueryRow(ctx, pharmacyDossier, id)
+	var i PharmacyDossierRow
+	err := row.Scan(
+		&i.SubmittedAt,
+		&i.PayoutOperator,
+		&i.PayoutPhone,
+		&i.PayoutHolder,
+	)
+	return i, err
+}
+
 const pharmacyEarnings = `-- name: PharmacyEarnings :one
 SELECT
   coalesce((SELECT sum(r1.pharmacy_due_xof) FROM pharmacy_reservations r1
@@ -3033,6 +3107,31 @@ func (q *Queries) SetPaymentStatus(ctx context.Context, arg SetPaymentStatusPara
 	return result.RowsAffected(), nil
 }
 
+const setPharmacyPayout = `-- name: SetPharmacyPayout :execrows
+UPDATE pharmacies SET payout_operator = $2, payout_phone = $3, payout_holder = $4, updated_at = now()
+WHERE id = $1 AND review_status IN ('draft', 'changes_requested', 'rejected')
+`
+
+type SetPharmacyPayoutParams struct {
+	ID             uuid.UUID
+	PayoutOperator *string
+	PayoutPhone    *string
+	PayoutHolder   string
+}
+
+func (q *Queries) SetPharmacyPayout(ctx context.Context, arg SetPharmacyPayoutParams) (int64, error) {
+	result, err := q.db.Exec(ctx, setPharmacyPayout,
+		arg.ID,
+		arg.PayoutOperator,
+		arg.PayoutPhone,
+		arg.PayoutHolder,
+	)
+	if err != nil {
+		return 0, err
+	}
+	return result.RowsAffected(), nil
+}
+
 const setPrescriptionChecked = `-- name: SetPrescriptionChecked :exec
 UPDATE pharmacy_deliveries SET prescription_checked = true, updated_at = now() WHERE id = $1
 `
@@ -3197,8 +3296,8 @@ UPDATE pharmacies SET
   name = $1, license_number = $2, phone = $3,
   address_text = $4, neighborhood_id = $5,
   location = ST_SetSRID(ST_MakePoint($6::float8, $7::float8), 4326)::geography,
-  opening_hours = $8, review_status = 'pending_review', updated_at = now()
-WHERE id = $9 AND review_status IN ('pending_review', 'rejected')
+  opening_hours = $8, updated_at = now()
+WHERE id = $9 AND review_status IN ('draft', 'changes_requested', 'rejected')
 `
 
 type UpdateApplicationParams struct {
@@ -3213,7 +3312,7 @@ type UpdateApplicationParams struct {
 	ID             uuid.UUID
 }
 
-// Dossier modifiable tant qu'il n'est pas validé ; un dossier refusé repart en vérification.
+// Dossier modifiable tant qu'il n'est pas envoyé, ou après un retour du back-office.
 func (q *Queries) UpdateApplication(ctx context.Context, arg UpdateApplicationParams) (int64, error) {
 	result, err := q.db.Exec(ctx, updateApplication,
 		arg.Name,
@@ -3295,9 +3394,10 @@ UPDATE pharmacy_settings SET
   response_window_minutes = $7, pickup_hold_minutes = $8,
   photo_retention_days = $9, radius_options_m = $10::int[],
   photo_retention_hours = $11, auto_widen = $12,
-  product_commission_bp = $13, updated_at = now()
+  night_from_hour = $13, night_to_hour = $14,
+  product_commission_bp = $15, updated_at = now()
 WHERE id
-RETURNING id, enabled, unlock_fee_xof, search_radius_m, max_radius_m, target_responses, widen_after_minutes, response_window_minutes, pickup_hold_minutes, photo_retention_days, updated_at, radius_options_m, photo_retention_hours, auto_widen, product_commission_bp
+RETURNING id, enabled, unlock_fee_xof, search_radius_m, max_radius_m, target_responses, widen_after_minutes, response_window_minutes, pickup_hold_minutes, photo_retention_days, updated_at, radius_options_m, photo_retention_hours, auto_widen, product_commission_bp, night_from_hour, night_to_hour
 `
 
 type UpdateSettingsParams struct {
@@ -3313,6 +3413,8 @@ type UpdateSettingsParams struct {
 	RadiusOptionsM        []int32
 	PhotoRetentionHours   int32
 	AutoWiden             bool
+	NightFromHour         int32
+	NightToHour           int32
 	ProductCommissionBp   int32
 }
 
@@ -3330,6 +3432,8 @@ func (q *Queries) UpdateSettings(ctx context.Context, arg UpdateSettingsParams) 
 		arg.RadiusOptionsM,
 		arg.PhotoRetentionHours,
 		arg.AutoWiden,
+		arg.NightFromHour,
+		arg.NightToHour,
 		arg.ProductCommissionBp,
 	)
 	var i PharmacySetting
@@ -3349,6 +3453,8 @@ func (q *Queries) UpdateSettings(ctx context.Context, arg UpdateSettingsParams) 
 		&i.PhotoRetentionHours,
 		&i.AutoWiden,
 		&i.ProductCommissionBp,
+		&i.NightFromHour,
+		&i.NightToHour,
 	)
 	return i, err
 }

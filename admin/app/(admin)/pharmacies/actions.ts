@@ -6,6 +6,7 @@ import { api, failure, type ActionResult, type Schemas } from "@/lib/api";
 
 const REVIEW_DONE: Record<string, string> = {
   approve: "Pharmacie validée : elle peut recevoir les alertes.",
+  request_changes: "Compléments demandés au titulaire.",
   reject: "Dossier refusé : le motif est envoyé au titulaire.",
   suspend: "Pharmacie suspendue.",
   reinstate: "Pharmacie rétablie.",
@@ -156,6 +157,8 @@ export async function savePharmacySettings(_: ActionResult | null, form: FormDat
     pickup_hold_minutes: n("pickup_hold_minutes"),
     photo_retention_hours: n("photo_retention_hours"),
     product_commission_bp: n("product_commission_bp"),
+    night_from_hour: n("night_from_hour"),
+    night_to_hour: n("night_to_hour"),
     reason: String(form.get("reason") ?? ""),
   };
   try {

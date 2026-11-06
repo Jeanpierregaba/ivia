@@ -149,16 +149,19 @@ export const ROLE_LABEL: Record<string, string> = {
 };
 
 export const PHARMACY_STATUS: Record<string, { label: string; tone: Tone }> = {
+  draft: { label: "Brouillon", tone: "muted" },
   pending_review: { label: "À valider", tone: "warning" },
+  changes_requested: { label: "À compléter", tone: "info" },
   approved: { label: "Validée", tone: "success" },
   rejected: { label: "Refusée", tone: "error" },
   suspended: { label: "Suspendue", tone: "error" },
 };
 
 export const PHARMACY_DOCUMENT: Record<string, string> = {
-  opening_authorization: "Autorisation d'ouverture",
+  opening_authorization: "Autorisation d'exercice",
   order_registration: "Inscription à l'Ordre des pharmaciens",
   owner_id: "Pièce d'identité du titulaire",
+  storefront_photo: "Photo de la devanture",
 };
 
 export const MEDICINE_ALERT_STATUS: Record<string, { label: string; tone: Tone }> = {

@@ -7129,8 +7129,6 @@ paths:
       tags:
         - Pharmacie
       operationId: getPharmacyMeDutyShifts
-      x-roles:
-        - pharmacist
       responses:
         "200":
           description: "Succès"
@@ -7145,6 +7143,114 @@ paths:
                       "$ref": "#/components/schemas/PharmacyDutyShift"
                 required:
                   - items
+        default:
+          description: "Erreur (voir `code`)"
+          content:
+            application/json:
+              schema:
+                "$ref": "#/components/schemas/Error"
+    post:
+      summary: "Ajouter des gardes à mon planning (une seule, ou un import)"
+      tags:
+        - Pharmacie
+      operationId: postPharmacyMeDutyShifts
+      requestBody:
+        required: true
+        content:
+          application/json:
+            schema:
+              type: object
+              properties:
+                shifts:
+                  type: array
+                  minItems: 1
+                  maxItems: 60
+                  items:
+                    type: object
+                    properties:
+                      starts_at: {type: string, format: date-time}
+                      ends_at: {type: string, format: date-time}
+                    required: [starts_at, ends_at]
+              required: [shifts]
+      responses:
+        "201":
+          description: "Créées"
+          content:
+            application/json:
+              schema:
+                type: object
+                properties:
+                  items:
+                    type: array
+                    items:
+                      "$ref": "#/components/schemas/PharmacyDutyShift"
+                required: [items]
+        default:
+          description: "Erreur (voir `code`)"
+          content:
+            application/json:
+              schema:
+                "$ref": "#/components/schemas/Error"
+  "/v1/pharmacy/me/duty-shifts/{id}":
+    delete:
+      summary: "Retirer une garde de mon planning"
+      tags:
+        - Pharmacie
+      operationId: deletePharmacyMeDutyShift
+      parameters:
+        - {name: id, in: path, required: true, schema: {type: string, format: uuid}}
+      responses:
+        "204":
+          description: "Fait"
+        default:
+          description: "Erreur (voir `code`)"
+          content:
+            application/json:
+              schema:
+                "$ref": "#/components/schemas/Error"
+  "/v1/pharmacy/me/payout":
+    put:
+      summary: "Renseigner le compte de versement (avant l'envoi du dossier)"
+      tags:
+        - Pharmacie
+      operationId: putPharmacyMePayout
+      requestBody:
+        required: true
+        content:
+          application/json:
+            schema:
+              type: object
+              properties:
+                operator: {type: string, enum: [flooz, tmoney]}
+                phone: {type: string}
+                holder: {type: string}
+              required: [operator, phone, holder]
+      responses:
+        "200":
+          description: "Succès"
+          content:
+            application/json:
+              schema:
+                "$ref": "#/components/schemas/Pharmacy"
+        default:
+          description: "Erreur (voir `code`)"
+          content:
+            application/json:
+              schema:
+                "$ref": "#/components/schemas/Error"
+  "/v1/pharmacy/me/submit":
+    post:
+      summary: "Envoyer le dossier au back-office"
+      tags:
+        - Pharmacie
+      operationId: postPharmacyMeSubmit
+      responses:
+        "200":
+          description: "Succès"
+          content:
+            application/json:
+              schema:
+                "$ref": "#/components/schemas/Pharmacy"
         default:
           description: "Erreur (voir `code`)"
           content:
@@ -10315,6 +10421,7 @@ components:
       required:
         - id
         - owner_id
+        - storefront_photo
         - name
         - description
         - phone
@@ -12899,6 +13006,7 @@ components:
             - opening_authorization
             - order_registration
             - owner_id
+            - storefront_photo
             - other
         url:
           type: string
@@ -12913,6 +13021,17 @@ components:
       type: object
       description: "Dossier d'une pharmacie (titulaire et admin). duty_until : fin de la garde planifiée en cours."
       properties:
+        payout:
+          oneOf:
+            - type: "null"
+            - type: object
+              properties:
+                operator: {type: string, enum: [flooz, tmoney]}
+                phone_masked: {type: string}
+                phone: {type: string, description: "Back-office seulement."}
+                holder: {type: string}
+              required: [operator, phone_masked, holder]
+        submitted_at: {type: [string, "null"], format: date-time}
         id:
           type: string
           format: uuid
@@ -12947,14 +13066,18 @@ components:
         status:
           type: string
           enum:
+            - draft
             - pending_review
+            - changes_requested
             - approved
             - rejected
             - suspended
         review_status:
           type: string
           enum:
+            - draft
             - pending_review
+            - changes_requested
             - approved
             - rejected
         review_note:
@@ -13012,6 +13135,17 @@ components:
       type: object
       description: "Dossier avec le titulaire (back-office)."
       properties:
+        payout:
+          oneOf:
+            - type: "null"
+            - type: object
+              properties:
+                operator: {type: string, enum: [flooz, tmoney]}
+                phone_masked: {type: string}
+                phone: {type: string}
+                holder: {type: string}
+              required: [operator, phone_masked, holder]
+        submitted_at: {type: [string, "null"], format: date-time}
         id:
           type: string
           format: uuid
@@ -13046,14 +13180,18 @@ components:
         status:
           type: string
           enum:
+            - draft
             - pending_review
+            - changes_requested
             - approved
             - rejected
             - suspended
         review_status:
           type: string
           enum:
+            - draft
             - pending_review
+            - changes_requested
             - approved
             - rejected
         review_note:
@@ -13115,6 +13253,7 @@ components:
         - created_at
         - updated_at
         - owner_id
+        - storefront_photo
         - owner_first_name
         - owner_phone
     PharmacyApplicationInput:
@@ -13170,6 +13309,7 @@ components:
             - opening_authorization
             - order_registration
             - owner_id
+            - storefront_photo
             - other
         object_key:
           type: string
@@ -13198,6 +13338,7 @@ components:
             - approve
             - reject
             - suspend
+            - request_changes
             - reinstate
         reason:
           type: string
@@ -14605,6 +14746,8 @@ components:
       type: object
       description: "Réglages de l'alerte médicament."
       properties:
+        night_from_hour: {type: integer, minimum: 0, maximum: 23, description: "Début de la nuit, heure de Lomé."}
+        night_to_hour: {type: integer, minimum: 0, maximum: 23, description: "Fin de la nuit. Égale au début : pas de restriction."}
         enabled:
           type: boolean
         unlock_fee_xof:
@@ -14678,6 +14821,8 @@ components:
       type: object
       description: "Champs absents : inchangés."
       properties:
+        night_from_hour: {type: integer, minimum: 0, maximum: 23, description: "Début de la nuit, heure de Lomé."}
+        night_to_hour: {type: integer, minimum: 0, maximum: 23, description: "Fin de la nuit. Égale au début : pas de restriction."}
         enabled:
           type: boolean
         unlock_fee_xof:

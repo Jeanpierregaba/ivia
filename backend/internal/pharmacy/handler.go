@@ -72,7 +72,11 @@ func (h *Handler) Register(rt *httpapi.Router) {
 	rt.Auth("PATCH /v1/pharmacy/me", h.updateContact)
 	rt.Auth("POST /v1/pharmacy/me/documents", h.addDocument)
 	ph := identity.RolePharmacist
-	rt.Roles("GET /v1/pharmacy/me/duty-shifts", h.myDutyShifts, ph)
+	rt.Auth("GET /v1/pharmacy/me/duty-shifts", h.myDutyShifts)
+	rt.Auth("POST /v1/pharmacy/me/duty-shifts", h.addOwnShifts)
+	rt.Auth("DELETE /v1/pharmacy/me/duty-shifts/{id}", h.deleteOwnShift)
+	rt.Auth("PUT /v1/pharmacy/me/payout", h.setPayout)
+	rt.Auth("POST /v1/pharmacy/me/submit", h.submit)
 	rt.Roles("PUT /v1/pharmacy/me/status", h.setStatus, ph)
 	rt.Roles("GET /v1/pharmacy/inbox", h.inbox, ph)
 	rt.Roles("GET /v1/pharmacy/inbox/{id}", h.inboxGet, ph)

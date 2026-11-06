@@ -18,6 +18,11 @@ class PharmacyProfile {
       reviewStatus = j['review_status'] as String? ?? 'pending_review',
       reviewNote = j['review_note'] as String? ?? '',
       suspended = j['suspended_at'] != null,
+      neighborhoodId = j['neighborhood_id'] as String?,
+      lat = ((j['location'] as Map?)?['lat'] as num?)?.toDouble(),
+      lng = ((j['location'] as Map?)?['lng'] as num?)?.toDouble(),
+      payoutMasked = (j['payout'] as Map?)?['phone_masked'] as String?,
+      payoutHolder = (j['payout'] as Map?)?['holder'] as String?,
       documents = [for (final d in _list(j['documents'])) d['kind'] as String],
       missingDocuments = [
         for (final k in (j['missing_documents'] as List? ?? const []))
@@ -34,15 +39,24 @@ class PharmacyProfile {
       reviewNote;
   final bool isOpen, onDuty, open24h, suspended;
   final DateTime? dutyUntil;
+  final String? neighborhoodId, payoutMasked, payoutHolder;
+  final double? lat, lng;
   final List<String> documents, missingDocuments;
 
   bool get approved => reviewStatus == 'approved' && !suspended;
+  bool get hasPayout => payoutMasked != null;
+
+  /// Dossier encore modifiable par le titulaire.
+  bool get editable =>
+      reviewStatus == 'draft' ||
+      reviewStatus == 'changes_requested' ||
+      reviewStatus == 'rejected';
 }
 
 /// Pièce du dossier pharmacie.
 const pharmacyDocumentLabels = {
-  'opening_authorization': 'Autorisation d\'ouverture',
-  'order_registration': 'Inscription à l\'Ordre des pharmaciens',
+  'opening_authorization': 'Autorisation d\'exercice',
+  'storefront_photo': 'Photo de la devanture',
   'owner_id': 'Pièce d\'identité du titulaire',
 };
 
@@ -197,6 +211,7 @@ extension PharmacistApi on IviaApiClient {
     required String phone,
     required String addressText,
     required GeoPoint location,
+    String? neighborhoodId,
     String openingHours = '',
   }) async => PharmacyProfile.fromJson(
     await _send(
@@ -208,6 +223,7 @@ extension PharmacistApi on IviaApiClient {
         'phone': phone,
         'address_text': addressText,
         'location': {'lat': location.lat, 'lng': location.lng},
+        'neighborhood_id': ?neighborhoodId,
         'opening_hours': openingHours,
       },
     ),
@@ -231,12 +247,45 @@ extension PharmacistApi on IviaApiClient {
     ),
   );
 
-  Future<List<({DateTime startsAt, DateTime endsAt})>>
+  Future<void> setPharmacyPayout({
+    required String operator,
+    required String phone,
+    required String holder,
+  }) => _send(
+    'PUT',
+    '/v1/pharmacy/me/payout',
+    data: {'operator': operator, 'phone': phone, 'holder': holder},
+  );
+
+  Future<void> submitPharmacy() => _send('POST', '/v1/pharmacy/me/submit');
+
+  /// Ajoute des gardes au planning (une seule, ou un import).
+  Future<void> addPharmacyDutyShifts(
+    List<({DateTime startsAt, DateTime endsAt})> shifts,
+  ) => _send(
+    'POST',
+    '/v1/pharmacy/me/duty-shifts',
+    data: {
+      'shifts': [
+        for (final s in shifts)
+          {
+            'starts_at': s.startsAt.toUtc().toIso8601String(),
+            'ends_at': s.endsAt.toUtc().toIso8601String(),
+          },
+      ],
+    },
+  );
+
+  Future<void> deletePharmacyDutyShift(String id) =>
+      _send('DELETE', '/v1/pharmacy/me/duty-shifts/$id');
+
+  Future<List<({String id, DateTime startsAt, DateTime endsAt})>>
   pharmacyDutyShifts() async {
     final j = await _send('GET', '/v1/pharmacy/me/duty-shifts');
     return [
       for (final s in _list(j['items']))
         (
+          id: s['id'] as String,
           startsAt: DateTime.parse(s['starts_at'] as String),
           endsAt: DateTime.parse(s['ends_at'] as String),
         ),

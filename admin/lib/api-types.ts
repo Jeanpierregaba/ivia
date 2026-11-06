@@ -3222,7 +3222,59 @@ export interface paths {
         /** Mon planning de garde (à venir et en cours) */
         get: operations["getPharmacyMeDutyShifts"];
         put?: never;
+        /** Ajouter des gardes à mon planning (une seule, ou un import) */
+        post: operations["postPharmacyMeDutyShifts"];
+        delete?: never;
+        options?: never;
+        head?: never;
+        patch?: never;
+        trace?: never;
+    };
+    "/v1/pharmacy/me/duty-shifts/{id}": {
+        parameters: {
+            query?: never;
+            header?: never;
+            path?: never;
+            cookie?: never;
+        };
+        get?: never;
+        put?: never;
         post?: never;
+        /** Retirer une garde de mon planning */
+        delete: operations["deletePharmacyMeDutyShift"];
+        options?: never;
+        head?: never;
+        patch?: never;
+        trace?: never;
+    };
+    "/v1/pharmacy/me/payout": {
+        parameters: {
+            query?: never;
+            header?: never;
+            path?: never;
+            cookie?: never;
+        };
+        get?: never;
+        /** Renseigner le compte de versement (avant l'envoi du dossier) */
+        put: operations["putPharmacyMePayout"];
+        post?: never;
+        delete?: never;
+        options?: never;
+        head?: never;
+        patch?: never;
+        trace?: never;
+    };
+    "/v1/pharmacy/me/submit": {
+        parameters: {
+            query?: never;
+            header?: never;
+            path?: never;
+            cookie?: never;
+        };
+        get?: never;
+        put?: never;
+        /** Envoyer le dossier au back-office */
+        post: operations["postPharmacyMeSubmit"];
         delete?: never;
         options?: never;
         head?: never;
@@ -5839,13 +5891,23 @@ export interface components {
             /** Format: uuid */
             id: string;
             /** @enum {string} */
-            kind: "opening_authorization" | "order_registration" | "owner_id" | "other";
+            kind: "opening_authorization" | "order_registration" | "owner_id" | "storefront_photo" | "other";
             url?: string;
             /** Format: date-time */
             created_at: string;
         };
         /** @description Dossier d'une pharmacie (titulaire et admin). duty_until : fin de la garde planifiée en cours. */
         Pharmacy: {
+            payout?: null | {
+                /** @enum {string} */
+                operator: "flooz" | "tmoney";
+                phone_masked: string;
+                /** @description Back-office seulement. */
+                phone?: string;
+                holder: string;
+            };
+            /** Format: date-time */
+            submitted_at?: string | null;
             /** Format: uuid */
             id: string;
             name: string;
@@ -5862,9 +5924,9 @@ export interface components {
             /** Format: date-time */
             duty_until: string | null;
             /** @enum {string} */
-            status: "pending_review" | "approved" | "rejected" | "suspended";
+            status: "draft" | "pending_review" | "changes_requested" | "approved" | "rejected" | "suspended";
             /** @enum {string} */
-            review_status: "pending_review" | "approved" | "rejected";
+            review_status: "draft" | "pending_review" | "changes_requested" | "approved" | "rejected";
             review_note: string;
             /** Format: date-time */
             reviewed_at: string | null;
@@ -5880,6 +5942,15 @@ export interface components {
         };
         /** @description Dossier avec le titulaire (back-office). */
         AdminPharmacy: {
+            payout?: null | {
+                /** @enum {string} */
+                operator: "flooz" | "tmoney";
+                phone_masked: string;
+                phone?: string;
+                holder: string;
+            };
+            /** Format: date-time */
+            submitted_at?: string | null;
             /** Format: uuid */
             id: string;
             name: string;
@@ -5896,9 +5967,9 @@ export interface components {
             /** Format: date-time */
             duty_until: string | null;
             /** @enum {string} */
-            status: "pending_review" | "approved" | "rejected" | "suspended";
+            status: "draft" | "pending_review" | "changes_requested" | "approved" | "rejected" | "suspended";
             /** @enum {string} */
-            review_status: "pending_review" | "approved" | "rejected";
+            review_status: "draft" | "pending_review" | "changes_requested" | "approved" | "rejected";
             review_note: string;
             /** Format: date-time */
             reviewed_at: string | null;
@@ -5933,7 +6004,7 @@ export interface components {
         };
         PharmacyDocumentInput: {
             /** @enum {string} */
-            kind: "opening_authorization" | "order_registration" | "owner_id" | "other";
+            kind: "opening_authorization" | "order_registration" | "owner_id" | "storefront_photo" | "other";
             object_key: string;
         };
         PharmacyOpenStatus: {
@@ -5944,7 +6015,7 @@ export interface components {
         /** @description Motif obligatoire pour refuser ou suspendre. */
         PharmacyReviewInput: {
             /** @enum {string} */
-            decision: "approve" | "reject" | "suspend" | "reinstate";
+            decision: "approve" | "reject" | "suspend" | "request_changes" | "reinstate";
             reason?: string;
         };
         /** @description Pharmacie joignable maintenant (accueil). */
@@ -6498,6 +6569,10 @@ export interface components {
         };
         /** @description Réglages de l'alerte médicament. */
         PharmacySettings: {
+            /** @description Début de la nuit, heure de Lomé. */
+            night_from_hour?: number;
+            /** @description Fin de la nuit. Égale au début : pas de restriction. */
+            night_to_hour?: number;
             enabled: boolean;
             /** Format: int64 */
             unlock_fee_xof: number;
@@ -6519,6 +6594,10 @@ export interface components {
         };
         /** @description Champs absents : inchangés. */
         PharmacySettingsInput: {
+            /** @description Début de la nuit, heure de Lomé. */
+            night_from_hour?: number;
+            /** @description Fin de la nuit. Égale au début : pas de restriction. */
+            night_to_hour?: number;
             enabled?: boolean;
             /** Format: int64 */
             unlock_fee_xof?: number;
@@ -13366,6 +13445,144 @@ export interface operations {
                     "application/json": {
                         items: components["schemas"]["PharmacyDutyShift"][];
                     };
+                };
+            };
+            /** @description Erreur (voir `code`) */
+            default: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["Error"];
+                };
+            };
+        };
+    };
+    postPharmacyMeDutyShifts: {
+        parameters: {
+            query?: never;
+            header?: never;
+            path?: never;
+            cookie?: never;
+        };
+        requestBody: {
+            content: {
+                "application/json": {
+                    shifts: {
+                        /** Format: date-time */
+                        starts_at: string;
+                        /** Format: date-time */
+                        ends_at: string;
+                    }[];
+                };
+            };
+        };
+        responses: {
+            /** @description Créées */
+            201: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": {
+                        items: components["schemas"]["PharmacyDutyShift"][];
+                    };
+                };
+            };
+            /** @description Erreur (voir `code`) */
+            default: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["Error"];
+                };
+            };
+        };
+    };
+    deletePharmacyMeDutyShift: {
+        parameters: {
+            query?: never;
+            header?: never;
+            path: {
+                id: string;
+            };
+            cookie?: never;
+        };
+        requestBody?: never;
+        responses: {
+            /** @description Fait */
+            204: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content?: never;
+            };
+            /** @description Erreur (voir `code`) */
+            default: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["Error"];
+                };
+            };
+        };
+    };
+    putPharmacyMePayout: {
+        parameters: {
+            query?: never;
+            header?: never;
+            path?: never;
+            cookie?: never;
+        };
+        requestBody: {
+            content: {
+                "application/json": {
+                    /** @enum {string} */
+                    operator: "flooz" | "tmoney";
+                    phone: string;
+                    holder: string;
+                };
+            };
+        };
+        responses: {
+            /** @description Succès */
+            200: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["Pharmacy"];
+                };
+            };
+            /** @description Erreur (voir `code`) */
+            default: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["Error"];
+                };
+            };
+        };
+    };
+    postPharmacyMeSubmit: {
+        parameters: {
+            query?: never;
+            header?: never;
+            path?: never;
+            cookie?: never;
+        };
+        requestBody?: never;
+        responses: {
+            /** @description Succès */
+            200: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["Pharmacy"];
                 };
             };
             /** @description Erreur (voir `code`) */

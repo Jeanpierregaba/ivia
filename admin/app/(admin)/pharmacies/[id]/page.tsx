@@ -73,7 +73,21 @@ export default async function PharmacyPage({ params }: { params: Promise<{ id: s
               ["N° d'autorisation", p.license_number || "—"],
               ["Horaires", p.opening_hours || "—"],
               ["État", [p.is_open && "Ouverte", p.on_duty && "De garde", p.open_24h && "24 h/24"].filter(Boolean).join(" · ") || "Fermée"],
-              ["Position", `${p.location.lat.toFixed(5)}, ${p.location.lng.toFixed(5)}`],
+              [
+                "Position",
+                <a
+                  key="carte"
+                  href={`https://www.openstreetmap.org/?mlat=${p.location.lat}&mlon=${p.location.lng}#map=18/${p.location.lat}/${p.location.lng}`}
+                  target="_blank"
+                  rel="noreferrer"
+                  className="font-semibold text-secondary hover:underline"
+                >
+                  Voir sur la carte
+                </a>,
+              ],
+              ["Titulaire du versement", p.payout?.holder || "—"],
+              ["Numéro de versement", formatPhone(p.payout?.phone)],
+              ["Dossier envoyé", formatDateTime(p.submitted_at)],
               ["Inscription", formatDateTime(p.created_at)],
               ["Dernière décision", formatDateTime(p.reviewed_at)],
               ["Note", p.review_note || p.suspension_reason || "—"],
@@ -123,7 +137,7 @@ export default async function PharmacyPage({ params }: { params: Promise<{ id: s
       <Card className="mt-4">
         <CardTitle icon={<Gavel size={18} aria-hidden="true" />}>Décision</CardTitle>
         <div className="flex flex-wrap gap-2">
-          {(p.review_status === "pending_review" || p.review_status === "rejected") && (
+          {p.review_status === "pending_review" && (
             <ActionForm
               action={reviewPharmacy}
               label="Valider la pharmacie"
@@ -132,6 +146,19 @@ export default async function PharmacyPage({ params }: { params: Promise<{ id: s
                 title: `Valider ${p.name} ?`,
                 body: "Après vérification des pièces, la pharmacie pourra recevoir les alertes des patients.",
               }}
+            />
+          )}
+          {p.review_status === "pending_review" && (
+            <ActionForm
+              action={reviewPharmacy}
+              label="Demander des compléments"
+              variant="outline"
+              hidden={hidden("request_changes")}
+              confirm={{
+                title: `Demander des compléments à ${p.name} ?`,
+                body: "Le titulaire reçoit le motif et complète son dossier.",
+              }}
+              reason={{ label: "Ce qu'il faut compléter", required: true }}
             />
           )}
           {p.review_status === "pending_review" && (

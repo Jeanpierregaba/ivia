@@ -22,10 +22,14 @@ func newPharmacy(t *testing.T, name string, lat, lng float64) (string, string) {
 	if r := call(t, admin(t), "POST", "/v1/admin/pharmacies/"+id+"/review", map[string]string{"decision": "approve"}); r.code() != "documents_missing" {
 		t.Fatalf("validation sans pièces : %d %s", r.Status, r.code())
 	}
-	for _, kind := range []string{"opening_authorization", "order_registration", "owner_id"} {
+	for _, kind := range []string{"opening_authorization", "owner_id", "storefront_photo"} {
 		key := uploadPrivatePDF(t, tok, "pharmacy_document")
 		mustStatus(t, call(t, tok, "POST", "/v1/pharmacy/me/documents", map[string]string{"kind": kind, "object_key": key}), http.StatusCreated)
 	}
+	mustStatus(t, call(t, tok, "PUT", "/v1/pharmacy/me/payout", map[string]string{"operator": "flooz", "phone": uniquePhone(), "holder": "Essi Mensah"}), http.StatusOK)
+	mustStatus(t, call(t, tok, "POST", "/v1/pharmacy/me/submit", nil), http.StatusOK)
+	// Les tests ne dépendent pas de l'heure : pas de restriction de nuit.
+	mustStatus(t, call(t, admin(t), "PUT", "/v1/admin/pharmacy/settings", map[string]any{"night_from_hour": 0, "night_to_hour": 0}), http.StatusOK)
 	// Avant validation : pas d'accès aux alertes.
 	if r := call(t, tok, "GET", "/v1/pharmacy/inbox", nil); r.Status != http.StatusForbidden {
 		t.Fatalf("boîte avant validation : %d", r.Status)
