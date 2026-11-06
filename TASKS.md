@@ -14,6 +14,7 @@ docs/specs/NNN-nom/tasks.md. Les petites tâches isolées (bug, retouche) peuven
 - [ ] 027 — Splash et présentation des 3 apps ([spec](docs/specs/027-splash-onboarding/spec.md)) : reste la vérification sur Android, la validation des textes et des couleurs par le designer
 - [ ] 030 — vérifier sur un émulateur ou un téléphone Android (fenêtre du système, refus définitif ⇒ réglages, barre de navigation)
 - [ ] Position par défaut silencieuse : si la localisation est refusée, le dossier pharmacie et l'ajout d'une adresse acheteur envoient un point fixe de Lomé (6.1480, 1.2150) ; demander plutôt la position sur une carte ou le quartier
+- [ ] **Mobile / Gedeon** (vu en remettant les tests à jour pour Ivia Business, 2026-11-06) : les anciens écrans de boutique du marchand (création `ShopFormScreen`, en attente et pièces 028, bloquée) ne s'atteignent plus que si un espace boutique actif a une boutique non publiée (boutiques reprises par la migration 00032) : les garder ou les retirer ; les écrans Business (inscription d'un espace, dossier, versement, modules agence et artisan) n'ont pas encore de tests d'écran (seules les redirections sont testées)
 
 Fin du squelette (étapes 8-9 du cadrage) :
 - [x] Mobile (frontend) — convertir `mobile/` en pub workspace : `apps/buyer`, `apps/seller`, `apps/driver`, `packages/api_client`, `packages/ui` (ADR 0002) ; mettre à jour les commandes Mobile d'`AGENTS.md` et le job `mobile` de la CI
