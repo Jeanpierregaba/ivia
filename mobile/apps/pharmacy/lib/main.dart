@@ -6,10 +6,12 @@ import 'package:ivia_api_client/ivia_api_client.dart';
 import 'package:ivia_app_core/ivia_app_core.dart';
 import 'package:ivia_ui/ivia_ui.dart';
 
-import 'features/alerts_permission.dart';
-import 'features/application_screen.dart';
-import 'features/push.dart';
-import 'features/shell.dart';
+import 'common/providers.dart';
+import 'features/alerts/alert_detail_screen.dart';
+import 'features/application/application_screen.dart';
+import 'features/home/pharmacy_shell.dart';
+import 'features/push/alerts_permission.dart';
+import 'features/push/push.dart';
 
 /// Identité de l'app pharmacie dans les écrans communs de connexion.
 const pharmacyIdentity = AppIdentity(
@@ -36,15 +38,6 @@ const pharmacyIdentity = AppIdentity(
 
 String _codeHint(Duration expiresIn) =>
     'Code valable ${expiresIn.inMinutes} minutes.';
-
-/// Pharmacie du compte connecté ; `null` : pas encore inscrite.
-final pharmacyProfileProvider = FutureProvider<PharmacyProfile?>((ref) async {
-  final signedIn = ref.watch(
-    authControllerProvider.select((a) => a is AuthSignedIn),
-  );
-  if (!signedIn) return null;
-  return ref.read(apiClientProvider).pharmacyMe();
-});
 
 abstract final class Routes {
   static const splash = '/';

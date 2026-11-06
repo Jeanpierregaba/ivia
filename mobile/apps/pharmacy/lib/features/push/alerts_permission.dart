@@ -5,7 +5,7 @@ import 'package:ivia_ui/ivia_ui.dart';
 import 'package:permission_handler/permission_handler.dart';
 
 import 'push.dart';
-import 'ui.dart';
+import '../../common/ui.dart';
 
 /// Autorisations du téléphone accordées ? Sans objet sur le web.
 final alertsReadyProvider = FutureProvider<bool>((ref) async {

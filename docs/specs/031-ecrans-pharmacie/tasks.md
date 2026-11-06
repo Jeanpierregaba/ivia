@@ -3,7 +3,7 @@
 <!-- Ordonnées. Chaque tâche est petite, testable et committable seule. Cochée dès qu'elle est faite et commitée. -->
 
 **Socle**
-- [ ] 1. Découper `shell.dart`, `application_screen.dart` et `ui.dart` en dossiers par
+- [x] 1. Découper `shell.dart`, `application_screen.dart` et `ui.dart` en dossiers par
       fonctionnalité, sans changer le comportement. Ajouter `test/helpers.dart`. Les tests actuels
       restent verts.
 - [ ] 2. Ajouter la palette `IviaPharmacyColors` (`packages/ui`) et les composants communs
