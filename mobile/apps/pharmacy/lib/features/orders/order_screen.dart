@@ -222,7 +222,6 @@ class _OrderScreenState extends ConsumerState<OrderScreen> {
                         const SizedBox(height: 10),
                         PButton(
                           label: 'Valider la remise',
-                          color: P.navy,
                           busy: _busy,
                           onTap: () => _do(
                             (api) => api.pharmacyCompletePickup(

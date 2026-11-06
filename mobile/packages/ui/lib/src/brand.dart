@@ -2,6 +2,7 @@ import 'dart:async';
 
 import 'package:flutter/material.dart';
 
+import 'pharmacy_colors.dart';
 import 'tokens.dart';
 
 /// Couleur du logotype (docs/DESIGN.md, section Logo).
@@ -152,16 +153,17 @@ final class IviaAppBrand {
     heroLight: Color(0xFF1C86FF),
   );
 
-  /// App pharmacie : vert pharmacie (croix verte), logotype Berkeley.
+  /// App pharmacie : vert des maquettes F00 à F23 (spec 031), logotype
+  /// Berkeley.
   static const pharmacy = IviaAppBrand._(
-    accent: IviaColors.success,
-    accentSoft: IviaColors.successSoft,
+    accent: IviaPharmacyColors.green,
+    accentSoft: IviaPharmacyColors.greenSoft,
     logoOnLight: IviaLogoColor.berkeley,
-    action: IviaColors.success,
-    link: IviaColors.success,
-    highlight: IviaColors.success,
-    heroDeep: Color(0xFF07783A),
-    heroLight: Color(0xFF2FD668),
+    action: IviaPharmacyColors.green,
+    link: IviaPharmacyColors.green,
+    highlight: IviaPharmacyColors.green,
+    heroDeep: IviaPharmacyColors.greenDeep,
+    heroLight: IviaPharmacyColors.switchOn,
   );
 }
 

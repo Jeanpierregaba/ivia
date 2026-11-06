@@ -16,6 +16,7 @@ export 'src/location_prompt.dart';
 export 'src/navigation.dart';
 export 'src/onboarding.dart';
 export 'src/order_views.dart';
+export 'src/pharmacy_colors.dart';
 export 'src/segmented_tabs.dart';
 export 'src/step_list.dart';
 export 'src/theme.dart';

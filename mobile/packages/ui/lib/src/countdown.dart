@@ -20,6 +20,7 @@ class IviaCountdown extends StatefulWidget {
     this.style,
     this.urgentBelow = const Duration(minutes: 3),
     this.expiredLabel = 'Délai dépassé',
+    this.color,
   });
 
   final DateTime deadline;
@@ -34,6 +35,10 @@ class IviaCountdown extends StatefulWidget {
   final TextStyle? style;
   final Duration urgentBelow;
   final String expiredLabel;
+
+  /// Couleur fixe à la place de celles de l'urgence (pastille rouge de
+  /// l'app pharmacie).
+  final Color? color;
 
   /// « 12:40 », « 04:05 » : minutes et secondes restantes (arrondies
   /// au-dessus, pour ne jamais afficher 00:00 avant l'heure).
@@ -93,9 +98,11 @@ class _IviaCountdownState extends State<IviaCountdown> {
   Widget build(BuildContext context) {
     final remaining = _remaining;
     final expired = remaining <= Duration.zero;
-    final color = expired || remaining < widget.urgentBelow
-        ? IviaColors.error
-        : IviaColors.warning;
+    final color =
+        widget.color ??
+        (expired || remaining < widget.urgentBelow
+            ? IviaColors.error
+            : IviaColors.warning);
     final clock = IviaCountdown.format(remaining);
     final text = expired
         ? widget.expiredLabel

@@ -6,7 +6,7 @@
 - [x] 1. Découper `shell.dart`, `application_screen.dart` et `ui.dart` en dossiers par
       fonctionnalité, sans changer le comportement. Ajouter `test/helpers.dart`. Les tests actuels
       restent verts.
-- [ ] 2. Ajouter la palette `IviaPharmacyColors` (`packages/ui`) et les composants communs
+- [x] 2. Ajouter la palette `IviaPharmacyColors` (`packages/ui`) et les composants communs
       (`lib/common/`) :
       - `PBackButton`, `PHeader`, `PBottomBar` ;
       - `PCountdown`, qui passe à « Terminée » à zéro ;

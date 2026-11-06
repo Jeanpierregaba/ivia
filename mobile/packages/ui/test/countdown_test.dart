@@ -67,6 +67,26 @@ void main() {
     expect(expired, 0);
   });
 
+  testWidgets('couleur fixe : garde la même couleur, urgence ou non', (
+    tester,
+  ) async {
+    await tester.pumpWidget(
+      MaterialApp(
+        home: Scaffold(
+          body: IviaCountdown(
+            deadline: deadline,
+            now: () => clock,
+            color: IviaPharmacyColors.red,
+          ),
+        ),
+      ),
+    );
+    expect(colorOf(tester, '12:40'), IviaPharmacyColors.red);
+    clock = deadline.subtract(const Duration(minutes: 1));
+    await tester.pump(const Duration(seconds: 1));
+    expect(colorOf(tester, '01:00'), IviaPharmacyColors.red);
+  });
+
   testWidgets('à zéro : « Délai dépassé », onExpired une seule fois', (
     tester,
   ) async {
