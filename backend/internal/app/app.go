@@ -16,6 +16,7 @@ import (
 
 	"ivia/backend/internal/admin"
 	"ivia/backend/internal/auth"
+	"ivia/backend/internal/business"
 	"ivia/backend/internal/cart"
 	"ivia/backend/internal/catalog"
 	"ivia/backend/internal/delivery"
@@ -72,6 +73,7 @@ type App struct {
 	Promo         *promo.Service
 	Pharmacy      *pharmacy.Service
 	Properties    *properties.Service
+	Business      *business.Service
 
 	// Implémentations factices exposées en local et dans les tests (nil sinon).
 	DevOTP      *auth.LogSender
@@ -148,6 +150,7 @@ func New(cfg config.Config, logger *slog.Logger, pool *pgxpool.Pool, opts Option
 	})
 
 	a.Properties = properties.NewService(db, a.Uploads, a.Admin)
+	a.Business = business.NewService(db, a.Shops, a.Users, a.Uploads, a.Admin, a.Notifications)
 
 	// Suppression de compte : les modules qui bloquent, puis ceux qui effacent leurs données.
 	a.Users.AddDeletionGuard(a.Orders)
@@ -157,6 +160,7 @@ func New(cfg config.Config, logger *slog.Logger, pool *pgxpool.Pool, opts Option
 	a.Users.AddDeletionHook(a.Orders)
 	a.Users.AddDeletionHook(a.Delivery)
 	a.Users.AddDeletionHook(a.Shops)
+	a.Users.AddDeletionHook(a.Business)
 	a.Users.AddDeletionHook(a.Cart)
 	a.Users.AddDeletionHook(a.Notifications)
 	a.Users.AddDeletionHook(a.Pharmacy)
@@ -199,6 +203,7 @@ func (a *App) routes() (http.Handler, []string) {
 	settlements.NewHandler(a.Settlements).Register(rt)
 	promo.NewHandler(a.Promo).Register(rt)
 	a.Properties.Register(rt)
+	a.Business.Register(rt)
 	var devPayments *payments.FakeProvider
 	if a.Config.DevToolsEnabled() {
 		devPayments = a.FakePayment

@@ -40,6 +40,10 @@ const (
 	Avatar Purpose = "avatar"
 	// PropertyPhoto : photo d'une annonce immobilière, publique, déposée par l'équipe ivia.
 	PropertyPhoto Purpose = "property_photo"
+	// BusinessDocument : justificatif d'un dossier Ivia Business (identité, selfie, RCCM), privé,
+	// déposé avant la validation. BusinessPhoto : photo d'un espace (boutique, réalisations).
+	BusinessDocument Purpose = "business_document"
+	BusinessPhoto    Purpose = "business_photo"
 )
 
 // Limites imposées à la signature (SECURITY.md).
@@ -73,6 +77,8 @@ var rules = map[Purpose]rule{
 	PharmacyAlertPhoto: {prefix: "pharmacy-alerts", vis: storage.Private, types: images},
 	Avatar:             {prefix: "avatars", vis: storage.Public, types: images},
 	PropertyPhoto:      {prefix: "properties", vis: storage.Public, types: images, roles: []identity.Role{identity.RoleAdmin}},
+	BusinessDocument:   {prefix: "business-documents", vis: storage.Private, types: documents},
+	BusinessPhoto:      {prefix: "business-photos", vis: storage.Public, types: images},
 }
 
 // Service signe les envois et vérifie les clés.

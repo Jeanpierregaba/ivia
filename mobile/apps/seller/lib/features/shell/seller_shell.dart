@@ -6,7 +6,9 @@ import 'package:go_router/go_router.dart';
 import 'package:ivia_api_client/ivia_api_client.dart';
 import 'package:ivia_ui/ivia_ui.dart';
 
+import '../../app/business_state.dart';
 import '../../app/seller_shop.dart';
+import '../business/pro_ui.dart';
 import '../orders/order_labels.dart';
 import '../orders/orders_providers.dart';
 
@@ -116,30 +118,37 @@ class _SellerShellState extends ConsumerState<SellerShell> {
             ),
           )
         : 0;
+    final sector = ref.watch(
+      businessGateProvider.select((g) => g.value?.opened?.sector),
+    );
+    final restaurant = sector == 'restaurant';
     return Scaffold(
+      backgroundColor: Pro.page,
       body: widget.shell,
       bottomNavigationBar: published
-          ? IviaBottomNav(
-              items: [
-                for (final (i, tab) in sellerTabs.indexed)
-                  if (i == ordersTabIndex)
-                    IviaNavItem(
-                      icon: tab.icon,
-                      label: tab.label,
-                      badge: fresh,
-                      badgeLabel: fresh == 1
-                          ? '1 nouvelle'
-                          : '$fresh nouvelles',
-                    )
-                  else
-                    tab,
-              ],
-              currentIndex: widget.shell.currentIndex,
+          ? ProDock(
+              accent: Pro.accent(sector),
+              current: widget.shell.currentIndex,
               // Onglet déjà ouvert : retour à son premier écran.
               onSelected: (i) => widget.shell.goBranch(
                 i,
                 initialLocation: i == widget.shell.currentIndex,
               ),
+              items: [
+                const ProDockItem(Icons.space_dashboard_outlined, 'Pilotage'),
+                ProDockItem(
+                  Icons.receipt_long_outlined,
+                  'Commandes',
+                  badge: fresh,
+                ),
+                ProDockItem(
+                  restaurant
+                      ? Icons.restaurant_menu_rounded
+                      : Icons.inventory_2_outlined,
+                  restaurant ? 'Menu' : 'Catalogue',
+                ),
+                const ProDockItem(Icons.person_outline, 'Profil'),
+              ],
             )
           : null,
     );

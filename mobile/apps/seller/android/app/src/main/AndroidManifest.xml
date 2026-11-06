@@ -5,7 +5,7 @@
     <uses-permission android:name="android.permission.ACCESS_FINE_LOCATION"/>
     <uses-permission android:name="android.permission.ACCESS_COARSE_LOCATION"/>
     <application
-        android:label="ivia Marchand"
+        android:label="Ivia Business"
         android:name="${applicationName}"
         android:icon="@mipmap/ic_launcher">
         <!-- Clé Google Maps Android (restreinte au paquet et au SHA-1), lue dans

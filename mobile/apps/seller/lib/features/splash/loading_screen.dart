@@ -10,8 +10,8 @@ class LoadingScreen extends StatelessWidget {
     return const IviaLoadingSplash(
       brand: IviaAppBrand.seller,
       tile: true,
-      title: 'Marchand',
-      tagline: 'Vendez dans votre quartier.',
+      title: 'Business',
+      tagline: 'Votre activité, pilotée d\'ici.',
     );
   }
 }

@@ -460,6 +460,9 @@ class MedScaffold extends ConsumerWidget {
         ],
       ),
     ),
-    bottomNavigationBar: bottom,
+    // Bas d'écran à la hauteur de son contenu, jamais de tout l'écran.
+    bottomNavigationBar: bottom == null
+        ? null
+        : Column(mainAxisSize: MainAxisSize.min, children: [bottom!]),
   );
 }

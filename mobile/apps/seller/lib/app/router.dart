@@ -5,6 +5,7 @@ import 'package:ivia_api_client/ivia_api_client.dart';
 import 'package:ivia_app_core/ivia_app_core.dart';
 
 import '../features/account/account_screen.dart';
+import '../features/business/business_screens.dart';
 import '../features/catalog/catalog_screen.dart';
 import '../features/catalog/product_edit_screen.dart';
 import '../features/catalog/product_editor_screen.dart';
@@ -21,6 +22,7 @@ import '../features/shop/shop_documents_screen.dart';
 import '../features/shop/shop_form_screen.dart';
 import '../features/shop/shop_pending_screen.dart';
 import '../features/splash/loading_screen.dart';
+import 'business_state.dart';
 import 'seller_shop.dart';
 
 abstract final class Routes {
@@ -32,6 +34,12 @@ abstract final class Routes {
   static const login = AuthRoutes.login;
   static const code = AuthRoutes.code;
   static const signup = AuthRoutes.signup;
+  static const welcome = '/welcome';
+  static const businessNew = '/business/new';
+  static const businessChoose = '/business/choose';
+  static const businessDossier = '/business/dossier';
+  static const businessStatus = '/business/status';
+  static const businessModule = '/business/module';
   static const offline = '/offline';
   static const shopNew = '/shop/new';
   static const shopPending = '/shop/pending';
@@ -62,6 +70,7 @@ String? redirectFor(
   required bool onboardingSeen,
   required String location,
   bool locationPromptDone = true,
+  AsyncValue<BusinessGate>? business,
 }) {
   final allowed = switch (auth) {
     AuthStarting() => const [Routes.splash],
@@ -70,10 +79,40 @@ String? redirectFor(
     AuthSignedOut() when !onboardingSeen => const [Routes.onboarding],
     AuthSignedOut() => const [Routes.login, Routes.code, Routes.signup],
     AuthOffline() => const [Routes.offline],
+    AuthNeedsProfile() when business != null => const [Routes.welcome],
+    AuthSignedIn() when business != null => _spaceScreens(business, shop),
     AuthSignedIn() || AuthNeedsProfile() => _shopScreens(shop),
   };
   final ok = allowed.any((a) => location == a || location.startsWith('$a/'));
   return ok ? null : allowed.first;
+}
+
+/// Workflow de connexion Ivia Business : aucun espace, inscription ; plusieurs
+/// espaces, choix ; puis les écrans découlent du statut de l'espace ouvert.
+List<String> _spaceScreens(
+  AsyncValue<BusinessGate> business,
+  AsyncValue<Shop?> shop,
+) {
+  if (business.hasError) return const [Routes.offline];
+  if (business.isLoading) return const [Routes.splash];
+  final gate = business.value ?? const BusinessGate();
+  final opened = gate.opened;
+  if (opened == null) {
+    return gate.spaces.isEmpty
+        ? const [Routes.businessNew]
+        : const [Routes.businessChoose, Routes.businessNew];
+  }
+  return switch (opened.status) {
+    'active' when opened.usesShop => _shopScreens(shop),
+    'active' => const [Routes.businessModule],
+    'pending_review' when opened.usesShop => const [
+      Routes.businessStatus,
+      Routes.catalog,
+    ],
+    'pending_review' => const [Routes.businessStatus, Routes.businessModule],
+    'suspended' => const [Routes.businessStatus],
+    _ => const [Routes.businessDossier],
+  };
 }
 
 List<String> _shopScreens(AsyncValue<Shop?> shop) {
@@ -101,6 +140,7 @@ final routerProvider = Provider<GoRouter>((ref) {
   final refresh = ValueNotifier(0);
   ref.listen(authControllerProvider, (_, _) => refresh.value++);
   ref.listen(sellerShopProvider, (_, _) => refresh.value++);
+  ref.listen(businessGateProvider, (_, _) => refresh.value++);
   ref.listen(onboardingSeenProvider, (_, _) => refresh.value++);
   ref.listen(locationPromptDoneProvider, (_, _) => refresh.value++);
 
@@ -116,6 +156,7 @@ final routerProvider = Provider<GoRouter>((ref) {
       onboardingSeen: ref.read(onboardingSeenProvider),
       locationPromptDone: ref.read(locationPromptDoneProvider),
       location: state.matchedLocation,
+      business: ref.read(businessGateProvider),
     ),
     routes: [
       GoRoute(
@@ -147,6 +188,27 @@ final routerProvider = Provider<GoRouter>((ref) {
       GoRoute(
         path: Routes.offline,
         builder: (context, state) => const OfflineScreen(),
+      ),
+      GoRoute(path: Routes.welcome, builder: (_, _) => const ProfileScreen()),
+      GoRoute(
+        path: Routes.businessNew,
+        builder: (_, _) => const SectorScreen(),
+      ),
+      GoRoute(
+        path: Routes.businessChoose,
+        builder: (_, _) => const ChooseSpaceScreen(),
+      ),
+      GoRoute(
+        path: Routes.businessDossier,
+        builder: (_, _) => const DossierScreen(),
+      ),
+      GoRoute(
+        path: Routes.businessStatus,
+        builder: (_, _) => const BusinessStatusScreen(),
+      ),
+      GoRoute(
+        path: Routes.businessModule,
+        builder: (_, _) => const BusinessModuleScreen(),
       ),
       GoRoute(
         path: Routes.shopNew,

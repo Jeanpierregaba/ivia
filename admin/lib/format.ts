@@ -189,3 +189,28 @@ export const PROPERTY_TYPE: Record<string, string> = {
   office: "Bureau",
   room: "Chambre",
 };
+
+export const BUSINESS_SECTOR: Record<string, string> = {
+  shop: "Boutique",
+  real_estate: "Immobilier",
+  artisan: "Artisan",
+  restaurant: "Restaurant",
+};
+
+export const BUSINESS_STATUS: Record<string, { label: string; tone: Tone }> = {
+  draft: { label: "Brouillon", tone: "muted" },
+  pending_review: { label: "À examiner", tone: "warning" },
+  changes_requested: { label: "À compléter", tone: "info" },
+  rejected: { label: "Refusé", tone: "error" },
+  active: { label: "Actif", tone: "success" },
+  suspended: { label: "Suspendu", tone: "error" },
+};
+
+export const BUSINESS_DOCUMENT: Record<string, string> = {
+  id_card: "Pièce d'identité",
+  selfie: "Selfie",
+  rccm: "RCCM",
+  business_registration: "Registre de commerce",
+  trade_proof: "Justificatif de métier",
+  hygiene_certificate: "Certificat d'hygiène",
+};

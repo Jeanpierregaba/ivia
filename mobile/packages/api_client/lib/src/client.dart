@@ -6,6 +6,7 @@ import 'api_exception.dart';
 import 'models.dart';
 import 'promo.dart';
 
+part 'business.dart';
 part 'driver_work.dart';
 part 'pharmacist.dart';
 part 'pharmacy.dart';

@@ -156,11 +156,11 @@ class ProfileTabScreen extends ConsumerWidget {
               _Item(
                 Icons.storefront_outlined,
                 'Ouvrir une boutique',
-                'Vendez sur ivia Marchand',
+                'Vendez sur Ivia Business',
                 () => _info(
                   context,
                   'Ouvrir une boutique',
-                  'Installez l\'app ivia Marchand et connectez-vous avec le même compte. Vous créez votre boutique, '
+                  'Installez l\'app Ivia Business et connectez-vous avec le même compte. Vous créez votre boutique, '
                       'l\'équipe ivia la valide, puis vous ajoutez vos produits.',
                 ),
               ),

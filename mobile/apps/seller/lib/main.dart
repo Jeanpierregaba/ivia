@@ -5,6 +5,7 @@ import 'package:ivia_api_client/ivia_api_client.dart';
 import 'package:ivia_app_core/ivia_app_core.dart';
 import 'package:ivia_ui/ivia_ui.dart';
 
+import 'features/business/pro_ui.dart';
 import 'app/device_services.dart';
 import 'app/identity.dart';
 import 'app/router.dart';
@@ -45,8 +46,39 @@ class SellerApp extends ConsumerWidget {
   @override
   Widget build(BuildContext context, WidgetRef ref) {
     return MaterialApp.router(
-      title: 'ivia Marchand',
-      theme: IviaTheme.light(IviaAppBrand.seller),
+      title: 'Ivia Business',
+      theme: IviaTheme.light(IviaAppBrand.seller).copyWith(
+        scaffoldBackgroundColor: Pro.page,
+        pageTransitionsTheme: const PageTransitionsTheme(
+          builders: {
+            TargetPlatform.android: ProPageTransitions(),
+            TargetPlatform.iOS: ProPageTransitions(),
+            TargetPlatform.windows: ProPageTransitions(),
+            TargetPlatform.macOS: ProPageTransitions(),
+            TargetPlatform.linux: ProPageTransitions(),
+          },
+        ),
+        inputDecorationTheme: const InputDecorationTheme(
+          filled: true,
+          fillColor: Colors.white,
+          border: OutlineInputBorder(
+            borderRadius: BorderRadius.all(Radius.circular(10)),
+            borderSide: BorderSide(color: Pro.line),
+          ),
+          enabledBorder: OutlineInputBorder(
+            borderRadius: BorderRadius.all(Radius.circular(10)),
+            borderSide: BorderSide(color: Pro.line),
+          ),
+          focusedBorder: OutlineInputBorder(
+            borderRadius: BorderRadius.all(Radius.circular(10)),
+            borderSide: BorderSide(color: IviaColors.cobaltBlue, width: 2),
+          ),
+          errorBorder: OutlineInputBorder(
+            borderRadius: BorderRadius.all(Radius.circular(10)),
+            borderSide: BorderSide(color: IviaColors.imperialRed),
+          ),
+        ),
+      ),
       routerConfig: ref.watch(routerProvider),
       // Barre d'état sombre sur les écrans clairs ; le splash de chargement
       // (fond Berkeley) la repasse en clair.
