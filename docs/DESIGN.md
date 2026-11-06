@@ -192,6 +192,14 @@ Maquettes : à venir (lien Figma à ajouter ici). Les statuts affichés suivent
   par le système. Détail : [spec 027](specs/027-splash-onboarding/spec.md).
 - **Splash de chargement** (acheteur) : après le splash natif, même fond et logotype au même endroit,
   slogan « Tout, près de chez vous. » 40 dp dessous, trois points animés ; au moins 800 ms.
+- **Autorisation de la localisation** ([spec 030](specs/030-autorisation-localisation/spec.md)),
+  juste après le splash, au premier lancement : grand panneau de la couleur de l'app (coins
+  inférieurs arrondis de 48 dp), tuile blanche du logo teinté et nom de l'espace (« Business »,
+  « Livreur », « Pharmacie »), cercles concentriques avec une pastille centrale et quatre pastilles
+  blanches ; titre en deux tons, texte, « Autoriser la localisation » (pilule, épingle) et
+  « Refuser ». Le même écran s'ouvre par-dessus avant une action qui a besoin de la position.
+  Refus définitif : le bouton ouvre les réglages. Composants `IviaLocationPrompt` et
+  `IviaLocationRadar` (`packages/ui`).
 - **Présentation** (premier lancement) : fond gris, grande illustration (plan de 324 × 421 dp mis à
   l'échelle), indicateur puis titre alignés à gauche avec une partie en rouge, texte, bouton en
   pilule ; logo en tuile sur la page 1, bouton retour rond ensuite ; « Passer » sauf sur la dernière

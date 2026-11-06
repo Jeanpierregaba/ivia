@@ -62,26 +62,26 @@ sur iOS), « Autoriser la localisation » ouvre les réglages de l'app.
 
 ## Critères d'acceptation
 
-- [ ] Étant donné un premier lancement sans autorisation, quand le splash se termine, alors l'écran
+- [x] Étant donné un premier lancement sans autorisation, quand le splash se termine, alors l'écran
       de localisation de l'app s'affiche (titre, texte, bouton et « Refuser » de la maquette) avant la
       présentation (acheteur, marchand, livreur) ou la connexion (pharmacie).
-- [ ] Étant donné l'écran au premier lancement, quand on appuie sur « Refuser », alors la
+- [x] Étant donné l'écran au premier lancement, quand on appuie sur « Refuser », alors la
       présentation (ou la connexion) s'ouvre sans fenêtre du système.
-- [ ] Étant donné l'écran au premier lancement, quand on appuie sur « Autoriser » puis qu'on
+- [x] Étant donné l'écran au premier lancement, quand on appuie sur « Autoriser » puis qu'on
       accepte ou refuse dans la fenêtre du système, alors la présentation (ou la connexion) s'ouvre.
-- [ ] Étant donné un des deux boutons déjà appuyé, quand l'app est relancée, alors l'écran n'est
+- [x] Étant donné un des deux boutons déjà appuyé, quand l'app est relancée, alors l'écran n'est
       plus montré au lancement.
-- [ ] Étant donné la position déjà autorisée au premier lancement, alors l'écran n'est pas montré.
-- [ ] Étant donné une position non autorisée, quand l'utilisateur déclenche une action qui en a
+- [x] Étant donné la position déjà autorisée au premier lancement, alors l'écran n'est pas montré.
+- [x] Étant donné une position non autorisée, quand l'utilisateur déclenche une action qui en a
       besoin (liste ci-dessus), alors l'écran s'affiche par-dessus ; « Refuser » ramène à l'action
       sans position, « Autoriser » fait la demande au système puis continue l'action.
-- [ ] Étant donné une position autorisée, quand l'utilisateur déclenche ces actions, alors l'écran
+- [x] Étant donné une position autorisée, quand l'utilisateur déclenche ces actions, alors l'écran
       n'est pas montré.
-- [ ] Étant donné l'Accueil acheteur ouvert sans autorisation, alors l'écran n'est pas montré et
+- [x] Étant donné l'Accueil acheteur ouvert sans autorisation, alors l'écran n'est pas montré et
       aucune fenêtre du système ne s'ouvre.
-- [ ] Étant donné un refus définitif, quand on appuie sur « Autoriser la localisation », alors les
+- [x] Étant donné un refus définitif, quand on appuie sur « Autoriser la localisation », alors les
       réglages de l'app s'ouvrent.
-- [ ] Les 4 apps déclarent la permission de localisation : texte d'explication iOS et permission
+- [x] Les 4 apps déclarent la permission de localisation : texte d'explication iOS et permission
       Android. La pharmacie et le livreur n'en ont pas aujourd'hui.
 
 ## Cas limites et erreurs

@@ -20,7 +20,7 @@
 - [x] 7. App pharmacie : textes et icônes, route et redirection (splash ⇒ localisation ⇒
       connexion), `main.dart`, permissions iOS et Android ; écran avant l'envoi du dossier ;
       premiers tests.
-- [ ] 8. `docs/DESIGN.md` ; vérification sur le simulateur iPhone 17 Pro (premier lancement des
+- [x] 8. `docs/DESIGN.md` ; vérification sur le simulateur iPhone 17 Pro (premier lancement des
       4 apps, une fonctionnalité par app, refus puis réglages).
-- [ ] Vérifier tous les critères d'acceptation de spec.md
-- [ ] Relecture par le sous-agent reviewer
+- [x] Vérifier tous les critères d'acceptation de spec.md
+- [x] Relecture par le sous-agent reviewer (2026-11-06) ; retours corrigés (refus définitif sur Android, localisation coupée, « Refuser » actif pendant la demande, un seul écran à la fois, alerte médicament, tests de l'acheteur)
