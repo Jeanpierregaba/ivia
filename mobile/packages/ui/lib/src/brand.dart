@@ -20,9 +20,13 @@ enum IviaLogoColor {
 
 /// Logotype `ivia`, jamais redessiné : image tirée des fichiers de la charte.
 class IviaLogo extends StatelessWidget {
-  const IviaLogo({super.key, required this.color, this.height = 32});
+  const IviaLogo({super.key, required this.color, this.height = 32, this.tint});
 
   final IviaLogoColor color;
+
+  /// Teinte du logotype blanc (couleur sans fichier dédié, comme le vert de
+  /// la pharmacie) ; remplace [color].
+  final Color? tint;
 
   /// Hauteur du logotype, points des « i » compris.
   final double height;
@@ -62,10 +66,12 @@ class IviaLogo extends StatelessWidget {
       image: true,
       child: ExcludeSemantics(
         child: Image.asset(
-          color.asset,
+          tint == null ? color.asset : IviaLogoColor.white.asset,
           package: 'ivia_ui',
           height: height,
           width: height * aspectRatio,
+          color: tint,
+          colorBlendMode: tint == null ? null : BlendMode.srcIn,
           filterQuality: FilterQuality.medium,
         ),
       ),

@@ -9,10 +9,14 @@ class IviaLogoTile extends StatelessWidget {
     super.key,
     this.size = 40,
     this.color = IviaColors.imperialRed,
+    this.logoTint,
   });
 
   final double size;
   final Color color;
+
+  /// Logotype teinté (tuile blanche) ; blanc par défaut.
+  final Color? logoTint;
 
   @override
   Widget build(BuildContext context) {
@@ -24,7 +28,11 @@ class IviaLogoTile extends StatelessWidget {
         color: color,
         borderRadius: BorderRadius.circular(size * 0.26),
       ),
-      child: IviaLogo(color: IviaLogoColor.white, height: size * 0.3),
+      child: IviaLogo(
+        color: IviaLogoColor.white,
+        tint: logoTint,
+        height: size * 0.3,
+      ),
     );
   }
 }

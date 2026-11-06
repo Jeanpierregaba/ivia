@@ -12,6 +12,7 @@ export 'src/countdown.dart';
 export 'src/form_controls.dart';
 export 'src/illustration.dart';
 export 'src/loading_splash.dart';
+export 'src/location_prompt.dart';
 export 'src/navigation.dart';
 export 'src/onboarding.dart';
 export 'src/order_views.dart';
