@@ -18,10 +18,13 @@ import 'features/push/push.dart';
 const pharmacyIdentity = AppIdentity(
   brand: IviaAppBrand.pharmacy,
   loginTitle: 'Espace pharmacie',
-  loginBody:
-      "Recevez les alertes médicament des patients autour de vous et répondez "
-      'en quelques secondes. Connexion avec votre numéro de téléphone.',
+  loginBody: 'Connectez-vous avec votre numéro. Nous vous envoyons un code.',
   loginBadge: 'Pharmacie',
+  // Maquettes F04 et F05 (spec 031).
+  loginBadgeFilled: true,
+  termsLabel: 'Conditions partenaires',
+  authTips: false,
+  codeTitleByChannel: true,
   codeHint: _codeHint,
   appCode: 'pharmacy',
   locationPrompt: LocationPromptCopy(

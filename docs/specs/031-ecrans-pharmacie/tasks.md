@@ -17,7 +17,7 @@
 - [x] 3. Splash F00 : tuile, logotype vert et groupe centré (`IviaSplashTile`, `centerGroup`), splash natif vert.
 - [x] 4. Présentation en 3 pages, avec ses illustrations (le retour existait déjà dans
       `IviaOnboarding`. Route placée après la localisation et montrée une fois.
-- [ ] 5. Connexion F04 et code F05 : options facultatives d'`AppIdentity` (conditions
+- [x] 5. Connexion F04 et code F05 : options facultatives d'`AppIdentity` (conditions
       partenaires, titre selon le canal, « Valider »). Un test vérifie que l'acheteur ne change pas.
 
 **Dossier**

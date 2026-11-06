@@ -148,13 +148,17 @@ class _PhoneScreenState extends ConsumerState<PhoneScreen> {
                     vertical: 7,
                   ),
                   decoration: BoxDecoration(
-                    color: identity.brand.accentSoft,
+                    color: identity.loginBadgeFilled
+                        ? identity.brand.accent
+                        : identity.brand.accentSoft,
                     borderRadius: BorderRadius.circular(30),
                   ),
                   child: Text(
                     badge,
                     style: textTheme.labelLarge?.copyWith(
-                      color: identity.brand.accent,
+                      color: identity.loginBadgeFilled
+                          ? Colors.white
+                          : identity.brand.accent,
                       fontWeight: FontWeight.w800,
                     ),
                   ),
@@ -198,23 +202,25 @@ class _PhoneScreenState extends ConsumerState<PhoneScreen> {
               ? const ButtonProgress()
               : const Text('Recevoir par SMS'),
         ),
-        const SizedBox(height: IviaSpacing.lg),
-        const IviaInfoCard(
-          text:
-              'Pas de mot de passe : un code à 6 chiffres vous est envoyé à '
-              'chaque connexion. Ne le communiquez à personne.',
-        ),
+        if (identity.authTips) ...[
+          const SizedBox(height: IviaSpacing.lg),
+          const IviaInfoCard(
+            text:
+                'Pas de mot de passe : un code à 6 chiffres vous est envoyé à '
+                'chaque connexion. Ne le communiquez à personne.',
+          ),
+        ],
         const Spacer(),
         const SizedBox(height: IviaSpacing.xxl),
         LegalText(
           textAlign: TextAlign.center,
           style: textTheme.bodySmall?.copyWith(color: IviaColors.textSecondary),
-          parts: const [
-            LegalPart('En continuant, vous acceptez les '),
-            LegalPart.link("Conditions d'utilisation"),
-            LegalPart(' et la '),
-            LegalPart.link('Politique de confidentialité'),
-            LegalPart('.'),
+          parts: [
+            const LegalPart('En continuant, vous acceptez les '),
+            LegalPart.link(identity.termsLabel),
+            const LegalPart(' et la '),
+            const LegalPart.link('Politique de confidentialité'),
+            const LegalPart('.'),
           ],
         ),
       ],
@@ -343,6 +349,8 @@ class _PhoneCodeScreenState extends ConsumerState<PhoneCodeScreen> {
     if (flow == null) return const Scaffold(body: SizedBox.shrink());
     _syncCountdown(flow);
     final textTheme = Theme.of(context).textTheme;
+    final identity = ref.watch(appIdentityProvider);
+    final byChannel = identity.codeTitleByChannel;
     final viaSms = flow.channel == OtpChannel.sms;
     final strong = const TextStyle(
       color: IviaColors.text,
@@ -357,14 +365,23 @@ class _PhoneCodeScreenState extends ConsumerState<PhoneCodeScreen> {
         const SizedBox(height: IviaSpacing.xxl),
         Semantics(
           header: true,
-          child: Text('Saisissez le code', style: textTheme.headlineMedium),
+          child: Text(
+            !byChannel
+                ? 'Saisissez le code'
+                : viaSms
+                ? 'Vérifiez vos SMS'
+                : 'Vérifiez WhatsApp',
+            style: textTheme.headlineMedium,
+          ),
         ),
         const SizedBox(height: IviaSpacing.sm),
         Text.rich(
           TextSpan(
             children: [
               TextSpan(
-                text: viaSms
+                text: byChannel
+                    ? 'Code à 6 chiffres envoyé au '
+                    : viaSms
                     ? 'Code à 6 chiffres envoyé par SMS au '
                     : 'Code à 6 chiffres envoyé sur WhatsApp au ',
               ),
@@ -385,7 +402,10 @@ class _PhoneCodeScreenState extends ConsumerState<PhoneCodeScreen> {
               padding: EdgeInsets.zero,
               minimumSize: const Size(48, 40),
             ),
-            child: const Text('Modifier le numéro'),
+            child: Text(
+              byChannel ? 'Modifier' : 'Modifier le numéro',
+              semanticsLabel: 'Modifier le numéro',
+            ),
           ),
         ),
         const SizedBox(height: IviaSpacing.lg),
@@ -435,21 +455,23 @@ class _PhoneCodeScreenState extends ConsumerState<PhoneCodeScreen> {
                 ),
             ],
           ),
-        const SizedBox(height: IviaSpacing.lg),
-        IviaInfoCard(
-          text: viaSms
-              ? 'Le code est valable ${flow.expiresIn.inMinutes} minutes. '
-                    'WhatsApp n\'a pas pu le recevoir : il est parti par SMS.'
-              : 'Le code est valable ${flow.expiresIn.inMinutes} minutes. '
-                    'Rien reçu ? Vérifiez WhatsApp, ou demandez-le par SMS.',
-        ),
+        if (identity.authTips) ...[
+          const SizedBox(height: IviaSpacing.lg),
+          IviaInfoCard(
+            text: viaSms
+                ? 'Le code est valable ${flow.expiresIn.inMinutes} minutes. '
+                      'WhatsApp n\'a pas pu le recevoir : il est parti par SMS.'
+                : 'Le code est valable ${flow.expiresIn.inMinutes} minutes. '
+                      'Rien reçu ? Vérifiez WhatsApp, ou demandez-le par SMS.',
+          ),
+        ],
         const Spacer(),
         const SizedBox(height: IviaSpacing.xxl),
         FilledButton(
           onPressed: _busy || _code.text.length != 6 ? null : _verify,
           child: _busy
               ? const ButtonProgress(label: 'Vérification')
-              : const Text('Vérifier le code'),
+              : Text(byChannel ? 'Valider' : 'Vérifier le code'),
         ),
       ],
     );

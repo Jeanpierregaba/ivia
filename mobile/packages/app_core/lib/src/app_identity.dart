@@ -15,7 +15,24 @@ class AppIdentity {
     this.loginBadge,
     this.appCode = 'buyer',
     this.authHero,
+    this.loginBadgeFilled = false,
+    this.termsLabel = "Conditions d'utilisation",
+    this.authTips = true,
+    this.codeTitleByChannel = false,
   });
+
+  /// Pastille pleine (fond de la marque, texte blanc) ; pâle sinon.
+  final bool loginBadgeFilled;
+
+  /// Lien des conditions sous la connexion (« Conditions partenaires »).
+  final String termsLabel;
+
+  /// Encarts d'aide de la connexion et du code (« Pas de mot de passe… »).
+  final bool authTips;
+
+  /// Écran du code titré selon le canal (« Vérifiez vos SMS »), avec
+  /// « Modifier » et « Valider » (maquettes de la pharmacie, F05).
+  final bool codeTitleByChannel;
 
   /// Code de l'app envoyé au serveur (alertes de sécurité) : buyer, seller,
   /// driver ou pharmacy.

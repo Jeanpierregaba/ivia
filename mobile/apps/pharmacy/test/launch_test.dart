@@ -1,5 +1,6 @@
 import 'package:flutter/material.dart';
 import 'package:flutter_test/flutter_test.dart';
+import 'package:ivia_api_client/testing.dart';
 import 'package:ivia_app_core/ivia_app_core.dart';
 
 import 'helpers.dart';
@@ -103,5 +104,68 @@ void main() {
       }
       expect(_rich(_page3), findsOneWidget);
     });
+  });
+
+  group('connexion (F04, F05)', () {
+    setUp(() {
+      PharmacyHarness.resetDevice(
+        prefs: {'location_prompt_done': true, 'onboarding_seen': true},
+      );
+    });
+
+    testWidgets('numéro seulement, WhatsApp puis SMS, conditions partenaires', (
+      tester,
+    ) async {
+      await app.launch(tester);
+      expect(find.text('Espace pharmacie'), findsOneWidget);
+      expect(
+        find.text(
+          'Connectez-vous avec votre numéro. Nous vous envoyons un code.',
+        ),
+        findsOneWidget,
+      );
+      expect(find.text('Pharmacie'), findsOneWidget);
+      expect(find.text('E-mail'), findsNothing);
+      expect(find.text('Recevoir le code sur WhatsApp'), findsOneWidget);
+      expect(find.text('Recevoir par SMS'), findsOneWidget);
+      expect(
+        find.textContaining('Conditions partenaires', findRichText: true),
+        findsOneWidget,
+      );
+      expect(find.textContaining('Pas de mot de passe'), findsNothing);
+    });
+
+    for (final sms in [true, false]) {
+      testWidgets('code par ${sms ? 'SMS' : 'WhatsApp'} : titre du canal, '
+          '« Valider » grisé avant 6 chiffres', (tester) async {
+        app.server.on(
+          'POST',
+          '/v1/auth/phone/code',
+          (_) => FakeResponse.json(202, {
+            ...phoneOtpBody,
+            'channel': sms ? 'sms' : 'whatsapp',
+          }),
+        );
+        await app.launch(tester);
+        await tester.enterText(find.byType(TextField), '90 11 22 33');
+        await tapText(
+          tester,
+          sms ? 'Recevoir par SMS' : 'Recevoir le code sur WhatsApp',
+        );
+        expect(
+          find.text(sms ? 'Vérifiez vos SMS' : 'Vérifiez WhatsApp'),
+          findsOneWidget,
+        );
+        expect(find.text('Modifier'), findsOneWidget);
+        expect(find.textContaining('Le code est valable'), findsNothing);
+        await tester.enterText(find.byType(TextField), '6204');
+        await tester.pump();
+        final validate = find.ancestor(
+          of: find.text('Valider'),
+          matching: find.byType(FilledButton),
+        );
+        expect(tester.widget<FilledButton>(validate).onPressed, isNull);
+      });
+    }
   });
 }
