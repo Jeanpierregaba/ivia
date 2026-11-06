@@ -55,6 +55,7 @@ class LocationPromptStore {
     } on Exception {
       prefs = null;
     }
+    final store = LocationPromptStore._(prefs, doneAtLaunch: done);
     if (!done) {
       try {
         done =
@@ -63,6 +64,9 @@ class LocationPromptStore {
       } on Exception {
         done = false;
       }
+      // Déjà autorisée : l'écran est considéré comme vu, même si
+      // l'autorisation est retirée plus tard.
+      if (done) await store.markDone();
     }
     return LocationPromptStore._(prefs, doneAtLaunch: done);
   }
@@ -121,7 +125,7 @@ class _LocationPromptScreenState extends ConsumerState<LocationPromptScreen> {
   }
 
   Future<void> _allow() async {
-    if (_busy) return;
+    if (_busy || _done) return;
     setState(() => _busy = true);
     final service = ref.read(locationServiceProvider);
     try {
@@ -136,8 +140,7 @@ class _LocationPromptScreenState extends ConsumerState<LocationPromptScreen> {
     } on Exception {
       // Fenêtre du système en échec : on continue sans position.
     }
-    if (!mounted) return;
-    setState(() => _busy = false);
+    // Le bouton reste occupé : l'écran se ferme (ou la redirection suit).
     _finish();
   }
 
@@ -172,7 +175,16 @@ class LaunchLocationPromptScreen extends ConsumerWidget {
 /// Avant une fonctionnalité qui a besoin de la position : sans autorisation,
 /// l'écran s'affiche par-dessus tout (barre du bas comprise). Renvoie `true`
 /// si la position est autorisée ensuite. Le retour système vaut « Refuser ».
-Future<bool> askForLocation(BuildContext context, WidgetRef ref) async {
+Future<bool> askForLocation(BuildContext context, WidgetRef ref) {
+  // Un second appel (double appui) attend l'écran déjà ouvert.
+  final pending = ref.read(_pendingAskProvider);
+  return pending.current ??= _ask(
+    context,
+    ref,
+  ).whenComplete(() => pending.current = null);
+}
+
+Future<bool> _ask(BuildContext context, WidgetRef ref) async {
   final service = ref.read(locationServiceProvider);
   if (await service.access() == LocationAccess.granted) return true;
   if (!context.mounted) return false;
@@ -185,3 +197,10 @@ Future<bool> askForLocation(BuildContext context, WidgetRef ref) async {
   );
   return await service.access() == LocationAccess.granted;
 }
+
+/// Demande d'autorisation en cours (un seul écran à la fois).
+class _PendingAsk {
+  Future<bool>? current;
+}
+
+final _pendingAskProvider = Provider<_PendingAsk>((ref) => _PendingAsk());

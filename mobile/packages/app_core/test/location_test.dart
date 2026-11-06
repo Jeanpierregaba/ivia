@@ -2,6 +2,7 @@ import 'package:flutter_test/flutter_test.dart';
 import 'package:geolocator_platform_interface/geolocator_platform_interface.dart';
 import 'package:ivia_app_core/ivia_app_core.dart';
 import 'package:plugin_platform_interface/plugin_platform_interface.dart';
+import 'package:shared_preferences/shared_preferences.dart';
 
 /// Plateforme de `geolocator` simulée.
 class _Platform extends GeolocatorPlatform with MockPlatformInterfaceMixin {
@@ -50,6 +51,7 @@ void main() {
   const service = DeviceLocationService();
 
   setUp(() {
+    SharedPreferences.setMockInitialValues({});
     platform = _Platform();
     GeolocatorPlatform.instance = platform;
   });
@@ -113,6 +115,32 @@ void main() {
         LocationFailure.serviceDisabled,
       );
       expect(platform.reads, 0);
+    });
+  });
+
+  group('Android : refus définitif connu par la demande seulement', () {
+    test('mémorisé après la demande, puis effacé une fois autorisée', () async {
+      // Android : la vérification dit « refusée », jamais « définitif ».
+      platform.afterRequest = LocationPermission.deniedForever;
+      expect(await service.access(), LocationAccess.askable);
+      expect(await service.request(), LocationAccess.deniedForever);
+      platform.permission = LocationPermission.denied;
+      expect(await service.access(), LocationAccess.deniedForever);
+      expect((await service.current()).failure, LocationFailure.deniedForever);
+
+      // Autorisée dans les réglages, puis retirée : de nouveau demandable.
+      platform.permission = LocationPermission.whileInUse;
+      expect(await service.access(), LocationAccess.granted);
+      platform.permission = LocationPermission.denied;
+      expect(await service.access(), LocationAccess.askable);
+    });
+
+    test('localisation coupée : son message prime sur le refus', () async {
+      platform.serviceEnabled = false;
+      expect(
+        (await service.current()).failure,
+        LocationFailure.serviceDisabled,
+      );
     });
   });
 }

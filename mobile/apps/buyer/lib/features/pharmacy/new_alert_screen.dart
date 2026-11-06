@@ -868,12 +868,14 @@ class _AlertLaunchScreenState extends ConsumerState<AlertLaunchScreen> {
     unawaited(_load());
   }
 
-  Future<void> _load() async {
+  /// [ask] : écran d'autorisation s'il le faut (ouverture de l'écran) ;
+  /// pas sur un changement de zone, qui suit souvent un refus.
+  Future<void> _load({bool ask = true}) async {
     setState(() {
       _error = null;
       _preview = null;
     });
-    final p = await alertPosition(context, ref);
+    final p = await alertPosition(context, ref, ask: ask);
     if (!mounted) return;
     if (p == null) {
       setState(
@@ -949,7 +951,10 @@ class _AlertLaunchScreenState extends ConsumerState<AlertLaunchScreen> {
     final draft = ref.watch(medDraftProvider);
     final preview = _preview;
     final area = ref.watch(buyerAreaProvider);
-    ref.listen(buyerAreaProvider, (_, _) => _load());
+    ref.listen(buyerAreaProvider, (_, next) {
+      // Position en cours de lecture : on attend son résultat.
+      if (next is! AreaLocating) _load(ask: false);
+    });
     final count =
         preview?.radii
             .where((r) => r.radiusM == _radius)

@@ -35,14 +35,15 @@ class _ApplicationScreenState extends ConsumerState<ApplicationScreen> {
 
   Future<void> _submit() async {
     if (_busy) return;
-    // Position de l'officine : écran d'autorisation d'abord s'il le faut.
-    await askForLocation(context, ref);
-    if (!mounted) return;
+    // Occupé dès l'appui : un second appui n'envoie pas deux dossiers.
     setState(() {
       _busy = true;
       _errors = {};
     });
     try {
+      // Position de l'officine : écran d'autorisation d'abord s'il le faut.
+      await askForLocation(context, ref);
+      if (!mounted) return;
       final p =
           (await ref.read(locationServiceProvider).current()).point ??
           const GeoPoint(lat: 6.1480, lng: 1.2150);

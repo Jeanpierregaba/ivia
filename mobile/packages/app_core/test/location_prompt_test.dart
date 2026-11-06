@@ -65,10 +65,15 @@ void main() {
       expect((await LocationPromptStore.open(location)).doneAtLaunch, isTrue);
     });
 
-    test('position déjà autorisée : pas d\'écran', () async {
-      final store = await LocationPromptStore.open(FakeLocationService());
-      expect(store.doneAtLaunch, isTrue);
-    });
+    test(
+      'position déjà autorisée : pas d\'écran, même retirée ensuite',
+      () async {
+        final location = FakeLocationService();
+        expect((await LocationPromptStore.open(location)).doneAtLaunch, isTrue);
+        location.state = LocationAccess.askable;
+        expect((await LocationPromptStore.open(location)).doneAtLaunch, isTrue);
+      },
+    );
 
     test('refus définitif déjà connu : l\'écran est montré', () async {
       final store = await LocationPromptStore.open(
@@ -171,10 +176,26 @@ void main() {
       await tester.pump();
       expect(find.byType(CircularProgressIndicator), findsOneWidget);
       await tester.tap(find.text('Autoriser la localisation'));
-      await tester.tap(find.text('Refuser'));
-      location.requestPending!.complete();
       await tester.pump();
       expect(location.requests, 1);
+      location.requestPending!.complete();
+      await tester.pump();
+      expect(done, 1);
+    });
+
+    testWidgets('fenêtre du système sans réponse : « Refuser » fait suivre', (
+      tester,
+    ) async {
+      location.requestPending = Completer();
+      await pumpScreen(tester);
+      await tester.tap(find.text('Autoriser la localisation'));
+      await tester.pump();
+      await tester.tap(find.text('Refuser'));
+      await tester.pump();
+      expect(done, 1);
+      // Réponse tardive : pas de seconde suite.
+      location.requestPending!.complete();
+      await tester.pump();
       expect(done, 1);
     });
   });
@@ -272,6 +293,41 @@ void main() {
       await tester.pumpAndSettle();
       expect(find.text('Refuser'), findsNothing);
       expect(result, isTrue);
+    });
+
+    testWidgets('deux appels rapprochés : un seul écran, même réponse', (
+      tester,
+    ) async {
+      final answers = <Future<bool>>[];
+      await tester.pumpWidget(
+        ProviderScope(
+          overrides: [
+            appIdentityProvider.overrideWithValue(_identity),
+            locationServiceProvider.overrideWithValue(location),
+          ],
+          child: MaterialApp(
+            theme: IviaTheme.light(),
+            home: Consumer(
+              builder: (context, ref, _) => Scaffold(
+                body: TextButton(
+                  onPressed: () => answers
+                    ..add(askForLocation(context, ref))
+                    ..add(askForLocation(context, ref)),
+                  child: const Text('Utiliser ma position'),
+                ),
+              ),
+            ),
+          ),
+        ),
+      );
+      await tester.tap(find.text('Utiliser ma position'));
+      await tester.pumpAndSettle();
+      expect(find.byType(LocationPromptScreen), findsOneWidget);
+      await tester.ensureVisible(find.text('Refuser'));
+      await tester.tap(find.text('Refuser'));
+      await tester.pumpAndSettle();
+      expect(await Future.wait(answers), [false, false]);
+      expect(find.byType(LocationPromptScreen), findsNothing);
     });
 
     testWidgets('retour système : vaut « Refuser »', (tester) async {

@@ -66,23 +66,27 @@ void main() {
     expect((allowed, refused), (1, 1));
   });
 
-  testWidgets('demande en cours : boutons désactivés, indicateur', (
+  testWidgets('demande en cours : « Autoriser » occupé, « Refuser » actif', (
     tester,
   ) async {
     await tester.pumpWidget(prompt(busy: true));
     await tester.ensureVisible(find.text('Refuser'));
     await tester.tap(find.text('Autoriser la localisation'));
     await tester.tap(find.text('Refuser'));
-    expect((allowed, refused), (0, 0));
+    expect((allowed, refused), (0, 1));
     expect(find.byType(CircularProgressIndicator), findsOneWidget);
   });
 
-  testWidgets('barre d\'état claire sur le panneau de couleur', (tester) async {
+  testWidgets('barre d\'état claire, barre de navigation blanche', (
+    tester,
+  ) async {
     await tester.pumpWidget(prompt());
     final region = tester.widget<AnnotatedRegion<SystemUiOverlayStyle>>(
       find.byType(AnnotatedRegion<SystemUiOverlayStyle>).first,
     );
-    expect(region.value, SystemUiOverlayStyle.light);
+    expect(region.value.statusBarIconBrightness, Brightness.light);
+    expect(region.value.systemNavigationBarColor, IviaColors.surface);
+    expect(region.value.systemNavigationBarIconBrightness, Brightness.dark);
   });
 
   testWidgets('logo teinté de la couleur de l\'app dans une tuile blanche', (

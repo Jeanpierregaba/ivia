@@ -258,11 +258,54 @@ void main() {
   testWidgets('position refusée définitivement : « Ouvrir les réglages »', (
     tester,
   ) async {
-    app.location.next = const LocationResult.failed(
-      LocationFailure.deniedForever,
-    );
+    app.location.state = LocationAccess.deniedForever;
     await app.launch(tester);
     await tapText(tester, 'Ouvrir les réglages');
     expect(app.location.settingsOpened, 1);
+  });
+
+  group('autorisation de la localisation (030)', () {
+    testWidgets('Accueil sans autorisation : ni écran ni fenêtre du système', (
+      tester,
+    ) async {
+      app.location.state = LocationAccess.askable;
+      await app.launch(tester);
+      expect(find.byType(LocationPromptScreen), findsNothing);
+      expect(app.location.requests, 0);
+    });
+
+    for (final allow in [false, true]) {
+      testWidgets('« Utiliser ma position » sans autorisation : écran, puis '
+          '${allow ? 'position' : 'message'}', (tester) async {
+        app.location.state = LocationAccess.askable;
+        await app.launch(tester);
+        await tester.tap(find.bySemanticsLabel(RegExp('^Zone de recherche')));
+        await tester.pumpAndSettle();
+        await tapText(tester, 'Utiliser ma position');
+        expect(find.byType(LocationPromptScreen), findsOneWidget);
+        await tapText(tester, allow ? 'Autoriser la localisation' : 'Refuser');
+        expect(find.byType(LocationPromptScreen), findsNothing);
+        expect(app.location.requests, allow ? 1 : 0);
+        if (allow) {
+          expect(find.text('Ma position'), findsOneWidget);
+        } else {
+          expect(
+            find.text('Position non autorisée. Choisissez votre quartier.'),
+            findsWidgets,
+          );
+        }
+      });
+    }
+
+    testWidgets('« Utiliser ma position » déjà autorisée : pas d\'écran', (
+      tester,
+    ) async {
+      await app.launch(tester);
+      await tester.tap(find.bySemanticsLabel(RegExp('^Zone de recherche')));
+      await tester.pumpAndSettle();
+      await tapText(tester, 'Utiliser ma position');
+      expect(find.byType(LocationPromptScreen), findsNothing);
+      expect(find.text('Ma position'), findsOneWidget);
+    });
   });
 }

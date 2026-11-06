@@ -121,7 +121,7 @@ class IviaLocationPrompt extends StatelessWidget {
   final VoidCallback onAllow;
   final VoidCallback onRefuse;
 
-  /// Demande en cours : boutons désactivés, indicateur dans le bouton.
+  /// Demande en cours : « Autoriser » occupé ; « Refuser » reste actif.
   final bool busy;
 
   @override
@@ -129,7 +129,12 @@ class IviaLocationPrompt extends StatelessWidget {
     final text = Theme.of(context).textTheme;
     final width = MediaQuery.sizeOf(context).width;
     return AnnotatedRegion<SystemUiOverlayStyle>(
-      value: SystemUiOverlayStyle.light,
+      // Icônes claires sur le panneau ; barre de navigation Android blanche,
+      // comme le bas de l'écran.
+      value: SystemUiOverlayStyle.light.copyWith(
+        systemNavigationBarColor: IviaColors.surface,
+        systemNavigationBarIconBrightness: Brightness.dark,
+      ),
       child: Scaffold(
         backgroundColor: IviaColors.surface,
         body: SingleChildScrollView(
@@ -239,8 +244,10 @@ class IviaLocationPrompt extends StatelessWidget {
                         label: const Text('Autoriser la localisation'),
                       ),
                       const SizedBox(height: IviaSpacing.sm),
+                      // Actif pendant la demande : une fenêtre du système
+                      // sans réponse ne bloque jamais l'écran.
                       TextButton(
-                        onPressed: busy ? null : onRefuse,
+                        onPressed: onRefuse,
                         style: TextButton.styleFrom(
                           foregroundColor: IviaColors.textSecondary,
                         ),
