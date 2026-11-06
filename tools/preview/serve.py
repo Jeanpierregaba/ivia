@@ -15,10 +15,30 @@ TITLE = sys.argv[3] if len(sys.argv) > 3 else "ivia"
 FRAME = os.path.join(os.path.dirname(os.path.abspath(__file__)), "iphone17.html")
 API = "http://localhost:8080"
 
+# Service worker de remplacement : Flutter en installe un qui garde les anciens builds en cache, et
+# l'aperçu doit toujours montrer le dernier. Celui-ci vide le cache puis se retire. La page ne se
+# recharge que si un cache a été vidé : sinon, elle se rechargerait sans fin.
+NO_SERVICE_WORKER = b"""
+self.addEventListener('install', () => self.skipWaiting());
+self.addEventListener('activate', (event) => event.waitUntil((async () => {
+  const names = await caches.keys();
+  await Promise.all(names.map((name) => caches.delete(name)));
+  await self.registration.unregister();
+  if (names.length > 0) {
+    const pages = await self.clients.matchAll({ type: 'window' });
+    pages.forEach((page) => page.navigate(page.url));
+  }
+})()));
+"""
+
 
 class Handler(http.server.SimpleHTTPRequestHandler):
     def __init__(self, *a, **kw):
         super().__init__(*a, directory=WEB, **kw)
+
+    def end_headers(self):
+        self.send_header("Cache-Control", "no-store")
+        super().end_headers()
 
     def log_message(self, *args):  # pas de journal (jetons dans les en-têtes)
         pass
@@ -69,6 +89,13 @@ class Handler(http.server.SimpleHTTPRequestHandler):
             self.send_header("Content-Length", str(len(data)))
             self.end_headers()
             self.wfile.write(data)
+            return
+        if self.path.split("?")[0] == "/flutter_service_worker.js":
+            self.send_response(200)
+            self.send_header("Content-Type", "text/javascript")
+            self.send_header("Content-Length", str(len(NO_SERVICE_WORKER)))
+            self.end_headers()
+            self.wfile.write(NO_SERVICE_WORKER)
             return
         if self.command == "GET":
             # Routes de l'app (go_router) : index.html.
