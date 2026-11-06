@@ -8,6 +8,7 @@ import '../../common/ui.dart';
 import '../push/push.dart';
 import 'application_screen.dart';
 import 'step_details.dart';
+import 'step_documents.dart';
 
 /// Nombre d'étapes du dossier : fiche, carte, pièces, planning, versement.
 const dossierSteps = 5;
@@ -37,6 +38,9 @@ class _ApplicationFlowState extends ConsumerState<ApplicationFlow> {
 
   /// Devanture choisie à l'étape 1, envoyée une fois la pharmacie créée.
   Uint8List? _storefront;
+
+  /// « Je certifie… » (étape 3), gardé en revenant en arrière.
+  var _certified = false;
 
   void _back() {
     switch (_step) {
@@ -70,6 +74,14 @@ class _ApplicationFlowState extends ConsumerState<ApplicationFlow> {
     } else if (profile == null) {
       // Pharmacie tout juste créée : relecture en cours.
       body = const Center(child: CircularProgressIndicator());
+    } else if (_step == 3) {
+      body = DocumentsStep(
+        profile: profile,
+        certified: _certified,
+        onCertified: (v) => setState(() => _certified = v),
+        onNext: () => setState(() => _step = 4),
+        header: _header('Documents'),
+      );
     } else {
       body = DossierHub(
         profile: profile,

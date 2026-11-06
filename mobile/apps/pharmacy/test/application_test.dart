@@ -3,6 +3,7 @@ import 'package:flutter_test/flutter_test.dart';
 import 'package:ivia_api_client/ivia_api_client.dart';
 import 'package:ivia_api_client/testing.dart';
 import 'package:ivia_app_core/ivia_app_core.dart';
+import 'package:ivia_pharmacy/common/ui.dart';
 import 'package:ivia_pharmacy/features/application/application_flow.dart';
 
 import 'helpers.dart';
@@ -238,6 +239,70 @@ void main() {
         scrollable: find.byType(Scrollable).first,
       );
       expect(tester.takeException(), isNull);
+    });
+  });
+
+  group('étape 3 (F07)', () {
+    /// Pièces reçues par le faux serveur.
+    late List<String> docs;
+
+    setUp(() {
+      docs = ['storefront_photo'];
+      profile = pharmacyBody(documents: docs);
+      app.server.on('POST', '/v1/pharmacy/me/documents', (r) {
+        docs.add((r.body as Map)['kind'] as String);
+        profile = pharmacyBody(documents: docs);
+        return FakeResponse.json(201, {});
+      });
+    });
+
+    PButton continueButton(WidgetTester tester) =>
+        tester.widget<PButton>(find.widgetWithText(PButton, 'Continuer'));
+
+    testWidgets('brouillon : reprise aux pièces, envoi, case obligatoire', (
+      tester,
+    ) async {
+      await app.launch(tester);
+      expect(find.text('Documents'), findsOneWidget);
+      expect(find.text('3 sur 5'), findsOneWidget);
+      expect(find.text('Vérification de la pharmacie'), findsOneWidget);
+      // Devanture déjà reçue : pas de ligne.
+      expect(find.text('Photo de la devanture'), findsNothing);
+      expect(continueButton(tester).onTap, isNull);
+
+      for (final label in [
+        "Autorisation d'exercice",
+        "Pièce d'identité du titulaire",
+      ]) {
+        await tapText(tester, label);
+        await tapText(tester, 'Prendre une photo');
+      }
+      expect(docs, ['storefront_photo', 'opening_authorization', 'owner_id']);
+      expect(find.text('Ajouté'), findsNWidgets(2));
+      // Pièces complètes, case pas cochée : toujours grisé.
+      expect(continueButton(tester).onTap, isNull);
+      await tapText(
+        tester,
+        'Je certifie être titulaire ou gérant de cette pharmacie.',
+      );
+      expect(continueButton(tester).onTap, isNotNull);
+      await tapText(tester, 'Continuer');
+      expect(find.text('3 sur 5'), findsNothing);
+    });
+
+    testWidgets('devanture pas partie : redemandée ici', (tester) async {
+      docs = [];
+      profile = pharmacyBody(documents: docs);
+      await app.launch(tester);
+      expect(find.text('Photo de la devanture'), findsOneWidget);
+    });
+
+    testWidgets('retour : la fiche', (tester) async {
+      await app.launch(tester);
+      await tester.tap(find.bySemanticsLabel('Retour'));
+      await tester.pumpAndSettle();
+      expect(find.text('1 sur 5'), findsOneWidget);
+      expect(app.server.calls('POST', '/v1/auth/logout'), isEmpty);
     });
   });
 }
