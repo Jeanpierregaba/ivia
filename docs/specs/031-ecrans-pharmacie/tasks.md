@@ -21,7 +21,7 @@
       partenaires, titre selon le canal, « Valider »). Un test vérifie que l'acheteur ne change pas.
 
 **Dossier**
-- [ ] 6. Cadre des 5 étapes (en-tête, pastille « n sur 5 », retour, reprise d'un brouillon).
+- [x] 6. Cadre des 5 étapes (en-tête, pastille « n sur 5 », retour, reprise d'un brouillon).
       Étape 1 (fiche et photo de devanture) et étape 2 (carte), puis création et envoi de la photo.
 - [ ] 7. Étape 3 : pièces et case « Je certifie… ». La devanture est redemandée si son envoi a
       échoué.

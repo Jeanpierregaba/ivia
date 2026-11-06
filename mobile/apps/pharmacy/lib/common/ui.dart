@@ -578,6 +578,49 @@ class PErrorRetry extends StatelessWidget {
   );
 }
 
+/// Formulaires des maquettes (F06, F07) : champs blancs sans bord, bord vert
+/// quand ils sont actifs, libellés de 15 dp. S'applique aux champs communs
+/// (numéro, listes) placés dessous.
+class PFormTheme extends StatelessWidget {
+  const PFormTheme({super.key, required this.child});
+  final Widget child;
+
+  static OutlineInputBorder _border(Color? color, [double width = 1]) =>
+      OutlineInputBorder(
+        borderRadius: BorderRadius.circular(16),
+        borderSide: color == null
+            ? BorderSide.none
+            : BorderSide(color: color, width: width),
+      );
+
+  @override
+  Widget build(BuildContext context) {
+    final theme = Theme.of(context);
+    return Theme(
+      data: theme.copyWith(
+        textTheme: theme.textTheme.copyWith(
+          labelMedium: IviaTextStyles.bodyStrong,
+        ),
+        inputDecorationTheme: theme.inputDecorationTheme.copyWith(
+          filled: true,
+          fillColor: Colors.white,
+          contentPadding: const EdgeInsets.symmetric(
+            horizontal: 16,
+            vertical: 15,
+          ),
+          border: _border(null),
+          enabledBorder: _border(null),
+          disabledBorder: _border(null),
+          focusedBorder: _border(P.green, 2),
+          errorBorder: _border(P.danger, 1.5),
+          focusedErrorBorder: _border(P.danger, 2),
+        ),
+      ),
+      child: child,
+    );
+  }
+}
+
 /// Message de l'erreur d'une liste ; `null` si elle a été lue.
 String? errorOf(AsyncValue<Object?> value) => switch (value.error) {
   null => null,

@@ -89,7 +89,10 @@ final routerProvider = Provider<GoRouter>((ref) {
         AuthSignedOut() => const [Routes.login, Routes.code, Routes.signup],
         AuthOffline() => const [Routes.offline],
         AuthNeedsProfile() => const [Routes.welcome],
-        AuthSignedIn() when profile.isLoading => const [Routes.splash],
+        // Relecture du dossier (après un envoi) : l'écran reste en place.
+        AuthSignedIn() when profile.isLoading && !profile.hasValue => const [
+          Routes.splash,
+        ],
         AuthSignedIn() when profile.value?.approved == true && askAlerts =>
           const [Routes.permissions],
         AuthSignedIn() when profile.value?.approved == true => const [

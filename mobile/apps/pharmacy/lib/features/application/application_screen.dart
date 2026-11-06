@@ -7,25 +7,22 @@ import 'package:ivia_ui/ivia_ui.dart';
 import '../../common/providers.dart';
 import '../../common/ui.dart';
 import '../push/push.dart';
+import 'application_flow.dart';
 import 'payout_screen.dart';
 import '../planning/planning_screen.dart';
 
-final _neighborhoodsProvider = FutureProvider.autoDispose(
-  (ref) => ref.read(apiClientProvider).neighborhoods(),
-);
-
-/// Inscription : fiche, carte, pièces, planning de garde, versement, envoi.
-/// Le statut du dossier décide de l'écran.
+/// Inscription : le statut du dossier décide de l'écran. Brouillon,
+/// compléments ou refus : les 5 étapes ; envoyé ou suspendu : l'attente.
 class ApplicationScreen extends ConsumerWidget {
   const ApplicationScreen({super.key});
 
   @override
   Widget build(BuildContext context, WidgetRef ref) {
     final profile = ref.watch(pharmacyProfileProvider).value;
-    if (profile == null) return const PharmacyFormScreen();
-    return profile.editable
-        ? _Dossier(profile: profile)
-        : _Waiting(profile: profile);
+    if (profile == null || profile.editable) {
+      return ApplicationFlow(profile: profile);
+    }
+    return _Waiting(profile: profile);
   }
 }
 
@@ -62,204 +59,21 @@ class _Frame extends ConsumerWidget {
   );
 }
 
-/// Fiche de la pharmacie puis placement sur la carte.
-class PharmacyFormScreen extends ConsumerStatefulWidget {
-  const PharmacyFormScreen({super.key, this.profile});
-  final PharmacyProfile? profile;
-
-  @override
-  ConsumerState<PharmacyFormScreen> createState() => _PharmacyFormScreenState();
-}
-
-class _PharmacyFormScreenState extends ConsumerState<PharmacyFormScreen> {
-  late final _name = TextEditingController(text: widget.profile?.name);
-  late final _license = TextEditingController(
-    text: widget.profile?.licenseNumber,
-  );
-  late final _phone = TextEditingController(
-    text: (widget.profile?.phone ?? '').replaceFirst('+228', ''),
-  );
-  late final _email = TextEditingController(text: widget.profile?.email);
-  late final _address = TextEditingController(
-    text: widget.profile?.addressText,
-  );
-  late final _hours = TextEditingController(
-    text: widget.profile?.openingHours ?? 'Lun-Sam 8 h - 21 h',
-  );
-  late String? _neighborhood = widget.profile?.neighborhoodId;
-  late var _center = GeoPoint(
-    lat: widget.profile?.lat ?? 6.1480,
-    lng: widget.profile?.lng ?? 1.2150,
-  );
-  var _errors = <String, String>{};
-  var _busy = false;
-
-  @override
-  void dispose() {
-    for (final c in [_name, _license, _phone, _email, _address, _hours]) {
-      c.dispose();
-    }
-    super.dispose();
-  }
-
-  /// Étape 2 : l'emplacement, puis l'enregistrement de la fiche.
-  Future<void> _place() async {
-    final picked = await Navigator.of(context).push<PickedPlace>(
-      MaterialPageRoute(
-        builder: (_) => PlacePickerScreen(
-          initial: widget.profile == null ? null : _center,
-          title: 'Placez votre pharmacie',
-          hint: 'Étape 2 sur 5 · Mettez le repère sur votre porte : les patients vous trouvent à cet endroit.',
-          confirmLabel: 'Confirmer cet emplacement',
-        ),
-      ),
-    );
-    if (picked == null || !mounted) return;
-    _center = picked.point;
-    await _save();
-  }
-
-  Future<void> _save() async {
-    setState(() {
-      _busy = true;
-      _errors = {};
-    });
-    final navigator = Navigator.of(context);
-    try {
-      await ref
-          .read(apiClientProvider)
-          .pharmacyApply(
-            name: _name.text.trim(),
-            licenseNumber: _license.text.trim(),
-            phone: '+228${togoPhoneDigits(_phone.text)}',
-            email: _email.text.trim(),
-            addressText: _address.text.trim(),
-            neighborhoodId: _neighborhood,
-            location: _center,
-            openingHours: _hours.text.trim(),
-          );
-      ref.invalidate(pharmacyProfileProvider);
-      if (widget.profile != null && mounted) navigator.pop();
-    } on ApiException catch (e) {
-      // Une erreur sur la fiche ramène au formulaire.
-      if (mounted) {
-        setState(
-          () => _errors = e.fields.isEmpty ? {'name': e.message} : e.fields,
-        );
-      }
-    } finally {
-      if (mounted) setState(() => _busy = false);
-    }
-  }
-
-  Widget _field(
-    String key,
-    String label,
-    TextEditingController c, {
-    String? hint,
-  }) => Padding(
-    padding: const EdgeInsets.only(bottom: 14),
-    child: IviaFieldLabel(
-      label: label,
-      child: TextField(
-        controller: c,
-        decoration: InputDecoration(hintText: hint, errorText: _errors[key]),
-      ),
-    ),
-  );
-
-  Widget _form(TextTheme t) {
-    final hoods = ref.watch(_neighborhoodsProvider).value ?? const <Choice>[];
-    return Column(
-      crossAxisAlignment: CrossAxisAlignment.stretch,
-      children: [
-        const PTitle('Votre ', 'pharmacie'),
-        const SizedBox(height: 8),
-        Text(
-          'Étape 1 sur 5 · Les patients autour de vous vous envoient leurs alertes médicament. Vous recevrez la validation à cette adresse e-mail.',
-          style: t.bodyMedium?.copyWith(color: P.muted),
-        ),
-        const SizedBox(height: 20),
-        _field(
-          'name',
-          'Nom de la pharmacie',
-          _name,
-          hint: 'Pharmacie du Boulevard',
-        ),
-        _field('license_number', 'Numéro d\'autorisation', _license),
-        Padding(
-          padding: const EdgeInsets.only(bottom: 14),
-          child: TogoPhoneField(
-            label: 'Téléphone de la pharmacie',
-            controller: _phone,
-            errorText: _errors['phone'],
-          ),
-        ),
-        _field(
-          'email',
-          'E-mail de la pharmacie',
-          _email,
-          hint: 'contact@pharmacie.tg',
-        ),
-        _field('address_text', 'Adresse', _address, hint: 'Rue, repère'),
-        Padding(
-          padding: const EdgeInsets.only(bottom: 14),
-          child: IviaFieldLabel(
-            label: 'Quartier',
-            child: DropdownButtonFormField<String>(
-              initialValue: hoods.any((h) => h.id == _neighborhood)
-                  ? _neighborhood
-                  : null,
-              items: [
-                for (final h in hoods)
-                  DropdownMenuItem(value: h.id, child: Text(h.name)),
-              ],
-              onChanged: (v) => setState(() => _neighborhood = v),
-            ),
-          ),
-        ),
-        _field('opening_hours', 'Horaires', _hours),
-        PButton(
-          label: 'Placer sur la carte',
-          icon: Icons.place_outlined,
-          busy: _busy,
-          onTap: _place,
-        ),
-      ],
-    );
-  }
-
-  @override
-  Widget build(BuildContext context) {
-    final t = Theme.of(context).textTheme;
-    final body = _form(t);
-    if (widget.profile != null) {
-      return Scaffold(
-        backgroundColor: P.page,
-        appBar: AppBar(
-          backgroundColor: P.page,
-          title: const Text('Ma pharmacie'),
-        ),
-        body: ListView(
-          padding: const EdgeInsets.all(IviaSpacing.screen),
-          children: [body],
-        ),
-      );
-    }
-    return _Frame(children: [body]);
-  }
-}
-
-/// Pièces, planning, versement et envoi.
-class _Dossier extends ConsumerStatefulWidget {
-  const _Dossier({required this.profile});
+/// Pièces, planning, versement et envoi (étapes 3 à 5, avant leur écran).
+class DossierHub extends ConsumerStatefulWidget {
+  const DossierHub({
+    super.key,
+    required this.profile,
+    required this.onEditDetails,
+  });
   final PharmacyProfile profile;
+  final VoidCallback onEditDetails;
 
   @override
-  ConsumerState<_Dossier> createState() => _DossierState();
+  ConsumerState<DossierHub> createState() => _DossierHubState();
 }
 
-class _DossierState extends ConsumerState<_Dossier> {
+class _DossierHubState extends ConsumerState<DossierHub> {
   String? _uploading;
   var _busy = false;
 
@@ -404,7 +218,7 @@ class _DossierState extends ConsumerState<_Dossier> {
           title: 'Fiche et position',
           sub: p.addressText,
           action: 'Modifier',
-          onTap: () => open(PharmacyFormScreen(profile: p)),
+          onTap: widget.onEditDetails,
         ),
         const SizedBox(height: 6),
         Text(
