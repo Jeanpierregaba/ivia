@@ -9,6 +9,7 @@ import 'package:flutter_test/flutter_test.dart';
 import 'package:ivia_api_client/ivia_api_client.dart';
 import 'package:ivia_api_client/testing.dart';
 import 'package:ivia_app_core/ivia_app_core.dart';
+import 'package:ivia_app_core/testing.dart';
 import 'package:ivia_seller/app/device_services.dart';
 import 'package:ivia_seller/app/identity.dart';
 import 'package:ivia_seller/app/router.dart';
@@ -35,23 +36,8 @@ class _FakePicker implements PhotoPicker {
   }) async => next;
 }
 
-class _FakeLocation implements LocationService {
-  var settingsOpened = 0;
-
-  @override
-  Future<bool> openSettings() async {
-    settingsOpened++;
-    return true;
-  }
-
-  LocationResult next = const LocationResult.found(_lome);
-  Exception? error;
-
-  @override
-  Future<LocationResult> current() async {
-    if (error case final e?) throw e;
-    return next;
-  }
+class _FakeLocation extends FakeLocationService {
+  _FakeLocation() : super(next: const LocationResult.found(_lome));
 }
 
 /// Utilisateur renvoyé par le serveur, avec ou sans rôle seller.

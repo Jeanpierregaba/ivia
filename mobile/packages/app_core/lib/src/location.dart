@@ -16,8 +16,29 @@ class LocationResult {
   final LocationFailure? failure;
 }
 
-/// Position du téléphone, demandée seulement quand l'utilisateur la veut.
+/// Autorisation de la position pour l'app.
+enum LocationAccess {
+  granted,
+
+  /// Pas encore demandée, ou refusée mais encore demandable.
+  askable,
+
+  /// Le système ne demandera plus : seuls les réglages peuvent l'accorder.
+  deniedForever,
+}
+
+/// Position du téléphone. La fenêtre du système n'est ouverte que par
+/// [request], appelé par l'écran d'autorisation (`askForLocation`) : une
+/// lecture ([current]) ne demande jamais rien.
 abstract interface class LocationService {
+  /// État de l'autorisation, sans rien demander.
+  Future<LocationAccess> access();
+
+  /// Fenêtre du système ; renvoie l'état obtenu.
+  Future<LocationAccess> request();
+
+  /// Position, seulement si elle est autorisée (sinon `denied` ou
+  /// `deniedForever`).
   Future<LocationResult> current();
 
   /// Réglages de l'app (position refusée définitivement) ; `false` si
@@ -42,25 +63,45 @@ class DeviceLocationService implements LocationService {
     }
   }
 
+  static LocationAccess _of(LocationPermission permission) =>
+      switch (permission) {
+        LocationPermission.always ||
+        LocationPermission.whileInUse => LocationAccess.granted,
+        LocationPermission.deniedForever => LocationAccess.deniedForever,
+        _ => LocationAccess.askable,
+      };
+
+  @override
+  Future<LocationAccess> access() async {
+    try {
+      return _of(await Geolocator.checkPermission());
+    } on Exception {
+      return LocationAccess.askable;
+    }
+  }
+
+  @override
+  Future<LocationAccess> request() async {
+    try {
+      return _of(await Geolocator.requestPermission());
+    } on Exception {
+      // Demande déjà en cours, erreur de la plateforme : rien d'accordé.
+      return LocationAccess.askable;
+    }
+  }
+
   @override
   Future<LocationResult> current() async {
+    switch (await access()) {
+      case LocationAccess.askable:
+        return const LocationResult.failed(LocationFailure.denied);
+      case LocationAccess.deniedForever:
+        return const LocationResult.failed(LocationFailure.deniedForever);
+      case LocationAccess.granted:
+        break;
+    }
     if (!await Geolocator.isLocationServiceEnabled()) {
       return const LocationResult.failed(LocationFailure.serviceDisabled);
-    }
-    LocationPermission permission;
-    try {
-      permission = await Geolocator.checkPermission();
-      if (permission == LocationPermission.denied) {
-        permission = await Geolocator.requestPermission();
-      }
-    } on Exception {
-      return const LocationResult.failed(LocationFailure.unavailable);
-    }
-    if (permission == LocationPermission.denied) {
-      return const LocationResult.failed(LocationFailure.denied);
-    }
-    if (permission == LocationPermission.deniedForever) {
-      return const LocationResult.failed(LocationFailure.deniedForever);
     }
     try {
       final position = await Geolocator.getCurrentPosition(

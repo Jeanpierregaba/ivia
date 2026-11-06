@@ -8,6 +8,7 @@ docs/specs/NNN-nom/tasks.md. Les petites tâches isolées (bug, retouche) peuven
 
 ## En cours
 
+- [ ] 030 — Écran d'autorisation de la localisation, 4 apps ([spec](docs/specs/030-autorisation-localisation/spec.md))
 - [ ] **ADR 0011 — connexion par mot de passe** (2026-11-03) : backend fait (création de compte par code puis mot de passe, connexion, verrou après 10 échecs, mot de passe oublié, changement de mot de passe, Google, double vérification des admins, migration 00024, tests). Back-office fait (maquettes B01, B02, B03 : mot de passe puis code, tableau de bord dynamique). Apps mobiles : passées à la connexion par numéro (ADR 0012), la 029 (e-mail, mot de passe, Google) en est retirée (2026-11-06). Reste : suppression côté serveur des routes de connexion par e-mail et par Google des apps (Gedeon) une fois les apps publiées
 - [ ] 018 — Espace livreur : lancement, connexion, dossier de candidature ([spec](docs/specs/018-espace-livreur/spec.md)) : relu et corrigé ; appareil photo à vérifier sur un vrai téléphone
 - [ ] 004 — Espace marchand : lancement, connexion, création de la boutique ([spec](docs/specs/004-espace-marchand/spec.md)) : relu et corrigé ; reste les clés Google Maps (vérification de la carte)

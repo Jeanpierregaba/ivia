@@ -4,32 +4,14 @@ import 'package:flutter_riverpod/flutter_riverpod.dart';
 import 'package:flutter_test/flutter_test.dart';
 import 'package:ivia_api_client/ivia_api_client.dart';
 import 'package:ivia_app_core/ivia_app_core.dart';
+import 'package:ivia_app_core/testing.dart';
 import 'package:ivia_buyer/app/buyer_area.dart';
 import 'package:shared_preferences/shared_preferences.dart';
 
 const _lome = GeoPoint(lat: 6.1375, lng: 1.2123);
 
-class _FakeLocation implements LocationService {
-  var settingsOpened = 0;
-
-  @override
-  Future<bool> openSettings() async {
-    settingsOpened++;
-    return true;
-  }
-
-  LocationResult next = const LocationResult.found(_lome);
-  var calls = 0;
-
-  /// Réponse retenue (GPS lent) ; `null` : immédiate.
-  Completer<LocationResult>? pending;
-
-  @override
-  Future<LocationResult> current() async {
-    calls++;
-    if (pending case final p?) return p.future;
-    return next;
-  }
+class _FakeLocation extends FakeLocationService {
+  _FakeLocation() : super(next: const LocationResult.found(_lome));
 }
 
 void main() {

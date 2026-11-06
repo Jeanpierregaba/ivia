@@ -8,6 +8,7 @@ import 'package:flutter_test/flutter_test.dart';
 import 'package:ivia_api_client/ivia_api_client.dart';
 import 'package:ivia_api_client/testing.dart';
 import 'package:ivia_app_core/ivia_app_core.dart';
+import 'package:ivia_app_core/testing.dart';
 import 'package:ivia_buyer/app/buyer_area.dart';
 import 'package:ivia_buyer/app/identity.dart';
 import 'package:ivia_buyer/features/search/search_state.dart';
@@ -26,15 +27,9 @@ const _signupRequired = {
   'signup_expires_at': '2026-11-05T10:15:00Z',
 };
 
-class _DeniedLocation implements LocationService {
-  const _DeniedLocation();
-
-  @override
-  Future<bool> openSettings() async => true;
-
-  @override
-  Future<LocationResult> current() async =>
-      const LocationResult.failed(LocationFailure.denied);
+class _DeniedLocation extends FakeLocationService {
+  _DeniedLocation()
+    : super(next: const LocationResult.failed(LocationFailure.denied));
 }
 
 void main() {
@@ -83,7 +78,7 @@ void main() {
           onboardingStoreProvider.overrideWithValue(store),
           areaStoreProvider.overrideWithValue(area),
           // Jamais le GPS du poste de test : position refusée.
-          locationServiceProvider.overrideWithValue(const _DeniedLocation()),
+          locationServiceProvider.overrideWithValue(_DeniedLocation()),
           appIdentityProvider.overrideWithValue(buyerIdentity),
           apiClientProvider.overrideWithValue(
             IviaApiClient(

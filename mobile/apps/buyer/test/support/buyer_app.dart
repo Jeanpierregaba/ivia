@@ -6,6 +6,7 @@ import 'package:flutter_test/flutter_test.dart';
 import 'package:ivia_api_client/ivia_api_client.dart';
 import 'package:ivia_api_client/testing.dart';
 import 'package:ivia_app_core/ivia_app_core.dart';
+import 'package:ivia_app_core/testing.dart';
 import 'package:ivia_buyer/app/buyer_area.dart';
 import 'package:ivia_buyer/app/identity.dart';
 import 'package:ivia_buyer/features/payment/payment_providers.dart';
@@ -16,23 +17,8 @@ import 'package:shared_preferences/shared_preferences.dart';
 const lomeTokoin = GeoPoint(lat: 6.1375, lng: 1.2123);
 
 /// Position simulée du téléphone.
-class FakeLocation implements LocationService {
-  var settingsOpened = 0;
-
-  @override
-  Future<bool> openSettings() async {
-    settingsOpened++;
-    return true;
-  }
-
-  LocationResult next = const LocationResult.found(lomeTokoin);
-  var calls = 0;
-
-  @override
-  Future<LocationResult> current() async {
-    calls++;
-    return next;
-  }
+class FakeLocation extends FakeLocationService {
+  FakeLocation() : super(next: const LocationResult.found(lomeTokoin));
 }
 
 /// App acheteur connectée (Awa, profil complet), recherche, panier,

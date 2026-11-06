@@ -10,6 +10,7 @@ import 'package:go_router/go_router.dart';
 import 'package:ivia_api_client/ivia_api_client.dart';
 import 'package:ivia_api_client/testing.dart';
 import 'package:ivia_app_core/ivia_app_core.dart';
+import 'package:ivia_app_core/testing.dart';
 import 'package:ivia_ui/ivia_ui.dart';
 import 'package:ivia_seller/app/device_services.dart';
 import 'package:ivia_seller/app/identity.dart';
@@ -20,14 +21,7 @@ import 'package:ivia_seller/features/orders/orders_screen.dart';
 import 'package:ivia_seller/main.dart';
 import 'package:shared_preferences/shared_preferences.dart';
 
-class _NoLocation implements LocationService {
-  @override
-  Future<bool> openSettings() async => true;
-
-  @override
-  Future<LocationResult> current() async =>
-      const LocationResult.found(GeoPoint(lat: 6.1375, lng: 1.2123));
-}
+class _NoLocation extends FakeLocationService {}
 
 /// Texte affiché, espaces typographiques remplacés (« 10 500 F »).
 Finder textPlain(String text) => find.byWidgetPredicate(
