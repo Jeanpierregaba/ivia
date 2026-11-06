@@ -2620,3 +2620,68 @@ class FakePromo {
   Iterable<Map<String, dynamic>> of(String kind) =>
       events.where((e) => e['kind'] == kind);
 }
+
+/// Espace Ivia Business type (schéma `BusinessSpace`) : boutique active liée
+/// à [shopBody] par défaut.
+Map<String, dynamic> businessSpaceBody({
+  String id = 'b5a7c3e1-2d4f-4a6b-8c9d-0e1f2a3b4c5d',
+  String sector = 'shop',
+  String status = 'active',
+  String name = 'Chez Afi',
+  String? shopId = '0b8e7f52-6a1c-4c3e-8f0d-2a9b7c6d5e4f',
+}) => {
+  'id': id,
+  'sector': sector,
+  'name': name,
+  'details': const <String, dynamic>{},
+  'logo_url': null,
+  'photo_urls': const <String>[],
+  'shop_id': shopId,
+  'status': status,
+  'status_reason': '',
+  'access': status == 'active' ? 'full' : 'correction',
+  'payout': null,
+  'documents': const <Map<String, dynamic>>[],
+  'missing_documents': const <String>[],
+};
+
+/// Espaces Ivia Business en mémoire branchés sur un [FakeApiServer] : liste,
+/// espace ouvert par la session, ouverture et fermeture.
+class FakeBusiness {
+  FakeBusiness(this.server, {List<Map<String, dynamic>>? spaces})
+    : spaces = spaces ?? [businessSpaceBody()] {
+    server
+      ..on(
+        'GET',
+        '/v1/business/spaces',
+        (_) => FakeResponse.json(200, {'items': this.spaces}),
+      )
+      ..on(
+        'GET',
+        '/v1/business/session',
+        (_) => FakeResponse.json(200, {'space': opened}),
+      )
+      ..on('DELETE', '/v1/business/session', (_) {
+        openedId = null;
+        return FakeResponse.json(204, null);
+      })
+      ..onPattern('POST', r'/v1/business/spaces/[^/]+/open', (r) {
+        final id = r.path.split('/')[4];
+        final space = this.spaces.where((s) => s['id'] == id).firstOrNull;
+        if (space == null) {
+          return FakeResponse.error(404, 'not_found', 'Espace introuvable.');
+        }
+        openedId = id;
+        return FakeResponse.json(200, space);
+      });
+  }
+
+  final FakeApiServer server;
+  final List<Map<String, dynamic>> spaces;
+
+  /// Espace lié à la session ; `null` : aucun (un seul espace s'ouvre seul).
+  String? openedId;
+
+  Map<String, dynamic>? get opened =>
+      spaces.where((s) => s['id'] == openedId).firstOrNull;
+}

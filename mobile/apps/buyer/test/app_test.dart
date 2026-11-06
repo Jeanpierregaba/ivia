@@ -1048,7 +1048,7 @@ void main() {
     expect(find.text('Awa Mensah'), findsOneWidget);
     expect(find.text('+228 90 12 34 56'), findsOneWidget);
     await tapText(tester, 'Ouvrir une boutique');
-    expect(find.textContaining('ivia Marchand'), findsWidgets);
+    expect(find.textContaining('Ivia Business'), findsWidgets);
   });
 
   testWidgets('autre compte : filtres de recherche remis à zéro', (

@@ -12,6 +12,7 @@ import 'package:ivia_api_client/testing.dart';
 import 'package:ivia_app_core/ivia_app_core.dart';
 import 'package:ivia_app_core/testing.dart';
 import 'package:ivia_ui/ivia_ui.dart';
+import 'package:ivia_seller/features/business/pro_ui.dart';
 import 'package:ivia_seller/app/device_services.dart';
 import 'package:ivia_seller/app/identity.dart';
 import 'package:ivia_seller/app/router.dart';
@@ -55,12 +56,31 @@ void main() {
       ..on('GET', '/v1/me', (_) => FakeResponse.json(200, seller()))
       ..on('POST', '/v1/auth/logout', (_) => FakeResponse.json(204, null));
     withShop('published');
+    FakeBusiness(server);
     FakeCatalog(server);
     orders = FakeSellerOrders(server);
     await SessionStore().save('jeton-secret', User.fromJson(seller()));
   });
 
+  /// Onglet de la barre du bas (l'icône peut aussi figurer dans l'écran).
+  Finder dockTab(IconData icon) =>
+      find.descendant(of: find.byType(ProDock), matching: find.byIcon(icon));
+
+  /// Libellé lu d'un onglet de la barre du bas (pastille comprise).
+  Finder dockLabel(String label) => find.descendant(
+    of: find.byType(ProDock),
+    matching: find.bySemanticsLabel(label),
+  );
+
+  /// Texte affiché dans la barre du bas (pastille).
+  Finder dockText(String text) =>
+      find.descendant(of: find.byType(ProDock), matching: find.text(text));
+
   Future<void> launch(WidgetTester tester, {bool settle = true}) async {
+    // Animations réduites : le point « en direct » du pilotage s'arrête.
+    tester.platformDispatcher.accessibilityFeaturesTestValue =
+        const FakeAccessibilityFeatures(disableAnimations: true);
+    addTearDown(tester.platformDispatcher.clearAccessibilityFeaturesTestValue);
     final store = await OnboardingStore.open();
     await tester.pumpWidget(
       ProviderScope(
@@ -117,7 +137,7 @@ void main() {
     ) async {
       final semantics = tester.ensureSemantics();
       await launch(tester);
-      expect(find.bySemanticsLabel('Commandes'), findsOneWidget);
+      expect(dockLabel('Commandes'), findsOneWidget);
 
       orders.add();
       await tester.pump(const Duration(seconds: 29));
@@ -125,13 +145,13 @@ void main() {
       await tester.pump(const Duration(seconds: 1));
       await tester.pumpAndSettle();
       expect(lists(), hasLength(2));
-      expect(find.bySemanticsLabel('Commandes, 1 nouvelle'), findsOneWidget);
-      expect(find.text('1'), findsOneWidget);
+      expect(dockLabel('Commandes, 1 nouvelle'), findsOneWidget);
+      expect(dockText('1'), findsOneWidget);
 
       orders.add();
       await tester.pump(const Duration(seconds: 30));
       await tester.pumpAndSettle();
-      expect(find.bySemanticsLabel('Commandes, 2 nouvelles'), findsOneWidget);
+      expect(dockLabel('Commandes, 2 nouvelles'), findsOneWidget);
 
       // Acceptée ailleurs : plus nouvelle, pastille retirée au passage
       // suivant.
@@ -140,7 +160,7 @@ void main() {
       }
       await tester.pump(const Duration(seconds: 30));
       await tester.pumpAndSettle();
-      expect(find.bySemanticsLabel('Commandes'), findsOneWidget);
+      expect(dockLabel('Commandes'), findsOneWidget);
       semantics.dispose();
     });
 
@@ -164,7 +184,7 @@ void main() {
       ]);
       await tester.pumpAndSettle();
       expect(lists(), hasLength(2));
-      expect(find.text('1'), findsOneWidget);
+      expect(dockText('1'), findsOneWidget);
 
       // Puis de nouveau toutes les 30 s.
       await tester.pump(const Duration(seconds: 30));
@@ -183,7 +203,7 @@ void main() {
         // Commande en cours annulée par l'admin : vue à l'ouverture de
         // l'onglet (liste complète).
         orders.cancel(active, "Annulée par l'équipe ivia.");
-        await tester.tap(find.byIcon(Icons.receipt_long_outlined));
+        await tester.tap(dockTab(Icons.receipt_long_outlined));
         await tester.pumpAndSettle();
         expect(lists().last.query.containsKey('status'), isFalse);
         await tester.tap(find.textContaining('Terminées').first);
@@ -197,12 +217,12 @@ void main() {
     ) async {
       final id = orders.add()['id'] as String;
       await launch(tester);
-      expect(find.text('1'), findsOneWidget);
+      expect(dockText('1'), findsOneWidget);
       orders.cancel(id, "Annulée par l'acheteur.");
       await tester.pump(const Duration(seconds: 30));
       await tester.pumpAndSettle();
       expect(server.calls('GET', '/v1/seller/orders/$id'), hasLength(1));
-      expect(find.text('1'), findsNothing);
+      expect(dockText('1'), findsNothing);
     });
 
     testWidgets('relecture en échec : la pastille reste, sans message', (
@@ -210,11 +230,11 @@ void main() {
     ) async {
       orders.add();
       await launch(tester);
-      expect(find.text('1'), findsOneWidget);
+      expect(dockText('1'), findsOneWidget);
       orders.failures['GET /v1/seller/orders'] = FakeResponse.networkError();
       await tester.pump(const Duration(seconds: 30));
       await tester.pumpAndSettle();
-      expect(find.text('1'), findsOneWidget);
+      expect(dockText('1'), findsOneWidget);
       expect(find.byType(SnackBar), findsNothing);
     });
 
@@ -236,14 +256,37 @@ void main() {
       await tester.pump(const Duration(seconds: 30));
       await tester.pumpAndSettle();
       expect(find.textContaining('suspendue'), findsWidgets);
-      expect(find.bySemanticsLabel('Commandes'), findsNothing);
+      expect(dockLabel('Commandes'), findsNothing);
     });
   });
 
   /// Ouvre l'onglet Commandes de la barre du bas.
   Future<void> openOrders(WidgetTester tester) async {
     await launch(tester);
-    await tester.tap(find.byIcon(Icons.receipt_long_outlined));
+    await tester.tap(dockTab(Icons.receipt_long_outlined));
+    await tester.pumpAndSettle();
+  }
+
+  /// Fait défiler la liste du pilotage jusqu'au texte (construit à la
+  /// demande).
+  Future<void> scrollHomeTo(WidgetTester tester, String text) =>
+      tester.scrollUntilVisible(
+        find.text(text),
+        200,
+        scrollable: find
+            .descendant(
+              of: find.byType(RefreshIndicator),
+              matching: find.byType(Scrollable),
+            )
+            .first,
+      );
+
+  /// Fait défiler jusqu'au texte, puis l'appuie.
+  Future<void> tapText(WidgetTester tester, String text) async {
+    final target = find.text(text, skipOffstage: false).last;
+    await tester.ensureVisible(target);
+    await tester.pumpAndSettle();
+    await tester.tap(target);
     await tester.pumpAndSettle();
   }
 
@@ -354,7 +397,7 @@ void main() {
       await launch(tester);
       // La relecture à l'ouverture de l'onglet échoue aussi.
       orders.failures['GET /v1/seller/orders'] = FakeResponse.networkError();
-      await tester.tap(find.byIcon(Icons.receipt_long_outlined));
+      await tester.tap(dockTab(Icons.receipt_long_outlined));
       await tester.pumpAndSettle();
       expect(find.textContaining('Impossible de charger'), findsOneWidget);
       orders.add();
@@ -387,7 +430,7 @@ void main() {
       }
       await launch(tester, settle: false);
       await settle();
-      await tester.tap(find.byIcon(Icons.receipt_long_outlined));
+      await tester.tap(dockTab(Icons.receipt_long_outlined));
       await settle();
       await openTab(tester, 'Terminées');
       expect(find.byType(OrderRow, skipOffstage: false), findsNWidgets(100));
@@ -932,8 +975,8 @@ void main() {
     });
   });
 
-  group('Accueil', () {
-    testWidgets('résumé : nouvelles (plus urgente), en cours ; navigation', (
+  group('Accueil (pilotage)', () {
+    testWidgets('nouvelles d\'abord (plus urgente), puis à traiter', (
       tester,
     ) async {
       orders
@@ -942,77 +985,87 @@ void main() {
         ..add(status: 'accepted');
       await launch(tester);
       expect(find.text('Chez Afi'), findsOneWidget);
-      expect(find.text('2 nouvelles commandes à accepter'), findsOneWidget);
-      // Payée il y a 9 min : 6 min restantes.
-      expect(
-        find.textContaining(RegExp(r'^La première expire dans 0[56]:\d\d$')),
-        findsOneWidget,
-      );
-      expect(find.text('1 commande en cours'), findsOneWidget);
+      expect(find.text('Ventes du jour'), findsOneWidget);
+      expect(find.text('NOUVELLE COMMANDE PAYÉE'), findsNWidgets(2));
+      // Payée il y a 9 min : 6 min restantes, en tête.
+      final first = tester.getTopLeft(find.text('#1043 · Koffi')).dy;
+      final second = tester.getTopLeft(find.text('#1042 · Koffi')).dy;
+      expect(first, lessThan(second));
+      expect(find.textContaining(RegExp(r'^0[56]:\d\d$')), findsOneWidget);
 
-      await tester.tap(find.text('1 commande en cours'));
-      await tester.pumpAndSettle();
-      expect(find.text('Acceptée'), findsOneWidget);
+      await scrollHomeTo(tester, '#1044 · Koffi');
+      expect(find.text('À traiter'), findsOneWidget);
+      await tapText(tester, 'Tout voir');
       expect(rows(tester), ['#1044 · Koffi']);
 
-      await tester.tap(find.byIcon(Icons.home_outlined));
+      await tester.tap(dockTab(Icons.space_dashboard_outlined));
       await tester.pumpAndSettle();
-      await tester.tap(find.text('2 nouvelles commandes à accepter'));
+      // Liste restée défilée : retour à la carte la plus urgente.
+      await tester.scrollUntilVisible(
+        find.text('#1043 · Koffi'),
+        -200,
+        scrollable: find
+            .descendant(
+              of: find.byType(RefreshIndicator),
+              matching: find.byType(Scrollable),
+            )
+            .first,
+      );
+      await tester.tap(find.text('#1043 · Koffi'));
       await tester.pumpAndSettle();
-      expect(rows(tester), ['#1043 · Koffi', '#1042 · Koffi']);
+      expect(find.text('Commande #1043'), findsOneWidget);
     });
 
-    testWidgets('carte après un sous-onglet choisi à la main : le bon', (
+    testWidgets('« Tout voir » après un sous-onglet choisi à la main', (
       tester,
     ) async {
       orders
         ..add()
         ..add(status: 'accepted', buyerFirstName: 'Kossi');
       await launch(tester);
-      await tester.tap(find.byIcon(Icons.receipt_long_outlined));
+      await tester.tap(dockTab(Icons.receipt_long_outlined));
       await tester.pumpAndSettle();
-      await openTab(tester, 'En cours');
-      expect(rows(tester), ['#1043 · Kossi']);
-      await tester.tap(find.byIcon(Icons.home_outlined));
-      await tester.pumpAndSettle();
-      await tester.tap(find.text('1 nouvelle commande à accepter'));
-      await tester.pumpAndSettle();
+      await openTab(tester, 'Nouvelles');
       expect(rows(tester), ['#1042 · Koffi']);
+      await tester.tap(dockTab(Icons.space_dashboard_outlined));
+      await tester.pumpAndSettle();
+      await tapText(tester, 'Tout voir');
+      expect(rows(tester), ['#1043 · Kossi']);
     });
 
-    testWidgets('singulier', (tester) async {
-      orders
-        ..add()
-        ..add(status: 'preparing')
-        ..add(status: 'ready_for_pickup');
-      await launch(tester);
-      expect(find.text('1 nouvelle commande à accepter'), findsOneWidget);
-      expect(find.textContaining('Elle expire dans '), findsOneWidget);
-      expect(find.text('2 commandes en cours'), findsOneWidget);
-    });
+    testWidgets(
+      'plus de 3 nouvelles : bouton vers l\'onglet ; prêtes comptées',
+      (tester) async {
+        for (var i = 0; i < 4; i++) {
+          orders.add();
+        }
+        orders
+          ..add(status: 'preparing')
+          ..add(status: 'ready_for_pickup');
+        await launch(tester);
+        expect(find.text('NOUVELLE COMMANDE PAYÉE'), findsNWidgets(3));
+        await scrollHomeTo(tester, 'À traiter · 1 prête');
+        await tapText(tester, 'Voir les 4 commandes à accepter');
+        expect(rows(tester), hasLength(4));
+      },
+    );
 
     testWidgets('rien à traiter (terminées seulement)', (tester) async {
       orders.add(status: 'completed');
       await launch(tester);
-      expect(
-        find.text(
-          'Aucune commande à traiter. Les nouvelles commandes arrivent ici.',
-        ),
-        findsOneWidget,
-      );
-      expect(find.textContaining('à accepter'), findsNothing);
-      await tester.tap(find.text('Mes produits'));
-      await tester.pumpAndSettle();
+      expect(find.text('Tout est à jour'), findsOneWidget);
+      expect(find.text('NOUVELLE COMMANDE PAYÉE'), findsNothing);
+      await tapText(tester, 'Gérer mon catalogue');
       expect(find.text('Catalogue'), findsWidgets);
     });
 
     testWidgets('mis à jour par la relecture toutes les 30 s', (tester) async {
       await launch(tester);
-      expect(find.textContaining('Aucune commande à traiter'), findsOneWidget);
+      expect(find.text('Tout est à jour'), findsOneWidget);
       orders.add();
       await tester.pump(const Duration(seconds: 30));
       await tester.pumpAndSettle();
-      expect(find.text('1 nouvelle commande à accepter'), findsOneWidget);
+      expect(find.text('NOUVELLE COMMANDE PAYÉE'), findsOneWidget);
     });
   });
 
@@ -1037,9 +1090,9 @@ void main() {
         ..add(status: 'ready_for_pickup');
       await launch(tester);
       expect(tester.takeException(), isNull);
-      expect(find.text('1 nouvelle commande à accepter'), findsOneWidget);
+      expect(find.text('NOUVELLE COMMANDE PAYÉE'), findsOneWidget);
 
-      await tester.tap(find.byIcon(Icons.receipt_long_outlined));
+      await tester.tap(dockTab(Icons.receipt_long_outlined));
       await tester.pumpAndSettle();
       expect(tester.takeException(), isNull);
       expect(find.byType(OrderRow), findsOneWidget);
@@ -1068,7 +1121,7 @@ void main() {
       large(tester);
       orders.add(status: 'ready_for_pickup');
       await launch(tester);
-      await tester.tap(find.byIcon(Icons.receipt_long_outlined));
+      await tester.tap(dockTab(Icons.receipt_long_outlined));
       await tester.pumpAndSettle();
       await tester.tap(find.textContaining('En cours').first);
       await tester.pumpAndSettle();
@@ -1102,7 +1155,7 @@ void main() {
       final semantics = tester.ensureSemantics();
       orders.add();
       await launch(tester);
-      await tester.tap(find.byIcon(Icons.receipt_long_outlined));
+      await tester.tap(dockTab(Icons.receipt_long_outlined));
       await tester.pumpAndSettle();
       final row = tester.getSemantics(find.byType(OrderRow));
       expect(

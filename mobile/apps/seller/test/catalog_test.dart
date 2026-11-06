@@ -11,6 +11,7 @@ import 'package:ivia_api_client/ivia_api_client.dart';
 import 'package:ivia_api_client/testing.dart';
 import 'package:ivia_app_core/ivia_app_core.dart';
 import 'package:ivia_app_core/testing.dart';
+import 'package:ivia_seller/features/business/pro_ui.dart';
 import 'package:ivia_seller/app/device_services.dart';
 import 'package:ivia_seller/app/identity.dart';
 import 'package:ivia_seller/features/catalog/catalog_screen.dart';
@@ -78,11 +79,16 @@ void main() {
       ..on('GET', '/v1/me', (_) => FakeResponse.json(200, seller()))
       ..on('POST', '/v1/auth/logout', (_) => FakeResponse.json(204, null));
     withShop('published');
+    FakeBusiness(server);
     catalog = FakeCatalog(server);
     await SessionStore().save('jeton-secret', User.fromJson(seller()));
   });
 
   Future<void> launch(WidgetTester tester) async {
+    // Animations réduites : le point « en direct » du pilotage s'arrête.
+    tester.platformDispatcher.accessibilityFeaturesTestValue =
+        const FakeAccessibilityFeatures(disableAnimations: true);
+    addTearDown(tester.platformDispatcher.clearAccessibilityFeaturesTestValue);
     final store = await OnboardingStore.open();
     await tester.pumpWidget(
       ProviderScope(
@@ -114,6 +120,10 @@ void main() {
     await tester.pumpAndSettle();
   }
 
+  /// Onglet de la barre du bas (l'icône peut aussi figurer dans l'écran).
+  Finder dockTab(IconData icon) =>
+      find.descendant(of: find.byType(ProDock), matching: find.byIcon(icon));
+
   Future<void> tapText(WidgetTester tester, String text) async {
     FocusManager.instance.primaryFocus?.unfocus();
     await tester.pump();
@@ -127,7 +137,7 @@ void main() {
   /// Ouvre l'onglet Catalogue de la barre du bas.
   Future<void> openCatalog(WidgetTester tester) async {
     await launch(tester);
-    await tester.tap(find.byIcon(Icons.grid_view_rounded));
+    await tester.tap(dockTab(Icons.inventory_2_outlined));
     await tester.pumpAndSettle();
   }
 
@@ -196,7 +206,7 @@ void main() {
       expect(find.text('Épuisé · à réapprovisionner'), findsOneWidget);
       expect(find.text('Huile 1 L'), findsNothing);
       // Catalogue choisi dans la barre du bas.
-      expect(find.byType(IviaBottomNav), findsOneWidget);
+      expect(find.byType(ProDock), findsOneWidget);
       expect(lastList().query['status'], 'active');
 
       await tester.tap(find.textContaining('Brouillons'));
@@ -676,7 +686,7 @@ void main() {
       await tester.pumpAndSettle();
       expect(catalog.products.single['status'], 'withdrawn');
       expect(find.bySemanticsLabel('Retirés, 1'), findsOneWidget);
-      expect(find.byType(IviaBottomNav), findsOneWidget);
+      expect(find.byType(ProDock), findsOneWidget);
     });
 
     testWidgets('produit retiré remis en vente par l\'interrupteur', (
@@ -714,9 +724,9 @@ void main() {
 
   testWidgets('Compte : déconnexion', (tester) async {
     await launch(tester);
-    await tester.tap(find.byIcon(Icons.person_outline));
+    await tester.tap(dockTab(Icons.person_outline));
     await tester.pumpAndSettle();
-    expect(find.text('Awa Mensah'), findsOneWidget);
+    expect(find.textContaining('Awa Mensah'), findsOneWidget);
     await tester.scrollUntilVisible(
       find.text('Se déconnecter'),
       200,
@@ -724,7 +734,7 @@ void main() {
     );
     await tapText(tester, 'Se déconnecter');
     expect(server.calls('POST', '/v1/auth/logout'), hasLength(1));
-    expect(find.text('Espace marchand'), findsOneWidget);
+    expect(find.text('Votre activité vous attend'), findsOneWidget);
   });
 
   group('relecture', () {
@@ -1097,7 +1107,7 @@ void main() {
       await openCatalog(tester);
       await tester.tap(find.textContaining('Brouillons'));
       await tester.pumpAndSettle();
-      await tester.tap(find.byIcon(Icons.person_outline));
+      await tester.tap(dockTab(Icons.person_outline));
       await tester.pumpAndSettle();
       await tester.scrollUntilVisible(
         find.text('Se déconnecter'),
@@ -1123,7 +1133,7 @@ void main() {
       await tapText(tester, 'Recevoir le code sur WhatsApp');
       await tester.enterText(find.byType(TextField), '481902');
       await tester.pumpAndSettle();
-      await tester.tap(find.byIcon(Icons.grid_view_rounded));
+      await tester.tap(dockTab(Icons.inventory_2_outlined));
       await tester.pumpAndSettle();
       expect(lastList().query['status'], 'active');
     });

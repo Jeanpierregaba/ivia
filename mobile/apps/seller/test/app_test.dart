@@ -14,7 +14,6 @@ import 'package:ivia_seller/app/device_services.dart';
 import 'package:ivia_seller/app/identity.dart';
 import 'package:ivia_seller/app/router.dart';
 import 'package:ivia_seller/app/seller_shop.dart';
-import 'package:ivia_seller/features/onboarding/onboarding_screen.dart';
 import 'package:ivia_seller/main.dart';
 import 'package:ivia_ui/ivia_ui.dart';
 import 'package:shared_preferences/shared_preferences.dart';
@@ -106,6 +105,10 @@ void main() {
         '/shop_logo/u1/logo.jpg',
         (_) => FakeResponse.json(200, null),
       );
+    // Espace « boutique » actif lié à la boutique de [shopBody] : seul
+    // chemin, depuis Ivia Business, vers les écrans de création de boutique
+    // et de pièces (boutique pas encore publiée).
+    FakeBusiness(server);
   });
 
   Future<void> launchApp(
@@ -114,6 +117,10 @@ void main() {
     bool settle = true,
     bool devCode = false,
   }) async {
+    // Animations réduites : le point « en direct » du pilotage s'arrête.
+    tester.platformDispatcher.accessibilityFeaturesTestValue =
+        const FakeAccessibilityFeatures(disableAnimations: true);
+    addTearDown(tester.platformDispatcher.clearAccessibilityFeaturesTestValue);
     final store = await OnboardingStore.open();
     await tester.pumpWidget(const SizedBox());
     await tester.pumpWidget(
@@ -208,6 +215,8 @@ void main() {
   }
 
   group('lancement et présentation', () {
+    const firstTitle = 'Une seule app pour toute votre activité.';
+
     testWidgets('thème Berkeley et splash avec tuile', (tester) async {
       await launchApp(
         tester,
@@ -215,17 +224,14 @@ void main() {
         settle: false,
       );
       await tester.pump(const Duration(milliseconds: 700));
-      expect(find.text('Marchand'), findsOneWidget);
-      expect(find.text('Vendez dans votre quartier.'), findsOneWidget);
+      expect(find.text('Business'), findsOneWidget);
+      expect(find.text("Votre activité, pilotée d'ici."), findsOneWidget);
       final app = tester.widget<MaterialApp>(find.byType(MaterialApp));
-      expect(app.title, 'ivia Marchand');
+      expect(app.title, 'Ivia Business');
       expect(app.theme?.colorScheme.primary, IviaColors.berkeleyBlue);
       await tester.pump(const Duration(milliseconds: 200));
       await tester.pumpAndSettle();
-      expect(
-        find.text('Votre boutique en ligne, sans site web.'),
-        findsOneWidget,
-      );
+      expect(find.text(firstTitle, findRichText: true), findsOneWidget);
     });
 
     testWidgets('localisation (030) : écran après le splash, « Refuser »', (
@@ -238,57 +244,83 @@ void main() {
         find.text('Soyez visible dans votre quartier', findRichText: true),
         findsOneWidget,
       );
-      expect(find.byType(IviaOnboarding), findsNothing);
+      expect(find.text(firstTitle, findRichText: true), findsNothing);
       await tapText(tester, 'Refuser');
-      expect(
-        find.text('Votre boutique en ligne, sans site web.'),
-        findsOneWidget,
-      );
+      expect(find.text(firstTitle, findRichText: true), findsOneWidget);
       expect(location.requests, 0);
     });
 
-    testWidgets(
-      'présentation : « Marchand » en tête, puis « Espace marchand »',
-      (tester) async {
-        await launchApp(tester);
-        final onboarding = tester.widget<IviaOnboarding>(
-          find.byType(IviaOnboarding),
-        );
-        expect(onboarding.appName, 'Marchand');
-        expect(onboarding.brand, IviaAppBrand.seller);
-        await tapText(tester, 'Passer');
-        expect(find.text('Espace marchand'), findsOneWidget);
-        expect(find.text('Marchand'), findsOneWidget);
-      },
-    );
-
-    testWidgets('titres : aucun mot coupé sur 320 dp, police agrandie', (
+    testWidgets('présentation : « Suivant », « Commencer », puis connexion', (
       tester,
     ) async {
-      final loader = FontLoader(
-        'packages/ivia_ui/Parkinsans',
-      )..addFont(rootBundle.load('packages/ivia_ui/fonts/Parkinsans-Bold.ttf'));
-      await loader.load();
-      const width = 320 - 2 * IviaSpacing.screen;
-      final style = IviaTheme.light().textTheme.headlineMedium!;
-      for (final slide in onboardingSlides) {
-        for (final word in slide.title.split(' ')) {
-          final painter = TextPainter(
-            text: TextSpan(text: word, style: style),
-            textDirection: TextDirection.ltr,
-            textScaler: const TextScaler.linear(
-              IviaOnboarding.titleMaxTextScale,
-            ),
-          )..layout();
-          expect(painter.width, lessThanOrEqualTo(width), reason: word);
-          painter.dispose();
-        }
-      }
+      await launchApp(tester);
+      await tapText(tester, 'Suivant');
+      expect(
+        find.text('Les clients du quartier vous trouvent.', findRichText: true),
+        findsOneWidget,
+      );
+      await tapText(tester, 'Suivant');
+      await tapText(tester, 'Commencer');
+      expect(find.text('Votre activité vous attend'), findsOneWidget);
+      expect(
+        (await SharedPreferences.getInstance()).getBool('onboarding_seen'),
+        isTrue,
+      );
+    });
+
+    testWidgets('« Passer » : connexion directement', (tester) async {
+      await launchApp(tester);
+      await tapText(tester, 'Passer');
+      expect(find.text('Votre activité vous attend'), findsOneWidget);
+    });
+
+    testWidgets('présentation : police à 200 % sur 320 dp sans débordement', (
+      tester,
+    ) async {
+      tester.view
+        ..physicalSize = const Size(320, 640)
+        ..devicePixelRatio = 1;
+      tester.platformDispatcher.textScaleFactorTestValue = 2;
+      addTearDown(tester.view.reset);
+      addTearDown(tester.platformDispatcher.clearTextScaleFactorTestValue);
+      await launchApp(tester);
+      expect(tester.takeException(), isNull);
+      await tapText(tester, 'Suivant');
+      expect(tester.takeException(), isNull);
     });
   });
 
   group('connexion et boutique', () {
-    setUp(onboardingSeen);
+    setUp(() {
+      onboardingSeen();
+      // Profil complet : « Faisons connaissance » est passé, le formulaire de
+      // la boutique s'ouvre (espace boutique actif sans boutique).
+      server.on(
+        'POST',
+        '/v1/auth/phone/verify',
+        (_) => FakeResponse.json(200, {
+          'status': 'signed_in',
+          'session': {...phoneSessionBody(), 'user': _user()},
+        }),
+      );
+    });
+
+    testWidgets('profil incomplet : « Faisons connaissance » d\'abord', (
+      tester,
+    ) async {
+      server.on(
+        'POST',
+        '/v1/auth/phone/verify',
+        (_) => FakeResponse.json(200, {
+          'status': 'signed_in',
+          'session': {...phoneSessionBody(), 'user': _user(consent: false)},
+        }),
+      );
+      await launchApp(tester);
+      await login(tester);
+      expect(find.text('Faisons connaissance'), findsOneWidget);
+      expect(find.text('Créez votre boutique'), findsNothing);
+    });
 
     testWidgets('nouveau marchand : code, boutique, validation', (
       tester,
@@ -308,17 +340,8 @@ void main() {
       await fillShopForm(tester);
       await tapText(tester, 'Envoyer pour validation');
 
-      expect(server.calls('PATCH', '/v1/me').single.body, {
-        'accept_privacy_policy': true,
-      });
-      // Consentement daté avant la création de la boutique.
-      final paths = server.requests
-          .map((r) => '${r.method} ${r.path}')
-          .toList();
-      expect(
-        paths.indexOf('PATCH /v1/me'),
-        lessThan(paths.indexOf('POST /v1/shops')),
-      );
+      // Consentement déjà donné dans « Faisons connaissance ».
+      expect(server.calls('PATCH', '/v1/me'), isEmpty);
       expect(server.calls('POST', '/v1/shops').single.body, {
         'name': 'Chez Afi',
         'category_id': '1a2b3c4d-5e6f-7a8b-9c0d-1e2f3a4b5c6d',
@@ -436,17 +459,16 @@ void main() {
           reason: message,
         );
       }
+      // Consentement donné dans « Faisons connaissance » : pas de case.
       expect(
         find.textContaining('Cochez la case', skipOffstage: false),
-        findsOneWidget,
+        findsNothing,
       );
       expect(server.calls('POST', '/v1/shops'), isEmpty);
       expect(server.calls('PATCH', '/v1/me'), isEmpty);
     });
 
-    testWidgets('échec puis nouvel essai : logo et consentement non renvoyés', (
-      tester,
-    ) async {
+    testWidgets('échec puis nouvel essai : logo non renvoyé', (tester) async {
       var attempts = 0;
       server.on(
         'POST',
@@ -468,7 +490,6 @@ void main() {
         findsOneWidget,
       );
       expect(server.calls('POST', '/v1/uploads'), hasLength(1));
-      expect(server.calls('PATCH', '/v1/me'), hasLength(1));
       expect(server.calls('POST', '/v1/shops'), hasLength(2));
     });
 
@@ -670,7 +691,7 @@ void main() {
       await tester.tap(find.byTooltip('Retour'));
       await tester.pumpAndSettle();
       expect(server.calls('POST', '/v1/auth/logout'), hasLength(1));
-      expect(find.text('Espace marchand'), findsOneWidget);
+      expect(find.text('Votre activité vous attend'), findsOneWidget);
     });
 
     testWidgets('police à 200 % sur 320 dp : formulaire sans débordement', (
@@ -1184,7 +1205,7 @@ void main() {
       );
       await tester.fling(find.text('Compte créé'), const Offset(0, 400), 1000);
       await tester.pumpAndSettle();
-      expect(find.text('Mes produits'), findsOneWidget);
+      expect(find.text('Ventes du jour'), findsOneWidget);
     });
 
     testWidgets('« Préparer mes produits » : catalogue sans barre, retour', (
@@ -1252,7 +1273,7 @@ void main() {
         }),
       );
       await tapText(tester, 'Réessayer');
-      expect(find.text('Mes produits'), findsOneWidget);
+      expect(find.text('Ventes du jour'), findsOneWidget);
     });
   });
 }

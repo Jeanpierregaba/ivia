@@ -3,6 +3,7 @@ import 'package:flutter_test/flutter_test.dart';
 import 'package:ivia_api_client/ivia_api_client.dart';
 import 'package:ivia_api_client/testing.dart';
 import 'package:ivia_app_core/ivia_app_core.dart';
+import 'package:ivia_seller/app/business_state.dart';
 import 'package:ivia_seller/app/router.dart';
 
 void main() {
@@ -116,5 +117,74 @@ void main() {
         reason: 'boutique $status : plus de catalogue',
       );
     }
+  });
+
+  group('espaces Ivia Business', () {
+    BusinessSpace space(String status, {String sector = 'shop'}) =>
+        BusinessSpace.fromJson(
+          businessSpaceBody(
+            status: status,
+            sector: sector,
+            shopId: sector == 'shop' ? shopBody()['id'] as String : null,
+          ),
+        );
+
+    String? at(
+      BusinessGate gate, {
+      AsyncValue<Shop?> shopState = const AsyncData(null),
+      AuthState? auth,
+    }) => redirectFor(
+      auth ?? AuthSignedIn(user),
+      shopState,
+      onboardingSeen: true,
+      location: Routes.home,
+      business: AsyncData(gate),
+    );
+
+    test('aucun espace : inscription ; plusieurs sans choix : sélection', () {
+      expect(at(const BusinessGate()), Routes.businessNew);
+      expect(
+        at(BusinessGate(spaces: [space('active'), space('draft')])),
+        Routes.businessChoose,
+      );
+    });
+
+    test('statut de l\'espace ouvert', () {
+      BusinessGate opened(BusinessSpace s) =>
+          BusinessGate(spaces: [s], opened: s);
+      expect(at(opened(space('draft'))), Routes.businessDossier);
+      expect(at(opened(space('changes_requested'))), Routes.businessDossier);
+      expect(at(opened(space('pending_review'))), Routes.businessStatus);
+      expect(at(opened(space('suspended'))), Routes.businessStatus);
+      expect(
+        at(opened(space('active', sector: 'artisan'))),
+        Routes.businessModule,
+      );
+      // Boutique active et publiée : pilotage.
+      expect(
+        at(opened(space('active')), shopState: AsyncData(shop('published'))),
+        isNull,
+      );
+    });
+
+    test('lecture des espaces : chargement, erreur, profil incomplet', () {
+      String? with_(AsyncValue<BusinessGate> business, AuthState auth) =>
+          redirectFor(
+            auth,
+            const AsyncData(null),
+            onboardingSeen: true,
+            location: Routes.home,
+            business: business,
+          );
+      expect(with_(const AsyncLoading(), AuthSignedIn(user)), Routes.splash);
+      expect(
+        with_(AsyncError(Exception(), StackTrace.empty), AuthSignedIn(user)),
+        Routes.offline,
+      );
+      expect(
+        with_(const AsyncData(BusinessGate()), AuthNeedsProfile(user)),
+        Routes.welcome,
+      );
+    });
   });
 }
