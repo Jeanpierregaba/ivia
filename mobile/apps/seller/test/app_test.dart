@@ -135,6 +135,9 @@ void main() {
           ),
           photoPickerProvider.overrideWithValue(picker),
           locationServiceProvider.overrideWithValue(location),
+          locationPromptStoreProvider.overrideWithValue(
+            await LocationPromptStore.open(location),
+          ),
           mapsEnabledProvider.overrideWithValue(false),
           devAutoCodeProvider.overrideWithValue(devCode),
         ],
@@ -223,6 +226,25 @@ void main() {
         find.text('Votre boutique en ligne, sans site web.'),
         findsOneWidget,
       );
+    });
+
+    testWidgets('localisation (030) : écran après le splash, « Refuser »', (
+      tester,
+    ) async {
+      location.state = LocationAccess.askable;
+      await launchApp(tester);
+      expect(find.text('Business'), findsOneWidget);
+      expect(
+        find.text('Soyez visible dans votre quartier', findRichText: true),
+        findsOneWidget,
+      );
+      expect(find.byType(IviaOnboarding), findsNothing);
+      await tapText(tester, 'Refuser');
+      expect(
+        find.text('Votre boutique en ligne, sans site web.'),
+        findsOneWidget,
+      );
+      expect(location.requests, 0);
     });
 
     testWidgets(
@@ -520,6 +542,41 @@ void main() {
       );
       expect(find.text('Aucune position'), findsOneWidget);
     });
+
+    for (final allow in [false, true]) {
+      testWidgets(
+        'épingle sans autorisation : écran, puis ${allow ? 'position' : 'refus'}',
+        (tester) async {
+          SharedPreferences.setMockInitialValues({
+            'onboarding_seen': true,
+            'location_prompt_done': true,
+          });
+          location.state = LocationAccess.askable;
+          await launchApp(tester);
+          await login(tester);
+          await tapText(tester, 'Ma position');
+          expect(
+            find.text('Soyez visible dans votre quartier', findRichText: true),
+            findsOneWidget,
+          );
+          await tapText(
+            tester,
+            allow ? 'Autoriser la localisation' : 'Refuser',
+          );
+          expect(location.requests, allow ? 1 : 0);
+          expect(
+            find.text(
+              'Localisation refusée. Autorisez-la pour placer la boutique.',
+            ),
+            allow ? findsNothing : findsOneWidget,
+          );
+          expect(
+            find.text('Aucune position'),
+            allow ? findsNothing : findsOneWidget,
+          );
+        },
+      );
+    }
 
     testWidgets('erreur du serveur sur un champ : message sous le champ', (
       tester,

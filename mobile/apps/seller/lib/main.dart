@@ -18,12 +18,17 @@ Future<void> main() async {
   await SystemChrome.setPreferredOrientations([DeviceOrientation.portraitUp]);
   await clearSessionAfterReinstall(SessionStore());
   final onboarding = await OnboardingStore.open();
+  // Épingle de la boutique : position précise.
+  const location = DeviceLocationService();
+  final locationPrompt = await LocationPromptStore.open(location);
   // Logotype de la tuile prêt dès la première image du splash de chargement.
   await IviaLogo.precache(IviaAppBrand.seller.logoOnLight);
   runApp(
     ProviderScope(
       overrides: [
         onboardingStoreProvider.overrideWithValue(onboarding),
+        locationServiceProvider.overrideWithValue(location),
+        locationPromptStoreProvider.overrideWithValue(locationPrompt),
         appIdentityProvider.overrideWithValue(sellerIdentity),
         apiClientProvider.overrideWithValue(
           IviaApiClient(config: ApiConfig.fromEnvironment()),

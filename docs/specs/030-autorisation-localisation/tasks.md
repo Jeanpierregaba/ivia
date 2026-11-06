@@ -13,7 +13,7 @@
 - [x] 4. App acheteur : textes et icônes, route `/location` et redirection (splash ⇒ localisation
       ⇒ présentation), `main.dart` ; écran avant « Utiliser ma position », l'alerte médicament et
       l'ajout d'une adresse ; tests (routeur, premier lancement, Accueil sans écran).
-- [ ] 5. App marchand : textes et icônes, route et redirection, `main.dart` ; écran avant
+- [x] 5. App marchand : textes et icônes, route et redirection, `main.dart` ; écran avant
       l'épingle de la boutique ; tests.
 - [ ] 6. App livreur : textes et icônes, route et redirection, `main.dart`, permission Android ;
       écran au passage en ligne ; tests.

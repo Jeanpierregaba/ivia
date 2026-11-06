@@ -25,6 +25,9 @@ import 'seller_shop.dart';
 
 abstract final class Routes {
   static const splash = '/';
+
+  /// Autorisation de la localisation, juste après le splash (spec 030).
+  static const location = '/location';
   static const onboarding = '/onboarding';
   static const login = AuthRoutes.login;
   static const code = AuthRoutes.code;
@@ -58,9 +61,12 @@ String? redirectFor(
   AsyncValue<Shop?> shop, {
   required bool onboardingSeen,
   required String location,
+  bool locationPromptDone = true,
 }) {
   final allowed = switch (auth) {
     AuthStarting() => const [Routes.splash],
+    // Après le splash, avant tout le reste : une fois (spec 030).
+    _ when !locationPromptDone => const [Routes.location],
     AuthSignedOut() when !onboardingSeen => const [Routes.onboarding],
     AuthSignedOut() => const [Routes.login, Routes.code, Routes.signup],
     AuthOffline() => const [Routes.offline],
@@ -96,6 +102,7 @@ final routerProvider = Provider<GoRouter>((ref) {
   ref.listen(authControllerProvider, (_, _) => refresh.value++);
   ref.listen(sellerShopProvider, (_, _) => refresh.value++);
   ref.listen(onboardingSeenProvider, (_, _) => refresh.value++);
+  ref.listen(locationPromptDoneProvider, (_, _) => refresh.value++);
 
   // Formulaires produit au-dessus de la barre du bas.
   final rootKey = GlobalKey<NavigatorState>();
@@ -107,12 +114,17 @@ final routerProvider = Provider<GoRouter>((ref) {
       ref.read(authControllerProvider),
       ref.read(sellerShopProvider),
       onboardingSeen: ref.read(onboardingSeenProvider),
+      locationPromptDone: ref.read(locationPromptDoneProvider),
       location: state.matchedLocation,
     ),
     routes: [
       GoRoute(
         path: Routes.splash,
         builder: (context, state) => const LoadingScreen(),
+      ),
+      GoRoute(
+        path: Routes.location,
+        builder: (context, state) => const LaunchLocationPromptScreen(),
       ),
       GoRoute(
         path: Routes.onboarding,

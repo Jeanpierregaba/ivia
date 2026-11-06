@@ -103,6 +103,9 @@ void main() {
           ),
           photoPickerProvider.overrideWithValue(picker),
           locationServiceProvider.overrideWithValue(_NoLocation()),
+          locationPromptStoreProvider.overrideWithValue(
+            await LocationPromptStore.open(_NoLocation()),
+          ),
           mapsEnabledProvider.overrideWithValue(false),
         ],
         child: const SellerApp(),

@@ -16,6 +16,20 @@ void main() {
     bool seen = true,
   }) => redirectFor(auth, shopState, onboardingSeen: seen, location: location);
 
+  test('écran de localisation : après le splash, avant tout (030)', () {
+    String? first(AuthState auth) => redirectFor(
+      auth,
+      const AsyncData(null),
+      onboardingSeen: false,
+      location: Routes.home,
+      locationPromptDone: false,
+    );
+    expect(first(const AuthStarting()), Routes.splash);
+    expect(first(const AuthSignedOut()), Routes.location);
+    expect(first(AuthSignedIn(user)), Routes.location);
+    expect(first(const AuthOffline()), Routes.location);
+  });
+
   test('session : splash, présentation, connexion, hors ligne', () {
     expect(go(const AuthStarting(), Routes.home), Routes.splash);
     expect(

@@ -40,6 +40,10 @@ class _ShopLocationFieldState extends ConsumerState<ShopLocationField> {
   var _locating = false;
 
   Future<void> _locate() async {
+    // Sans autorisation : écran d'abord ; refusée, la lecture échoue avec
+    // le message habituel.
+    await askForLocation(context, ref);
+    if (!mounted) return;
     setState(() {
       _locating = true;
       _locateError = null;
