@@ -63,89 +63,116 @@ class _OnboardingScreenState extends ConsumerState<OnboardingScreen> {
         onPageChanged: (i) => setState(() => _page = i),
         itemBuilder: (context, i) {
           final (start, colored, body) = _slides[i];
-          return Column(
-            children: [
-              Expanded(
-                child: ProPanel(
-                  accent: const [
-                    IviaColors.cobaltBlue,
-                    Color(0xFF0F766E),
-                    Color(0xFFB9500A),
-                  ][i],
-                  child: Column(
-                    children: [
-                      Row(
-                        children: [
-                          const IviaLogoTile(
-                            size: 34,
-                            color: IviaColors.cobaltBlue,
-                          ),
-                          const SizedBox(width: 8),
-                          Text(
-                            'Business',
-                            style: t.titleSmall?.copyWith(
-                              color: Colors.white,
-                              fontWeight: FontWeight.w800,
-                            ),
-                          ),
-                          const Spacer(),
-                          if (i < _slides.length - 1)
-                            TextButton(
-                              onPressed: _done,
-                              child: const Text(
-                                'Passer',
-                                style: TextStyle(color: Colors.white70),
-                              ),
-                            ),
-                        ],
-                      ),
-                      Expanded(
-                        child: Center(
-                          child: switch (i) {
-                            0 => const _SectorsVisual(),
-                            1 => const _VisibilityVisual(),
-                            _ => const _PaymentVisual(),
-                          },
-                        ),
-                      ),
-                    ],
-                  ),
-                ),
-              ),
-              Padding(
-                padding: const EdgeInsets.fromLTRB(20, 20, 20, 12),
-                child: Column(
-                  crossAxisAlignment: CrossAxisAlignment.start,
+          final panel = ProPanel(
+            accent: const [
+              IviaColors.cobaltBlue,
+              Color(0xFF0F766E),
+              Color(0xFFB9500A),
+            ][i],
+            child: Column(
+              children: [
+                Row(
                   children: [
-                    Reveal(
-                      child: Text.rich(
-                        TextSpan(
-                          text: start,
-                          children: [
-                            TextSpan(
-                              text: colored,
-                              style: const TextStyle(
-                                color: IviaColors.cobaltBlue,
-                              ),
-                            ),
-                          ],
-                        ),
-                        style: t.headlineSmall?.copyWith(
+                    const IviaLogoTile(size: 34, color: IviaColors.cobaltBlue),
+                    const SizedBox(width: 8),
+                    // Grandes polices : le nom rétrécit, « Passer » reste
+                    // entier.
+                    Expanded(
+                      child: Text(
+                        'Business',
+                        maxLines: 1,
+                        overflow: TextOverflow.ellipsis,
+                        style: t.titleSmall?.copyWith(
+                          color: Colors.white,
                           fontWeight: FontWeight.w800,
                         ),
                       ),
                     ),
-                    const SizedBox(height: 8),
-                    Reveal(
-                      index: 1,
-                      child: Text(
-                        body,
-                        style: t.bodyLarge?.copyWith(color: Pro.muted),
+                    if (i < _slides.length - 1)
+                      TextButton(
+                        onPressed: _done,
+                        child: const Text(
+                          'Passer',
+                          style: TextStyle(color: Colors.white70),
+                        ),
                       ),
-                    ),
                   ],
                 ),
-              ),
+                // Illustration décorative : ses petits textes ne grossissent
+                // pas avec la police (rien à y lire).
+                Expanded(
+                  child: ExcludeSemantics(
+                    child: MediaQuery.withNoTextScaling(
+                      // Réduite si la place manque (petit écran) : jamais
+                      // de débordement.
+                      child: LayoutBuilder(
+                        builder: (context, area) => Center(
+                          child: FittedBox(
+                            fit: BoxFit.scaleDown,
+                            child: SizedBox(
+                              width: area.maxWidth,
+                              child: switch (i) {
+                                0 => const _SectorsVisual(),
+                                1 => const _VisibilityVisual(),
+                                _ => const _PaymentVisual(),
+                              },
+                            ),
+                          ),
+                        ),
+                      ),
+                    ),
+                  ),
+                ),
+              ],
+            ),
+          );
+          final text = Padding(
+            padding: const EdgeInsets.fromLTRB(20, 20, 20, 12),
+            child: Column(
+              crossAxisAlignment: CrossAxisAlignment.start,
+              children: [
+                Reveal(
+                  child: Text.rich(
+                    TextSpan(
+                      text: start,
+                      children: [
+                        TextSpan(
+                          text: colored,
+                          style: const TextStyle(color: IviaColors.cobaltBlue),
+                        ),
+                      ],
+                    ),
+                    style: t.headlineSmall?.copyWith(
+                      fontWeight: FontWeight.w800,
+                    ),
+                  ),
+                ),
+                const SizedBox(height: 8),
+                Reveal(
+                  index: 1,
+                  child: Text(
+                    body,
+                    style: t.bodyLarge?.copyWith(color: Pro.muted),
+                  ),
+                ),
+              ],
+            ),
+          );
+          // Grandes polices : la page défile, illustration à hauteur fixe ;
+          // sinon le texte serait coupé par le bouton du bas.
+          if (MediaQuery.textScalerOf(context).scale(10) > 13) {
+            return ListView(
+              padding: EdgeInsets.zero,
+              children: [
+                SizedBox(height: 340, child: panel),
+                text,
+              ],
+            );
+          }
+          return Column(
+            children: [
+              Expanded(child: panel),
+              text,
             ],
           );
         },
@@ -208,7 +235,8 @@ class _SectorsVisual extends StatelessWidget {
           Reveal(
             index: i,
             child: Container(
-              padding: const EdgeInsets.all(14),
+              // 12 : la tuile tient aussi sur un écran de 320 dp.
+              padding: const EdgeInsets.all(12),
               decoration: BoxDecoration(
                 color: Pro.ink2,
                 borderRadius: BorderRadius.circular(Pro.radius),

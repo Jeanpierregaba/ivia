@@ -254,6 +254,44 @@ class KpiStrip extends StatelessWidget {
   @override
   Widget build(BuildContext context) {
     final t = Theme.of(context).textTheme;
+    final valueStyle = t.titleLarge?.copyWith(
+      color: Colors.white,
+      fontWeight: FontWeight.w800,
+    );
+    // Grandes polices : trois colonnes étroites couperaient chaque libellé
+    // sur plusieurs lignes ; une ligne par chiffre à la place.
+    if (MediaQuery.textScalerOf(context).scale(10) > 13) {
+      return Column(
+        children: [
+          for (final k in items)
+            Padding(
+              padding: const EdgeInsets.symmetric(vertical: 3),
+              child: Row(
+                children: [
+                  Expanded(
+                    child: Text(
+                      k.label,
+                      style: t.bodySmall?.copyWith(color: Colors.white70),
+                    ),
+                  ),
+                  const SizedBox(width: 12),
+                  Flexible(
+                    child: FittedBox(
+                      fit: BoxFit.scaleDown,
+                      alignment: Alignment.centerRight,
+                      child: CountUp(
+                        value: k.value,
+                        format: k.format,
+                        style: valueStyle,
+                      ),
+                    ),
+                  ),
+                ],
+              ),
+            ),
+        ],
+      );
+    }
     return IntrinsicHeight(
       child: Row(
         children: [
@@ -274,10 +312,7 @@ class KpiStrip extends StatelessWidget {
                     child: CountUp(
                       value: k.value,
                       format: k.format,
-                      style: t.titleLarge?.copyWith(
-                        color: Colors.white,
-                        fontWeight: FontWeight.w800,
-                      ),
+                      style: valueStyle,
                     ),
                   ),
                   const SizedBox(height: 2),
@@ -374,11 +409,16 @@ class ProTag extends StatelessWidget {
           Icon(icon, size: 13, color: solid ? Colors.white : color),
           const SizedBox(width: 4),
         ],
-        Text(
-          label,
-          style: Theme.of(context).textTheme.labelSmall?.copyWith(
-            color: solid ? Colors.white : color,
-            fontWeight: FontWeight.w700,
+        // Grandes polices : l'étiquette rétrécit au lieu de déborder.
+        Flexible(
+          child: Text(
+            label,
+            maxLines: 1,
+            overflow: TextOverflow.ellipsis,
+            style: Theme.of(context).textTheme.labelSmall?.copyWith(
+              color: solid ? Colors.white : color,
+              fontWeight: FontWeight.w700,
+            ),
           ),
         ),
       ],
@@ -497,17 +537,23 @@ class ProSection extends StatelessWidget {
                 ?.copyWith(fontWeight: FontWeight.w800),
           ),
         ),
-        if (action != null)
-          GestureDetector(
-            onTap: onAction,
-            child: Text(
-              action!,
-              style: Theme.of(context).textTheme.labelLarge?.copyWith(
-                color: IviaColors.cobaltBlue,
-                fontWeight: FontWeight.w700,
+        if (action != null) ...[
+          const SizedBox(width: 8),
+          // Grandes polices : l'action passe à la ligne au lieu de déborder.
+          Flexible(
+            child: GestureDetector(
+              onTap: onAction,
+              child: Text(
+                action!,
+                textAlign: TextAlign.end,
+                style: Theme.of(context).textTheme.labelLarge?.copyWith(
+                  color: IviaColors.cobaltBlue,
+                  fontWeight: FontWeight.w700,
+                ),
               ),
             ),
           ),
+        ],
       ],
     ),
   );
@@ -676,7 +722,7 @@ class ProDock extends StatelessWidget {
                         button: true,
                         selected: i == current,
                         label: item.badge > 0
-                            ? '${item.label}, ${item.badge}'
+                            ? '${item.label}, ${item.badgeLabel ?? item.badge}'
                             : item.label,
                         child: ExcludeSemantics(
                           child: InkWell(
@@ -710,7 +756,16 @@ class ProDock extends StatelessWidget {
                                             ? FontWeight.w800
                                             : FontWeight.w500,
                                       ),
-                                  child: Text(item.label),
+                                  // Hauteur fixe de la barre : libellé limité
+                                  // à 130 % (annoncé en entier par le lecteur
+                                  // d'écran), comme les barres d'onglets.
+                                  child: Text(
+                                    item.label,
+                                    maxLines: 1,
+                                    overflow: TextOverflow.ellipsis,
+                                    textScaler: MediaQuery.textScalerOf(context)
+                                        .clamp(maxScaleFactor: 1.3),
+                                  ),
                                 ),
                               ],
                             ),
@@ -729,10 +784,14 @@ class ProDock extends StatelessWidget {
 }
 
 class ProDockItem {
-  const ProDockItem(this.icon, this.label, {this.badge = 0});
+  const ProDockItem(this.icon, this.label, {this.badge = 0, this.badgeLabel});
   final IconData icon;
   final String label;
   final int badge;
+
+  /// Pastille lue par le lecteur d'écran (« 2 nouvelles ») ; le nombre seul
+  /// sinon.
+  final String? badgeLabel;
 }
 
 /// Filtres à filet animé.

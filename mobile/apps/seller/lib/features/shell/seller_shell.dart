@@ -140,6 +140,7 @@ class _SellerShellState extends ConsumerState<SellerShell> {
                   Icons.receipt_long_outlined,
                   'Commandes',
                   badge: fresh,
+                  badgeLabel: fresh == 1 ? '1 nouvelle' : '$fresh nouvelles',
                 ),
                 ProDockItem(
                   restaurant

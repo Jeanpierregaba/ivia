@@ -1539,11 +1539,13 @@ class SpaceHeader extends StatelessWidget {
           ),
         ),
         const SizedBox(width: 8),
-        ProTag(
-          space.sectorLabel,
-          color: Pro.accent(space.sector),
-          icon: Pro.icon(space.sector),
-          solid: true,
+        Flexible(
+          child: ProTag(
+            space.sectorLabel,
+            color: Pro.accent(space.sector),
+            icon: Pro.icon(space.sector),
+            solid: true,
+          ),
         ),
       ],
     );

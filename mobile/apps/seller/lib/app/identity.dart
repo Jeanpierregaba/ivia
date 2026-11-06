@@ -53,11 +53,16 @@ Widget _hero(BuildContext context) {
             children: [
               const IviaLogoTile(size: 44, color: IviaColors.cobaltBlue),
               const SizedBox(width: 10),
-              Text(
-                'Business',
-                style: t.titleMedium?.copyWith(
-                  color: Colors.white,
-                  fontWeight: FontWeight.w800,
+              // Grandes polices : le nom rétrécit au lieu de déborder.
+              Flexible(
+                child: Text(
+                  'Business',
+                  maxLines: 1,
+                  overflow: TextOverflow.ellipsis,
+                  style: t.titleMedium?.copyWith(
+                    color: Colors.white,
+                    fontWeight: FontWeight.w800,
+                  ),
                 ),
               ),
             ],
