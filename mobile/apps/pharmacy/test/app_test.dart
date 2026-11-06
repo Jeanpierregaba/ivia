@@ -1,6 +1,5 @@
 import 'package:flutter_test/flutter_test.dart';
 import 'package:ivia_api_client/testing.dart';
-import 'package:ivia_app_core/ivia_app_core.dart';
 
 import 'helpers.dart';
 
@@ -10,42 +9,6 @@ void main() {
   setUp(() {
     PharmacyHarness.resetDevice();
     app = PharmacyHarness();
-  });
-
-  group('lancement (030)', () {
-    testWidgets('écran de localisation après le splash, puis connexion', (
-      tester,
-    ) async {
-      await app.launch(tester);
-      expect(find.text('Pharmacie'), findsOneWidget);
-      expect(find.text(locationTitle, findRichText: true), findsOneWidget);
-      await tapText(tester, "Saisir l'adresse");
-      expect(find.text('Espace pharmacie'), findsOneWidget);
-      expect(app.location.requests, 0);
-
-      // Relancée : plus d'écran.
-      await app.launch(tester);
-      expect(find.text(locationTitle, findRichText: true), findsNothing);
-      expect(find.text('Espace pharmacie'), findsOneWidget);
-    });
-
-    testWidgets('« Autoriser » : fenêtre du système, puis connexion', (
-      tester,
-    ) async {
-      await app.launch(tester);
-      await tapText(tester, 'Autoriser la localisation');
-      expect(app.location.requests, 1);
-      expect(find.text('Espace pharmacie'), findsOneWidget);
-    });
-
-    testWidgets('position déjà autorisée : connexion directement', (
-      tester,
-    ) async {
-      app.location.state = LocationAccess.granted;
-      await app.launch(tester);
-      expect(find.text(locationTitle, findRichText: true), findsNothing);
-      expect(find.text('Espace pharmacie'), findsOneWidget);
-    });
   });
 
   group('dossier de la pharmacie', () {

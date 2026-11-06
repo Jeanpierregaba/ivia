@@ -28,7 +28,10 @@ class PharmacyHarness {
 
   /// Compte connecté, profil complet, écran de localisation déjà passé.
   Future<void> signIn() async {
-    SharedPreferences.setMockInitialValues({'location_prompt_done': true});
+    SharedPreferences.setMockInitialValues({
+      'location_prompt_done': true,
+      'onboarding_seen': true,
+    });
     await SessionStore().save(
       'jeton-secret',
       User.fromJson(userBody(complete: true)),
@@ -42,6 +45,7 @@ class PharmacyHarness {
 
   Future<void> launch(WidgetTester tester) async {
     final locationPrompt = await LocationPromptStore.open(location);
+    final onboarding = await OnboardingStore.open();
     await tester.pumpWidget(const SizedBox());
     await tester.pumpWidget(
       ProviderScope(
@@ -49,6 +53,7 @@ class PharmacyHarness {
           appIdentityProvider.overrideWithValue(pharmacyIdentity),
           locationServiceProvider.overrideWithValue(location),
           locationPromptStoreProvider.overrideWithValue(locationPrompt),
+          onboardingStoreProvider.overrideWithValue(onboarding),
           apiClientProvider.overrideWithValue(
             IviaApiClient(
               config: ApiConfig(baseUrl: Uri.parse('http://api.test')),

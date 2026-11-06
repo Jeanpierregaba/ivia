@@ -10,6 +10,7 @@ import 'common/providers.dart';
 import 'features/alerts/alert_detail_screen.dart';
 import 'features/application/application_screen.dart';
 import 'features/home/pharmacy_shell.dart';
+import 'features/launch/onboarding_screen.dart';
 import 'features/push/alerts_permission.dart';
 import 'features/push/push.dart';
 
@@ -44,6 +45,9 @@ abstract final class Routes {
 
   /// Autorisation de la localisation, juste après le splash (spec 030).
   static const location = '/location';
+
+  /// Présentation en 3 pages, une fois sur le téléphone (F01 à F03).
+  static const onboarding = '/onboarding';
   static const login = AuthRoutes.login;
   static const code = AuthRoutes.code;
   static const signup = AuthRoutes.signup;
@@ -61,6 +65,7 @@ final routerProvider = Provider<GoRouter>((ref) {
   ref.listen(alertsReadyProvider, (_, _) => refresh.value++);
   ref.listen(alertsPromptSkippedProvider, (_, _) => refresh.value++);
   ref.listen(locationPromptDoneProvider, (_, _) => refresh.value++);
+  ref.listen(onboardingSeenProvider, (_, _) => refresh.value++);
   final router = GoRouter(
     initialLocation: Routes.splash,
     refreshListenable: refresh,
@@ -75,6 +80,9 @@ final routerProvider = Provider<GoRouter>((ref) {
         AuthStarting() => const [Routes.splash],
         // Après le splash, avant tout le reste : une fois (spec 030).
         _ when !ref.read(locationPromptDoneProvider) => const [Routes.location],
+        AuthSignedOut() when !ref.read(onboardingSeenProvider) => const [
+          Routes.onboarding,
+        ],
         AuthSignedOut() => const [Routes.login, Routes.code, Routes.signup],
         AuthOffline() => const [Routes.offline],
         AuthNeedsProfile() => const [Routes.welcome],
@@ -117,6 +125,10 @@ final routerProvider = Provider<GoRouter>((ref) {
       GoRoute(
         path: Routes.location,
         builder: (_, _) => const LaunchLocationPromptScreen(),
+      ),
+      GoRoute(
+        path: Routes.onboarding,
+        builder: (_, _) => const OnboardingScreen(),
       ),
       GoRoute(
         path: Routes.login,
@@ -164,6 +176,7 @@ Future<void> main() async {
   // Position de l'officine : précise.
   const location = DeviceLocationService();
   final locationPrompt = await LocationPromptStore.open(location);
+  final onboarding = await OnboardingStore.open();
   await IviaLogo.precache(IviaLogoColor.white);
   runApp(
     ProviderScope(
@@ -171,6 +184,7 @@ Future<void> main() async {
         appIdentityProvider.overrideWithValue(pharmacyIdentity),
         locationServiceProvider.overrideWithValue(location),
         locationPromptStoreProvider.overrideWithValue(locationPrompt),
+        onboardingStoreProvider.overrideWithValue(onboarding),
         apiClientProvider.overrideWithValue(
           IviaApiClient(config: ApiConfig.fromEnvironment()),
         ),
