@@ -51,6 +51,7 @@ type Pharmacy struct {
 	MissingDocuments []string       `json:"missing_documents"`
 	Payout           *PayoutAccount `json:"payout"`
 	SubmittedAt      *time.Time     `json:"submitted_at"`
+	Email            string         `json:"email"`
 	CreatedAt        time.Time      `json:"created_at"`
 	UpdatedAt        time.Time      `json:"updated_at"`
 }
@@ -76,6 +77,7 @@ type ApplicationInput struct {
 	Name           string     `json:"name"`
 	LicenseNumber  string     `json:"license_number"`
 	Phone          string     `json:"phone"`
+	Email          string     `json:"email"`
 	AddressText    string     `json:"address_text"`
 	NeighborhoodID *uuid.UUID `json:"neighborhood_id"`
 	Location       geo.Point  `json:"location"`
@@ -192,6 +194,9 @@ func (s *Service) validateApplication(ctx context.Context, in *ApplicationInput)
 	phone, ok := validate.NormalizeTogoPhone(in.Phone)
 	v.Check(ok, "phone", "Numéro togolais invalide.")
 	in.Phone = phone
+	email, ok := validate.NormalizeEmail(in.Email)
+	v.Check(ok, "email", "Adresse e-mail invalide.")
+	in.Email = email
 	v.Coordinates("location.", in.Location.Lat, in.Location.Lng)
 	if err := v.Err(); err != nil {
 		return err
@@ -229,6 +234,9 @@ func (s *Service) Apply(ctx context.Context, ownerID uuid.UUID, in ApplicationIn
 			if n == 0 {
 				return apperr.Conflict("pharmacy_not_editable", "Dossier envoyé ou validé : il ne se modifie plus pour le moment.")
 			}
+			if err := q.SetPharmacyEmail(ctx, store.SetPharmacyEmailParams{ID: id, Email: in.Email}); err != nil {
+				return fmt.Errorf("e-mail de la pharmacie : %w", err)
+			}
 			return nil
 		}
 		id, err = q.CreatePharmacy(ctx, store.CreatePharmacyParams{
@@ -240,6 +248,9 @@ func (s *Service) Apply(ctx context.Context, ownerID uuid.UUID, in ApplicationIn
 		}
 		if err != nil {
 			return fmt.Errorf("inscription de la pharmacie : %w", err)
+		}
+		if err := q.SetPharmacyEmail(ctx, store.SetPharmacyEmailParams{ID: id, Email: in.Email}); err != nil {
+			return fmt.Errorf("e-mail de la pharmacie : %w", err)
 		}
 		return nil
 	})
@@ -410,6 +421,9 @@ func (s *Service) Review(ctx context.Context, adminID, id uuid.UUID, decision, r
 			}
 			if err := s.users.GrantRole(ctx, r.OwnerID, identity.RolePharmacist, &adminID); err != nil {
 				return err
+			}
+			if err := s.jobs.Enqueue(ctx, ApprovalEmailArgs{PharmacyID: id}, nil); err != nil {
+				return fmt.Errorf("e-mail de validation : %w", err)
 			}
 			kind, title, body = "pharmacy_approved", "Pharmacie validée", "Bienvenue sur ivia ! Ouvrez votre pharmacie pour recevoir les alertes."
 		case "request_changes":

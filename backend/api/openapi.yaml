@@ -13021,6 +13021,7 @@ components:
       type: object
       description: "Dossier d'une pharmacie (titulaire et admin). duty_until : fin de la garde planifiée en cours."
       properties:
+        email: {type: string}
         payout:
           oneOf:
             - type: "null"
@@ -13135,6 +13136,7 @@ components:
       type: object
       description: "Dossier avec le titulaire (back-office)."
       properties:
+        email: {type: string}
         payout:
           oneOf:
             - type: "null"
@@ -13260,6 +13262,7 @@ components:
       type: object
       description: "Inscription d'une pharmacie."
       properties:
+        email: {type: string, format: email, description: "Reçoit l'avis de validation."}
         name:
           type: string
           minLength: 2

@@ -71,6 +71,7 @@ export default async function PharmacyPage({ params }: { params: Promise<{ id: s
             items={[
               ["Titulaire", `${p.owner_first_name || "—"} · ${formatPhone(p.owner_phone)}`],
               ["N° d'autorisation", p.license_number || "—"],
+              ["E-mail", p.email || "—"],
               ["Horaires", p.opening_hours || "—"],
               ["État", [p.is_open && "Ouverte", p.on_duty && "De garde", p.open_24h && "24 h/24"].filter(Boolean).join(" · ") || "Fermée"],
               [

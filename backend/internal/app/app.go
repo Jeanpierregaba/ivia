@@ -146,7 +146,7 @@ func New(cfg config.Config, logger *slog.Logger, pool *pgxpool.Pool, opts Option
 	a.Promo = promo.NewService(db, a.Uploads, a.Catalog, a.Orders, a.Admin)
 	a.Pharmacy = pharmacy.NewService(pharmacy.Deps{
 		DB: db, Jobs: enq, Admin: a.Admin, Users: a.Users, Geo: a.Geo, Uploads: a.Uploads, Notify: a.Notifications,
-		Payments: a.Payments, Delivery: a.Delivery, Logger: logger,
+		Payments: a.Payments, Delivery: a.Delivery, Logger: logger, Mail: a.buildEmailSender(),
 	})
 
 	a.Properties = properties.NewService(db, a.Uploads, a.Admin)
@@ -253,6 +253,19 @@ func (a *App) buildStorage() (storage.ObjectStore, error) {
 		return a.LocalStore, nil
 	}
 	return nil, fmt.Errorf("stockage inconnu : %s", a.Config.Storage)
+}
+
+// buildEmailSender choisit l'envoi des e-mails d'information, comme celui des codes : Mailpit en
+// local, Brevo en production.
+func (a *App) buildEmailSender() notifications.EmailSender {
+	cfg := a.Config
+	switch cfg.OTPSender {
+	case "brevo":
+		return &notifications.BrevoEmail{APIKey: cfg.BrevoAPIKey, SenderEmail: cfg.BrevoSenderMail, SenderName: cfg.BrevoSenderName}
+	case "smtp":
+		return &notifications.SMTPEmail{Addr: cfg.SMTPAddr, From: cfg.SMTPFrom}
+	}
+	return &notifications.LogEmail{Logger: a.Logger}
 }
 
 // buildOTPSender assemble les expéditeurs de codes : e-mail (OTP_SENDER), WhatsApp

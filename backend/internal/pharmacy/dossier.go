@@ -46,6 +46,7 @@ func (s *Service) withDossier(ctx context.Context, p *Pharmacy, full bool) error
 		return fmt.Errorf("dossier de la pharmacie : %w", err)
 	}
 	p.SubmittedAt = r.SubmittedAt
+	p.Email = r.Email
 	if r.PayoutOperator != nil && r.PayoutPhone != nil {
 		phone := *r.PayoutPhone
 		p.Payout = &PayoutAccount{Operator: *r.PayoutOperator, PhoneMasked: "+228 •• •• •• " + phone[len(phone)-2:], Holder: r.PayoutHolder}
@@ -240,4 +241,20 @@ func (h *Handler) deleteOwnShift(w http.ResponseWriter, r *http.Request) error {
 		return err
 	}
 	return httpapi.NoContent(w)
+}
+
+// sendApprovalEmail confirme la validation à l'adresse de la fiche (le push part avec la décision).
+func (s *Service) sendApprovalEmail(ctx context.Context, id uuid.UUID) error {
+	if s.mail == nil {
+		return nil
+	}
+	p, _, err := s.pharmacyView(ctx, id, false)
+	if err != nil {
+		return err
+	}
+	if p.Email == "" {
+		return nil
+	}
+	return s.mail.SendEmail(ctx, p.Email, "Votre pharmacie est validée sur ivia",
+		p.Name+" est validée. Ouvrez ivia Pharmacie et activez « En service » pour recevoir les alertes des patients.")
 }

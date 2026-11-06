@@ -14,7 +14,7 @@ func newPharmacy(t *testing.T, name string, lat, lng float64) (string, string) {
 	tok := login(t, uniqueEmail("pharma"))
 	completeProfile(t, tok, "Essi")
 	p := mustStatus(t, call(t, tok, "POST", "/v1/pharmacy/application", map[string]any{
-		"name": name, "license_number": "ORD-TG-0042", "phone": uniquePhone(), "address_text": "Boulevard du 13 janvier",
+		"name": name, "license_number": "ORD-TG-0042", "phone": uniquePhone(), "email": uniqueEmail("officine"), "address_text": "Boulevard du 13 janvier",
 		"location": map[string]float64{"lat": lat, "lng": lng}, "opening_hours": "Lun-Sam 8h-21h",
 	}), http.StatusCreated)
 	id := p.str("id")

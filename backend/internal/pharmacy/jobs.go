@@ -22,6 +22,15 @@ type WidenArgs struct {
 // Kind implémente river.JobArgs.
 func (WidenArgs) Kind() string { return "pharmacy.widen" }
 
+// ApprovalEmailArgs : avis de validation par e-mail. L'adresse se relit à l'envoi : elle ne reste
+// pas dans la file des tâches.
+type ApprovalEmailArgs struct {
+	PharmacyID uuid.UUID `json:"pharmacy_id"`
+}
+
+// Kind implémente river.JobArgs.
+func (ApprovalEmailArgs) Kind() string { return "pharmacy.approval_email" }
+
 // CloseSearchArgs : fin de la fenêtre de réponse d'une alerte.
 type CloseSearchArgs struct {
 	AlertID uuid.UUID `json:"alert_id"`
@@ -87,6 +96,7 @@ func add[T river.JobArgs](reg *jobs.Registry, fn func(ctx context.Context, args 
 
 // RegisterJobs déclare les tâches de fond du module.
 func (s *Service) RegisterJobs(reg *jobs.Registry) {
+	add(reg, func(ctx context.Context, a ApprovalEmailArgs) error { return s.sendApprovalEmail(ctx, a.PharmacyID) })
 	add(reg, func(ctx context.Context, a WidenArgs) error { return s.widen(ctx, a.AlertID) })
 	add(reg, func(ctx context.Context, a CloseSearchArgs) error { return s.closeSearch(ctx, a.AlertID) })
 	add(reg, func(ctx context.Context, a ExpireReservationArgs) error {
@@ -183,6 +193,9 @@ func (s *Service) CheckAccountDeletable(ctx context.Context, userID uuid.UUID) e
 // OnAccountDeleted efface les photos d'alerte du client ; pour un titulaire, suspend la pharmacie
 // et efface ses pièces (users.DeletionHook).
 func (s *Service) OnAccountDeleted(ctx context.Context, userID uuid.UUID) error {
+	if err := s.q(ctx).ClearPharmacyEmail(ctx, userID); err != nil {
+		return fmt.Errorf("effacement de l'e-mail : %w", err)
+	}
 	if err := s.q(ctx).ClearPharmacyPayout(ctx, userID); err != nil {
 		return fmt.Errorf("effacement du compte de versement : %w", err)
 	}

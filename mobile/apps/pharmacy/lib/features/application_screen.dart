@@ -86,6 +86,7 @@ class _PharmacyFormScreenState extends ConsumerState<PharmacyFormScreen> {
   late final _phone = TextEditingController(
     text: (widget.profile?.phone ?? '').replaceFirst('+228', ''),
   );
+  late final _email = TextEditingController(text: widget.profile?.email);
   late final _address = TextEditingController(
     text: widget.profile?.addressText,
   );
@@ -104,7 +105,7 @@ class _PharmacyFormScreenState extends ConsumerState<PharmacyFormScreen> {
 
   @override
   void dispose() {
-    for (final c in [_name, _license, _phone, _address, _hours]) {
+    for (final c in [_name, _license, _phone, _email, _address, _hours]) {
       c.dispose();
     }
     _map.dispose();
@@ -135,6 +136,7 @@ class _PharmacyFormScreenState extends ConsumerState<PharmacyFormScreen> {
             name: _name.text.trim(),
             licenseNumber: _license.text.trim(),
             phone: '+228${togoPhoneDigits(_phone.text)}',
+            email: _email.text.trim(),
             addressText: _address.text.trim(),
             neighborhoodId: _neighborhood,
             location: GeoPoint(lat: _center.latitude, lng: _center.longitude),
@@ -179,7 +181,7 @@ class _PharmacyFormScreenState extends ConsumerState<PharmacyFormScreen> {
         const PTitle('Votre ', 'pharmacie'),
         const SizedBox(height: 8),
         Text(
-          'Étape 1 sur 5 · Les patients autour de vous vous envoient leurs alertes médicament.',
+          'Étape 1 sur 5 · Les patients autour de vous vous envoient leurs alertes médicament. Vous recevrez la validation à cette adresse e-mail.',
           style: t.bodyMedium?.copyWith(color: P.muted),
         ),
         const SizedBox(height: 20),
@@ -197,6 +199,12 @@ class _PharmacyFormScreenState extends ConsumerState<PharmacyFormScreen> {
             controller: _phone,
             errorText: _errors['phone'],
           ),
+        ),
+        _field(
+          'email',
+          'E-mail de la pharmacie',
+          _email,
+          hint: 'contact@pharmacie.tg',
         ),
         _field('address_text', 'Adresse', _address, hint: 'Rue, repère'),
         Padding(

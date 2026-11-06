@@ -612,7 +612,7 @@ ON CONFLICT (owner_id) DO UPDATE SET is_open = true, on_duty = true, review_stat
 RETURNING id;
 
 -- name: PharmacyDossier :one
-SELECT submitted_at, payout_operator, payout_phone, payout_holder FROM pharmacies WHERE id = $1;
+SELECT submitted_at, payout_operator, payout_phone, payout_holder, email FROM pharmacies WHERE id = $1;
 
 -- name: SetPharmacyPayout :execrows
 UPDATE pharmacies SET payout_operator = $2, payout_phone = $3, payout_holder = $4, updated_at = now()
@@ -626,3 +626,9 @@ UPDATE pharmacies SET payout_operator = NULL, payout_phone = NULL, payout_holder
 
 -- name: DeleteOwnDutyShift :one
 DELETE FROM pharmacy_duty_shifts WHERE id = $1 AND pharmacy_id = $2 RETURNING *;
+
+-- name: SetPharmacyEmail :exec
+UPDATE pharmacies SET email = $2, updated_at = now() WHERE id = $1;
+
+-- name: ClearPharmacyEmail :exec
+UPDATE pharmacies SET email = '', updated_at = now() WHERE owner_id = $1;

@@ -5898,6 +5898,7 @@ export interface components {
         };
         /** @description Dossier d'une pharmacie (titulaire et admin). duty_until : fin de la garde planifiée en cours. */
         Pharmacy: {
+            email?: string;
             payout?: null | {
                 /** @enum {string} */
                 operator: "flooz" | "tmoney";
@@ -5942,6 +5943,7 @@ export interface components {
         };
         /** @description Dossier avec le titulaire (back-office). */
         AdminPharmacy: {
+            email?: string;
             payout?: null | {
                 /** @enum {string} */
                 operator: "flooz" | "tmoney";
@@ -5989,6 +5991,11 @@ export interface components {
         };
         /** @description Inscription d'une pharmacie. */
         PharmacyApplicationInput: {
+            /**
+             * Format: email
+             * @description Reçoit l'avis de validation.
+             */
+            email?: string;
             name: string;
             license_number: string;
             phone: string;

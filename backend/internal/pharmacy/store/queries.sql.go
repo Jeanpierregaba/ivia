@@ -364,6 +364,15 @@ func (q *Queries) ChoosePickup(ctx context.Context, id uuid.UUID) (int64, error)
 	return result.RowsAffected(), nil
 }
 
+const clearPharmacyEmail = `-- name: ClearPharmacyEmail :exec
+UPDATE pharmacies SET email = '', updated_at = now() WHERE owner_id = $1
+`
+
+func (q *Queries) ClearPharmacyEmail(ctx context.Context, ownerID uuid.UUID) error {
+	_, err := q.db.Exec(ctx, clearPharmacyEmail, ownerID)
+	return err
+}
+
 const clearPharmacyPayout = `-- name: ClearPharmacyPayout :exec
 UPDATE pharmacies SET payout_operator = NULL, payout_phone = NULL, payout_holder = '', updated_at = now() WHERE owner_id = $1
 `
@@ -2827,7 +2836,7 @@ func (q *Queries) PendingUnlockPayment(ctx context.Context, responseID *uuid.UUI
 }
 
 const pharmacyDossier = `-- name: PharmacyDossier :one
-SELECT submitted_at, payout_operator, payout_phone, payout_holder FROM pharmacies WHERE id = $1
+SELECT submitted_at, payout_operator, payout_phone, payout_holder, email FROM pharmacies WHERE id = $1
 `
 
 type PharmacyDossierRow struct {
@@ -2835,6 +2844,7 @@ type PharmacyDossierRow struct {
 	PayoutOperator *string
 	PayoutPhone    *string
 	PayoutHolder   string
+	Email          string
 }
 
 func (q *Queries) PharmacyDossier(ctx context.Context, id uuid.UUID) (PharmacyDossierRow, error) {
@@ -2845,6 +2855,7 @@ func (q *Queries) PharmacyDossier(ctx context.Context, id uuid.UUID) (PharmacyDo
 		&i.PayoutOperator,
 		&i.PayoutPhone,
 		&i.PayoutHolder,
+		&i.Email,
 	)
 	return i, err
 }
@@ -3105,6 +3116,20 @@ func (q *Queries) SetPaymentStatus(ctx context.Context, arg SetPaymentStatusPara
 		return 0, err
 	}
 	return result.RowsAffected(), nil
+}
+
+const setPharmacyEmail = `-- name: SetPharmacyEmail :exec
+UPDATE pharmacies SET email = $2, updated_at = now() WHERE id = $1
+`
+
+type SetPharmacyEmailParams struct {
+	ID    uuid.UUID
+	Email string
+}
+
+func (q *Queries) SetPharmacyEmail(ctx context.Context, arg SetPharmacyEmailParams) error {
+	_, err := q.db.Exec(ctx, setPharmacyEmail, arg.ID, arg.Email)
+	return err
 }
 
 const setPharmacyPayout = `-- name: SetPharmacyPayout :execrows

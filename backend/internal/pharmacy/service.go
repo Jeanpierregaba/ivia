@@ -160,6 +160,7 @@ type SettingsPatch struct {
 
 // Service gère le module.
 type Service struct {
+	mail     notifications.EmailSender
 	db       *database.DB
 	jobs     jobs.Enqueuer
 	admin    *admin.Service
@@ -185,12 +186,13 @@ type Deps struct {
 	Payments *payments.Service
 	Delivery *delivery.Service
 	Logger   *slog.Logger
+	Mail     notifications.EmailSender
 }
 
 // NewService crée le service et le déclare propriétaire de ses paiements et de ses fichiers privés.
 func NewService(d Deps) *Service {
 	s := &Service{
-		db: d.DB, jobs: d.Jobs, admin: d.Admin, users: d.Users, geo: d.Geo, uploads: d.Uploads, notify: d.Notify,
+		mail: d.Mail, db: d.DB, jobs: d.Jobs, admin: d.Admin, users: d.Users, geo: d.Geo, uploads: d.Uploads, notify: d.Notify,
 		payments: d.Payments, provider: d.Payments.Provider(), drivers: d.Delivery, logger: d.Logger,
 	}
 	d.Payments.AddExternal(ReferencePrefix, s)
