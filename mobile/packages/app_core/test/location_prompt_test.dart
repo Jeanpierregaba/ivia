@@ -122,7 +122,7 @@ void main() {
           ),
         ),
       );
-      await tester.ensureVisible(find.text('Refuser'));
+      await tester.ensureVisible(find.text('Plus tard'));
     }
 
     testWidgets('textes de l\'app', (tester) async {
@@ -135,9 +135,9 @@ void main() {
       expect(find.byIcon(Icons.two_wheeler), findsOneWidget);
     });
 
-    testWidgets('« Refuser » : suite, sans fenêtre du système', (tester) async {
+    testWidgets('« Plus tard » : suite, sans fenêtre du système', (tester) async {
       await pumpScreen(tester);
-      await tester.tap(find.text('Refuser'));
+      await tester.tap(find.text('Plus tard'));
       expect(done, 1);
       expect(location.requests, 0);
     });
@@ -183,14 +183,14 @@ void main() {
       expect(done, 1);
     });
 
-    testWidgets('fenêtre du système sans réponse : « Refuser » fait suivre', (
+    testWidgets('fenêtre du système sans réponse : « Plus tard » fait suivre', (
       tester,
     ) async {
       location.requestPending = Completer();
       await pumpScreen(tester);
       await tester.tap(find.text('Autoriser la localisation'));
       await tester.pump();
-      await tester.tap(find.text('Refuser'));
+      await tester.tap(find.text('Plus tard'));
       await tester.pump();
       expect(done, 1);
       // Réponse tardive : pas de seconde suite.
@@ -222,8 +222,8 @@ void main() {
       ),
     );
     expect(container.read(locationPromptDoneProvider), isFalse);
-    await tester.ensureVisible(find.text('Refuser'));
-    await tester.tap(find.text('Refuser'));
+    await tester.ensureVisible(find.text('Plus tard'));
+    await tester.tap(find.text('Plus tard'));
     await tester.pump();
     expect(container.read(locationPromptDoneProvider), isTrue);
     expect(
@@ -269,16 +269,16 @@ void main() {
     testWidgets('déjà autorisée : pas d\'écran', (tester) async {
       location.state = LocationAccess.granted;
       await pumpFeature(tester);
-      expect(find.text('Refuser'), findsNothing);
+      expect(find.text('Plus tard'), findsNothing);
       expect(result, isTrue);
     });
 
-    testWidgets('« Refuser » : écran fermé, sans position', (tester) async {
+    testWidgets('« Plus tard » : écran fermé, sans position', (tester) async {
       await pumpFeature(tester);
-      await tester.ensureVisible(find.text('Refuser'));
-      await tester.tap(find.text('Refuser'));
+      await tester.ensureVisible(find.text('Plus tard'));
+      await tester.tap(find.text('Plus tard'));
       await tester.pumpAndSettle();
-      expect(find.text('Refuser'), findsNothing);
+      expect(find.text('Plus tard'), findsNothing);
       expect(find.text('Utiliser ma position'), findsOneWidget);
       expect(result, isFalse);
       expect(location.requests, 0);
@@ -288,10 +288,10 @@ void main() {
       tester,
     ) async {
       await pumpFeature(tester);
-      await tester.ensureVisible(find.text('Refuser'));
+      await tester.ensureVisible(find.text('Plus tard'));
       await tester.tap(find.text('Autoriser la localisation'));
       await tester.pumpAndSettle();
-      expect(find.text('Refuser'), findsNothing);
+      expect(find.text('Plus tard'), findsNothing);
       expect(result, isTrue);
     });
 
@@ -323,21 +323,21 @@ void main() {
       await tester.tap(find.text('Utiliser ma position'));
       await tester.pumpAndSettle();
       expect(find.byType(LocationPromptScreen), findsOneWidget);
-      await tester.ensureVisible(find.text('Refuser'));
-      await tester.tap(find.text('Refuser'));
+      await tester.ensureVisible(find.text('Plus tard'));
+      await tester.tap(find.text('Plus tard'));
       await tester.pumpAndSettle();
       expect(await Future.wait(answers), [false, false]);
       expect(find.byType(LocationPromptScreen), findsNothing);
     });
 
-    testWidgets('retour système : vaut « Refuser »', (tester) async {
+    testWidgets('retour système : vaut « Plus tard »', (tester) async {
       await pumpFeature(tester);
       final navigator = tester.state<NavigatorState>(
         find.byType(Navigator).first,
       );
       await navigator.maybePop();
       await tester.pumpAndSettle();
-      expect(find.text('Refuser'), findsNothing);
+      expect(find.text('Plus tard'), findsNothing);
       expect(result, isFalse);
       expect(location.requests, 0);
     });

@@ -1,7 +1,7 @@
 # Aperçu local de toute la plateforme ivia, sans émulateur (peu de mémoire).
 #
 #   API          http://localhost:8080
-#   Acheteur     http://localhost:8090   (cadre iPhone 17 Pro)
+#   ivia         http://localhost:8090   (cadre iPhone 17 Pro)
 #   Business     http://localhost:8091
 #   Livreur      http://localhost:8092
 #   Pharmacie    http://localhost:8093
@@ -43,7 +43,7 @@ if (Test-Path (Join-Path $root 'geo-data\osrm-car\togo-latest.osrm.mldgr')) {
   $env:REDIS_URL = 'redis://127.0.0.1:6379/0'
 }
 
-# API locale : codes de connexion dans le journal, images servies par l'aperçu acheteur.
+# API locale : codes de connexion dans le journal, images servies par l'aperçu ivia.
 $env:APP_ENV = 'local'
 $env:OTP_SENDER = 'smtp'
 $env:PUBLIC_BASE_URL = 'http://localhost:8090'
@@ -56,7 +56,7 @@ $api = Start-Process -FilePath (Join-Path $backend 'bin\api.exe') -WorkingDirect
 $started += $api.Id
 
 # Apps Flutter (build web) dans le cadre iPhone, avec relais vers l'API.
-foreach ($app in @(@('buyer', 8090, 'ivia Acheteur'), @('seller', 8091, 'Ivia Business'), @('driver', 8092, 'ivia Livreur'), @('pharmacy', 8093, 'ivia Pharmacie'))) {
+foreach ($app in @(@('buyer', 8090, 'ivia'), @('seller', 8091, 'Ivia Business'), @('driver', 8092, 'ivia Livreur'), @('pharmacy', 8093, 'ivia Pharmacie'))) {
   $web = Join-Path $root ('mobile\apps\' + $app[0] + '\build\web')
   $p = Start-Process -FilePath 'python' -ArgumentList @('-I', (Join-Path $here 'serve.py'), $web, $app[1], ('"' + $app[2] + '"')) `
     -WindowStyle Hidden -PassThru
@@ -78,7 +78,7 @@ if (Test-Path $standalone) {
 
 $started | Set-Content $pids
 Write-Output 'Aperçu démarré :'
-Write-Output '  Acheteur     http://localhost:8090'
+Write-Output '  ivia         http://localhost:8090'
 Write-Output '  Business     http://localhost:8091'
 Write-Output '  Livreur      http://localhost:8092'
 Write-Output '  Pharmacie    http://localhost:8093'

@@ -1,6 +1,6 @@
 # Progression du projet ivia
 
-> Fichier tenu à jour à chaque étape. Dernière mise à jour : **2026-11-05**.
+> Fichier tenu à jour à chaque étape. Dernière mise à jour : **2026-11-06**.
 > Détail des tâches : [`TASKS.md`](TASKS.md) · journal des sessions : [`docs/SESSION-LOG.md`](docs/SESSION-LOG.md).
 
 ## En un coup d'œil
@@ -141,6 +141,7 @@ Next.js 16, TypeScript strict, Tailwind 4, même langage visuel que les apps (lo
 - **Commande en livraison** (nouveau) : choix de l'adresse et frais affichés avant de payer.
 - **Logos Moov Money et Yas** officiels sur les écrans de paiement.
 - **Publicité IVI (acheteur)** : carrousel de bannières dans un ordre tiré au hasard qui défile seul ; section « Produits vedettes » ; produits mis en avant glissés dans l'accueil et la navigation du catalogue ; prix promotionnel avec prix normal barré, badges et caractéristiques ; fenêtres et interstitiels plein écran selon les réglages de l'admin (délai, intervalle, plafond par session, rotation), toujours fermables, jamais pendant le panier, la commande ou le paiement ; « Commander maintenant » passe par le panier habituel ; « Visiter le site officiel IVI » ouvre le navigateur ; statistiques anonymes envoyées par lots.
+- **Écran de localisation unifié** (nouveau) : même écran pour ivia, Business, Livreur et Pharmacie, décliné par couleur (dégradé, bas en vague, cercles, titre en deux tons, bouton arrondi, animation d'apparition unique). L'app client s'affiche « ivia » tout court. « Saisir l'adresse » (Business, Pharmacie) et « Plus tard » (ivia, Livreur) continuent sans la position. Compilé en web, rendu et tests non vérifiés.
 
 ## 4. Infrastructure — fait
 

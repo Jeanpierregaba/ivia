@@ -233,7 +233,7 @@ void main() {
   }
 
   group('lancement et présentation', () {
-    testWidgets('localisation (030) : écran après le splash, « Refuser »', (
+    testWidgets('localisation (030) : écran après le splash, « Plus tard »', (
       tester,
     ) async {
       location.state = LocationAccess.askable;
@@ -244,7 +244,7 @@ void main() {
         findsOneWidget,
       );
       expect(find.byType(IviaOnboarding), findsNothing);
-      await tapText(tester, 'Refuser');
+      await tapText(tester, 'Plus tard');
       expect(find.byType(IviaOnboarding), findsOneWidget);
       expect(location.requests, 0);
     });
@@ -737,7 +737,7 @@ void main() {
         );
         // En ligne : animation continue, pas de pumpAndSettle.
         final choice = find.text(
-          allow ? 'Autoriser la localisation' : 'Refuser',
+          allow ? 'Autoriser la localisation' : 'Plus tard',
         );
         await tester.ensureVisible(choice);
         await tester.tap(choice);

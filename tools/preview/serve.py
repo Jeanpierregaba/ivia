@@ -1,4 +1,4 @@
-"""Aperçu local de l'app acheteur (build web) dans un cadre iPhone 17 Pro.
+"""Aperçu local d'une app ivia (build web) dans un cadre iPhone 17 Pro.
 
 Sert le build web sur http://localhost:8090 et relaie /v1/ et /dev/ vers l'API locale
 (http://localhost:8080) : même origine, donc pas de CORS. Usage local uniquement.

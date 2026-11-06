@@ -53,26 +53,26 @@ void main() {
     expect(accent.style?.color, IviaAppBrand.seller.highlight);
     expect(find.bySemanticsLabel('ivia'), findsOneWidget);
     expect(find.text('Autoriser la localisation'), findsOneWidget);
-    expect(find.text('Refuser'), findsOneWidget);
+    expect(find.text('Plus tard'), findsOneWidget);
   });
 
-  testWidgets('« Autoriser » et « Refuser » appellent leur action', (
+  testWidgets('« Autoriser » et « Plus tard » appellent leur action', (
     tester,
   ) async {
     await tester.pumpWidget(prompt());
-    await tester.ensureVisible(find.text('Refuser'));
+    await tester.ensureVisible(find.text('Plus tard'));
     await tester.tap(find.text('Autoriser la localisation'));
-    await tester.tap(find.text('Refuser'));
+    await tester.tap(find.text('Plus tard'));
     expect((allowed, refused), (1, 1));
   });
 
-  testWidgets('demande en cours : « Autoriser » occupé, « Refuser » actif', (
+  testWidgets('demande en cours : « Autoriser » occupé, « Plus tard » actif', (
     tester,
   ) async {
     await tester.pumpWidget(prompt(busy: true));
-    await tester.ensureVisible(find.text('Refuser'));
+    await tester.ensureVisible(find.text('Plus tard'));
     await tester.tap(find.text('Autoriser la localisation'));
-    await tester.tap(find.text('Refuser'));
+    await tester.tap(find.text('Plus tard'));
     expect((allowed, refused), (0, 1));
     expect(find.byType(CircularProgressIndicator), findsOneWidget);
   });
@@ -117,8 +117,8 @@ void main() {
       ),
     );
     expect(tester.takeException(), isNull);
-    await tester.scrollUntilVisible(find.text('Refuser'), 200);
-    await tester.tap(find.text('Refuser'));
+    await tester.scrollUntilVisible(find.text('Plus tard'), 200);
+    await tester.tap(find.text('Plus tard'));
     expect(refused, 1);
   });
 }

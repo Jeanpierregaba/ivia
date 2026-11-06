@@ -23,13 +23,14 @@ const pharmacyIdentity = AppIdentity(
   appCode: 'pharmacy',
   locationPrompt: LocationPromptCopy(
     space: 'Pharmacie',
-    center: Icons.local_pharmacy,
+    center: Icons.medical_services,
     satellites: [Icons.person, Icons.person, Icons.person, Icons.person],
     title: 'Les alertes',
     titleAccent: 'de votre quartier',
     body:
         'Activez la localisation pour recevoir les demandes des clients '
         'proches.',
+    laterLabel: "Saisir l'adresse",
   ),
 );
 

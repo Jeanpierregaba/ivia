@@ -19,7 +19,7 @@ const driverIdentity = AppIdentity(
       Icons.storefront,
       Icons.home,
       Icons.home,
-      Icons.local_pharmacy,
+      Icons.medical_services,
     ],
     title: 'Des missions',
     titleAccent: 'près de vous',

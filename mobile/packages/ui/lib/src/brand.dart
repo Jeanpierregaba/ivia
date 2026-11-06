@@ -90,6 +90,8 @@ final class IviaAppBrand {
     required this.action,
     required this.link,
     required this.highlight,
+    required this.heroDeep,
+    required this.heroLight,
   });
 
   /// Marque de l'app en cours, portée par le thème (`IviaTheme.light`).
@@ -113,6 +115,10 @@ final class IviaAppBrand {
   /// Partie colorée des titres (24 px et plus).
   final Color highlight;
 
+  /// Dégradé des grands panneaux : du plus sombre au plus clair, autour de [accent].
+  final Color heroDeep;
+  final Color heroLight;
+
   static const buyer = IviaAppBrand._(
     accent: IviaColors.imperialRed,
     accentSoft: IviaColors.primarySoft,
@@ -120,6 +126,8 @@ final class IviaAppBrand {
     action: IviaColors.imperialRed,
     link: IviaColors.cornellRed,
     highlight: IviaColors.imperialRed,
+    heroDeep: Color(0xFFCF0F2B),
+    heroLight: Color(0xFFFF5364),
   );
 
   static const seller = IviaAppBrand._(
@@ -129,6 +137,8 @@ final class IviaAppBrand {
     action: IviaColors.berkeleyBlue,
     link: IviaColors.berkeleyBlue,
     highlight: IviaColors.cobaltBlue,
+    heroDeep: Color(0xFF071C40),
+    heroLight: Color(0xFF28568F),
   );
 
   static const driver = IviaAppBrand._(
@@ -138,6 +148,8 @@ final class IviaAppBrand {
     action: IviaColors.cobaltBlue,
     link: IviaColors.cobaltBlue,
     highlight: IviaColors.cobaltBlue,
+    heroDeep: Color(0xFF0A45C4),
+    heroLight: Color(0xFF1C86FF),
   );
 
   /// App pharmacie : vert pharmacie (croix verte), logotype Berkeley.
@@ -148,6 +160,8 @@ final class IviaAppBrand {
     action: IviaColors.success,
     link: IviaColors.success,
     highlight: IviaColors.success,
+    heroDeep: Color(0xFF07783A),
+    heroLight: Color(0xFF2FD668),
   );
 }
 

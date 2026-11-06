@@ -14,7 +14,7 @@ import urllib.error
 import urllib.parse
 import urllib.request
 
-SERVERS = ['https://overpass-api.de/api/interpreter', 'https://overpass.kumi.systems/api/interpreter']
+SERVERS = ['https://overpass-api.de/api/interpreter', 'https://overpass.kumi.systems/api/interpreter', 'https://overpass.private.coffee/api/interpreter']
 
 FILTERS = {
     'market': '["amenity"="marketplace"]',
@@ -64,10 +64,14 @@ def fetch(query):
         )
         try:
             with urllib.request.urlopen(req, timeout=180) as res:
-                return json.load(res)['elements']
+                elements = json.load(res)['elements']
+            # Serveur saturé ou zone pas encore prête : réponse valide mais vide.
+            if elements:
+                return elements
+            last = 'réponse vide'
         except (urllib.error.URLError, TimeoutError, ValueError) as e:
             last = e
-            time.sleep(20)
+        time.sleep(20)
     raise SystemExit(f'Overpass indisponible : {last}')
 
 

@@ -283,7 +283,7 @@ void main() {
         await tester.pumpAndSettle();
         await tapText(tester, 'Utiliser ma position');
         expect(find.byType(LocationPromptScreen), findsOneWidget);
-        await tapText(tester, allow ? 'Autoriser la localisation' : 'Refuser');
+        await tapText(tester, allow ? 'Autoriser la localisation' : 'Plus tard');
         expect(find.byType(LocationPromptScreen), findsNothing);
         expect(app.location.requests, allow ? 1 : 0);
         if (allow) {

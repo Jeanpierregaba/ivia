@@ -18,6 +18,7 @@ class LocationPromptCopy {
     required this.title,
     required this.titleAccent,
     required this.body,
+    this.laterLabel = 'Plus tard',
   });
 
   /// Nom de l'espace à côté du logo (« Business ») ; aucun pour l'acheteur.
@@ -31,6 +32,10 @@ class LocationPromptCopy {
   final String title;
   final String titleAccent;
   final String body;
+
+  /// Action secondaire : continuer sans la position (« Saisir l'adresse » là
+  /// où l'adresse se saisit plus loin).
+  final String laterLabel;
 }
 
 /// Mémorise, sur l'appareil, que l'écran du lancement a été passé.
@@ -155,6 +160,7 @@ class _LocationPromptScreenState extends ConsumerState<LocationPromptScreen> {
       title: copy.title,
       titleAccent: copy.titleAccent,
       body: copy.body,
+      laterLabel: copy.laterLabel,
       busy: _busy,
       onAllow: _allow,
       onRefuse: _finish,
@@ -174,7 +180,7 @@ class LaunchLocationPromptScreen extends ConsumerWidget {
 
 /// Avant une fonctionnalité qui a besoin de la position : sans autorisation,
 /// l'écran s'affiche par-dessus tout (barre du bas comprise). Renvoie `true`
-/// si la position est autorisée ensuite. Le retour système vaut « Refuser ».
+/// si la position est autorisée ensuite. Le retour système vaut l'action secondaire.
 Future<bool> askForLocation(BuildContext context, WidgetRef ref) {
   // Un second appel (double appui) attend l'écran déjà ouvert.
   final pending = ref.read(_pendingAskProvider);

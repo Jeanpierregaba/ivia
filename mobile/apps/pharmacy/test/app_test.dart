@@ -73,7 +73,7 @@ void main() {
       await launchApp(tester);
       expect(find.text('Pharmacie'), findsOneWidget);
       expect(find.text(_title, findRichText: true), findsOneWidget);
-      await tapText(tester, 'Refuser');
+      await tapText(tester, "Saisir l'adresse");
       expect(find.text('Espace pharmacie'), findsOneWidget);
       expect(location.requests, 0);
 
@@ -140,7 +140,7 @@ void main() {
         await launchApp(tester);
         await tapText(tester, 'Envoyer la demande');
         expect(find.text(_title, findRichText: true), findsOneWidget);
-        await tapText(tester, allow ? 'Autoriser la localisation' : 'Refuser');
+        await tapText(tester, allow ? 'Autoriser la localisation' : "Saisir l'adresse");
         expect(find.text(_title, findRichText: true), findsNothing);
         final sent =
             server.calls('POST', '/v1/pharmacy/application').single.body

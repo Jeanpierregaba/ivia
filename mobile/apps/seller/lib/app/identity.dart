@@ -21,11 +21,12 @@ const sellerIdentity = AppIdentity(
       Icons.storefront,
       Icons.apartment,
       Icons.restaurant,
-      Icons.construction,
+      Icons.handyman,
     ],
     title: 'Soyez visible',
     titleAccent: 'dans votre quartier',
     body: 'Activez la localisation pour placer votre activité sur la carte.',
+    laterLabel: "Saisir l'adresse",
   ),
   authHero: _hero,
 );

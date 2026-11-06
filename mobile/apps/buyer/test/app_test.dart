@@ -172,13 +172,13 @@ void main() {
   group('autorisation de la localisation (030)', () {
     const title = "Tout ce qu'il vous faut, près de vous";
 
-    testWidgets('premier lancement : écran après le splash, « Refuser »', (
+    testWidgets('premier lancement : écran après le splash, « Plus tard »', (
       tester,
     ) async {
       await launchApp(tester, access: LocationAccess.askable);
       expect(find.text(title, findRichText: true), findsOneWidget);
       expect(find.byType(IviaOnboarding), findsNothing);
-      await tapText(tester, 'Refuser');
+      await tapText(tester, 'Plus tard');
       expect(find.text(_firstTitle), findsOneWidget);
       expect(location.requests, 0);
       expect(

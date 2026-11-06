@@ -234,7 +234,7 @@ void main() {
       expect(find.text(firstTitle, findRichText: true), findsOneWidget);
     });
 
-    testWidgets('localisation (030) : écran après le splash, « Refuser »', (
+    testWidgets("localisation (030) : écran après le splash, « Saisir l'adresse »", (
       tester,
     ) async {
       location.state = LocationAccess.askable;
@@ -245,7 +245,7 @@ void main() {
         findsOneWidget,
       );
       expect(find.text(firstTitle, findRichText: true), findsNothing);
-      await tapText(tester, 'Refuser');
+      await tapText(tester, "Saisir l'adresse");
       expect(find.text(firstTitle, findRichText: true), findsOneWidget);
       expect(location.requests, 0);
     });
@@ -582,7 +582,7 @@ void main() {
           );
           await tapText(
             tester,
-            allow ? 'Autoriser la localisation' : 'Refuser',
+            allow ? 'Autoriser la localisation' : "Saisir l'adresse",
           );
           expect(location.requests, allow ? 1 : 0);
           expect(

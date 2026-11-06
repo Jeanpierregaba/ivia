@@ -10,7 +10,7 @@ Toute la plateforme dans le navigateur, apps dans un cadre iPhone 17 Pro.
 
 | App | Adresse |
 | --- | --- |
-| Acheteur | http://localhost:8090 |
+| ivia | http://localhost:8090 |
 | Ivia Business | http://localhost:8091 |
 | Livreur | http://localhost:8092 |
 | Pharmacie | http://localhost:8093 |
