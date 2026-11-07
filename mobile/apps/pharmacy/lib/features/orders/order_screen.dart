@@ -515,7 +515,7 @@ class _OrderScreenState extends ConsumerState<OrderScreen> {
                           ),
                         ),
                         const SizedBox(width: 8),
-                        const Flexible(
+                        const PTrailing(
                           child: PPill(
                             'Livraison',
                             icon: Icons.two_wheeler,

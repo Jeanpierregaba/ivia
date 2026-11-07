@@ -329,6 +329,21 @@ class PHeader extends StatelessWidget {
   );
 }
 
+/// Pastille en bout de ligne : sa largeur naturelle, au plus 45 % de l'écran ;
+/// au-delà (police très agrandie), son texte passe à la ligne.
+class PTrailing extends StatelessWidget {
+  const PTrailing({super.key, required this.child});
+  final Widget child;
+
+  @override
+  Widget build(BuildContext context) => ConstrainedBox(
+    constraints: BoxConstraints(
+      maxWidth: MediaQuery.sizeOf(context).width * 0.45,
+    ),
+    child: child,
+  );
+}
+
 /// Pastille blanche d'étape (« 1 sur 5 »).
 class PStepPill extends StatelessWidget {
   const PStepPill({super.key, required this.step, required this.of});

@@ -18,6 +18,7 @@ Future<String?> showCancelSheet(BuildContext context) =>
       context: context,
       isScrollControlled: true,
       backgroundColor: Colors.white,
+      showDragHandle: true,
       barrierColor: IviaPharmacyColors.scrim,
       shape: const RoundedRectangleBorder(
         borderRadius: BorderRadius.vertical(top: Radius.circular(32)),
@@ -119,21 +120,11 @@ class _CancelSheetState extends State<_CancelSheet> {
       child: SafeArea(
         top: false,
         child: SingleChildScrollView(
-          padding: const EdgeInsets.fromLTRB(22, 12, 22, 12),
+          padding: const EdgeInsets.fromLTRB(22, 0, 22, 12),
           child: Column(
             crossAxisAlignment: CrossAxisAlignment.stretch,
             children: [
-              Center(
-                child: Container(
-                  width: 40,
-                  height: 4,
-                  decoration: BoxDecoration(
-                    color: IviaPharmacyColors.disabled,
-                    borderRadius: BorderRadius.circular(2),
-                  ),
-                ),
-              ),
-              const SizedBox(height: 18),
+              const SizedBox(height: 4),
               Semantics(
                 header: true,
                 child: Text(

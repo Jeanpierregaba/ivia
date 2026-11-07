@@ -259,7 +259,7 @@ class _PlanningScreenState extends ConsumerState<PlanningScreen> {
                 ],
               ),
             ),
-            Flexible(child: pill),
+            PTrailing(child: pill),
             ?action,
           ],
         ),

@@ -392,8 +392,14 @@ class _LineCard extends StatelessWidget {
       filled: true,
       fillColor: P.page,
       hintText: hint,
-      suffixText: suffix,
-      suffixStyle: PText.label.copyWith(color: P.muted),
+      // Unité toujours visible (le suffixe de Material n'apparaît qu'au focus).
+      suffixIcon: suffix == null
+          ? null
+          : Padding(
+              padding: const EdgeInsets.only(right: 14),
+              child: Text(suffix, style: PText.label.copyWith(color: P.muted)),
+            ),
+      suffixIconConstraints: const BoxConstraints(),
       contentPadding: const EdgeInsets.symmetric(horizontal: 14, vertical: 14),
       border: border,
       enabledBorder: border,
