@@ -3309,6 +3309,9 @@ paths:
                     - id_card
                     - driving_license
                     - vehicle_registration
+                    - vehicle_insurance
+                    - vehicle_photo
+                    - criminal_record
                     - photo
                     - other
                 object_key:
@@ -3323,6 +3326,145 @@ paths:
             application/json:
               schema:
                 "$ref": "#/components/schemas/Driver"
+        default:
+          description: "Erreur (voir `code`)"
+          content:
+            application/json:
+              schema:
+                "$ref": "#/components/schemas/Error"
+  "/v1/driver/options":
+    get:
+      summary: "Activités proposées à l'inscription"
+      description: "Livraison toujours ; taxi VTC seulement si le back-office ne le masque pas (mode preregistration ou open). Pour chaque véhicule : pièces exigées."
+      tags:
+        - Livreur
+      operationId: getDriverOptions
+      x-roles:
+        - any
+      responses:
+        "200":
+          description: "Succès"
+          content:
+            application/json:
+              schema:
+                "$ref": "#/components/schemas/DriverOptions"
+        default:
+          description: "Erreur (voir `code`)"
+          content:
+            application/json:
+              schema:
+                "$ref": "#/components/schemas/Error"
+  "/v1/driver/activities/{activity}":
+    put:
+      summary: "Déclarer une activité et son véhicule"
+      description: "Crée le dossier en brouillon, ou le corrige tant qu'il n'est pas validé (409 `application_locked` ensuite). Après un refus, ouvre une nouvelle demande. VTC : voiture, marque, modèle, plaque et places obligatoires ; 409 `vtc_unavailable` si le VTC est masqué. Livraison : plaque obligatoire sauf à vélo."
+      tags:
+        - Livreur
+      operationId: putDriverActivity
+      parameters:
+        - name: activity
+          in: path
+          required: true
+          schema:
+            type: string
+            enum:
+              - delivery
+              - vtc
+      x-roles:
+        - any
+      requestBody:
+        required: true
+        content:
+          application/json:
+            schema:
+              "$ref": "#/components/schemas/DriverActivityInput"
+      responses:
+        "200":
+          description: "Succès"
+          content:
+            application/json:
+              schema:
+                "$ref": "#/components/schemas/Driver"
+        default:
+          description: "Erreur (voir `code`)"
+          content:
+            application/json:
+              schema:
+                "$ref": "#/components/schemas/Error"
+  "/v1/driver/activities/{activity}/submit":
+    post:
+      summary: "Envoyer le dossier au back-office"
+      description: "Statut en attente de vérification, back-office prévenu. 409 `dossier_incomplete` sans les pièces de l'activité et du véhicule, sans compte de versement ou, en livraison, sans zone de travail. 409 `already_submitted` si déjà envoyé."
+      tags:
+        - Livreur
+      operationId: postDriverActivitySubmit
+      parameters:
+        - name: activity
+          in: path
+          required: true
+          schema:
+            type: string
+            enum:
+              - delivery
+              - vtc
+      x-roles:
+        - any
+      responses:
+        "200":
+          description: "Succès"
+          content:
+            application/json:
+              schema:
+                "$ref": "#/components/schemas/Driver"
+        default:
+          description: "Erreur (voir `code`)"
+          content:
+            application/json:
+              schema:
+                "$ref": "#/components/schemas/Error"
+  "/v1/driver/payout":
+    put:
+      summary: "Renseigner le compte de versement (Mobile Money)"
+      description: "Modifiable tant qu'aucune activité n'est validée ; ensuite 409 `payout_locked` (changement par l'équipe ivia)."
+      tags:
+        - Livreur
+      operationId: putDriverPayout
+      x-roles:
+        - any
+      requestBody:
+        required: true
+        content:
+          application/json:
+            schema:
+              "$ref": "#/components/schemas/DriverPayoutInput"
+      responses:
+        "200":
+          description: "Succès"
+          content:
+            application/json:
+              schema:
+                "$ref": "#/components/schemas/Driver"
+        default:
+          description: "Erreur (voir `code`)"
+          content:
+            application/json:
+              schema:
+                "$ref": "#/components/schemas/Error"
+  "/v1/driver/guide":
+    get:
+      summary: "Guide du partenaire"
+      tags:
+        - Livreur
+      operationId: getDriverGuide
+      x-roles:
+        - any
+      responses:
+        "200":
+          description: "Succès"
+          content:
+            application/json:
+              schema:
+                "$ref": "#/components/schemas/DriverGuide"
         default:
           description: "Erreur (voir `code`)"
           content:
@@ -3346,6 +3488,12 @@ paths:
               properties:
                 online:
                   type: boolean
+                activity:
+                  type: string
+                  description: "Activité sur laquelle passer en ligne (une seule à la fois). vtc : 409 `vtc_not_open` tant que les courses n'existent pas."
+                  enum:
+                    - delivery
+                    - vtc
               required:
                 - online
       responses:
@@ -4610,6 +4758,265 @@ paths:
             application/json:
               schema:
                 "$ref": "#/components/schemas/AdminDriver"
+        default:
+          description: "Erreur (voir `code`)"
+          content:
+            application/json:
+              schema:
+                "$ref": "#/components/schemas/Error"
+  "/v1/admin/drivers/{id}/request-changes":
+    post:
+      summary: "Demander des compléments (livraison, motif obligatoire)"
+      tags:
+        - Admin
+      operationId: postAdminDriversByIdRequestChanges
+      parameters:
+        - name: id
+          in: path
+          required: true
+          schema:
+            type: string
+            format: uuid
+      x-roles:
+        - admin
+      requestBody:
+        required: true
+        content:
+          application/json:
+            schema:
+              "$ref": "#/components/schemas/Reason"
+      responses:
+        "200":
+          description: "Succès"
+          content:
+            application/json:
+              schema:
+                "$ref": "#/components/schemas/AdminDriver"
+        default:
+          description: "Erreur (voir `code`)"
+          content:
+            application/json:
+              schema:
+                "$ref": "#/components/schemas/Error"
+  "/v1/admin/drivers/{id}/activities/{activity}/vehicle-check":
+    post:
+      summary: "Enregistrer le contrôle du véhicule sur place"
+      description: "Dossier en attente de vérification seulement. Obligatoire avant la validation d'un VTC ; pour la livraison, selon le réglage delivery_vehicle_check. Note obligatoire si le contrôle échoue. Journalisé."
+      tags:
+        - Admin
+      operationId: postAdminDriverActivityVehicleCheck
+      parameters:
+        - name: id
+          in: path
+          required: true
+          schema:
+            type: string
+            format: uuid
+        - name: activity
+          in: path
+          required: true
+          schema:
+            type: string
+            enum:
+              - delivery
+              - vtc
+      x-roles:
+        - admin
+      requestBody:
+        required: true
+        content:
+          application/json:
+            schema:
+              type: object
+              properties:
+                passed:
+                  type: boolean
+                note:
+                  type: string
+              required:
+                - passed
+      responses:
+        "200":
+          description: "Succès"
+          content:
+            application/json:
+              schema:
+                "$ref": "#/components/schemas/AdminDriver"
+        default:
+          description: "Erreur (voir `code`)"
+          content:
+            application/json:
+              schema:
+                "$ref": "#/components/schemas/Error"
+  "/v1/admin/drivers/{id}/activities/{activity}/approve":
+    post:
+      summary: "Valider une activité (active le module)"
+      description: "409 `driver_documents_missing`, `payout_missing` ou `vehicle_check_required` si le dossier n'est pas prêt. Donne le rôle driver, notifie le partenaire. Journalisé."
+      tags:
+        - Admin
+      operationId: postAdminDriverActivityApprove
+      parameters:
+        - name: id
+          in: path
+          required: true
+          schema:
+            type: string
+            format: uuid
+        - name: activity
+          in: path
+          required: true
+          schema:
+            type: string
+            enum:
+              - delivery
+              - vtc
+      x-roles:
+        - admin
+      requestBody:
+        required: true
+        content:
+          application/json:
+            schema:
+              "$ref": "#/components/schemas/Reason"
+      responses:
+        "200":
+          description: "Succès"
+          content:
+            application/json:
+              schema:
+                "$ref": "#/components/schemas/AdminDriver"
+        default:
+          description: "Erreur (voir `code`)"
+          content:
+            application/json:
+              schema:
+                "$ref": "#/components/schemas/Error"
+  "/v1/admin/drivers/{id}/activities/{activity}/request-changes":
+    post:
+      summary: "Demander des compléments (motif obligatoire)"
+      tags:
+        - Admin
+      operationId: postAdminDriverActivityRequestChanges
+      parameters:
+        - name: id
+          in: path
+          required: true
+          schema:
+            type: string
+            format: uuid
+        - name: activity
+          in: path
+          required: true
+          schema:
+            type: string
+            enum:
+              - delivery
+              - vtc
+      x-roles:
+        - admin
+      requestBody:
+        required: true
+        content:
+          application/json:
+            schema:
+              "$ref": "#/components/schemas/Reason"
+      responses:
+        "200":
+          description: "Succès"
+          content:
+            application/json:
+              schema:
+                "$ref": "#/components/schemas/AdminDriver"
+        default:
+          description: "Erreur (voir `code`)"
+          content:
+            application/json:
+              schema:
+                "$ref": "#/components/schemas/Error"
+  "/v1/admin/drivers/{id}/activities/{activity}/reject":
+    post:
+      summary: "Refuser une activité (motif obligatoire)"
+      tags:
+        - Admin
+      operationId: postAdminDriverActivityReject
+      parameters:
+        - name: id
+          in: path
+          required: true
+          schema:
+            type: string
+            format: uuid
+        - name: activity
+          in: path
+          required: true
+          schema:
+            type: string
+            enum:
+              - delivery
+              - vtc
+      x-roles:
+        - admin
+      requestBody:
+        required: true
+        content:
+          application/json:
+            schema:
+              "$ref": "#/components/schemas/Reason"
+      responses:
+        "200":
+          description: "Succès"
+          content:
+            application/json:
+              schema:
+                "$ref": "#/components/schemas/AdminDriver"
+        default:
+          description: "Erreur (voir `code`)"
+          content:
+            application/json:
+              schema:
+                "$ref": "#/components/schemas/Error"
+  "/v1/admin/driver-settings":
+    get:
+      summary: "Réglages partenaires"
+      tags:
+        - Admin
+      operationId: getAdminDriverSettings
+      x-roles:
+        - admin
+      responses:
+        "200":
+          description: "Succès"
+          content:
+            application/json:
+              schema:
+                "$ref": "#/components/schemas/DriverSettings"
+        default:
+          description: "Erreur (voir `code`)"
+          content:
+            application/json:
+              schema:
+                "$ref": "#/components/schemas/Error"
+    put:
+      summary: "Modifier les réglages partenaires"
+      description: "vtc_mode : hidden (masqué), preregistration (dossiers possibles, courses fermées) ou open. Journalisé."
+      tags:
+        - Admin
+      operationId: putAdminDriverSettings
+      x-roles:
+        - admin
+      requestBody:
+        required: true
+        content:
+          application/json:
+            schema:
+              "$ref": "#/components/schemas/DriverSettings"
+      responses:
+        "200":
+          description: "Succès"
+          content:
+            application/json:
+              schema:
+                "$ref": "#/components/schemas/DriverSettings"
         default:
           description: "Erreur (voir `code`)"
           content:
@@ -12668,6 +13075,194 @@ components:
         - id
         - kind
         - created_at
+    DriverActivity:
+      type: object
+      properties:
+        activity:
+          type: string
+          enum:
+            - delivery
+            - vtc
+        status:
+          type: string
+          enum:
+            - draft
+            - pending_review
+            - changes_requested
+            - approved
+            - rejected
+        review_note:
+          type: string
+          description: "Motif des compléments demandés ou du refus."
+        reviewed_at:
+          type:
+            - string
+            - "null"
+          format: date-time
+        submitted_at:
+          type:
+            - string
+            - "null"
+          format: date-time
+        vehicle:
+          type: object
+          properties:
+            type:
+              type: string
+              enum:
+                - bicycle
+                - motorbike
+                - car
+            brand:
+              type: string
+            model:
+              type: string
+            color:
+              type: string
+            plate:
+              type: string
+            seats:
+              type:
+                - integer
+                - "null"
+        work_zone_id:
+          type:
+            - string
+            - "null"
+          format: uuid
+        vehicle_check:
+          oneOf:
+            - type: object
+              properties:
+                passed:
+                  type: boolean
+                note:
+                  type: string
+                checked_at:
+                  type:
+                    - string
+                    - "null"
+                  format: date-time
+            - type: "null"
+        required_documents:
+          type: array
+          items:
+            type: string
+        missing_documents:
+          type: array
+          items:
+            type: string
+    DriverActivityInput:
+      type: object
+      properties:
+        vehicle_type:
+          type: string
+          enum:
+            - bicycle
+            - motorbike
+            - car
+        brand:
+          type: string
+        model:
+          type: string
+        color:
+          type: string
+        plate:
+          type: string
+        seats:
+          type:
+            - integer
+            - "null"
+        work_zone_id:
+          type:
+            - string
+            - "null"
+          format: uuid
+    DriverPayout:
+      type: object
+      properties:
+        operator:
+          type: string
+          enum:
+            - flooz
+            - tmoney
+        phone_masked:
+          type: string
+        phone:
+          type: string
+          description: "Numéro complet : back-office seulement."
+        holder:
+          type: string
+    DriverOptions:
+      type: object
+      properties:
+        activities:
+          type: array
+          items:
+            type: object
+            properties:
+              activity:
+                type: string
+              label:
+                type: string
+              mode:
+                type: string
+                enum:
+                  - open
+                  - preregistration
+              vehicles:
+                type: array
+                items:
+                  type: object
+                  properties:
+                    type:
+                      type: string
+                    required_documents:
+                      type: array
+                      items:
+                        type: string
+    DriverPayoutInput:
+      type: object
+      properties:
+        operator:
+          type: string
+          enum:
+            - flooz
+            - tmoney
+        phone:
+          type: string
+          description: "+228 suivi de 8 chiffres."
+        holder:
+          type: string
+      required:
+        - operator
+        - phone
+        - holder
+    DriverGuide:
+      type: object
+      properties:
+        guide:
+          type: string
+    DriverSettings:
+      type: object
+      properties:
+        vtc_mode:
+          type: string
+          enum:
+            - hidden
+            - preregistration
+            - open
+        delivery_vehicle_check:
+          type: boolean
+        partner_guide:
+          type: string
+        updated_at:
+          type: string
+          format: date-time
+      required:
+        - vtc_mode
+        - delivery_vehicle_check
+        - partner_guide
     Driver:
       type: object
       properties:
@@ -12677,7 +13272,9 @@ components:
         status:
           type: string
           enum:
+            - draft
             - pending_review
+            - changes_requested
             - rejected
             - suspended
             - offline
@@ -12686,7 +13283,9 @@ components:
         review_status:
           type: string
           enum:
+            - draft
             - pending_review
+            - changes_requested
             - approved
             - rejected
         review_note:
@@ -12712,12 +13311,21 @@ components:
         vehicle_type:
           type: string
           enum:
+            - bicycle
             - motorbike
             - car
         vehicle_plate:
           type: string
         vehicle_description:
           type: string
+        activities:
+          type: array
+          items:
+            "$ref": "#/components/schemas/DriverActivity"
+        payout:
+          oneOf:
+            - "$ref": "#/components/schemas/DriverPayout"
+            - type: "null"
         last_location_at:
           type:
             - string

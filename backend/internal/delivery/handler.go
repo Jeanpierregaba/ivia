@@ -38,6 +38,7 @@ func NewHandler(svc *Service) *Handler { return &Handler{svc: svc} }
 func (h *Handler) Register(rt *httpapi.Router) {
 	// Candidature : ouverte à tout utilisateur connecté (le rôle driver vient de la validation).
 	rt.Auth("GET /v1/driver/me", h.me)
+	h.registerPartner(rt)
 	rt.Auth("PUT /v1/driver/application", h.apply)
 	rt.Auth("POST /v1/driver/application/documents", h.addDocument)
 
@@ -107,10 +108,15 @@ func (h *Handler) addDocument(w http.ResponseWriter, r *http.Request) error {
 
 func (h *Handler) availability(w http.ResponseWriter, r *http.Request) error {
 	var in struct {
-		Online bool `json:"online"`
+		Online   bool   `json:"online"`
+		Activity string `json:"activity"`
 	}
 	if err := httpapi.Decode(r, &in); err != nil {
 		return err
+	}
+	// En ligne sur une seule activité à la fois : seules les missions de livraison existent.
+	if in.Online && in.Activity == ActivityVTC {
+		return apperr.Conflict("vtc_not_open", "Les courses Taxi VTC ne sont pas encore ouvertes : passez en ligne en livraison.")
 	}
 	d, err := h.svc.SetAvailability(r.Context(), me(r).UserID, in.Online)
 	if err != nil {
@@ -279,7 +285,7 @@ func (h *Handler) sellerInfo(w http.ResponseWriter, r *http.Request) error {
 func (h *Handler) adminList(w http.ResponseWriter, r *http.Request) error {
 	q := httpapi.NewQuery(r)
 	page := q.Page()
-	review := q.Enum("review_status", "", ReviewPending, ReviewApproved, ReviewRejected)
+	review := q.Enum("review_status", "", StatusDraft, ReviewPending, StatusChangesRequested, ReviewApproved, ReviewRejected)
 	suspended := q.Enum("suspended", "false", "true", "false") == "true"
 	if err := q.Err(); err != nil {
 		return err

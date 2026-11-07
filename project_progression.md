@@ -1,6 +1,6 @@
 # Progression du projet ivia
 
-> Fichier tenu à jour à chaque étape. Dernière mise à jour : **2026-11-06**.
+> Fichier tenu à jour à chaque étape. Dernière mise à jour : **2026-11-07**.
 > Détail des tâches : [`TASKS.md`](TASKS.md) · journal des sessions : [`docs/SESSION-LOG.md`](docs/SESSION-LOG.md).
 
 ## En un coup d'œil
@@ -95,6 +95,7 @@ Go 1.27, PostgreSQL 18 + PostGIS, tâches de fond River, 29 migrations, document
 **Secrets** : jamais dans Git (détection gitleaks en CI, historique vérifié sain) ; en production, un fichier par secret (droits 400, lisible par root et le conteneur seulement), jamais en variable d'environnement ; démarrage refusé avec un secret faible ou mal protégé ; aucun secret dans les journaux ; sauvegardes chiffrées.
 
 **Qualité** : tests sur base réelle pour chaque module et parcours de bout en bout ; `go vet`, `gofmt`, `govulncheck` en CI.
+- **Workflow partenaire livreur / chauffeur VTC (serveur)** (nouveau, BPMN du 2026-11-07, migration 00039) : activités livraison et taxi VTC par partenaire, véhicule (vélo, moto, voiture ; VTC : marque, modèle, plaque, places), zone de travail, pièces selon l'activité et le véhicule, compte de versement Mobile Money, envoi du dossier, contrôle du véhicule sur place (toujours pour le VTC, réglable pour la livraison), décisions valider / compléments / refus avec motif, réglages back-office (VTC masqué, pré-inscription ou ouvert ; guide du partenaire). Ancien parcours conservé. Reste : écrans de l'app livreur et du back-office, tests non lancés.
 
 ## 2. Back-office web (`admin/`) — fait
 

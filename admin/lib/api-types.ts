@@ -1553,6 +1553,103 @@ export interface paths {
         patch?: never;
         trace?: never;
     };
+    "/v1/driver/options": {
+        parameters: {
+            query?: never;
+            header?: never;
+            path?: never;
+            cookie?: never;
+        };
+        /**
+         * Activités proposées à l'inscription
+         * @description Livraison toujours ; taxi VTC seulement si le back-office ne le masque pas (mode preregistration ou open). Pour chaque véhicule : pièces exigées.
+         */
+        get: operations["getDriverOptions"];
+        put?: never;
+        post?: never;
+        delete?: never;
+        options?: never;
+        head?: never;
+        patch?: never;
+        trace?: never;
+    };
+    "/v1/driver/activities/{activity}": {
+        parameters: {
+            query?: never;
+            header?: never;
+            path?: never;
+            cookie?: never;
+        };
+        get?: never;
+        /**
+         * Déclarer une activité et son véhicule
+         * @description Crée le dossier en brouillon, ou le corrige tant qu'il n'est pas validé (409 `application_locked` ensuite). Après un refus, ouvre une nouvelle demande. VTC : voiture, marque, modèle, plaque et places obligatoires ; 409 `vtc_unavailable` si le VTC est masqué. Livraison : plaque obligatoire sauf à vélo.
+         */
+        put: operations["putDriverActivity"];
+        post?: never;
+        delete?: never;
+        options?: never;
+        head?: never;
+        patch?: never;
+        trace?: never;
+    };
+    "/v1/driver/activities/{activity}/submit": {
+        parameters: {
+            query?: never;
+            header?: never;
+            path?: never;
+            cookie?: never;
+        };
+        get?: never;
+        put?: never;
+        /**
+         * Envoyer le dossier au back-office
+         * @description Statut en attente de vérification, back-office prévenu. 409 `dossier_incomplete` sans les pièces de l'activité et du véhicule, sans compte de versement ou, en livraison, sans zone de travail. 409 `already_submitted` si déjà envoyé.
+         */
+        post: operations["postDriverActivitySubmit"];
+        delete?: never;
+        options?: never;
+        head?: never;
+        patch?: never;
+        trace?: never;
+    };
+    "/v1/driver/payout": {
+        parameters: {
+            query?: never;
+            header?: never;
+            path?: never;
+            cookie?: never;
+        };
+        get?: never;
+        /**
+         * Renseigner le compte de versement (Mobile Money)
+         * @description Modifiable tant qu'aucune activité n'est validée ; ensuite 409 `payout_locked` (changement par l'équipe ivia).
+         */
+        put: operations["putDriverPayout"];
+        post?: never;
+        delete?: never;
+        options?: never;
+        head?: never;
+        patch?: never;
+        trace?: never;
+    };
+    "/v1/driver/guide": {
+        parameters: {
+            query?: never;
+            header?: never;
+            path?: never;
+            cookie?: never;
+        };
+        /** Guide du partenaire */
+        get: operations["getDriverGuide"];
+        put?: never;
+        post?: never;
+        delete?: never;
+        options?: never;
+        head?: never;
+        patch?: never;
+        trace?: never;
+    };
     "/v1/driver/availability": {
         parameters: {
             query?: never;
@@ -2129,6 +2226,118 @@ export interface paths {
         /** Dossier d'un livreur (documents en lien temporaire) */
         get: operations["getAdminDriversById"];
         put?: never;
+        post?: never;
+        delete?: never;
+        options?: never;
+        head?: never;
+        patch?: never;
+        trace?: never;
+    };
+    "/v1/admin/drivers/{id}/request-changes": {
+        parameters: {
+            query?: never;
+            header?: never;
+            path?: never;
+            cookie?: never;
+        };
+        get?: never;
+        put?: never;
+        /** Demander des compléments (livraison, motif obligatoire) */
+        post: operations["postAdminDriversByIdRequestChanges"];
+        delete?: never;
+        options?: never;
+        head?: never;
+        patch?: never;
+        trace?: never;
+    };
+    "/v1/admin/drivers/{id}/activities/{activity}/vehicle-check": {
+        parameters: {
+            query?: never;
+            header?: never;
+            path?: never;
+            cookie?: never;
+        };
+        get?: never;
+        put?: never;
+        /**
+         * Enregistrer le contrôle du véhicule sur place
+         * @description Dossier en attente de vérification seulement. Obligatoire avant la validation d'un VTC ; pour la livraison, selon le réglage delivery_vehicle_check. Note obligatoire si le contrôle échoue. Journalisé.
+         */
+        post: operations["postAdminDriverActivityVehicleCheck"];
+        delete?: never;
+        options?: never;
+        head?: never;
+        patch?: never;
+        trace?: never;
+    };
+    "/v1/admin/drivers/{id}/activities/{activity}/approve": {
+        parameters: {
+            query?: never;
+            header?: never;
+            path?: never;
+            cookie?: never;
+        };
+        get?: never;
+        put?: never;
+        /**
+         * Valider une activité (active le module)
+         * @description 409 `driver_documents_missing`, `payout_missing` ou `vehicle_check_required` si le dossier n'est pas prêt. Donne le rôle driver, notifie le partenaire. Journalisé.
+         */
+        post: operations["postAdminDriverActivityApprove"];
+        delete?: never;
+        options?: never;
+        head?: never;
+        patch?: never;
+        trace?: never;
+    };
+    "/v1/admin/drivers/{id}/activities/{activity}/request-changes": {
+        parameters: {
+            query?: never;
+            header?: never;
+            path?: never;
+            cookie?: never;
+        };
+        get?: never;
+        put?: never;
+        /** Demander des compléments (motif obligatoire) */
+        post: operations["postAdminDriverActivityRequestChanges"];
+        delete?: never;
+        options?: never;
+        head?: never;
+        patch?: never;
+        trace?: never;
+    };
+    "/v1/admin/drivers/{id}/activities/{activity}/reject": {
+        parameters: {
+            query?: never;
+            header?: never;
+            path?: never;
+            cookie?: never;
+        };
+        get?: never;
+        put?: never;
+        /** Refuser une activité (motif obligatoire) */
+        post: operations["postAdminDriverActivityReject"];
+        delete?: never;
+        options?: never;
+        head?: never;
+        patch?: never;
+        trace?: never;
+    };
+    "/v1/admin/driver-settings": {
+        parameters: {
+            query?: never;
+            header?: never;
+            path?: never;
+            cookie?: never;
+        };
+        /** Réglages partenaires */
+        get: operations["getAdminDriverSettings"];
+        /**
+         * Modifier les réglages partenaires
+         * @description vtc_mode : hidden (masqué), preregistration (dossiers possibles, courses fermées) ou open. Journalisé.
+         */
+        put: operations["putAdminDriverSettings"];
         post?: never;
         delete?: never;
         options?: never;
@@ -5837,13 +6046,93 @@ export interface components {
             /** Format: date-time */
             created_at: string;
         };
+        DriverActivity: {
+            /** @enum {string} */
+            activity?: "delivery" | "vtc";
+            /** @enum {string} */
+            status?: "draft" | "pending_review" | "changes_requested" | "approved" | "rejected";
+            /** @description Motif des compléments demandés ou du refus. */
+            review_note?: string;
+            /** Format: date-time */
+            reviewed_at?: string | null;
+            /** Format: date-time */
+            submitted_at?: string | null;
+            vehicle?: {
+                /** @enum {string} */
+                type?: "bicycle" | "motorbike" | "car";
+                brand?: string;
+                model?: string;
+                color?: string;
+                plate?: string;
+                seats?: number | null;
+            };
+            /** Format: uuid */
+            work_zone_id?: string | null;
+            vehicle_check?: {
+                passed?: boolean;
+                note?: string;
+                /** Format: date-time */
+                checked_at?: string | null;
+            } | null;
+            required_documents?: string[];
+            missing_documents?: string[];
+        };
+        DriverActivityInput: {
+            /** @enum {string} */
+            vehicle_type?: "bicycle" | "motorbike" | "car";
+            brand?: string;
+            model?: string;
+            color?: string;
+            plate?: string;
+            seats?: number | null;
+            /** Format: uuid */
+            work_zone_id?: string | null;
+        };
+        DriverPayout: {
+            /** @enum {string} */
+            operator?: "flooz" | "tmoney";
+            phone_masked?: string;
+            /** @description Numéro complet : back-office seulement. */
+            phone?: string;
+            holder?: string;
+        };
+        DriverOptions: {
+            activities?: {
+                activity?: string;
+                label?: string;
+                /** @enum {string} */
+                mode?: "open" | "preregistration";
+                vehicles?: {
+                    type?: string;
+                    required_documents?: string[];
+                }[];
+            }[];
+        };
+        DriverPayoutInput: {
+            /** @enum {string} */
+            operator: "flooz" | "tmoney";
+            /** @description +228 suivi de 8 chiffres. */
+            phone: string;
+            holder: string;
+        };
+        DriverGuide: {
+            guide?: string;
+        };
+        DriverSettings: {
+            /** @enum {string} */
+            vtc_mode: "hidden" | "preregistration" | "open";
+            delivery_vehicle_check: boolean;
+            partner_guide: string;
+            /** Format: date-time */
+            updated_at?: string;
+        };
         Driver: {
             /** Format: uuid */
             user_id: string;
             /** @enum {string} */
-            status: "pending_review" | "rejected" | "suspended" | "offline" | "available" | "busy";
+            status: "draft" | "pending_review" | "changes_requested" | "rejected" | "suspended" | "offline" | "available" | "busy";
             /** @enum {string} */
-            review_status: "pending_review" | "approved" | "rejected";
+            review_status: "draft" | "pending_review" | "changes_requested" | "approved" | "rejected";
             review_note: string;
             /** Format: date-time */
             reviewed_at: string | null;
@@ -5853,9 +6142,11 @@ export interface components {
             /** @enum {string} */
             availability: "offline" | "available" | "busy";
             /** @enum {string} */
-            vehicle_type: "motorbike" | "car";
+            vehicle_type: "bicycle" | "motorbike" | "car";
             vehicle_plate: string;
             vehicle_description: string;
+            activities?: components["schemas"]["DriverActivity"][];
+            payout?: components["schemas"]["DriverPayout"] | null;
             /** Format: date-time */
             last_location_at: string | null;
             documents: components["schemas"]["Document"][];
@@ -10346,7 +10637,7 @@ export interface operations {
             content: {
                 "application/json": {
                     /** @enum {string} */
-                    kind: "id_card" | "driving_license" | "vehicle_registration" | "photo" | "other";
+                    kind: "id_card" | "driving_license" | "vehicle_registration" | "vehicle_insurance" | "vehicle_photo" | "criminal_record" | "photo" | "other";
                     object_key: string;
                 };
             };
@@ -10372,6 +10663,163 @@ export interface operations {
             };
         };
     };
+    getDriverOptions: {
+        parameters: {
+            query?: never;
+            header?: never;
+            path?: never;
+            cookie?: never;
+        };
+        requestBody?: never;
+        responses: {
+            /** @description Succès */
+            200: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["DriverOptions"];
+                };
+            };
+            /** @description Erreur (voir `code`) */
+            default: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["Error"];
+                };
+            };
+        };
+    };
+    putDriverActivity: {
+        parameters: {
+            query?: never;
+            header?: never;
+            path: {
+                activity: "delivery" | "vtc";
+            };
+            cookie?: never;
+        };
+        requestBody: {
+            content: {
+                "application/json": components["schemas"]["DriverActivityInput"];
+            };
+        };
+        responses: {
+            /** @description Succès */
+            200: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["Driver"];
+                };
+            };
+            /** @description Erreur (voir `code`) */
+            default: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["Error"];
+                };
+            };
+        };
+    };
+    postDriverActivitySubmit: {
+        parameters: {
+            query?: never;
+            header?: never;
+            path: {
+                activity: "delivery" | "vtc";
+            };
+            cookie?: never;
+        };
+        requestBody?: never;
+        responses: {
+            /** @description Succès */
+            200: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["Driver"];
+                };
+            };
+            /** @description Erreur (voir `code`) */
+            default: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["Error"];
+                };
+            };
+        };
+    };
+    putDriverPayout: {
+        parameters: {
+            query?: never;
+            header?: never;
+            path?: never;
+            cookie?: never;
+        };
+        requestBody: {
+            content: {
+                "application/json": components["schemas"]["DriverPayoutInput"];
+            };
+        };
+        responses: {
+            /** @description Succès */
+            200: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["Driver"];
+                };
+            };
+            /** @description Erreur (voir `code`) */
+            default: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["Error"];
+                };
+            };
+        };
+    };
+    getDriverGuide: {
+        parameters: {
+            query?: never;
+            header?: never;
+            path?: never;
+            cookie?: never;
+        };
+        requestBody?: never;
+        responses: {
+            /** @description Succès */
+            200: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["DriverGuide"];
+                };
+            };
+            /** @description Erreur (voir `code`) */
+            default: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["Error"];
+                };
+            };
+        };
+    };
     putDriverAvailability: {
         parameters: {
             query?: never;
@@ -10383,6 +10831,11 @@ export interface operations {
             content: {
                 "application/json": {
                     online: boolean;
+                    /**
+                     * @description Activité sur laquelle passer en ligne (une seule à la fois). vtc : 409 `vtc_not_open` tant que les courses n'existent pas.
+                     * @enum {string}
+                     */
+                    activity?: "delivery" | "vtc";
                 };
             };
         };
@@ -11600,6 +12053,250 @@ export interface operations {
                 };
                 content: {
                     "application/json": components["schemas"]["AdminDriver"];
+                };
+            };
+            /** @description Erreur (voir `code`) */
+            default: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["Error"];
+                };
+            };
+        };
+    };
+    postAdminDriversByIdRequestChanges: {
+        parameters: {
+            query?: never;
+            header?: never;
+            path: {
+                id: string;
+            };
+            cookie?: never;
+        };
+        requestBody: {
+            content: {
+                "application/json": components["schemas"]["Reason"];
+            };
+        };
+        responses: {
+            /** @description Succès */
+            200: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["AdminDriver"];
+                };
+            };
+            /** @description Erreur (voir `code`) */
+            default: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["Error"];
+                };
+            };
+        };
+    };
+    postAdminDriverActivityVehicleCheck: {
+        parameters: {
+            query?: never;
+            header?: never;
+            path: {
+                id: string;
+                activity: "delivery" | "vtc";
+            };
+            cookie?: never;
+        };
+        requestBody: {
+            content: {
+                "application/json": {
+                    passed: boolean;
+                    note?: string;
+                };
+            };
+        };
+        responses: {
+            /** @description Succès */
+            200: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["AdminDriver"];
+                };
+            };
+            /** @description Erreur (voir `code`) */
+            default: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["Error"];
+                };
+            };
+        };
+    };
+    postAdminDriverActivityApprove: {
+        parameters: {
+            query?: never;
+            header?: never;
+            path: {
+                id: string;
+                activity: "delivery" | "vtc";
+            };
+            cookie?: never;
+        };
+        requestBody: {
+            content: {
+                "application/json": components["schemas"]["Reason"];
+            };
+        };
+        responses: {
+            /** @description Succès */
+            200: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["AdminDriver"];
+                };
+            };
+            /** @description Erreur (voir `code`) */
+            default: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["Error"];
+                };
+            };
+        };
+    };
+    postAdminDriverActivityRequestChanges: {
+        parameters: {
+            query?: never;
+            header?: never;
+            path: {
+                id: string;
+                activity: "delivery" | "vtc";
+            };
+            cookie?: never;
+        };
+        requestBody: {
+            content: {
+                "application/json": components["schemas"]["Reason"];
+            };
+        };
+        responses: {
+            /** @description Succès */
+            200: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["AdminDriver"];
+                };
+            };
+            /** @description Erreur (voir `code`) */
+            default: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["Error"];
+                };
+            };
+        };
+    };
+    postAdminDriverActivityReject: {
+        parameters: {
+            query?: never;
+            header?: never;
+            path: {
+                id: string;
+                activity: "delivery" | "vtc";
+            };
+            cookie?: never;
+        };
+        requestBody: {
+            content: {
+                "application/json": components["schemas"]["Reason"];
+            };
+        };
+        responses: {
+            /** @description Succès */
+            200: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["AdminDriver"];
+                };
+            };
+            /** @description Erreur (voir `code`) */
+            default: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["Error"];
+                };
+            };
+        };
+    };
+    getAdminDriverSettings: {
+        parameters: {
+            query?: never;
+            header?: never;
+            path?: never;
+            cookie?: never;
+        };
+        requestBody?: never;
+        responses: {
+            /** @description Succès */
+            200: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["DriverSettings"];
+                };
+            };
+            /** @description Erreur (voir `code`) */
+            default: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["Error"];
+                };
+            };
+        };
+    };
+    putAdminDriverSettings: {
+        parameters: {
+            query?: never;
+            header?: never;
+            path?: never;
+            cookie?: never;
+        };
+        requestBody: {
+            content: {
+                "application/json": components["schemas"]["DriverSettings"];
+            };
+        };
+        responses: {
+            /** @description Succès */
+            200: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["DriverSettings"];
                 };
             };
             /** @description Erreur (voir `code`) */

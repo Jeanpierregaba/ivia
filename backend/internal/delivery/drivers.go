@@ -71,7 +71,11 @@ type Driver struct {
 	VehicleDescription string     `json:"vehicle_description"`
 	LastLocationAt     *time.Time `json:"last_location_at"`
 	Documents          []Document `json:"documents"`
-	CreatedAt          time.Time  `json:"created_at"`
+	// Activités déclarées (livraison, taxi VTC) et état de leur dossier ; Status et ReviewStatus
+	// ci-dessus suivent l'activité livraison.
+	Activities []Activity     `json:"activities"`
+	Payout     *PayoutAccount `json:"payout"`
+	CreatedAt  time.Time      `json:"created_at"`
 }
 
 // Document est une pièce du dossier d'un livreur. L'URL n'est fournie qu'aux admins.
@@ -192,6 +196,9 @@ func (s *Service) getDriver(ctx context.Context, userID uuid.UUID, withURLs bool
 			}
 		}
 	}
+	if err := s.loadActivities(ctx, &d, withURLs); err != nil {
+		return Driver{}, err
+	}
 	return d, nil
 }
 
@@ -245,6 +252,9 @@ func (s *Service) Apply(ctx context.Context, userID uuid.UUID, in ApplicationInp
 			if err := q.CreateDriver(ctx, store.CreateDriverParams{UserID: userID, VehicleType: in.VehicleType, VehiclePlate: in.VehiclePlate, VehicleDescription: in.VehicleDescription}); err != nil {
 				return fmt.Errorf("création de la candidature : %w", err)
 			}
+			if err := q.UpsertLegacyDelivery(ctx, userID); err != nil {
+				return fmt.Errorf("activité livraison : %w", err)
+			}
 		case err != nil:
 			return fmt.Errorf("lecture de la candidature : %w", err)
 		default:
@@ -254,6 +264,9 @@ func (s *Service) Apply(ctx context.Context, userID uuid.UUID, in ApplicationInp
 			}
 			if n == 0 {
 				return apperr.Conflict("application_locked", "Votre candidature a déjà été validée : contactez l'équipe ivia pour la modifier.")
+			}
+			if err := q.UpsertLegacyDelivery(ctx, userID); err != nil {
+				return fmt.Errorf("activité livraison : %w", err)
 			}
 			if cur.ReviewStatus == ReviewPending {
 				return nil // simple correction d'un dossier déjà en attente : pas de nouvelle alerte
@@ -272,7 +285,7 @@ func (s *Service) Apply(ctx context.Context, userID uuid.UUID, in ApplicationInp
 // AddDocument ajoute une pièce au dossier (le fichier a été envoyé dans le compartiment privé).
 func (s *Service) AddDocument(ctx context.Context, userID uuid.UUID, kind, objectKey string) (Driver, error) {
 	switch kind {
-	case "id_card", "driving_license", "vehicle_registration", "photo", "other":
+	case "id_card", "driving_license", "vehicle_registration", "vehicle_insurance", "vehicle_photo", "criminal_record", "photo", "other":
 	default:
 		return Driver{}, apperr.Validation(map[string]string{"kind": "Type de document inconnu."})
 	}
@@ -426,8 +439,12 @@ func (s *Service) AdminGet(ctx context.Context, userID uuid.UUID, withURLs bool)
 	return AdminDriver{Driver: d, FirstName: c.FirstName, Phone: c.Phone}, nil
 }
 
-// Review applique une décision admin : approve, reject, suspend, reinstate (journalisée).
+// Review applique une décision admin : approve, request_changes, reject, suspend, reinstate
+// (journalisée). Les trois premières portent sur l'activité livraison (ReviewActivity).
 func (s *Service) Review(ctx context.Context, adminID, userID uuid.UUID, decision, reason string) (AdminDriver, error) {
+	if decision == "approve" || decision == "reject" || decision == "request_changes" {
+		return s.ReviewActivity(ctx, adminID, userID, ActivityDelivery, decision, reason)
+	}
 	reason = validate.Clean(reason)
 	if (decision == "reject" || decision == "suspend") && reason == "" {
 		return AdminDriver{}, apperr.Validation(map[string]string{"reason": "Indiquez le motif (il sera communiqué au livreur)."})
@@ -494,7 +511,11 @@ func (s *Service) Review(ctx context.Context, adminID, userID uuid.UUID, decisio
 // RequiredDocuments : pièces sans lesquelles un dossier de livreur ne peut pas être validé.
 var RequiredDocuments = []string{"id_card", "driving_license"}
 
-var documentLabels = map[string]string{"id_card": "pièce d'identité", "driving_license": "permis de conduire"}
+var documentLabels = map[string]string{
+	"id_card": "pièce d'identité", "driving_license": "permis de conduire", "vehicle_registration": "carte grise",
+	"vehicle_insurance": "assurance du véhicule", "vehicle_photo": "photo du véhicule",
+	"criminal_record": "extrait de casier judiciaire", "photo": "photo", "other": "autre pièce",
+}
 
 // requireDocuments refuse la validation d'un dossier incomplet : un compte livreur n'est activé
 // qu'après vérification par un admin de l'identité et du permis du candidat.

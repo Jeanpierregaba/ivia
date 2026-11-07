@@ -72,6 +72,17 @@ func (q *Queries) ActiveDeliveryForOrder(ctx context.Context, orderID uuid.UUID)
 	return i, err
 }
 
+const activeZoneExists = `-- name: ActiveZoneExists :one
+SELECT EXISTS (SELECT 1 FROM zones WHERE id = $1 AND is_active)
+`
+
+func (q *Queries) ActiveZoneExists(ctx context.Context, id uuid.UUID) (bool, error) {
+	row := q.db.QueryRow(ctx, activeZoneExists, id)
+	var exists bool
+	err := row.Scan(&exists)
+	return exists, err
+}
+
 const assignmentMetrics = `-- name: AssignmentMetrics :one
 SELECT
   count(*)::bigint AS assigned,
@@ -209,6 +220,24 @@ func (q *Queries) CreateDriver(ctx context.Context, arg CreateDriverParams) erro
 	return err
 }
 
+const createDriverDraft = `-- name: CreateDriverDraft :exec
+
+INSERT INTO drivers (user_id, review_status, vehicle_type, vehicle_plate)
+VALUES ($1, 'draft', $2, $3)
+`
+
+type CreateDriverDraftParams struct {
+	UserID       uuid.UUID
+	VehicleType  string
+	VehiclePlate string
+}
+
+// ---------------------------------------------------------------- activités partenaire
+func (q *Queries) CreateDriverDraft(ctx context.Context, arg CreateDriverDraftParams) error {
+	_, err := q.db.Exec(ctx, createDriverDraft, arg.UserID, arg.VehicleType, arg.VehiclePlate)
+	return err
+}
+
 const createOffer = `-- name: CreateOffer :one
 INSERT INTO delivery_offers (order_id, driver_id, distance_to_shop_m, expires_at)
 VALUES ($1, $2, $3, $4)
@@ -343,6 +372,23 @@ func (q *Queries) DriverOverview(ctx context.Context) (DriverOverviewRow, error)
 		&i.Suspended,
 		&i.PendingReview,
 	)
+	return i, err
+}
+
+const driverPayout = `-- name: DriverPayout :one
+SELECT payout_operator, payout_phone, payout_holder FROM drivers WHERE user_id = $1
+`
+
+type DriverPayoutRow struct {
+	PayoutOperator *string
+	PayoutPhone    *string
+	PayoutHolder   string
+}
+
+func (q *Queries) DriverPayout(ctx context.Context, userID uuid.UUID) (DriverPayoutRow, error) {
+	row := q.db.QueryRow(ctx, driverPayout, userID)
+	var i DriverPayoutRow
+	err := row.Scan(&i.PayoutOperator, &i.PayoutPhone, &i.PayoutHolder)
 	return i, err
 }
 
@@ -589,6 +635,29 @@ func (q *Queries) GetDriver(ctx context.Context, userID uuid.UUID) (GetDriverRow
 	return i, err
 }
 
+const getDriverSettings = `-- name: GetDriverSettings :one
+SELECT vtc_mode, delivery_vehicle_check, partner_guide, updated_at FROM driver_settings WHERE id
+`
+
+type GetDriverSettingsRow struct {
+	VtcMode              string
+	DeliveryVehicleCheck bool
+	PartnerGuide         string
+	UpdatedAt            time.Time
+}
+
+func (q *Queries) GetDriverSettings(ctx context.Context) (GetDriverSettingsRow, error) {
+	row := q.db.QueryRow(ctx, getDriverSettings)
+	var i GetDriverSettingsRow
+	err := row.Scan(
+		&i.VtcMode,
+		&i.DeliveryVehicleCheck,
+		&i.PartnerGuide,
+		&i.UpdatedAt,
+	)
+	return i, err
+}
+
 const getOffer = `-- name: GetOffer :one
 SELECT id, order_id, driver_id, status, distance_to_shop_m, expires_at, responded_at, created_at FROM delivery_offers WHERE id = $1
 `
@@ -628,6 +697,41 @@ UPDATE assignment_requests SET offers_count = offers_count + 1 WHERE order_id = 
 
 func (q *Queries) IncrementOffers(ctx context.Context, orderID uuid.UUID) error {
 	_, err := q.db.Exec(ctx, incrementOffers, orderID)
+	return err
+}
+
+const insertActivity = `-- name: InsertActivity :exec
+INSERT INTO driver_activities (user_id, activity, vehicle_type, vehicle_brand, vehicle_model, vehicle_color,
+                               vehicle_plate, vehicle_seats, work_zone_id)
+VALUES ($1, $2, $3, $4,
+        $5, $6, $7, $8,
+        $9)
+`
+
+type InsertActivityParams struct {
+	UserID       uuid.UUID
+	Activity     string
+	VehicleType  string
+	VehicleBrand string
+	VehicleModel string
+	VehicleColor string
+	VehiclePlate string
+	VehicleSeats *int16
+	WorkZoneID   *uuid.UUID
+}
+
+func (q *Queries) InsertActivity(ctx context.Context, arg InsertActivityParams) error {
+	_, err := q.db.Exec(ctx, insertActivity,
+		arg.UserID,
+		arg.Activity,
+		arg.VehicleType,
+		arg.VehicleBrand,
+		arg.VehicleModel,
+		arg.VehicleColor,
+		arg.VehiclePlate,
+		arg.VehicleSeats,
+		arg.WorkZoneID,
+	)
 	return err
 }
 
@@ -706,6 +810,69 @@ func (q *Queries) LatestDeliveryForOrder(ctx context.Context, orderID uuid.UUID)
 		&i.UpdatedAt,
 	)
 	return i, err
+}
+
+const listActivities = `-- name: ListActivities :many
+SELECT activity, status, review_note, reviewed_at, vehicle_type, vehicle_brand, vehicle_model, vehicle_color,
+       vehicle_plate, vehicle_seats, work_zone_id, vehicle_checked_at, vehicle_check_passed, vehicle_check_note,
+       submitted_at, legacy
+FROM driver_activities WHERE user_id = $1 ORDER BY activity
+`
+
+type ListActivitiesRow struct {
+	Activity           string
+	Status             string
+	ReviewNote         string
+	ReviewedAt         *time.Time
+	VehicleType        string
+	VehicleBrand       string
+	VehicleModel       string
+	VehicleColor       string
+	VehiclePlate       string
+	VehicleSeats       *int16
+	WorkZoneID         *uuid.UUID
+	VehicleCheckedAt   *time.Time
+	VehicleCheckPassed *bool
+	VehicleCheckNote   string
+	SubmittedAt        *time.Time
+	Legacy             bool
+}
+
+func (q *Queries) ListActivities(ctx context.Context, userID uuid.UUID) ([]ListActivitiesRow, error) {
+	rows, err := q.db.Query(ctx, listActivities, userID)
+	if err != nil {
+		return nil, err
+	}
+	defer rows.Close()
+	items := []ListActivitiesRow{}
+	for rows.Next() {
+		var i ListActivitiesRow
+		if err := rows.Scan(
+			&i.Activity,
+			&i.Status,
+			&i.ReviewNote,
+			&i.ReviewedAt,
+			&i.VehicleType,
+			&i.VehicleBrand,
+			&i.VehicleModel,
+			&i.VehicleColor,
+			&i.VehiclePlate,
+			&i.VehicleSeats,
+			&i.WorkZoneID,
+			&i.VehicleCheckedAt,
+			&i.VehicleCheckPassed,
+			&i.VehicleCheckNote,
+			&i.SubmittedAt,
+			&i.Legacy,
+		); err != nil {
+			return nil, err
+		}
+		items = append(items, i)
+	}
+	if err := rows.Err(); err != nil {
+		return nil, err
+	}
+	return items, nil
 }
 
 const listAlerts = `-- name: ListAlerts :many
@@ -825,7 +992,8 @@ SELECT d.user_id, d.review_status, d.review_note, d.reviewed_at, d.suspended_at,
        d.availability, d.vehicle_type, d.vehicle_plate, d.vehicle_description, d.last_location_at,
        d.created_at, d.updated_at
 FROM drivers d
-WHERE ($1::text IS NULL OR d.review_status = $1::text)
+WHERE ($1::text IS NULL OR EXISTS (
+         SELECT 1 FROM driver_activities a WHERE a.user_id = d.user_id AND a.status = $1::text))
   AND (NOT $2::boolean OR d.suspended_at IS NOT NULL)
 ORDER BY d.created_at DESC
 LIMIT $4 OFFSET $3
@@ -891,6 +1059,37 @@ func (q *Queries) ListDrivers(ctx context.Context, arg ListDriversParams) ([]Lis
 		return nil, err
 	}
 	return items, nil
+}
+
+const lockActivity = `-- name: LockActivity :one
+SELECT status, vehicle_type, work_zone_id, vehicle_check_passed, legacy
+FROM driver_activities WHERE user_id = $1 AND activity = $2 FOR UPDATE
+`
+
+type LockActivityParams struct {
+	UserID   uuid.UUID
+	Activity string
+}
+
+type LockActivityRow struct {
+	Status             string
+	VehicleType        string
+	WorkZoneID         *uuid.UUID
+	VehicleCheckPassed *bool
+	Legacy             bool
+}
+
+func (q *Queries) LockActivity(ctx context.Context, arg LockActivityParams) (LockActivityRow, error) {
+	row := q.db.QueryRow(ctx, lockActivity, arg.UserID, arg.Activity)
+	var i LockActivityRow
+	err := row.Scan(
+		&i.Status,
+		&i.VehicleType,
+		&i.WorkZoneID,
+		&i.VehicleCheckPassed,
+		&i.Legacy,
+	)
+	return i, err
 }
 
 const lockAssignment = `-- name: LockAssignment :one
@@ -976,6 +1175,24 @@ UPDATE assignment_requests SET alerted_at = now() WHERE order_id = $1 AND alerte
 
 func (q *Queries) MarkAlerted(ctx context.Context, orderID uuid.UUID) error {
 	_, err := q.db.Exec(ctx, markAlerted, orderID)
+	return err
+}
+
+const mirrorDelivery = `-- name: MirrorDelivery :exec
+UPDATE drivers d
+SET review_status = a.status, review_note = a.review_note, reviewed_at = a.reviewed_at,
+    reviewed_by = a.reviewed_by, vehicle_type = a.vehicle_type, vehicle_plate = a.vehicle_plate,
+    vehicle_description = CASE WHEN a.legacy THEN d.vehicle_description
+                               ELSE left(concat_ws(' ', nullif(a.vehicle_brand, ''), nullif(a.vehicle_model, ''),
+                                                   nullif(a.vehicle_color, '')), 200) END,
+    updated_at = now()
+FROM driver_activities a
+WHERE a.user_id = d.user_id AND a.activity = 'delivery' AND d.user_id = $1
+`
+
+// `drivers` suit l'activité livraison : l'attribution et les contrôles d'accès le lisent.
+func (q *Queries) MirrorDelivery(ctx context.Context, userID uuid.UUID) error {
+	_, err := q.db.Exec(ctx, mirrorDelivery, userID)
 	return err
 }
 
@@ -1072,6 +1289,43 @@ func (q *Queries) RespondOffer(ctx context.Context, arg RespondOfferParams) (int
 	return result.RowsAffected(), nil
 }
 
+const setActivityStatus = `-- name: SetActivityStatus :execrows
+UPDATE driver_activities
+SET status = $1::text, review_note = $2,
+    reviewed_at = CASE WHEN $3::boolean THEN now() ELSE reviewed_at END,
+    reviewed_by = CASE WHEN $3::boolean THEN $4::uuid ELSE reviewed_by END,
+    submitted_at = CASE WHEN $1::text = 'pending_review' THEN now() ELSE submitted_at END,
+    updated_at = now()
+WHERE user_id = $5 AND activity = $6
+  AND status = ANY($7::text[])
+`
+
+type SetActivityStatusParams struct {
+	Status       string
+	Note         string
+	Reviewed     bool
+	ReviewedBy   *uuid.UUID
+	UserID       uuid.UUID
+	Activity     string
+	FromStatuses []string
+}
+
+func (q *Queries) SetActivityStatus(ctx context.Context, arg SetActivityStatusParams) (int64, error) {
+	result, err := q.db.Exec(ctx, setActivityStatus,
+		arg.Status,
+		arg.Note,
+		arg.Reviewed,
+		arg.ReviewedBy,
+		arg.UserID,
+		arg.Activity,
+		arg.FromStatuses,
+	)
+	if err != nil {
+		return 0, err
+	}
+	return result.RowsAffected(), nil
+}
+
 const setAvailability = `-- name: SetAvailability :exec
 UPDATE drivers SET availability = $2, updated_at = now() WHERE user_id = $1
 `
@@ -1123,6 +1377,35 @@ func (q *Queries) SetDeliveryStatus(ctx context.Context, arg SetDeliveryStatusPa
 	return result.RowsAffected(), nil
 }
 
+const setDriverPayout = `-- name: SetDriverPayout :execrows
+UPDATE drivers dr
+SET payout_operator = $1, payout_phone = $2, payout_holder = $3,
+    updated_at = now()
+WHERE dr.user_id = $4
+  AND NOT EXISTS (SELECT 1 FROM driver_activities a WHERE a.user_id = dr.user_id AND a.status = 'approved')
+`
+
+type SetDriverPayoutParams struct {
+	Operator *string
+	Phone    *string
+	Holder   string
+	UserID   uuid.UUID
+}
+
+// Modifiable tant qu'aucune activité n'est validée ; ensuite, par l'équipe ivia.
+func (q *Queries) SetDriverPayout(ctx context.Context, arg SetDriverPayoutParams) (int64, error) {
+	result, err := q.db.Exec(ctx, setDriverPayout,
+		arg.Operator,
+		arg.Phone,
+		arg.Holder,
+		arg.UserID,
+	)
+	if err != nil {
+		return 0, err
+	}
+	return result.RowsAffected(), nil
+}
+
 const setReview = `-- name: SetReview :execrows
 UPDATE drivers
 SET review_status = $1, review_note = $2,
@@ -1145,6 +1428,35 @@ func (q *Queries) SetReview(ctx context.Context, arg SetReviewParams) (int64, er
 		arg.ReviewedBy,
 		arg.UserID,
 		arg.FromStatuses,
+	)
+	if err != nil {
+		return 0, err
+	}
+	return result.RowsAffected(), nil
+}
+
+const setVehicleCheck = `-- name: SetVehicleCheck :execrows
+UPDATE driver_activities
+SET vehicle_checked_at = now(), vehicle_checked_by = $1, vehicle_check_passed = $2,
+    vehicle_check_note = $3, updated_at = now()
+WHERE user_id = $4 AND activity = $5 AND status = 'pending_review'
+`
+
+type SetVehicleCheckParams struct {
+	AdminID  *uuid.UUID
+	Passed   *bool
+	Note     string
+	UserID   uuid.UUID
+	Activity string
+}
+
+func (q *Queries) SetVehicleCheck(ctx context.Context, arg SetVehicleCheckParams) (int64, error) {
+	result, err := q.db.Exec(ctx, setVehicleCheck,
+		arg.AdminID,
+		arg.Passed,
+		arg.Note,
+		arg.UserID,
+		arg.Activity,
 	)
 	if err != nil {
 		return 0, err
@@ -1193,6 +1505,44 @@ func (q *Queries) Suspend(ctx context.Context, arg SuspendParams) (int64, error)
 	return result.RowsAffected(), nil
 }
 
+const updateActivityVehicle = `-- name: UpdateActivityVehicle :exec
+UPDATE driver_activities
+SET vehicle_type = $1, vehicle_brand = $2,
+    vehicle_model = $3, vehicle_color = $4,
+    vehicle_plate = $5, vehicle_seats = $6,
+    work_zone_id = $7, status = $8, legacy = false, updated_at = now()
+WHERE user_id = $9 AND activity = $10
+`
+
+type UpdateActivityVehicleParams struct {
+	VehicleType  string
+	VehicleBrand string
+	VehicleModel string
+	VehicleColor string
+	VehiclePlate string
+	VehicleSeats *int16
+	WorkZoneID   *uuid.UUID
+	Status       string
+	UserID       uuid.UUID
+	Activity     string
+}
+
+func (q *Queries) UpdateActivityVehicle(ctx context.Context, arg UpdateActivityVehicleParams) error {
+	_, err := q.db.Exec(ctx, updateActivityVehicle,
+		arg.VehicleType,
+		arg.VehicleBrand,
+		arg.VehicleModel,
+		arg.VehicleColor,
+		arg.VehiclePlate,
+		arg.VehicleSeats,
+		arg.WorkZoneID,
+		arg.Status,
+		arg.UserID,
+		arg.Activity,
+	)
+	return err
+}
+
 const updateApplication = `-- name: UpdateApplication :execrows
 UPDATE drivers
 SET vehicle_type = $2, vehicle_plate = $3, vehicle_description = $4,
@@ -1221,6 +1571,45 @@ func (q *Queries) UpdateApplication(ctx context.Context, arg UpdateApplicationPa
 	return result.RowsAffected(), nil
 }
 
+const updateDriverSettings = `-- name: UpdateDriverSettings :one
+UPDATE driver_settings
+SET vtc_mode = $1, delivery_vehicle_check = $2,
+    partner_guide = $3, updated_by = $4, updated_at = now()
+WHERE id
+RETURNING vtc_mode, delivery_vehicle_check, partner_guide, updated_at
+`
+
+type UpdateDriverSettingsParams struct {
+	VtcMode              string
+	DeliveryVehicleCheck bool
+	PartnerGuide         string
+	UpdatedBy            *uuid.UUID
+}
+
+type UpdateDriverSettingsRow struct {
+	VtcMode              string
+	DeliveryVehicleCheck bool
+	PartnerGuide         string
+	UpdatedAt            time.Time
+}
+
+func (q *Queries) UpdateDriverSettings(ctx context.Context, arg UpdateDriverSettingsParams) (UpdateDriverSettingsRow, error) {
+	row := q.db.QueryRow(ctx, updateDriverSettings,
+		arg.VtcMode,
+		arg.DeliveryVehicleCheck,
+		arg.PartnerGuide,
+		arg.UpdatedBy,
+	)
+	var i UpdateDriverSettingsRow
+	err := row.Scan(
+		&i.VtcMode,
+		&i.DeliveryVehicleCheck,
+		&i.PartnerGuide,
+		&i.UpdatedAt,
+	)
+	return i, err
+}
+
 const updateLocation = `-- name: UpdateLocation :exec
 UPDATE drivers
 SET last_location = ST_SetSRID(ST_MakePoint($1::float8, $2::float8), 4326)::geography,
@@ -1242,5 +1631,19 @@ func (q *Queries) UpdateLocation(ctx context.Context, arg UpdateLocationParams) 
 		arg.RecordedAt,
 		arg.UserID,
 	)
+	return err
+}
+
+const upsertLegacyDelivery = `-- name: UpsertLegacyDelivery :exec
+INSERT INTO driver_activities (user_id, activity, status, vehicle_type, vehicle_plate, submitted_at, legacy)
+SELECT dr.user_id, 'delivery', dr.review_status, dr.vehicle_type, dr.vehicle_plate, now(), true FROM drivers dr WHERE dr.user_id = $1
+ON CONFLICT (user_id, activity) DO UPDATE
+SET status = EXCLUDED.status, vehicle_type = EXCLUDED.vehicle_type, vehicle_plate = EXCLUDED.vehicle_plate,
+    review_note = '', submitted_at = now(), legacy = true, updated_at = now()
+`
+
+// Ancien parcours : la candidature déposée est aussitôt envoyée.
+func (q *Queries) UpsertLegacyDelivery(ctx context.Context, userID uuid.UUID) error {
+	_, err := q.db.Exec(ctx, upsertLegacyDelivery, userID)
 	return err
 }

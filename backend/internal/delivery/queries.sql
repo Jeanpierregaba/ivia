@@ -25,7 +25,8 @@ SELECT d.user_id, d.review_status, d.review_note, d.reviewed_at, d.suspended_at,
        d.availability, d.vehicle_type, d.vehicle_plate, d.vehicle_description, d.last_location_at,
        d.created_at, d.updated_at
 FROM drivers d
-WHERE (sqlc.narg(review_status)::text IS NULL OR d.review_status = sqlc.narg(review_status)::text)
+WHERE (sqlc.narg(review_status)::text IS NULL OR EXISTS (
+         SELECT 1 FROM driver_activities a WHERE a.user_id = d.user_id AND a.status = sqlc.narg(review_status)::text))
   AND (NOT sqlc.arg(suspended_only)::boolean OR d.suspended_at IS NOT NULL)
 ORDER BY d.created_at DESC
 LIMIT sqlc.arg(lim) OFFSET sqlc.arg(off);
@@ -276,3 +277,94 @@ SELECT ST_Y(last_location::geometry)::float8 AS lat, ST_X(last_location::geometr
        last_location_at::timestamptz AS recorded_at, vehicle_type
 FROM drivers
 WHERE user_id = $1 AND last_location IS NOT NULL AND last_location_at IS NOT NULL;
+
+-- ---------------------------------------------------------------- activités partenaire
+
+-- name: CreateDriverDraft :exec
+INSERT INTO drivers (user_id, review_status, vehicle_type, vehicle_plate)
+VALUES ($1, 'draft', $2, $3);
+
+-- name: ListActivities :many
+SELECT activity, status, review_note, reviewed_at, vehicle_type, vehicle_brand, vehicle_model, vehicle_color,
+       vehicle_plate, vehicle_seats, work_zone_id, vehicle_checked_at, vehicle_check_passed, vehicle_check_note,
+       submitted_at, legacy
+FROM driver_activities WHERE user_id = $1 ORDER BY activity;
+
+-- name: LockActivity :one
+SELECT status, vehicle_type, work_zone_id, vehicle_check_passed, legacy
+FROM driver_activities WHERE user_id = $1 AND activity = $2 FOR UPDATE;
+
+-- name: InsertActivity :exec
+INSERT INTO driver_activities (user_id, activity, vehicle_type, vehicle_brand, vehicle_model, vehicle_color,
+                               vehicle_plate, vehicle_seats, work_zone_id)
+VALUES (sqlc.arg(user_id), sqlc.arg(activity), sqlc.arg(vehicle_type), sqlc.arg(vehicle_brand),
+        sqlc.arg(vehicle_model), sqlc.arg(vehicle_color), sqlc.arg(vehicle_plate), sqlc.narg(vehicle_seats),
+        sqlc.narg(work_zone_id));
+
+-- name: UpdateActivityVehicle :exec
+UPDATE driver_activities
+SET vehicle_type = sqlc.arg(vehicle_type), vehicle_brand = sqlc.arg(vehicle_brand),
+    vehicle_model = sqlc.arg(vehicle_model), vehicle_color = sqlc.arg(vehicle_color),
+    vehicle_plate = sqlc.arg(vehicle_plate), vehicle_seats = sqlc.narg(vehicle_seats),
+    work_zone_id = sqlc.narg(work_zone_id), status = sqlc.arg(status), legacy = false, updated_at = now()
+WHERE user_id = sqlc.arg(user_id) AND activity = sqlc.arg(activity);
+
+-- name: SetActivityStatus :execrows
+UPDATE driver_activities
+SET status = sqlc.arg(status)::text, review_note = sqlc.arg(note),
+    reviewed_at = CASE WHEN sqlc.arg(reviewed)::boolean THEN now() ELSE reviewed_at END,
+    reviewed_by = CASE WHEN sqlc.arg(reviewed)::boolean THEN sqlc.narg(reviewed_by)::uuid ELSE reviewed_by END,
+    submitted_at = CASE WHEN sqlc.arg(status)::text = 'pending_review' THEN now() ELSE submitted_at END,
+    updated_at = now()
+WHERE user_id = sqlc.arg(user_id) AND activity = sqlc.arg(activity)
+  AND status = ANY(sqlc.arg(from_statuses)::text[]);
+
+-- name: SetVehicleCheck :execrows
+UPDATE driver_activities
+SET vehicle_checked_at = now(), vehicle_checked_by = sqlc.arg(admin_id), vehicle_check_passed = sqlc.arg(passed),
+    vehicle_check_note = sqlc.arg(note), updated_at = now()
+WHERE user_id = sqlc.arg(user_id) AND activity = sqlc.arg(activity) AND status = 'pending_review';
+
+-- name: MirrorDelivery :exec
+-- `drivers` suit l'activité livraison : l'attribution et les contrôles d'accès le lisent.
+UPDATE drivers d
+SET review_status = a.status, review_note = a.review_note, reviewed_at = a.reviewed_at,
+    reviewed_by = a.reviewed_by, vehicle_type = a.vehicle_type, vehicle_plate = a.vehicle_plate,
+    vehicle_description = CASE WHEN a.legacy THEN d.vehicle_description
+                               ELSE left(concat_ws(' ', nullif(a.vehicle_brand, ''), nullif(a.vehicle_model, ''),
+                                                   nullif(a.vehicle_color, '')), 200) END,
+    updated_at = now()
+FROM driver_activities a
+WHERE a.user_id = d.user_id AND a.activity = 'delivery' AND d.user_id = $1;
+
+-- name: UpsertLegacyDelivery :exec
+-- Ancien parcours : la candidature déposée est aussitôt envoyée.
+INSERT INTO driver_activities (user_id, activity, status, vehicle_type, vehicle_plate, submitted_at, legacy)
+SELECT dr.user_id, 'delivery', dr.review_status, dr.vehicle_type, dr.vehicle_plate, now(), true FROM drivers dr WHERE dr.user_id = $1
+ON CONFLICT (user_id, activity) DO UPDATE
+SET status = EXCLUDED.status, vehicle_type = EXCLUDED.vehicle_type, vehicle_plate = EXCLUDED.vehicle_plate,
+    review_note = '', submitted_at = now(), legacy = true, updated_at = now();
+
+-- name: SetDriverPayout :execrows
+-- Modifiable tant qu'aucune activité n'est validée ; ensuite, par l'équipe ivia.
+UPDATE drivers dr
+SET payout_operator = sqlc.arg(operator), payout_phone = sqlc.arg(phone), payout_holder = sqlc.arg(holder),
+    updated_at = now()
+WHERE dr.user_id = sqlc.arg(user_id)
+  AND NOT EXISTS (SELECT 1 FROM driver_activities a WHERE a.user_id = dr.user_id AND a.status = 'approved');
+
+-- name: DriverPayout :one
+SELECT payout_operator, payout_phone, payout_holder FROM drivers WHERE user_id = $1;
+
+-- name: ActiveZoneExists :one
+SELECT EXISTS (SELECT 1 FROM zones WHERE id = $1 AND is_active);
+
+-- name: GetDriverSettings :one
+SELECT vtc_mode, delivery_vehicle_check, partner_guide, updated_at FROM driver_settings WHERE id;
+
+-- name: UpdateDriverSettings :one
+UPDATE driver_settings
+SET vtc_mode = sqlc.arg(vtc_mode), delivery_vehicle_check = sqlc.arg(delivery_vehicle_check),
+    partner_guide = sqlc.arg(partner_guide), updated_by = sqlc.arg(updated_by), updated_at = now()
+WHERE id
+RETURNING vtc_mode, delivery_vehicle_check, partner_guide, updated_at;
