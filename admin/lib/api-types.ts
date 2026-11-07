@@ -3222,7 +3222,10 @@ export interface paths {
         /** Mon planning de garde (à venir et en cours) */
         get: operations["getPharmacyMeDutyShifts"];
         put?: never;
-        /** Ajouter des gardes à mon planning (une seule, ou un import) */
+        /**
+         * Ajouter des gardes à mon planning (une seule, ou un import)
+         * @description Plusieurs gardes envoyées d'un coup : source import (planning officiel, imported_at = date de l'envoi). Une seule : source manual.
+         */
         post: operations["postPharmacyMeDutyShifts"];
         delete?: never;
         options?: never;
@@ -6486,6 +6489,16 @@ export interface components {
             starts_at: string;
             /** Format: date-time */
             ends_at: string;
+            /**
+             * @description manual : ajoutée seule par la pharmacie ; import : planning officiel, plusieurs gardes envoyées d'un coup ; admin : saisie par l'équipe ivia.
+             * @enum {string}
+             */
+            source: "manual" | "import" | "admin";
+            /**
+             * Format: date-time
+             * @description Date de l'import (source import seulement).
+             */
+            imported_at: string | null;
             /** Format: date-time */
             created_at: string;
         };

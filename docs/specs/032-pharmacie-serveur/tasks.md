@@ -25,7 +25,7 @@
       `cash_paid_xof` et `refund_fee_xof` dans la commande de la pharmacie.
 - [x] 8. Envoi du dossier sans compte de versement ; route `cash-receipts` ; route `today` ; lien de
       la devanture dans `me`.
-- [ ] 9. Origine des gardes (`source`, `imported_at`) : import par la pharmacie, ajout seul, ajout
+- [x] 9. Origine des gardes (`source`, `imported_at`) : import par la pharmacie, ajout seul, ajout
       par l'admin.
 - [ ] 10. Sonnerie par appareil : `alert_sound` à l'enregistrement, son retiré du push iOS.
 - [ ] 11. `openapi.yaml` complet, `TestOpenAPICoversAllRoutes`, `govulncheck`, lint.

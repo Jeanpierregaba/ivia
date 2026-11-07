@@ -1562,7 +1562,8 @@ func (q *Queries) InsertDocument(ctx context.Context, arg InsertDocumentParams) 
 
 const insertDutyShift = `-- name: InsertDutyShift :one
 
-INSERT INTO pharmacy_duty_shifts (pharmacy_id, starts_at, ends_at, created_by) VALUES ($1, $2, $3, $4) RETURNING id, pharmacy_id, starts_at, ends_at, created_by, created_at, source, imported_at
+INSERT INTO pharmacy_duty_shifts (pharmacy_id, starts_at, ends_at, created_by, source, imported_at)
+VALUES ($1, $2, $3, $4, $5, $6) RETURNING id, pharmacy_id, starts_at, ends_at, created_by, created_at, source, imported_at
 `
 
 type InsertDutyShiftParams struct {
@@ -1570,15 +1571,20 @@ type InsertDutyShiftParams struct {
 	StartsAt   time.Time
 	EndsAt     time.Time
 	CreatedBy  uuid.UUID
+	Source     string
+	ImportedAt *time.Time
 }
 
 // ---------------------------------------------------------------- planning de garde
+// source : manual (ajout seul), import (liste envoyée d'un coup, imported_at renseigné) ou admin.
 func (q *Queries) InsertDutyShift(ctx context.Context, arg InsertDutyShiftParams) (PharmacyDutyShift, error) {
 	row := q.db.QueryRow(ctx, insertDutyShift,
 		arg.PharmacyID,
 		arg.StartsAt,
 		arg.EndsAt,
 		arg.CreatedBy,
+		arg.Source,
+		arg.ImportedAt,
 	)
 	var i PharmacyDutyShift
 	err := row.Scan(

@@ -36,7 +36,11 @@ type DutyShift struct {
 	PharmacyID uuid.UUID `json:"pharmacy_id"`
 	StartsAt   time.Time `json:"starts_at"`
 	EndsAt     time.Time `json:"ends_at"`
-	CreatedAt  time.Time `json:"created_at"`
+	// Source : manual (ajoutée seule par la pharmacie), import (planning officiel, importé d'une
+	// liste) ou admin (saisie par l'équipe ivia).
+	Source     string     `json:"source"`
+	ImportedAt *time.Time `json:"imported_at"`
+	CreatedAt  time.Time  `json:"created_at"`
 }
 
 // DutyShiftInput : un créneau (8 jours au plus).
@@ -90,7 +94,7 @@ func (s *Service) OnDuty(ctx context.Context, p geo.Point, radiusM int32, limit 
 }
 
 func toShift(r store.PharmacyDutyShift) DutyShift {
-	return DutyShift{ID: r.ID, PharmacyID: r.PharmacyID, StartsAt: r.StartsAt, EndsAt: r.EndsAt, CreatedAt: r.CreatedAt}
+	return DutyShift{ID: r.ID, PharmacyID: r.PharmacyID, StartsAt: r.StartsAt, EndsAt: r.EndsAt, Source: r.Source, ImportedAt: r.ImportedAt, CreatedAt: r.CreatedAt}
 }
 
 func (s *Service) shifts(ctx context.Context, pharmacyID uuid.UUID) ([]DutyShift, error) {
@@ -142,7 +146,7 @@ func (s *Service) AddDutyShift(ctx context.Context, adminID, pharmacyID uuid.UUI
 		} else if err != nil {
 			return fmt.Errorf("verrou de la pharmacie : %w", err)
 		}
-		r, err := q.InsertDutyShift(ctx, store.InsertDutyShiftParams{PharmacyID: pharmacyID, StartsAt: in.StartsAt, EndsAt: in.EndsAt, CreatedBy: adminID})
+		r, err := q.InsertDutyShift(ctx, store.InsertDutyShiftParams{PharmacyID: pharmacyID, StartsAt: in.StartsAt, EndsAt: in.EndsAt, CreatedBy: adminID, Source: "admin"})
 		if err != nil {
 			return fmt.Errorf("créneau de garde : %w", err)
 		}

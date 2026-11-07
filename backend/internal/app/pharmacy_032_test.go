@@ -7,6 +7,7 @@ import (
 	"strconv"
 	"strings"
 	"testing"
+	"time"
 )
 
 // Spec 032 : numéro court d'alerte et quartier du client.
@@ -173,5 +174,43 @@ func TestPharmacyCashReceiptsAndToday(t *testing.T) {
 	today := mustStatus(t, call(t, d.pharmacy, "GET", "/v1/pharmacy/today", nil), http.StatusOK)
 	if num(today.Body["received"]) != 1 || num(today.Body["responded"]) != 1 || num(today.Body["confirmed"]) != 1 {
 		t.Fatalf("chiffres du jour : %v", today.Body)
+	}
+}
+
+// Tâche 9 : origine des gardes. Plusieurs gardes envoyées d'un coup = import d'une liste
+// (« planning officiel », date d'import) ; une garde seule = ajout à la main ; admin = admin.
+func TestPharmacyDutyShiftSource(t *testing.T) {
+	requireApp(t)
+	lat, lng := zone()
+	ph, phID := newPharmacy(t, "Pharmacie des Gardes", lat, lng)
+	day := time.Now().UTC().Truncate(24 * time.Hour).Add(48 * time.Hour)
+	shift := func(d int) map[string]string {
+		s := day.Add(time.Duration(d) * 24 * time.Hour)
+		return map[string]string{"starts_at": s.Add(20 * time.Hour).Format(time.RFC3339), "ends_at": s.Add(32 * time.Hour).Format(time.RFC3339)}
+	}
+	imported := list(mustStatus(t, call(t, ph, "POST", "/v1/pharmacy/me/duty-shifts", map[string]any{
+		"shifts": []map[string]string{shift(0), shift(7)},
+	}), http.StatusCreated).Body["items"])
+	if len(imported) != 2 {
+		t.Fatalf("gardes importées : %v", imported)
+	}
+	for _, s := range imported {
+		if s["source"] != "import" || s["imported_at"] == nil {
+			t.Fatalf("garde importée : %v", s)
+		}
+	}
+	all := list(mustStatus(t, call(t, ph, "POST", "/v1/pharmacy/me/duty-shifts", map[string]any{
+		"shifts": []map[string]string{shift(14)},
+	}), http.StatusCreated).Body["items"])
+	if len(all) != 3 || all[2]["source"] != "manual" || all[2]["imported_at"] != nil {
+		t.Fatalf("garde ajoutée seule : %v", all)
+	}
+	a := mustStatus(t, call(t, admin(t), "POST", "/v1/admin/pharmacies/"+phID+"/duty-shifts", shift(21)), http.StatusCreated)
+	if a.str("source") != "admin" || a.Body["imported_at"] != nil {
+		t.Fatalf("garde saisie par l'admin : %v", a.Body)
+	}
+	mine := list(mustStatus(t, call(t, ph, "GET", "/v1/pharmacy/me/duty-shifts", nil), http.StatusOK).Body["items"])
+	if len(mine) != 4 || mine[3]["source"] != "admin" {
+		t.Fatalf("planning de la pharmacie : %v", mine)
 	}
 }

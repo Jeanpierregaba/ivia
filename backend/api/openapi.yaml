@@ -7154,6 +7154,7 @@ paths:
       tags:
         - Pharmacie
       operationId: postPharmacyMeDutyShifts
+      description: "Plusieurs gardes envoyées d'un coup : source import (planning officiel, imported_at = date de l'envoi). Une seule : source manual."
       requestBody:
         required: true
         content:
@@ -14099,6 +14100,14 @@ components:
         ends_at:
           type: string
           format: date-time
+        source:
+          type: string
+          enum: [manual, import, admin]
+          description: "manual : ajoutée seule par la pharmacie ; import : planning officiel, plusieurs gardes envoyées d'un coup ; admin : saisie par l'équipe ivia."
+        imported_at:
+          type: [string, "null"]
+          format: date-time
+          description: "Date de l'import (source import seulement)."
         created_at:
           type: string
           format: date-time
@@ -14107,6 +14116,8 @@ components:
         - pharmacy_id
         - starts_at
         - ends_at
+        - source
+        - imported_at
         - created_at
     PharmacyDutyShiftInput:
       type: object

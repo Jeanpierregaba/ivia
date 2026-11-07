@@ -137,7 +137,9 @@ LIMIT sqlc.arg(lim);
 -- ---------------------------------------------------------------- planning de garde
 
 -- name: InsertDutyShift :one
-INSERT INTO pharmacy_duty_shifts (pharmacy_id, starts_at, ends_at, created_by) VALUES ($1, $2, $3, $4) RETURNING *;
+-- source : manual (ajout seul), import (liste envoyée d'un coup, imported_at renseigné) ou admin.
+INSERT INTO pharmacy_duty_shifts (pharmacy_id, starts_at, ends_at, created_by, source, imported_at)
+VALUES ($1, $2, $3, $4, sqlc.arg(source), sqlc.narg(imported_at)) RETURNING *;
 
 -- name: ListDutyShifts :many
 SELECT * FROM pharmacy_duty_shifts WHERE pharmacy_id = $1 AND ends_at > sqlc.arg(since)

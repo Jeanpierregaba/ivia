@@ -153,8 +153,15 @@ func (s *Service) AddOwnShifts(ctx context.Context, ownerID uuid.UUID, shifts []
 		if cur.SuspendedAt != nil {
 			return apperr.Forbidden("pharmacy_suspended", "Votre pharmacie est suspendue.")
 		}
+		// Plusieurs gardes d'un coup : import d'une liste (planning officiel), daté.
+		source, importedAt := "manual", (*time.Time)(nil)
+		if len(shifts) > 1 {
+			source, importedAt = "import", &now
+		}
 		for _, in := range shifts {
-			if _, err := q.InsertDutyShift(ctx, store.InsertDutyShiftParams{PharmacyID: id, StartsAt: in.StartsAt, EndsAt: in.EndsAt, CreatedBy: ownerID}); err != nil {
+			if _, err := q.InsertDutyShift(ctx, store.InsertDutyShiftParams{
+				PharmacyID: id, StartsAt: in.StartsAt, EndsAt: in.EndsAt, CreatedBy: ownerID, Source: source, ImportedAt: importedAt,
+			}); err != nil {
 				return fmt.Errorf("créneau de garde : %w", err)
 			}
 		}
