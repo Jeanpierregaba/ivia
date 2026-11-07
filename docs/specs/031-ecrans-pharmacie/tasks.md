@@ -58,15 +58,15 @@
       - total indicatif et « n / N » ;
       - ajout de produits pour une ordonnance en photo seule ;
       - puis F14 « Réponse envoyée ».
-- [ ] 15. Commande en retrait :
+- [x] 15. Commande en retrait :
       - F15 et « Produits mis de côté » ;
       - remise F16 (4 cases, cases à cocher, code faux) ;
       - succès « Commande remise au client ».
-- [ ] 16. Commande en livraison :
+- [x] 16. Commande en livraison :
       - F17 (paiement, 3 étapes, « Recherche d'un livreur ») ;
       - « Marquer prête » ;
       - F19 « Commande remise au livreur ».
-- [ ] 17. Feuille F18 « Annuler cette commande ? » : motifs, « Autre motif » avec texte libre,
+- [x] 17. Feuille F18 « Annuler cette commande ? » : motifs, « Autre motif » avec texte libre,
       « Garder la commande ».
 - [ ] 18. Onglet Alertes F21 (En cours, Commandes, Historique par jour) et onglet Commandes, avec
       leurs états vides.
