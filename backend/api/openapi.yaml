@@ -7273,6 +7273,7 @@ paths:
       tags:
         - Pharmacie
       operationId: postPharmacyMeSubmit
+      description: "Le compte de versement n'est plus exigé (ADR 0014 : le livreur paie la pharmacie en espèces)."
       responses:
         "200":
           description: "Succès"
@@ -7689,6 +7690,55 @@ paths:
             application/json:
               schema:
                 "$ref": "#/components/schemas/PharmacyEarnings"
+        default:
+          description: "Erreur (voir `code`)"
+          content:
+            application/json:
+              schema:
+                "$ref": "#/components/schemas/Error"
+  "/v1/pharmacy/cash-receipts":
+    get:
+      summary: "Encaissements par jour (heure de Lomé) : retraits payés au comptoir et livraisons payées par le livreur"
+      description: "ADR 0014. Du jour le plus récent au plus ancien ; jours sans encaissement omis."
+      tags:
+        - Pharmacie
+      operationId: getPharmacyCashReceipts
+      x-roles:
+        - pharmacist
+      parameters:
+        - name: days
+          in: query
+          required: false
+          description: "Période en jours, aujourd'hui compris (1 à 90, 30 par défaut)."
+          schema: {type: integer, minimum: 1, maximum: 90, default: 30}
+      responses:
+        "200":
+          description: "Succès"
+          content:
+            application/json:
+              schema:
+                "$ref": "#/components/schemas/PharmacyCashReceipts"
+        default:
+          description: "Erreur (voir `code`)"
+          content:
+            application/json:
+              schema:
+                "$ref": "#/components/schemas/Error"
+  "/v1/pharmacy/today":
+    get:
+      summary: "Chiffres du jour (heure de Lomé) : alertes reçues, répondues, confirmées"
+      tags:
+        - Pharmacie
+      operationId: getPharmacyToday
+      x-roles:
+        - pharmacist
+      responses:
+        "200":
+          description: "Succès"
+          content:
+            application/json:
+              schema:
+                "$ref": "#/components/schemas/PharmacyTodayStats"
         default:
           description: "Erreur (voir `code`)"
           content:
@@ -13675,6 +13725,7 @@ components:
                 holder: {type: string}
               required: [operator, phone_masked, holder]
         submitted_at: {type: [string, "null"], format: date-time}
+        storefront_url: {type: [string, "null"], description: "Lien de courte durée vers la dernière photo de la devanture (photo de profil)."}
         id:
           type: string
           format: uuid
@@ -13792,6 +13843,7 @@ components:
                 holder: {type: string}
               required: [operator, phone_masked, holder]
         submitted_at: {type: [string, "null"], format: date-time}
+        storefront_url: {type: [string, "null"], description: "Lien de courte durée vers la dernière photo de la devanture (photo de profil)."}
         id:
           type: string
           format: uuid
@@ -15131,6 +15183,40 @@ components:
         - reference
         - note
         - created_at
+    PharmacyCashReceipt:
+      type: object
+      properties:
+        reservation_id: {type: string, format: uuid}
+        number: {type: string, description: "Numéro de la commande."}
+        kind: {type: string, enum: [pickup, delivery], description: "pickup : payé au comptoir par le client ; delivery : payé en espèces par le livreur."}
+        amount_xof: {type: integer, format: int64}
+        received_at: {type: string, format: date-time}
+      required: [reservation_id, number, kind, amount_xof, received_at]
+    PharmacyCashDay:
+      type: object
+      properties:
+        date: {type: string, format: date, description: "Jour à Lomé (AAAA-MM-JJ)."}
+        total_xof: {type: integer, format: int64}
+        receipts:
+          type: array
+          items: {"$ref": "#/components/schemas/PharmacyCashReceipt"}
+      required: [date, total_xof, receipts]
+    PharmacyCashReceipts:
+      type: object
+      properties:
+        days:
+          type: array
+          items: {"$ref": "#/components/schemas/PharmacyCashDay"}
+        today_total_xof: {type: integer, format: int64}
+        week_total_xof: {type: integer, format: int64, description: "7 derniers jours, aujourd'hui compris."}
+      required: [days, today_total_xof, week_total_xof]
+    PharmacyTodayStats:
+      type: object
+      properties:
+        received: {type: integer, format: int64, description: "Alertes reçues aujourd'hui."}
+        responded: {type: integer, format: int64, description: "Dont répondues."}
+        confirmed: {type: integer, format: int64, description: "Dont confirmées par le client (réponse débloquée)."}
+      required: [received, responded, confirmed]
     PharmacyEarnings:
       type: object
       description: "Sommes dues (livraisons payées dans l'app) ; les retraits se paient sur place."

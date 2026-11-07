@@ -23,7 +23,7 @@
       - `pickup_code` et `cash_advanced_xof` dans la mission du livreur.
 - [x] 7. Arrivée estimée du livreur (`delivery.DriverLocation` et module carte), `picked_up_at`,
       `cash_paid_xof` et `refund_fee_xof` dans la commande de la pharmacie.
-- [ ] 8. Envoi du dossier sans compte de versement ; route `cash-receipts` ; route `today` ; lien de
+- [x] 8. Envoi du dossier sans compte de versement ; route `cash-receipts` ; route `today` ; lien de
       la devanture dans `me`.
 - [ ] 9. Origine des gardes (`source`, `imported_at`) : import par la pharmacie, ajout seul, ajout
       par l'admin.

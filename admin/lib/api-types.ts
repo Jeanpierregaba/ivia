@@ -3290,7 +3290,10 @@ export interface paths {
         };
         get?: never;
         put?: never;
-        /** Envoyer le dossier au back-office */
+        /**
+         * Envoyer le dossier au back-office
+         * @description Le compte de versement n'est plus exigé (ADR 0014 : le livreur paie la pharmacie en espèces).
+         */
         post: operations["postPharmacyMeSubmit"];
         delete?: never;
         options?: never;
@@ -3497,6 +3500,43 @@ export interface paths {
         };
         /** Sommes dues (livraisons payées dans l'app) et reversements */
         get: operations["getPharmacyEarnings"];
+        put?: never;
+        post?: never;
+        delete?: never;
+        options?: never;
+        head?: never;
+        patch?: never;
+        trace?: never;
+    };
+    "/v1/pharmacy/cash-receipts": {
+        parameters: {
+            query?: never;
+            header?: never;
+            path?: never;
+            cookie?: never;
+        };
+        /**
+         * Encaissements par jour (heure de Lomé) : retraits payés au comptoir et livraisons payées par le livreur
+         * @description ADR 0014. Du jour le plus récent au plus ancien ; jours sans encaissement omis.
+         */
+        get: operations["getPharmacyCashReceipts"];
+        put?: never;
+        post?: never;
+        delete?: never;
+        options?: never;
+        head?: never;
+        patch?: never;
+        trace?: never;
+    };
+    "/v1/pharmacy/today": {
+        parameters: {
+            query?: never;
+            header?: never;
+            path?: never;
+            cookie?: never;
+        };
+        /** Chiffres du jour (heure de Lomé) : alertes reçues, répondues, confirmées */
+        get: operations["getPharmacyToday"];
         put?: never;
         post?: never;
         delete?: never;
@@ -6298,6 +6338,8 @@ export interface components {
             };
             /** Format: date-time */
             submitted_at?: string | null;
+            /** @description Lien de courte durée vers la dernière photo de la devanture (photo de profil). */
+            storefront_url?: string | null;
             /** Format: uuid */
             id: string;
             name: string;
@@ -6344,6 +6386,8 @@ export interface components {
             };
             /** Format: date-time */
             submitted_at?: string | null;
+            /** @description Lien de courte durée vers la dernière photo de la devanture (photo de profil). */
+            storefront_url?: string | null;
             /** Format: uuid */
             id: string;
             name: string;
@@ -6869,6 +6913,58 @@ export interface components {
             note: string;
             /** Format: date-time */
             created_at: string;
+        };
+        PharmacyCashReceipt: {
+            /** Format: uuid */
+            reservation_id: string;
+            /** @description Numéro de la commande. */
+            number: string;
+            /**
+             * @description pickup : payé au comptoir par le client ; delivery : payé en espèces par le livreur.
+             * @enum {string}
+             */
+            kind: "pickup" | "delivery";
+            /** Format: int64 */
+            amount_xof: number;
+            /** Format: date-time */
+            received_at: string;
+        };
+        PharmacyCashDay: {
+            /**
+             * Format: date
+             * @description Jour à Lomé (AAAA-MM-JJ).
+             */
+            date: string;
+            /** Format: int64 */
+            total_xof: number;
+            receipts: components["schemas"]["PharmacyCashReceipt"][];
+        };
+        PharmacyCashReceipts: {
+            days: components["schemas"]["PharmacyCashDay"][];
+            /** Format: int64 */
+            today_total_xof: number;
+            /**
+             * Format: int64
+             * @description 7 derniers jours, aujourd'hui compris.
+             */
+            week_total_xof: number;
+        };
+        PharmacyTodayStats: {
+            /**
+             * Format: int64
+             * @description Alertes reçues aujourd'hui.
+             */
+            received: number;
+            /**
+             * Format: int64
+             * @description Dont répondues.
+             */
+            responded: number;
+            /**
+             * Format: int64
+             * @description Dont confirmées par le client (réponse débloquée).
+             */
+            confirmed: number;
         };
         /** @description Sommes dues (livraisons payées dans l'app) ; les retraits se paient sur place. */
         PharmacyEarnings: {
@@ -14451,6 +14547,67 @@ export interface operations {
                 };
                 content: {
                     "application/json": components["schemas"]["PharmacyEarnings"];
+                };
+            };
+            /** @description Erreur (voir `code`) */
+            default: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["Error"];
+                };
+            };
+        };
+    };
+    getPharmacyCashReceipts: {
+        parameters: {
+            query?: {
+                /** @description Période en jours, aujourd'hui compris (1 à 90, 30 par défaut). */
+                days?: number;
+            };
+            header?: never;
+            path?: never;
+            cookie?: never;
+        };
+        requestBody?: never;
+        responses: {
+            /** @description Succès */
+            200: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["PharmacyCashReceipts"];
+                };
+            };
+            /** @description Erreur (voir `code`) */
+            default: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["Error"];
+                };
+            };
+        };
+    };
+    getPharmacyToday: {
+        parameters: {
+            query?: never;
+            header?: never;
+            path?: never;
+            cookie?: never;
+        };
+        requestBody?: never;
+        responses: {
+            /** @description Succès */
+            200: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["PharmacyTodayStats"];
                 };
             };
             /** @description Erreur (voir `code`) */

@@ -27,7 +27,9 @@ var documentKinds = []string{"opening_authorization", "order_registration", "own
 
 // Pharmacy est le dossier d'une pharmacie (vu par son titulaire et par l'admin).
 type Pharmacy struct {
-	ID             uuid.UUID  `json:"id"`
+	ID uuid.UUID `json:"id"`
+	// StorefrontURL : lien de courte durée vers la dernière photo de la devanture (photo de profil).
+	StorefrontURL  *string    `json:"storefront_url"`
 	Name           string     `json:"name"`
 	LicenseNumber  string     `json:"license_number"`
 	Phone          string     `json:"phone"`
@@ -132,7 +134,11 @@ func (s *Service) pharmacyView(ctx context.Context, id uuid.UUID, withURLs bool)
 		Documents: make([]Document, 0, len(docs)), MissingDocuments: []string{}, CreatedAt: r.CreatedAt, UpdatedAt: r.UpdatedAt,
 	}
 	have := map[string]bool{}
+	var storefrontKey string
 	for _, d := range docs {
+		if d.Kind == "storefront_photo" {
+			storefrontKey = d.ObjectKey // pièces par date : la dernière l'emporte
+		}
 		doc := Document{ID: d.ID, Kind: d.Kind, CreatedAt: d.CreatedAt}
 		if withURLs {
 			if doc.URL, err = s.uploads.PrivateURL(ctx, d.ObjectKey); err != nil {
@@ -141,6 +147,13 @@ func (s *Service) pharmacyView(ctx context.Context, id uuid.UUID, withURLs bool)
 		}
 		have[d.Kind] = true
 		p.Documents = append(p.Documents, doc)
+	}
+	if storefrontKey != "" {
+		u, err := s.uploads.PrivateURL(ctx, storefrontKey)
+		if err != nil {
+			return Pharmacy{}, r, err
+		}
+		p.StorefrontURL = &u
 	}
 	for _, k := range RequiredDocuments {
 		if !have[k] {

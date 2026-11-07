@@ -654,3 +654,30 @@ UPDATE pharmacies SET email = '', updated_at = now() WHERE owner_id = $1;
 
 -- name: SetPharmacyNightHours :exec
 UPDATE pharmacies SET night_from_hour = $2, night_to_hour = $3, updated_at = now() WHERE id = $1;
+
+-- name: PharmacyCashReceipts :many
+-- Encaissements de la pharmacie depuis since (ADR 0014) : retraits payés au comptoir par le client,
+-- livraisons payées en espèces par le livreur à la remise.
+SELECT r.id AS reservation_id, r.number, 'pickup'::text AS kind, r.items_xof AS amount_xof,
+       r.completed_at::timestamptz AS received_at
+FROM pharmacy_reservations r
+WHERE r.pharmacy_id = sqlc.arg(pharmacy_id) AND r.fulfillment = 'pickup' AND r.status = 'completed'
+  AND r.completed_at >= sqlc.arg(since)
+UNION ALL
+SELECT r.id, r.number, 'delivery'::text, d.cash_paid_xof::bigint, d.cash_paid_at::timestamptz
+FROM pharmacy_deliveries d
+JOIN pharmacy_reservations r ON r.id = d.reservation_id
+WHERE r.pharmacy_id = sqlc.arg(pharmacy_id) AND d.cash_paid_at IS NOT NULL AND d.cash_paid_at >= sqlc.arg(since)
+ORDER BY received_at DESC
+LIMIT 500;
+
+-- name: PharmacyTodayStats :one
+-- Chiffres du jour (heure de Lomé) : alertes reçues, répondues, confirmées par le client.
+SELECT
+  count(*)::bigint AS received,
+  count(*) FILTER (WHERE resp.id IS NOT NULL)::bigint AS responded,
+  count(*) FILTER (WHERE resp.unlocked_at IS NOT NULL)::bigint AS confirmed
+FROM pharmacy_alert_targets t
+LEFT JOIN pharmacy_responses resp ON resp.alert_id = t.alert_id AND resp.pharmacy_id = t.pharmacy_id
+WHERE t.pharmacy_id = sqlc.arg(pharmacy_id)
+  AND t.notified_at >= (date_trunc('day', now() AT TIME ZONE 'Africa/Lome') AT TIME ZONE 'Africa/Lome');

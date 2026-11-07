@@ -119,3 +119,59 @@ func TestPharmacyReservationCourierEtaAndRefundFee(t *testing.T) {
 		t.Fatalf("après la remise : %v", r.Body)
 	}
 }
+
+// Spec 032, ADR 0014 : dossier sans compte de versement, photo de la devanture.
+func TestPharmacySubmitWithoutPayoutAndStorefront(t *testing.T) {
+	requireApp(t)
+	lat, lng := zone()
+	tok := login(t, uniqueEmail("pharma"))
+	completeProfile(t, tok, "Afi")
+	mustStatus(t, call(t, tok, "POST", "/v1/pharmacy/application", map[string]any{
+		"name": "Pharmacie Sans Compte", "license_number": "ORD-TG-0099", "phone": uniquePhone(), "email": uniqueEmail("officine"),
+		"address_text": "Rue du Commerce", "location": map[string]float64{"lat": lat, "lng": lng},
+	}), http.StatusCreated)
+	if me := mustStatus(t, call(t, tok, "GET", "/v1/pharmacy/me", nil), http.StatusOK); me.Body["storefront_url"] != nil {
+		t.Fatalf("devanture avant envoi : %v", me.Body["storefront_url"])
+	}
+	for _, kind := range []string{"opening_authorization", "owner_id", "storefront_photo"} {
+		key := uploadPrivatePDF(t, tok, "pharmacy_document")
+		mustStatus(t, call(t, tok, "POST", "/v1/pharmacy/me/documents", map[string]string{"kind": kind, "object_key": key}), http.StatusCreated)
+	}
+	me := mustStatus(t, call(t, tok, "GET", "/v1/pharmacy/me", nil), http.StatusOK)
+	if u, _ := me.Body["storefront_url"].(string); u == "" {
+		t.Fatalf("lien de la devanture : %v", me.Body["storefront_url"])
+	}
+	// Aucun compte de versement : l'envoi passe.
+	if s := mustStatus(t, call(t, tok, "POST", "/v1/pharmacy/me/submit", nil), http.StatusOK).str("review_status"); s != "pending_review" {
+		t.Fatalf("dossier envoyé sans compte : %s", s)
+	}
+}
+
+// Spec 032 : encaissements (retrait au comptoir, livraison payée par le livreur) et chiffres du jour.
+func TestPharmacyCashReceiptsAndToday(t *testing.T) {
+	requireApp(t)
+	d := deliveryAssigned(t, true)
+	if x := call(t, d.pharmacy, "GET", "/v1/pharmacy/cash-receipts?days=0", nil); x.Status != http.StatusBadRequest {
+		t.Fatalf("période invalide : %d", x.Status)
+	}
+	empty := mustStatus(t, call(t, d.pharmacy, "GET", "/v1/pharmacy/cash-receipts", nil), http.StatusOK)
+	if len(list(empty.Body["days"])) != 0 || num(empty.Body["today_total_xof"]) != 0 {
+		t.Fatalf("encaissements avant la remise : %v", empty.Body)
+	}
+	mustStatus(t, handover(t, d.pharmacy, d.reservationID, pickupCode(t, d.driver), true), http.StatusOK)
+
+	c := mustStatus(t, call(t, d.pharmacy, "GET", "/v1/pharmacy/cash-receipts", nil), http.StatusOK)
+	days := list(c.Body["days"])
+	if len(days) != 1 || num(days[0]["total_xof"]) != d.itemsXOF || num(c.Body["today_total_xof"]) != d.itemsXOF || num(c.Body["week_total_xof"]) != d.itemsXOF {
+		t.Fatalf("encaissements : %v", c.Body)
+	}
+	receipt := list(days[0]["receipts"])[0]
+	if receipt["kind"] != "delivery" || receipt["reservation_id"] != d.reservationID || receipt["number"] == "" {
+		t.Fatalf("encaissement de la livraison : %v", receipt)
+	}
+
+	today := mustStatus(t, call(t, d.pharmacy, "GET", "/v1/pharmacy/today", nil), http.StatusOK)
+	if num(today.Body["received"]) != 1 || num(today.Body["responded"]) != 1 || num(today.Body["confirmed"]) != 1 {
+		t.Fatalf("chiffres du jour : %v", today.Body)
+	}
+}

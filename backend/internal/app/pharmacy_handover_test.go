@@ -177,6 +177,13 @@ func TestPharmacyHandoverRefusedForPickup(t *testing.T) {
 	if x := handover(t, ph, resID, "1234", true); x.Status != http.StatusConflict {
 		t.Fatalf("remise au livreur d'un retrait : %d", x.Status)
 	}
+	// Retrait payé au comptoir : compté dans les encaissements.
+	code := mustStatus(t, call(t, b.token, "GET", "/v1/medicine-reservations/"+resID, nil), http.StatusOK).str("handover_code")
+	mustStatus(t, call(t, ph, "POST", "/v1/pharmacy/reservations/"+resID+"/complete", map[string]string{"code": code}), http.StatusOK)
+	days := list(mustStatus(t, call(t, ph, "GET", "/v1/pharmacy/cash-receipts", nil), http.StatusOK).Body["days"])
+	if len(days) != 1 || list(days[0]["receipts"])[0]["kind"] != "pickup" || num(days[0]["total_xof"]) != 900 {
+		t.Fatalf("encaissement du retrait : %v", days)
+	}
 }
 
 // Mission acceptée avant le changement (sans code) : le livreur garde l'ancien « Récupéré ».

@@ -2,6 +2,7 @@ package pharmacy
 
 import (
 	"net/http"
+	"strconv"
 	"time"
 
 	"github.com/google/uuid"
@@ -96,6 +97,8 @@ func (h *Handler) Register(rt *httpapi.Router) {
 	rt.Roles("POST /v1/pharmacy/reservations/{id}/courier-handover", h.courierHandover, ph)
 	rt.Roles("POST /v1/pharmacy/reservations/{id}/cancel", h.pharmacyCancel, ph)
 	rt.Roles("GET /v1/pharmacy/earnings", h.earnings, ph)
+	rt.Roles("GET /v1/pharmacy/cash-receipts", h.cashReceipts, ph)
+	rt.Roles("GET /v1/pharmacy/today", h.today, ph)
 
 	// Livreur ivia.
 	dr := identity.RoleDriver
@@ -538,6 +541,24 @@ func (h *Handler) pharmacyCancel(w http.ResponseWriter, r *http.Request) error {
 func (h *Handler) earnings(w http.ResponseWriter, r *http.Request) error {
 	e, err := h.svc.Earnings(r.Context(), me(r))
 	return ok(w, e, err)
+}
+
+func (h *Handler) cashReceipts(w http.ResponseWriter, r *http.Request) error {
+	days := 30
+	if v := r.URL.Query().Get("days"); v != "" {
+		n, err := strconv.Atoi(v)
+		if err != nil {
+			return apperr.Validation(map[string]string{"days": "Nombre de jours attendu."})
+		}
+		days = n
+	}
+	c, err := h.svc.PharmacyCashReceipts(r.Context(), me(r), days)
+	return ok(w, c, err)
+}
+
+func (h *Handler) today(w http.ResponseWriter, r *http.Request) error {
+	t, err := h.svc.PharmacyToday(r.Context(), me(r))
+	return ok(w, t, err)
 }
 
 // --- Livreur ----------------------------------------------------------------------------------

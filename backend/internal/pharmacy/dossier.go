@@ -112,9 +112,7 @@ func (s *Service) Submit(ctx context.Context, ownerID uuid.UUID) (Pharmacy, erro
 		if len(p.MissingDocuments) > 0 {
 			return apperr.Unprocessable("documents_missing", "Pièces manquantes : "+strings.Join(p.MissingDocuments, ", ")+".")
 		}
-		if p.Payout == nil {
-			return apperr.Unprocessable("payout_missing", "Renseignez votre compte de versement.")
-		}
+		// ADR 0014 : plus de versement ivia, le compte de versement n'est plus exigé.
 		if err := q.MarkPharmacySubmitted(ctx, id); err != nil {
 			return fmt.Errorf("envoi du dossier : %w", err)
 		}

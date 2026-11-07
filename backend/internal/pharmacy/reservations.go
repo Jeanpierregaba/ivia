@@ -946,6 +946,96 @@ func (s *Service) earnings(ctx context.Context, pharmacyID uuid.UUID) (Earnings,
 	return out, nil
 }
 
+// CashReceipt est un encaissement de la pharmacie : retrait payé au comptoir ou livraison payée
+// en espèces par le livreur (ADR 0014).
+type CashReceipt struct {
+	ReservationID uuid.UUID `json:"reservation_id"`
+	Number        string    `json:"number"`
+	Kind          string    `json:"kind"`
+	AmountXOF     int64     `json:"amount_xof"`
+	ReceivedAt    time.Time `json:"received_at"`
+}
+
+// CashDay regroupe les encaissements d'un jour (heure de Lomé).
+type CashDay struct {
+	Date     string        `json:"date"`
+	TotalXOF int64         `json:"total_xof"`
+	Receipts []CashReceipt `json:"receipts"`
+}
+
+// CashReceipts : encaissements par jour, du plus récent au plus ancien, et totaux.
+type CashReceipts struct {
+	Days          []CashDay `json:"days"`
+	TodayTotalXOF int64     `json:"today_total_xof"`
+	WeekTotalXOF  int64     `json:"week_total_xof"`
+}
+
+// lome : fuseau d'affichage et des périodes (UTC+0, sans heure d'été).
+var lome = time.FixedZone("Africa/Lome", 0)
+
+// MaxCashDays borne la période des encaissements.
+const MaxCashDays = 90
+
+// PharmacyCashReceipts liste les encaissements des derniers days jours (ADR 0014 : plus de
+// versement ivia, la pharmacie est payée sur place).
+func (s *Service) PharmacyCashReceipts(ctx context.Context, ownerID uuid.UUID, days int) (CashReceipts, error) {
+	ph, err := s.requireActivePharmacy(ctx, ownerID)
+	if err != nil {
+		return CashReceipts{}, err
+	}
+	if days < 1 || days > MaxCashDays {
+		return CashReceipts{}, apperr.Validation(map[string]string{"days": fmt.Sprintf("Entre 1 et %d jours.", MaxCashDays)})
+	}
+	now := time.Now().In(lome)
+	today := time.Date(now.Year(), now.Month(), now.Day(), 0, 0, 0, 0, lome)
+	since := today.AddDate(0, 0, -(days - 1))
+	rows, err := s.q(ctx).PharmacyCashReceipts(ctx, store.PharmacyCashReceiptsParams{PharmacyID: ph.ID, Since: &since})
+	if err != nil {
+		return CashReceipts{}, fmt.Errorf("encaissements : %w", err)
+	}
+	out := CashReceipts{Days: []CashDay{}}
+	weekStart := today.AddDate(0, 0, -6)
+	for _, r := range rows {
+		at := r.ReceivedAt.In(lome)
+		date := at.Format("2006-01-02")
+		if len(out.Days) == 0 || out.Days[len(out.Days)-1].Date != date {
+			out.Days = append(out.Days, CashDay{Date: date, Receipts: []CashReceipt{}})
+		}
+		day := &out.Days[len(out.Days)-1]
+		day.TotalXOF += r.AmountXof
+		day.Receipts = append(day.Receipts, CashReceipt{
+			ReservationID: r.ReservationID, Number: reservationNumber(r.Number), Kind: r.Kind, AmountXOF: r.AmountXof, ReceivedAt: r.ReceivedAt,
+		})
+		if !at.Before(today) {
+			out.TodayTotalXOF += r.AmountXof
+		}
+		if !at.Before(weekStart) {
+			out.WeekTotalXOF += r.AmountXof
+		}
+	}
+	return out, nil
+}
+
+// TodayStats : chiffres du jour de la pharmacie (heure de Lomé).
+type TodayStats struct {
+	Received  int64 `json:"received"`
+	Responded int64 `json:"responded"`
+	Confirmed int64 `json:"confirmed"`
+}
+
+// PharmacyToday retourne les chiffres du jour, sur toutes les alertes reçues aujourd'hui.
+func (s *Service) PharmacyToday(ctx context.Context, ownerID uuid.UUID) (TodayStats, error) {
+	ph, err := s.requireActivePharmacy(ctx, ownerID)
+	if err != nil {
+		return TodayStats{}, err
+	}
+	r, err := s.q(ctx).PharmacyTodayStats(ctx, ph.ID)
+	if err != nil {
+		return TodayStats{}, fmt.Errorf("chiffres du jour : %w", err)
+	}
+	return TodayStats{Received: r.Received, Responded: r.Responded, Confirmed: r.Confirmed}, nil
+}
+
 // Earnings retourne les sommes dues à la pharmacie du titulaire.
 func (s *Service) Earnings(ctx context.Context, ownerID uuid.UUID) (Earnings, error) {
 	id, err := s.pharmacyIDOf(ctx, ownerID)

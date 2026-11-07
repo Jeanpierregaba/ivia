@@ -2880,6 +2880,62 @@ func (q *Queries) PendingUnlockPayment(ctx context.Context, responseID *uuid.UUI
 	return i, err
 }
 
+const pharmacyCashReceipts = `-- name: PharmacyCashReceipts :many
+SELECT r.id AS reservation_id, r.number, 'pickup'::text AS kind, r.items_xof AS amount_xof,
+       r.completed_at::timestamptz AS received_at
+FROM pharmacy_reservations r
+WHERE r.pharmacy_id = $1 AND r.fulfillment = 'pickup' AND r.status = 'completed'
+  AND r.completed_at >= $2
+UNION ALL
+SELECT r.id, r.number, 'delivery'::text, d.cash_paid_xof::bigint, d.cash_paid_at::timestamptz
+FROM pharmacy_deliveries d
+JOIN pharmacy_reservations r ON r.id = d.reservation_id
+WHERE r.pharmacy_id = $1 AND d.cash_paid_at IS NOT NULL AND d.cash_paid_at >= $2
+ORDER BY received_at DESC
+LIMIT 500
+`
+
+type PharmacyCashReceiptsParams struct {
+	PharmacyID uuid.UUID
+	Since      *time.Time
+}
+
+type PharmacyCashReceiptsRow struct {
+	ReservationID uuid.UUID
+	Number        *int64
+	Kind          string
+	AmountXof     int64
+	ReceivedAt    time.Time
+}
+
+// Encaissements de la pharmacie depuis since (ADR 0014) : retraits payés au comptoir par le client,
+// livraisons payées en espèces par le livreur à la remise.
+func (q *Queries) PharmacyCashReceipts(ctx context.Context, arg PharmacyCashReceiptsParams) ([]PharmacyCashReceiptsRow, error) {
+	rows, err := q.db.Query(ctx, pharmacyCashReceipts, arg.PharmacyID, arg.Since)
+	if err != nil {
+		return nil, err
+	}
+	defer rows.Close()
+	items := []PharmacyCashReceiptsRow{}
+	for rows.Next() {
+		var i PharmacyCashReceiptsRow
+		if err := rows.Scan(
+			&i.ReservationID,
+			&i.Number,
+			&i.Kind,
+			&i.AmountXof,
+			&i.ReceivedAt,
+		); err != nil {
+			return nil, err
+		}
+		items = append(items, i)
+	}
+	if err := rows.Err(); err != nil {
+		return nil, err
+	}
+	return items, nil
+}
+
 const pharmacyDossier = `-- name: PharmacyDossier :one
 SELECT p.submitted_at, p.payout_operator, p.payout_phone, p.payout_holder, p.email,
        coalesce(p.night_from_hour, st.night_from_hour)::int AS night_from,
@@ -2952,6 +3008,31 @@ func (q *Queries) PharmacyIDByOwner(ctx context.Context, ownerID uuid.UUID) (uui
 	var id uuid.UUID
 	err := row.Scan(&id)
 	return id, err
+}
+
+const pharmacyTodayStats = `-- name: PharmacyTodayStats :one
+SELECT
+  count(*)::bigint AS received,
+  count(*) FILTER (WHERE resp.id IS NOT NULL)::bigint AS responded,
+  count(*) FILTER (WHERE resp.unlocked_at IS NOT NULL)::bigint AS confirmed
+FROM pharmacy_alert_targets t
+LEFT JOIN pharmacy_responses resp ON resp.alert_id = t.alert_id AND resp.pharmacy_id = t.pharmacy_id
+WHERE t.pharmacy_id = $1
+  AND t.notified_at >= (date_trunc('day', now() AT TIME ZONE 'Africa/Lome') AT TIME ZONE 'Africa/Lome')
+`
+
+type PharmacyTodayStatsRow struct {
+	Received  int64
+	Responded int64
+	Confirmed int64
+}
+
+// Chiffres du jour (heure de Lomé) : alertes reçues, répondues, confirmées par le client.
+func (q *Queries) PharmacyTodayStats(ctx context.Context, pharmacyID uuid.UUID) (PharmacyTodayStatsRow, error) {
+	row := q.db.QueryRow(ctx, pharmacyTodayStats, pharmacyID)
+	var i PharmacyTodayStatsRow
+	err := row.Scan(&i.Received, &i.Responded, &i.Confirmed)
+	return i, err
 }
 
 const recentRequestsByBuyer = `-- name: RecentRequestsByBuyer :one
