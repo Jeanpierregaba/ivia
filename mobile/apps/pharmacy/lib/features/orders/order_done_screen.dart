@@ -37,9 +37,14 @@ class OrderDoneScreen extends StatelessWidget {
                   : PText.body.copyWith(color: P.label),
             ),
           ),
-          Text(
-            value,
-            style: PText.cardTitle.copyWith(fontSize: strong ? 20 : 16),
+          const SizedBox(width: 12),
+          // Souple : à 200 % sur un petit écran, le montant passe à la ligne au lieu de déborder.
+          Flexible(
+            child: Text(
+              value,
+              textAlign: TextAlign.end,
+              style: PText.cardTitle.copyWith(fontSize: strong ? 20 : 16),
+            ),
           ),
         ],
       ),
