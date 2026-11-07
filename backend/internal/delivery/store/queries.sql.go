@@ -286,6 +286,33 @@ func (q *Queries) DriverDocumentKeysIn(ctx context.Context, keys []string) ([]st
 	return items, nil
 }
 
+const driverLastLocation = `-- name: DriverLastLocation :one
+SELECT ST_Y(last_location::geometry)::float8 AS lat, ST_X(last_location::geometry)::float8 AS lng,
+       last_location_at::timestamptz AS recorded_at, vehicle_type
+FROM drivers
+WHERE user_id = $1 AND last_location IS NOT NULL AND last_location_at IS NOT NULL
+`
+
+type DriverLastLocationRow struct {
+	Lat         float64
+	Lng         float64
+	RecordedAt  time.Time
+	VehicleType string
+}
+
+// Dernière position connue d'un livreur (arrivée estimée chez la pharmacie).
+func (q *Queries) DriverLastLocation(ctx context.Context, userID uuid.UUID) (DriverLastLocationRow, error) {
+	row := q.db.QueryRow(ctx, driverLastLocation, userID)
+	var i DriverLastLocationRow
+	err := row.Scan(
+		&i.Lat,
+		&i.Lng,
+		&i.RecordedAt,
+		&i.VehicleType,
+	)
+	return i, err
+}
+
 const driverOverview = `-- name: DriverOverview :one
 SELECT
   count(*) FILTER (WHERE review_status = 'approved' AND suspended_at IS NULL AND availability = 'available')::bigint AS available,

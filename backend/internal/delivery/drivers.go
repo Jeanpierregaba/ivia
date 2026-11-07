@@ -371,6 +371,25 @@ func (s *Service) UpdateLocation(ctx context.Context, userID uuid.UUID, in Locat
 	})
 }
 
+// DriverLocation est la dernière position connue d'un livreur.
+type DriverLocation struct {
+	Point       geo.Point
+	RecordedAt  time.Time
+	VehicleType string
+}
+
+// LastLocation retourne la dernière position du livreur ; nil s'il n'en a pas.
+func (s *Service) LastLocation(ctx context.Context, userID uuid.UUID) (*DriverLocation, error) {
+	r, err := store.New(s.db.Conn(ctx)).DriverLastLocation(ctx, userID)
+	if database.IsNoRows(err) {
+		return nil, nil
+	}
+	if err != nil {
+		return nil, fmt.Errorf("position du livreur : %w", err)
+	}
+	return &DriverLocation{Point: geo.Point{Lat: r.Lat, Lng: r.Lng}, RecordedAt: r.RecordedAt, VehicleType: r.VehicleType}, nil
+}
+
 // --- Back-office ----------------------------------------------------------------------------
 
 // AdminList liste les livreurs.

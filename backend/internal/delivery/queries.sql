@@ -269,3 +269,10 @@ SELECT (EXISTS (SELECT 1 FROM delivery_offers o WHERE o.driver_id = $1 AND o.sta
 -- name: ReleaseBusyDriver :exec
 UPDATE drivers SET availability = 'available', updated_at = now()
 WHERE user_id = $1 AND availability = 'busy';
+
+-- name: DriverLastLocation :one
+-- Dernière position connue d'un livreur (arrivée estimée chez la pharmacie).
+SELECT ST_Y(last_location::geometry)::float8 AS lat, ST_X(last_location::geometry)::float8 AS lng,
+       last_location_at::timestamptz AS recorded_at, vehicle_type
+FROM drivers
+WHERE user_id = $1 AND last_location IS NOT NULL AND last_location_at IS NOT NULL;

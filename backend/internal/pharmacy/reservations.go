@@ -12,6 +12,7 @@ import (
 
 	"ivia/backend/internal/admin"
 	"ivia/backend/internal/geo"
+	"ivia/backend/internal/mapping"
 	"ivia/backend/internal/notifications"
 	"ivia/backend/internal/orders"
 	"ivia/backend/internal/pharmacy/store"
@@ -117,6 +118,8 @@ type PharmacyReservation struct {
 	// PickedUpAt : remise au livreur validée ; CashPaidXOF : espèces reçues du livreur (ADR 0014).
 	PickedUpAt  *time.Time `json:"picked_up_at"`
 	CashPaidXOF *int64     `json:"cash_paid_xof"`
+	// RefundFeeXOF : forfait de déblocage payé par le client, remboursé si la pharmacie annule.
+	RefundFeeXOF int64 `json:"refund_fee_xof"`
 }
 
 // CourierContact : le livreur ivia d'une livraison (téléphone pendant la course seulement).
@@ -126,6 +129,9 @@ type CourierContact struct {
 	VehicleType  string `json:"vehicle_type"`
 	VehiclePlate string `json:"vehicle_plate"`
 	Status       string `json:"status"`
+	// EtaMinutes : arrivée estimée du livreur chez la pharmacie, tant qu'il est en route et que sa
+	// position est récente ; nil sinon.
+	EtaMinutes *int `json:"eta_minutes"`
 }
 
 // DeliveryQuote : frais et délai d'une livraison vers une adresse, avant de la choisir.
@@ -260,7 +266,48 @@ func (s *Service) courierOf(ctx context.Context, reservationID uuid.UUID) (*Cour
 	if d.Status == "assigned" || d.Status == "picked_up" {
 		out.Phone = c.Phone // numéro donné seulement pendant la course
 	}
+	if d.Status == "assigned" {
+		out.EtaMinutes = s.courierEta(ctx, d.DriverID, reservationID)
+	}
 	return out, &d, nil
+}
+
+// courierStaleAfter : au-delà, la position du livreur ne sert plus à estimer son arrivée.
+const courierStaleAfter = 10 * time.Minute
+
+// courierEta estime en minutes le trajet du livreur jusqu'à la pharmacie ; nil sans position
+// récente ou sans calcul possible (l'app affiche alors « en route »).
+func (s *Service) courierEta(ctx context.Context, driverID, reservationID uuid.UUID) *int {
+	if s.router == nil {
+		return nil
+	}
+	loc, err := s.drivers.LastLocation(ctx, driverID)
+	if err != nil || loc == nil || time.Since(loc.RecordedAt) > courierStaleAfter {
+		return nil
+	}
+	r, err := s.q(ctx).GetReservation(ctx, reservationID)
+	if err != nil {
+		return nil
+	}
+	ph, err := s.q(ctx).GetPharmacy(ctx, r.PharmacyID)
+	if err != nil {
+		return nil
+	}
+	profile := "car"
+	if loc.VehicleType == "motorbike" || loc.VehicleType == "bicycle" {
+		profile = "moto"
+	}
+	route, err := s.router.Route(ctx, profile, []mapping.LatLng{
+		{Lat: loc.Point.Lat, Lng: loc.Point.Lng}, {Lat: ph.Lat, Lng: ph.Lng},
+	})
+	if err != nil {
+		return nil
+	}
+	minutes := int((route.DurationS + 59) / 60)
+	if minutes < 1 {
+		minutes = 1
+	}
+	return &minutes
 }
 
 func pharmacyContact(ph store.GetPharmacyRow) PharmacyContact {
@@ -515,6 +562,15 @@ func (s *Service) pharmacyReservationView(ctx context.Context, r store.GetReserv
 	}
 	if d != nil && d.Status != "cancelled" {
 		out.PickedUpAt, out.CashPaidXOF = d.PickedUpAt, d.CashPaidXof
+	}
+	if r.UnlockPaymentID != nil {
+		pay, err := s.q(ctx).GetPayment(ctx, *r.UnlockPaymentID)
+		if err != nil {
+			return PharmacyReservation{}, fmt.Errorf("forfait de la commande : %w", err)
+		}
+		if pay.Status != "failed" && pay.Status != "expired" && pay.Status != "pending" {
+			out.RefundFeeXOF = pay.AmountXof
+		}
 	}
 	return out, nil
 }

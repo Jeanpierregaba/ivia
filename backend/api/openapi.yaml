@@ -14814,6 +14814,11 @@ components:
             - assigned
             - picked_up
             - delivered
+        eta_minutes:
+          type:
+            - integer
+            - "null"
+          description: "Arrivée estimée chez la pharmacie, livreur en route et position récente (moins de 10 minutes) ; null sinon. Renseigné pour la pharmacie seulement."
       required:
         - first_name
         - phone
@@ -15082,6 +15087,10 @@ components:
             - "null"
           format: int64
           description: "Espèces reçues du livreur à la remise (ADR 0014)."
+        refund_fee_xof:
+          type: integer
+          format: int64
+          description: "Forfait de déblocage payé par le client, remboursé si la pharmacie annule."
       required:
         - id
         - number

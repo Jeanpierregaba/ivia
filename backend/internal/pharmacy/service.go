@@ -36,6 +36,7 @@ import (
 	"ivia/backend/internal/admin"
 	"ivia/backend/internal/delivery"
 	"ivia/backend/internal/geo"
+	"ivia/backend/internal/mapping"
 	"ivia/backend/internal/notifications"
 	"ivia/backend/internal/payments"
 	"ivia/backend/internal/pharmacy/store"
@@ -159,8 +160,17 @@ type SettingsPatch struct {
 	NightToHour           *int32   `json:"night_to_hour"`
 }
 
+// Router calcule un itinéraire (module carte) ; branché après l'assemblage (SetRouter).
+type Router interface {
+	Route(ctx context.Context, profile string, points []mapping.LatLng) (mapping.Route, error)
+}
+
+// SetRouter branche le calcul d'itinéraire (arrivée estimée du livreur chez la pharmacie).
+func (s *Service) SetRouter(r Router) { s.router = r }
+
 // Service gère le module.
 type Service struct {
+	router   Router
 	mail     notifications.EmailSender
 	db       *database.DB
 	jobs     jobs.Enqueuer

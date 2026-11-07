@@ -6739,6 +6739,8 @@ export interface components {
             vehicle_plate: string;
             /** @enum {string} */
             status: "assigned" | "picked_up" | "delivered";
+            /** @description Arrivée estimée chez la pharmacie, livreur en route et position récente (moins de 10 minutes) ; null sinon. Renseigné pour la pharmacie seulement. */
+            eta_minutes?: number | null;
         };
         /** @description Étapes de la commande. */
         MedicineTimeline: {
@@ -6852,6 +6854,11 @@ export interface components {
              * @description Espèces reçues du livreur à la remise (ADR 0014).
              */
             cash_paid_xof?: number | null;
+            /**
+             * Format: int64
+             * @description Forfait de déblocage payé par le client, remboursé si la pharmacie annule.
+             */
+            refund_fee_xof?: number;
         };
         PharmacyPayout: {
             /** Format: uuid */

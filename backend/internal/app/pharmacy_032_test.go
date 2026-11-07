@@ -1,6 +1,7 @@
 package app_test
 
 import (
+	"context"
 	"fmt"
 	"net/http"
 	"strconv"
@@ -75,5 +76,46 @@ func TestPharmacyAlertNumberAndNeighborhood(t *testing.T) {
 	}
 	if !found {
 		t.Fatal("alerte lointaine absente de la boîte")
+	}
+}
+
+// Spec 032 : arrivée estimée du livreur et forfait remboursé, vus par la pharmacie.
+func TestPharmacyReservationCourierEtaAndRefundFee(t *testing.T) {
+	requireApp(t)
+	d := deliveryAssigned(t, true)
+	r := mustStatus(t, call(t, d.pharmacy, "GET", "/v1/pharmacy/reservations/"+d.reservationID, nil), http.StatusOK)
+	if num(r.Body["refund_fee_xof"]) != 100 {
+		t.Fatalf("forfait remboursé : %v", r.Body["refund_fee_xof"])
+	}
+	eta := func() any {
+		r := mustStatus(t, call(t, d.pharmacy, "GET", "/v1/pharmacy/reservations/"+d.reservationID, nil), http.StatusOK)
+		return r.Body["courier"].(map[string]any)["eta_minutes"]
+	}
+	near := num(eta())
+	if near < 1 {
+		t.Fatalf("arrivée estimée près de la pharmacie : %v", near)
+	}
+	mission, _ := mustStatus(t, call(t, d.driver, "GET", "/v1/driver/pharmacy-missions/current", nil), http.StatusOK).Body["mission"].(map[string]any)
+	ph := mission["pharmacy"].(map[string]any)["location"].(map[string]any)
+	mustStatus(t, call(t, d.driver, "POST", "/v1/driver/location", map[string]any{
+		"lat": num(ph["lat"]) + 0.05, "lng": num(ph["lng"]),
+	}), http.StatusNoContent)
+	if far := num(eta()); far <= near {
+		t.Fatalf("arrivée estimée plus loin : %v (près : %v)", far, near)
+	}
+	// Position trop ancienne : pas d'arrivée estimée.
+	if _, err := testDB.Pool.Exec(context.Background(),
+		`UPDATE drivers SET last_location_at = now() - interval '1 hour' WHERE user_id = (SELECT driver_id FROM pharmacy_deliveries WHERE id = $1)`,
+		d.missionID); err != nil {
+		t.Fatal(err)
+	}
+	if e := eta(); e != nil {
+		t.Fatalf("arrivée avec une position ancienne : %v", e)
+	}
+	// Après la remise : plus d'arrivée estimée, heure de récupération connue.
+	mustStatus(t, handover(t, d.pharmacy, d.reservationID, pickupCode(t, d.driver), true), http.StatusOK)
+	r = mustStatus(t, call(t, d.pharmacy, "GET", "/v1/pharmacy/reservations/"+d.reservationID, nil), http.StatusOK)
+	if r.Body["picked_up_at"] == nil || r.Body["courier"].(map[string]any)["eta_minutes"] != nil {
+		t.Fatalf("après la remise : %v", r.Body)
 	}
 }

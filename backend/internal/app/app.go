@@ -159,6 +159,8 @@ func New(cfg config.Config, logger *slog.Logger, pool *pgxpool.Pool, opts Option
 	}); err != nil {
 		return nil, fmt.Errorf("carte : %w", err)
 	}
+	// Arrivée estimée du livreur chez la pharmacie (spec 032).
+	a.Pharmacy.SetRouter(a.Mapping)
 	a.Business = business.NewService(db, a.Shops, a.Users, a.Uploads, a.Admin, a.Notifications)
 
 	// Suppression de compte : les modules qui bloquent, puis ceux qui effacent leurs données.
