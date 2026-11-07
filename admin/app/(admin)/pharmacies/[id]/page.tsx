@@ -4,7 +4,16 @@ import { notFound } from "next/navigation";
 
 import { ActionForm } from "@/components/action-form";
 import { ServerForm } from "@/components/server-form";
-import { Avatar, Card, CardTitle, DefinitionList, ErrorState, Field, fieldClass, StatusBadge } from "@/components/ui";
+import {
+  Avatar,
+  Card,
+  CardTitle,
+  DefinitionList,
+  ErrorState,
+  Field,
+  fieldClass,
+  StatusBadge,
+} from "@/components/ui";
 import { api, ApiError, type Schemas } from "@/lib/api";
 import {
   formatDateTime,
@@ -53,7 +62,9 @@ export default async function PharmacyPage({ params }: { params: Promise<{ id: s
       <header className="mb-6 flex items-center gap-5 rounded-field bg-tertiary p-6 text-white">
         <Avatar name={p.name || "?"} tone="cobalt" size={64} />
         <div className="min-w-0 flex-1">
-          <p className="text-[12px] font-semibold uppercase tracking-[0.08em] text-white/60">Dossier pharmacie</p>
+          <p className="text-[12px] font-semibold uppercase tracking-[0.08em] text-white/60">
+            Dossier pharmacie
+          </p>
           <h1 className="text-[28px] font-bold leading-8 tracking-[-0.02em]">{p.name}</h1>
           <p className="mt-1 text-white/75">
             {p.address_text} · {formatPhone(p.phone)}
@@ -74,7 +85,12 @@ export default async function PharmacyPage({ params }: { params: Promise<{ id: s
               ["E-mail", p.email || "—"],
               ["Heures de nuit", `${p.night_from_hour} h à ${p.night_to_hour} h`],
               ["Horaires", p.opening_hours || "—"],
-              ["État", [p.is_open && "Ouverte", p.on_duty && "De garde", p.open_24h && "24 h/24"].filter(Boolean).join(" · ") || "Fermée"],
+              [
+                "État",
+                [p.is_open && "Ouverte", p.on_duty && "De garde", p.open_24h && "24 h/24"]
+                  .filter(Boolean)
+                  .join(" · ") || "Fermée",
+              ],
               [
                 "Position",
                 <a
@@ -114,7 +130,12 @@ export default async function PharmacyPage({ params }: { params: Promise<{ id: s
                   </span>
                   {doc.url ? (
                     // Lien temporaire (10 min) vers le compartiment privé.
-                    <a href={doc.url} target="_blank" rel="noreferrer" className="font-semibold text-secondary hover:underline">
+                    <a
+                      href={doc.url}
+                      target="_blank"
+                      rel="noreferrer"
+                      className="font-semibold text-secondary hover:underline"
+                    >
                       Consulter
                     </a>
                   ) : (
@@ -195,7 +216,10 @@ export default async function PharmacyPage({ params }: { params: Promise<{ id: s
               label="Rétablir"
               variant="outline"
               hidden={hidden("reinstate")}
-              confirm={{ title: `Rétablir ${p.name} ?`, body: "La pharmacie pourra de nouveau recevoir des alertes." }}
+              confirm={{
+                title: `Rétablir ${p.name} ?`,
+                body: "La pharmacie pourra de nouveau recevoir des alertes.",
+              }}
             />
           )}
         </div>
@@ -218,7 +242,10 @@ export default async function PharmacyPage({ params }: { params: Promise<{ id: s
                     label="Retirer"
                     variant="outline"
                     hidden={{ id: s.id, pharmacy_id: p.id }}
-                    confirm={{ title: "Retirer cette garde ?", body: "La garde disparaît du planning de la pharmacie." }}
+                    confirm={{
+                      title: "Retirer cette garde ?",
+                      body: "La garde disparaît du planning de la pharmacie.",
+                    }}
                     reason={{ label: "Motif" }}
                   />
                 </li>
@@ -260,7 +287,12 @@ export default async function PharmacyPage({ params }: { params: Promise<{ id: s
               ))}
             </ul>
           )}
-          <ServerForm action={recordPayout} submitLabel="Enregistrer le reversement" variant="outline" className="mt-4">
+          <ServerForm
+            action={recordPayout}
+            submitLabel="Enregistrer le reversement"
+            variant="outline"
+            className="mt-4"
+          >
             <input type="hidden" name="id" value={p.id} />
             <div className="grid grid-cols-2 gap-3">
               <Field label="Montant (FCFA)">

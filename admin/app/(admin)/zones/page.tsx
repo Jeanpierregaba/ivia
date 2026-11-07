@@ -2,7 +2,18 @@ import { Hexagon } from "lucide-react";
 
 import { ActionForm } from "@/components/action-form";
 import { ServerForm } from "@/components/server-form";
-import { Card, CardTitle, EmptyState, ErrorState, Field, fieldClass, PageHeader, StatusBadge, Table, Td } from "@/components/ui";
+import {
+  Card,
+  CardTitle,
+  EmptyState,
+  ErrorState,
+  Field,
+  fieldClass,
+  PageHeader,
+  StatusBadge,
+  Table,
+  Td,
+} from "@/components/ui";
 import { api, ApiError, type Schemas } from "@/lib/api";
 import { deleteZone, saveZone } from "../places/actions";
 
@@ -63,7 +74,10 @@ export default async function ZonesPage() {
               <input name="multiplier" type="number" step="0.1" min={0} max={10} className={fieldClass} />
             </Field>
           </div>
-          <Field label="Polygone GeoJSON" hint="Se dessine sur geojson.io, puis se colle ici (géométrie Polygon)">
+          <Field
+            label="Polygone GeoJSON"
+            hint="Se dessine sur geojson.io, puis se colle ici (géométrie Polygon)"
+          >
             <textarea
               name="geojson"
               required
@@ -79,7 +93,10 @@ export default async function ZonesPage() {
         </ServerForm>
       </Card>
       {zones.length === 0 ? (
-        <EmptyState title="Aucune zone" message="Ajoutez une zone de tarif pour activer les estimations de prix." />
+        <EmptyState
+          title="Aucune zone"
+          message="Ajoutez une zone de tarif pour activer les estimations de prix."
+        />
       ) : (
         <Table head={["Zone", "Type", "Tarif", "État", ""]}>
           {zones.map((z) => (
@@ -96,7 +113,10 @@ export default async function ZonesPage() {
                     : `${z.rules?.base_xof ?? 0} F + ${z.rules?.per_km_xof ?? 0} F/km + ${z.rules?.per_min_xof ?? 0} F/min`}
               </Td>
               <Td>
-                <StatusBadge label={z.is_active ? "Active" : "Inactive"} tone={z.is_active ? "success" : "muted"} />
+                <StatusBadge
+                  label={z.is_active ? "Active" : "Inactive"}
+                  tone={z.is_active ? "success" : "muted"}
+                />
               </Td>
               <Td>
                 <ActionForm
@@ -104,7 +124,10 @@ export default async function ZonesPage() {
                   label="Retirer"
                   variant="outline"
                   hidden={{ id: z.id }}
-                  confirm={{ title: `Retirer la zone ${z.name} ?`, body: "Les estimations de prix ne l'utiliseront plus." }}
+                  confirm={{
+                    title: `Retirer la zone ${z.name} ?`,
+                    body: "Les estimations de prix ne l'utiliseront plus.",
+                  }}
                 />
               </Td>
             </tr>

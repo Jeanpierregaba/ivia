@@ -66,7 +66,10 @@ export default async function MedicinePaymentsPage({
           {page.items.map((p) => (
             <tr key={p.id}>
               <Td>
-                <Link href={`/medicine-alerts/${p.alert_id}`} className="font-semibold text-secondary hover:underline">
+                <Link
+                  href={`/medicine-alerts/${p.alert_id}`}
+                  className="font-semibold text-secondary hover:underline"
+                >
                   {p.purpose === "unlock" ? "Déblocage" : "Commande"}
                 </Link>
               </Td>

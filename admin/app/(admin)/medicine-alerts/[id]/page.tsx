@@ -42,12 +42,18 @@ export default async function MedicineAlertPage({ params }: { params: Promise<{ 
           </div>
           <DefinitionList
             items={[
-              ["Produits", a.items.map((i) => `${i.quantity} × ${i.name}`).join(", ") || "Ordonnance en photo"],
+              [
+                "Produits",
+                a.items.map((i) => `${i.quantity} × ${i.name}`).join(", ") || "Ordonnance en photo",
+              ],
               ["Photos", String(a.photos.length)],
               ["Note du patient", a.note || "—"],
               ["Générique accepté", a.generic_accepted ? "Oui" : "Non"],
               ["Rayon", `${(a.radius_m / 1000).toLocaleString("fr-FR")} km`],
-              ["Sollicitées / vues / réponses", `${a.stats.notified} / ${a.stats.seen} / ${a.stats.responded}`],
+              [
+                "Sollicitées / vues / réponses",
+                `${a.stats.notified} / ${a.stats.seen} / ${a.stats.responded}`,
+              ],
               ["Fin de la recherche", formatDateTime(a.search_ends_at)],
               ["Créée", formatDateTime(a.created_at)],
             ]}
@@ -60,7 +66,10 @@ export default async function MedicineAlertPage({ params }: { params: Promise<{ 
           ) : (
             <ul className="space-y-2">
               {a.payments.map((p) => (
-                <li key={p.id} className="flex items-center justify-between rounded-card bg-background px-4 py-3">
+                <li
+                  key={p.id}
+                  className="flex items-center justify-between rounded-card bg-background px-4 py-3"
+                >
                   <span>
                     <span className="font-semibold">{p.purpose === "unlock" ? "Déblocage" : "Commande"}</span>
                     <span className="block text-[13px] text-text-muted">{formatDateTime(p.created_at)}</span>
@@ -87,7 +96,8 @@ export default async function MedicineAlertPage({ params }: { params: Promise<{ 
               <li key={r.id} className="rounded-card bg-background px-4 py-3">
                 <div className="flex items-center justify-between">
                   <span className="font-semibold">
-                    {r.label} · {(r.distance_m / 1000).toLocaleString("fr-FR", { maximumFractionDigits: 1 })} km
+                    {r.label} · {(r.distance_m / 1000).toLocaleString("fr-FR", { maximumFractionDigits: 1 })}{" "}
+                    km
                   </span>
                   <span className="font-semibold">{formatXOF(r.total_xof)}</span>
                 </div>

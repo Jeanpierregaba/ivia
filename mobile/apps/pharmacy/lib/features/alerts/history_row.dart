@@ -191,7 +191,9 @@ class HistoryRow extends StatelessWidget {
                 ),
               ),
               const SizedBox(width: 8),
-              PTrailing(child: PPill(e.status, bg: bg, fg: fg)),
+              PTrailing(
+                child: PPill(e.status, bg: bg, fg: fg),
+              ),
             ],
           ),
         ),

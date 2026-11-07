@@ -7,12 +7,23 @@ import { saveProperty } from "./actions";
 /** Formulaire d'annonce : création, ou modification si une annonce est fournie. */
 export function PropertyForm({ property: p }: { property?: Schemas["AdminProperty"] }) {
   return (
-    <ServerForm action={saveProperty} submitLabel={p ? "Enregistrer" : "Publier l'annonce"} variant="imperial">
+    <ServerForm
+      action={saveProperty}
+      submitLabel={p ? "Enregistrer" : "Publier l'annonce"}
+      variant="imperial"
+    >
       {p && <input type="hidden" name="id" value={p.id} />}
       <div className="grid grid-cols-4 gap-4">
         <div className="col-span-2">
           <Field label="Titre">
-            <input name="title" required minLength={3} maxLength={120} defaultValue={p?.title} className={fieldClass} />
+            <input
+              name="title"
+              required
+              minLength={3}
+              maxLength={120}
+              defaultValue={p?.title}
+              className={fieldClass}
+            />
           </Field>
         </div>
         <Field label="Annonce">
@@ -34,20 +45,50 @@ export function PropertyForm({ property: p }: { property?: Schemas["AdminPropert
           </select>
         </Field>
         <Field label="Prix (FCFA)" hint="Loyer mensuel pour une location">
-          <input name="price_xof" inputMode="numeric" required defaultValue={p?.price_xof} className={fieldClass} />
+          <input
+            name="price_xof"
+            inputMode="numeric"
+            required
+            defaultValue={p?.price_xof}
+            className={fieldClass}
+          />
         </Field>
         <Field label="Chambres">
-          <input name="bedrooms" type="number" min={0} max={30} defaultValue={p?.bedrooms ?? 0} className={fieldClass} />
+          <input
+            name="bedrooms"
+            type="number"
+            min={0}
+            max={30}
+            defaultValue={p?.bedrooms ?? 0}
+            className={fieldClass}
+          />
         </Field>
         <Field label="Surface (m²)">
-          <input name="surface_m2" type="number" min={0} defaultValue={p?.surface_m2 ?? 0} className={fieldClass} />
+          <input
+            name="surface_m2"
+            type="number"
+            min={0}
+            defaultValue={p?.surface_m2 ?? 0}
+            className={fieldClass}
+          />
         </Field>
         <Field label="Quartier">
-          <input name="neighborhood" required maxLength={80} defaultValue={p?.neighborhood} className={fieldClass} />
+          <input
+            name="neighborhood"
+            required
+            maxLength={80}
+            defaultValue={p?.neighborhood}
+            className={fieldClass}
+          />
         </Field>
         <div className="col-span-2">
           <Field label="Adresse">
-            <input name="address_text" maxLength={300} defaultValue={p?.address_text} className={fieldClass} />
+            <input
+              name="address_text"
+              maxLength={300}
+              defaultValue={p?.address_text}
+              className={fieldClass}
+            />
           </Field>
         </div>
         <Field label="Latitude" hint="Ex. 6,1503">
@@ -63,7 +104,13 @@ export function PropertyForm({ property: p }: { property?: Schemas["AdminPropert
         </div>
         <div className="col-span-2">
           <Field label="Téléphone du contact" hint="Affiché dans l'app acheteur">
-            <input name="contact_phone" inputMode="tel" required defaultValue={p?.contact_phone} className={fieldClass} />
+            <input
+              name="contact_phone"
+              inputMode="tel"
+              required
+              defaultValue={p?.contact_phone}
+              className={fieldClass}
+            />
           </Field>
         </div>
       </div>
@@ -84,7 +131,13 @@ export function PropertyForm({ property: p }: { property?: Schemas["AdminPropert
           <div className="flex flex-wrap gap-3">
             {p.photo_keys.map((key, i) => (
               <label key={key} className="flex items-center gap-2 rounded-card border border-border p-2">
-                <input type="checkbox" name="keep_photo" value={key} defaultChecked className="size-4 accent-primary" />
+                <input
+                  type="checkbox"
+                  name="keep_photo"
+                  value={key}
+                  defaultChecked
+                  className="size-4 accent-primary"
+                />
                 {/* eslint-disable-next-line @next/next/no-img-element */}
                 <img src={p.photo_urls[i]} alt="" className="size-20 rounded-card object-cover" />
               </label>
@@ -96,7 +149,12 @@ export function PropertyForm({ property: p }: { property?: Schemas["AdminPropert
         <input type="file" name="new_photos" multiple accept="image/jpeg,image/png,image/webp" />
       </Field>
       <label className="flex items-center gap-3">
-        <input type="checkbox" name="is_active" defaultChecked={p?.is_active ?? true} className="size-4 accent-primary" />
+        <input
+          type="checkbox"
+          name="is_active"
+          defaultChecked={p?.is_active ?? true}
+          className="size-4 accent-primary"
+        />
         <span className="font-semibold">Visible dans l&apos;app acheteur</span>
       </label>
     </ServerForm>

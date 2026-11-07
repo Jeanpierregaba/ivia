@@ -88,7 +88,10 @@ export default async function PropertiesPage({
               </Td>
               <Td>{formatPhone(p.contact_phone)}</Td>
               <Td>
-                <StatusBadge label={p.is_active ? "Publiée" : "Retirée"} tone={p.is_active ? "success" : "muted"} />
+                <StatusBadge
+                  label={p.is_active ? "Publiée" : "Retirée"}
+                  tone={p.is_active ? "success" : "muted"}
+                />
               </Td>
               <Td>
                 <Link
@@ -102,7 +105,13 @@ export default async function PropertiesPage({
           ))}
         </Table>
       )}
-      <Pagination basePath="/properties" params={{ state }} offset={offset} nextOffset={page.next_offset} limit={LIMIT} />
+      <Pagination
+        basePath="/properties"
+        params={{ state }}
+        offset={offset}
+        nextOffset={page.next_offset}
+        limit={LIMIT}
+      />
     </>
   );
 }

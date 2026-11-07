@@ -16,7 +16,14 @@ export default async function PharmacySettingsPage() {
 
   const num = (name: keyof Schemas["PharmacySettings"], label: string, hint?: string) => (
     <Field label={label} hint={hint}>
-      <input name={name} type="number" min={0} required defaultValue={Number(s[name])} className={fieldClass} />
+      <input
+        name={name}
+        type="number"
+        min={0}
+        required
+        defaultValue={Number(s[name])}
+        className={fieldClass}
+      />
     </Field>
   );
 
@@ -32,14 +39,26 @@ export default async function PharmacySettingsPage() {
         <ServerForm action={savePharmacySettings} submitLabel="Enregistrer les réglages" variant="imperial">
           <div className="grid grid-cols-2 gap-4">
             <label className="flex items-start gap-3 rounded-field border border-border p-4">
-              <input type="checkbox" name="enabled" defaultChecked={s.enabled} className="mt-1 size-4 accent-primary" />
+              <input
+                type="checkbox"
+                name="enabled"
+                defaultChecked={s.enabled}
+                className="mt-1 size-4 accent-primary"
+              />
               <span>
                 <span className="block font-semibold">Alerte médicament activée</span>
-                <span className="text-[12px] text-text-muted">Coupe le service d&apos;un coup si décoché</span>
+                <span className="text-[12px] text-text-muted">
+                  Coupe le service d&apos;un coup si décoché
+                </span>
               </span>
             </label>
             <label className="flex items-start gap-3 rounded-field border border-border p-4">
-              <input type="checkbox" name="auto_widen" defaultChecked={s.auto_widen} className="mt-1 size-4 accent-primary" />
+              <input
+                type="checkbox"
+                name="auto_widen"
+                defaultChecked={s.auto_widen}
+                className="mt-1 size-4 accent-primary"
+              />
               <span>
                 <span className="block font-semibold">Élargir le rayon automatiquement</span>
                 <span className="text-[12px] text-text-muted">Quand il y a trop peu de réponses</span>
@@ -64,7 +83,11 @@ export default async function PharmacySettingsPage() {
             {num("response_window_minutes", "Délai de réponse (min)")}
             {num("pickup_hold_minutes", "Mise de côté (min)")}
             {num("photo_retention_hours", "Conservation des photos (h)")}
-            {num("night_from_hour", "Début de la nuit par défaut", "Chaque pharmacie peut choisir ses heures")}
+            {num(
+              "night_from_hour",
+              "Début de la nuit par défaut",
+              "Chaque pharmacie peut choisir ses heures",
+            )}
             {num("night_to_hour", "Fin de la nuit par défaut", "Égale au début : pas de restriction")}
           </div>
           <Field label="Motif du changement">

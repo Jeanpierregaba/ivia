@@ -66,7 +66,11 @@ export default async function MedicinesPage({
         </ServerForm>
       </Card>
       <form action="/medicines" role="search" className="relative mb-4 w-80">
-        <Search size={16} aria-hidden="true" className="absolute left-3 top-1/2 -translate-y-1/2 text-text-muted" />
+        <Search
+          size={16}
+          aria-hidden="true"
+          className="absolute left-3 top-1/2 -translate-y-1/2 text-text-muted"
+        />
         <input
           name="q"
           defaultValue={q}
@@ -111,7 +115,13 @@ export default async function MedicinesPage({
           ))}
         </Table>
       )}
-      <Pagination basePath="/medicines" params={{ q }} offset={offset} nextOffset={page.next_offset} limit={LIMIT} />
+      <Pagination
+        basePath="/medicines"
+        params={{ q }}
+        offset={offset}
+        nextOffset={page.next_offset}
+        limit={LIMIT}
+      />
     </>
   );
 }

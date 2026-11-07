@@ -143,7 +143,10 @@ export async function savePharmacySettings(_: ActionResult | null, form: FormDat
     .filter(Boolean)
     .map(Number);
   if (radii.some((r) => !Number.isInteger(r) || r <= 0))
-    return { ok: false, message: "Rayons proposés : des nombres entiers de mètres, séparés par des virgules." };
+    return {
+      ok: false,
+      message: "Rayons proposés : des nombres entiers de mètres, séparés par des virgules.",
+    };
   const body: Schemas["PharmacySettingsInput"] = {
     enabled: form.get("enabled") === "on",
     auto_widen: form.get("auto_widen") === "on",

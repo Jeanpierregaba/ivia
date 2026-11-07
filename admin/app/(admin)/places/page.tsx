@@ -20,7 +20,12 @@ import { savePlace } from "./actions";
 export const metadata = { title: "Lieux" };
 
 const LIMIT = 30;
-const SOURCE: Record<string, string> = { ivia: "Ivia", osm: "OpenStreetMap", google: "Appris (Google)", user: "Utilisateur" };
+const SOURCE: Record<string, string> = {
+  ivia: "Ivia",
+  osm: "OpenStreetMap",
+  google: "Appris (Google)",
+  user: "Utilisateur",
+};
 
 export default async function PlacesPage({
   searchParams,
@@ -72,8 +77,18 @@ export default async function PlacesPage({
         </ServerForm>
       </Card>
       <form action="/places" role="search" className="relative mb-4 w-80">
-        <Search size={16} aria-hidden="true" className="absolute left-3 top-1/2 -translate-y-1/2 text-text-muted" />
-        <input name="q" defaultValue={q} aria-label="Rechercher un lieu" placeholder="Rechercher un lieu" className={`${fieldClass} pl-9`} />
+        <Search
+          size={16}
+          aria-hidden="true"
+          className="absolute left-3 top-1/2 -translate-y-1/2 text-text-muted"
+        />
+        <input
+          name="q"
+          defaultValue={q}
+          aria-label="Rechercher un lieu"
+          placeholder="Rechercher un lieu"
+          className={`${fieldClass} pl-9`}
+        />
       </form>
       {page.items.length === 0 ? (
         <EmptyState title="Rien à afficher" message="Aucun lieu ne correspond." />
@@ -99,13 +114,22 @@ export default async function PlacesPage({
                 </a>
               </Td>
               <Td>
-                <StatusBadge label={p.is_active ? "Proposé" : "Retiré"} tone={p.is_active ? "success" : "muted"} />
+                <StatusBadge
+                  label={p.is_active ? "Proposé" : "Retiré"}
+                  tone={p.is_active ? "success" : "muted"}
+                />
               </Td>
             </tr>
           ))}
         </Table>
       )}
-      <Pagination basePath="/places" params={{ q }} offset={offset} nextOffset={page.next_offset} limit={LIMIT} />
+      <Pagination
+        basePath="/places"
+        params={{ q }}
+        offset={offset}
+        nextOffset={page.next_offset}
+        limit={LIMIT}
+      />
     </>
   );
 }

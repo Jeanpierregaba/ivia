@@ -38,7 +38,10 @@ export default async function PropertyPage({ params }: { params: Promise<{ id: s
             label="Retirer de l'app"
             variant="danger"
             hidden={{ id: p.id, is_active: "false" }}
-            confirm={{ title: `Retirer « ${p.title} » ?`, body: "L'annonce disparaît aussitôt de l'app acheteur." }}
+            confirm={{
+              title: `Retirer « ${p.title} » ?`,
+              body: "L'annonce disparaît aussitôt de l'app acheteur.",
+            }}
             reason={{ label: "Motif du retrait", required: true }}
           />
         ) : (
@@ -46,7 +49,10 @@ export default async function PropertyPage({ params }: { params: Promise<{ id: s
             action={setPropertyActive}
             label="Publier"
             hidden={{ id: p.id, is_active: "true" }}
-            confirm={{ title: `Publier « ${p.title} » ?`, body: "L'annonce redevient visible dans l'app acheteur." }}
+            confirm={{
+              title: `Publier « ${p.title} » ?`,
+              body: "L'annonce redevient visible dans l'app acheteur.",
+            }}
           />
         )}
       </div>

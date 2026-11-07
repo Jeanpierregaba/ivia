@@ -84,7 +84,13 @@ export default async function BusinessPage({
           ))}
         </Table>
       )}
-      <Pagination basePath="/business" params={{ status }} offset={offset} nextOffset={page.next_offset} limit={LIMIT} />
+      <Pagination
+        basePath="/business"
+        params={{ status }}
+        offset={offset}
+        nextOffset={page.next_offset}
+        limit={LIMIT}
+      />
     </>
   );
 }

@@ -46,7 +46,10 @@ export default async function GeoMetricsPage() {
               ["Recherche de lieux", m.places],
               ["Temps réel", m.redis ? "Redis" : "Mémoire (un seul serveur)"],
               ["Replis à vol d'oiseau", String(t("routing_fallback"))],
-              ["Cache du géocodage", percent(t("reverse_cache_hit"), t("reverse_cache_hit") + t("reverse_cache_miss"))],
+              [
+                "Cache du géocodage",
+                percent(t("reverse_cache_hit"), t("reverse_cache_hit") + t("reverse_cache_miss")),
+              ],
             ]}
           />
         </Card>
