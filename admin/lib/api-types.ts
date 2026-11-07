@@ -8424,6 +8424,11 @@ export interface operations {
                     platform: "android" | "ios";
                     /** @enum {string} */
                     app: "buyer" | "seller" | "driver" | "pharmacy";
+                    /**
+                     * @description Sonnerie des alertes sur ce téléphone. Faux : l'alerte urgente part sans son sur iOS. Absent : active.
+                     * @default true
+                     */
+                    alert_sound?: boolean;
                 };
             };
         };

@@ -378,7 +378,7 @@ func (q *Queries) ListAddresses(ctx context.Context, userID uuid.UUID) ([]ListAd
 }
 
 const listDeviceTokens = `-- name: ListDeviceTokens :many
-SELECT token FROM device_tokens WHERE user_id = $1 AND app = $2
+SELECT token, alert_sound FROM device_tokens WHERE user_id = $1 AND app = $2
 `
 
 type ListDeviceTokensParams struct {
@@ -386,19 +386,24 @@ type ListDeviceTokensParams struct {
 	App    string
 }
 
-func (q *Queries) ListDeviceTokens(ctx context.Context, arg ListDeviceTokensParams) ([]string, error) {
+type ListDeviceTokensRow struct {
+	Token      string
+	AlertSound bool
+}
+
+func (q *Queries) ListDeviceTokens(ctx context.Context, arg ListDeviceTokensParams) ([]ListDeviceTokensRow, error) {
 	rows, err := q.db.Query(ctx, listDeviceTokens, arg.UserID, arg.App)
 	if err != nil {
 		return nil, err
 	}
 	defer rows.Close()
-	items := []string{}
+	items := []ListDeviceTokensRow{}
 	for rows.Next() {
-		var token string
-		if err := rows.Scan(&token); err != nil {
+		var i ListDeviceTokensRow
+		if err := rows.Scan(&i.Token, &i.AlertSound); err != nil {
 			return nil, err
 		}
-		items = append(items, token)
+		items = append(items, i)
 	}
 	if err := rows.Err(); err != nil {
 		return nil, err
@@ -716,26 +721,30 @@ func (q *Queries) UpdateProfile(ctx context.Context, arg UpdateProfileParams) (U
 }
 
 const upsertDeviceToken = `-- name: UpsertDeviceToken :exec
-INSERT INTO device_tokens (user_id, token, platform, app)
-VALUES ($1, $2, $3, $4)
+INSERT INTO device_tokens (user_id, token, platform, app, alert_sound)
+VALUES ($1, $2, $3, $4, $5)
 ON CONFLICT (token) DO UPDATE
-SET user_id = EXCLUDED.user_id, platform = EXCLUDED.platform, app = EXCLUDED.app, last_seen_at = now()
+SET user_id = EXCLUDED.user_id, platform = EXCLUDED.platform, app = EXCLUDED.app,
+    alert_sound = EXCLUDED.alert_sound, last_seen_at = now()
 `
 
 type UpsertDeviceTokenParams struct {
-	UserID   uuid.UUID
-	Token    string
-	Platform string
-	App      string
+	UserID     uuid.UUID
+	Token      string
+	Platform   string
+	App        string
+	AlertSound bool
 }
 
 // Un jeton push appartient au dernier compte connecté sur l'appareil.
+// alert_sound : sonnerie des alertes choisie sur ce téléphone (spec 032).
 func (q *Queries) UpsertDeviceToken(ctx context.Context, arg UpsertDeviceTokenParams) error {
 	_, err := q.db.Exec(ctx, upsertDeviceToken,
 		arg.UserID,
 		arg.Token,
 		arg.Platform,
 		arg.App,
+		arg.AlertSound,
 	)
 	return err
 }

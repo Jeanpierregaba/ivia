@@ -129,7 +129,7 @@ func New(cfg config.Config, logger *slog.Logger, pool *pgxpool.Pool, opts Option
 	a.Auth.SetAuditor(a.Admin)
 	a.Uploads = uploads.NewService(objectStore)
 	a.Users.SetAvatars(a.Uploads)
-	a.Notifications = notifications.NewService(db, enq, a.Users, push, logger)
+	a.Notifications = notifications.NewService(db, enq, pushDevices{a.Users}, push, logger)
 	a.Auth.SetNotifier(authNotifier{a.Notifications})
 	a.Shops = shops.NewService(db, a.Geo, a.Users, a.Uploads, a.Admin, a.Notifications)
 	a.Stock = stock.NewService(db)
@@ -375,4 +375,20 @@ func (a *App) Stop(ctx context.Context) error {
 	err := a.Queue.Stop(ctx)
 	a.Errors.Flush(2 * time.Second)
 	return err
+}
+
+// pushDevices donne au module notifications les appareils du module users, avec leur choix de
+// sonnerie.
+type pushDevices struct{ *users.Service }
+
+func (d pushDevices) PushDevices(ctx context.Context, userID uuid.UUID, app string) ([]notifications.Device, error) {
+	ds, err := d.Service.PushDevices(ctx, userID, app)
+	if err != nil {
+		return nil, err
+	}
+	out := make([]notifications.Device, len(ds))
+	for i, x := range ds {
+		out[i] = notifications.Device{Token: x.Token, Sound: x.AlertSound}
+	}
+	return out, nil
 }

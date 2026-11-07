@@ -127,10 +127,12 @@ DELETE FROM addresses WHERE user_id = $1;
 
 -- name: UpsertDeviceToken :exec
 -- Un jeton push appartient au dernier compte connecté sur l'appareil.
-INSERT INTO device_tokens (user_id, token, platform, app)
-VALUES ($1, $2, $3, $4)
+-- alert_sound : sonnerie des alertes choisie sur ce téléphone (spec 032).
+INSERT INTO device_tokens (user_id, token, platform, app, alert_sound)
+VALUES ($1, $2, $3, $4, sqlc.arg(alert_sound))
 ON CONFLICT (token) DO UPDATE
-SET user_id = EXCLUDED.user_id, platform = EXCLUDED.platform, app = EXCLUDED.app, last_seen_at = now();
+SET user_id = EXCLUDED.user_id, platform = EXCLUDED.platform, app = EXCLUDED.app,
+    alert_sound = EXCLUDED.alert_sound, last_seen_at = now();
 
 -- name: DeleteDeviceToken :exec
 DELETE FROM device_tokens WHERE user_id = $1 AND token = $2;
@@ -142,7 +144,7 @@ DELETE FROM device_tokens WHERE token = $1;
 DELETE FROM device_tokens WHERE user_id = $1;
 
 -- name: ListDeviceTokens :many
-SELECT token FROM device_tokens WHERE user_id = $1 AND app = $2;
+SELECT token, alert_sound FROM device_tokens WHERE user_id = $1 AND app = $2;
 
 -- name: ListUserIDsByRole :many
 SELECT r.user_id FROM user_roles r JOIN users u ON u.id = r.user_id

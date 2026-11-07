@@ -214,3 +214,36 @@ func TestPharmacyDutyShiftSource(t *testing.T) {
 		t.Fatalf("planning de la pharmacie : %v", mine)
 	}
 }
+
+// Tâche 10 : sonnerie des alertes choisie sur chaque téléphone, enregistrée avec son jeton push.
+// Absente : sonnerie active.
+func TestDeviceAlertSound(t *testing.T) {
+	requireApp(t)
+	ph, _ := newPharmacy(t, "Pharmacie de la Sonnerie", 1, 1)
+	token := "jeton-" + uniquePhone()
+	sound := func() bool {
+		t.Helper()
+		var v bool
+		if err := testDB.Pool.QueryRow(context.Background(), `SELECT alert_sound FROM device_tokens WHERE token = $1`, token).Scan(&v); err != nil {
+			t.Fatal(err)
+		}
+		return v
+	}
+	put := func(body map[string]any) {
+		t.Helper()
+		body["token"], body["platform"], body["app"] = token, "ios", "pharmacy"
+		mustStatus(t, call(t, ph, "PUT", "/v1/me/devices", body), http.StatusNoContent)
+	}
+	put(map[string]any{})
+	if !sound() {
+		t.Fatal("sonnerie par défaut : coupée, attendue active")
+	}
+	put(map[string]any{"alert_sound": false})
+	if sound() {
+		t.Fatal("sonnerie coupée non enregistrée")
+	}
+	put(map[string]any{"alert_sound": true})
+	if !sound() {
+		t.Fatal("sonnerie réactivée non enregistrée")
+	}
+}

@@ -15,6 +15,14 @@ type DeviceInput struct {
 	Token    string `json:"token"`
 	Platform string `json:"platform"`
 	App      string `json:"app"`
+	// AlertSound : sonnerie des alertes sur ce téléphone ; absent = active (spec 032).
+	AlertSound *bool `json:"alert_sound"`
+}
+
+// PushDevice : jeton push d'un appareil et son choix de sonnerie.
+type PushDevice struct {
+	Token      string
+	AlertSound bool
 }
 
 // RegisterDevice associe un jeton push au compte (le dernier compte connecté sur l'appareil l'emporte).
@@ -26,8 +34,9 @@ func (s *Service) RegisterDevice(ctx context.Context, userID uuid.UUID, in Devic
 	if err := v.Err(); err != nil {
 		return err
 	}
+	sound := in.AlertSound == nil || *in.AlertSound
 	if err := store.New(s.db.Conn(ctx)).UpsertDeviceToken(ctx, store.UpsertDeviceTokenParams{
-		UserID: userID, Token: in.Token, Platform: in.Platform, App: in.App,
+		UserID: userID, Token: in.Token, Platform: in.Platform, App: in.App, AlertSound: sound,
 	}); err != nil {
 		return fmt.Errorf("enregistrement du jeton push : %w", err)
 	}
@@ -42,13 +51,17 @@ func (s *Service) UnregisterDevice(ctx context.Context, userID uuid.UUID, token 
 	return nil
 }
 
-// DeviceTokens retourne les jetons push d'un utilisateur pour une app.
-func (s *Service) DeviceTokens(ctx context.Context, userID uuid.UUID, app string) ([]string, error) {
-	tokens, err := store.New(s.db.Conn(ctx)).ListDeviceTokens(ctx, store.ListDeviceTokensParams{UserID: userID, App: app})
+// PushDevices retourne les appareils d'un utilisateur pour une app, avec leur choix de sonnerie.
+func (s *Service) PushDevices(ctx context.Context, userID uuid.UUID, app string) ([]PushDevice, error) {
+	rows, err := store.New(s.db.Conn(ctx)).ListDeviceTokens(ctx, store.ListDeviceTokensParams{UserID: userID, App: app})
 	if err != nil {
 		return nil, fmt.Errorf("lecture des jetons push : %w", err)
 	}
-	return tokens, nil
+	out := make([]PushDevice, len(rows))
+	for i, r := range rows {
+		out[i] = PushDevice{Token: r.Token, AlertSound: r.AlertSound}
+	}
+	return out, nil
 }
 
 // ForgetDeviceToken supprime un jeton que le service push déclare invalide.

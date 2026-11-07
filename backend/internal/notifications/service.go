@@ -58,9 +58,16 @@ type Notification struct {
 	CreatedAt time.Time         `json:"created_at"`
 }
 
-// PushSender envoie un push à un appareil (FCM en production, journal en local).
+// PushSender envoie un push à un appareil (FCM en production, journal en local). sound : faux si
+// la sonnerie des alertes est coupée sur ce téléphone (alerte urgente envoyée sans son sur iOS).
 type PushSender interface {
-	Send(ctx context.Context, token, title, body string, data map[string]string) error
+	Send(ctx context.Context, token, title, body string, data map[string]string, sound bool) error
+}
+
+// Device : jeton push d'un appareil et son choix de sonnerie des alertes.
+type Device struct {
+	Token string
+	Sound bool
 }
 
 // ErrInvalidToken : le jeton de l'appareil n'est plus valable (app désinstallée...).
@@ -68,7 +75,7 @@ var ErrInvalidToken = errors.New("jeton push invalide")
 
 // Devices est ce dont le module a besoin du module users.
 type Devices interface {
-	DeviceTokens(ctx context.Context, userID uuid.UUID, app string) ([]string, error)
+	PushDevices(ctx context.Context, userID uuid.UUID, app string) ([]Device, error)
 	ForgetDeviceToken(ctx context.Context, token string) error
 	UserIDsWithRole(ctx context.Context, role identity.Role) ([]uuid.UUID, error)
 }
@@ -184,7 +191,7 @@ func (s *Service) sendPush(ctx context.Context, id uuid.UUID) error {
 	if n.PushSentAt != nil {
 		return nil // déjà envoyée (tâche rejouée)
 	}
-	tokens, err := s.devices.DeviceTokens(ctx, n.UserID, n.App)
+	tokens, err := s.devices.PushDevices(ctx, n.UserID, n.App)
 	if err != nil {
 		return err
 	}
@@ -194,11 +201,11 @@ func (s *Service) sendPush(ctx context.Context, id uuid.UUID) error {
 	data["kind"] = n.Kind
 
 	var failed error
-	for _, tok := range tokens {
-		err := s.push.Send(ctx, tok, n.Title, n.Body, data)
+	for _, d := range tokens {
+		err := s.push.Send(ctx, d.Token, n.Title, n.Body, data, d.Sound)
 		switch {
 		case errors.Is(err, ErrInvalidToken):
-			if err := s.devices.ForgetDeviceToken(ctx, tok); err != nil {
+			if err := s.devices.ForgetDeviceToken(ctx, d.Token); err != nil {
 				return err
 			}
 		case err != nil:

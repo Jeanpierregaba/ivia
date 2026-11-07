@@ -76,16 +76,35 @@ func TestFCMSendsWithSignedOAuthToken(t *testing.T) {
 	f.endpoint = srv.URL
 	ctx := context.Background()
 
-	if err := f.Send(ctx, "jeton-ok", "Titre", "Corps", map[string]string{"kind": "x"}); err != nil {
+	if err := f.Send(ctx, "jeton-ok", "Titre", "Corps", map[string]string{"kind": "x"}, true); err != nil {
 		t.Fatalf("envoi : %v", err)
 	}
-	if err := f.Send(ctx, "jeton-ok", "Titre", "Corps", nil); err != nil {
+	if err := f.Send(ctx, "jeton-ok", "Titre", "Corps", nil, true); err != nil {
 		t.Fatalf("second envoi : %v", err)
 	}
 	if tokenCalls != 1 {
 		t.Fatalf("le jeton OAuth doit être réutilisé : %d appels", tokenCalls)
 	}
-	if err := f.Send(ctx, "mort", "Titre", "Corps", nil); !errors.Is(err, ErrInvalidToken) {
+	if err := f.Send(ctx, "mort", "Titre", "Corps", nil, true); !errors.Is(err, ErrInvalidToken) {
 		t.Fatalf("jeton désinstallé : %v, attendu ErrInvalidToken", err)
+	}
+}
+
+// Spec 032 : sonnerie coupée sur un iPhone, l'alerte urgente part sans son ; sinon, avec.
+func TestFCMMessageAlertSound(t *testing.T) {
+	aps := func(m map[string]any) map[string]any {
+		apns, _ := m["apns"].(map[string]any)
+		payload, _ := apns["payload"].(map[string]any)
+		a, _ := payload["aps"].(map[string]any)
+		return a
+	}
+	urgent := map[string]string{"urgent": "true", "kind": "pharmacy_alert"}
+	with := aps(fcmMessage("t", "Alerte", "Paracétamol", urgent, true))
+	if with["sound"] != "default" || with["interruption-level"] != "time-sensitive" {
+		t.Fatalf("alerte avec son : %v", with)
+	}
+	without := aps(fcmMessage("t", "Alerte", "Paracétamol", urgent, false))
+	if _, ok := without["sound"]; ok || without["alert"] == nil || without["interruption-level"] != "time-sensitive" {
+		t.Fatalf("alerte sans son : %v", without)
 	}
 }

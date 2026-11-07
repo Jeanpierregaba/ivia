@@ -27,7 +27,7 @@
       la devanture dans `me`.
 - [x] 9. Origine des gardes (`source`, `imported_at`) : import par la pharmacie, ajout seul, ajout
       par l'admin.
-- [ ] 10. Sonnerie par appareil : `alert_sound` à l'enregistrement, son retiré du push iOS.
+- [x] 10. Sonnerie par appareil : `alert_sound` à l'enregistrement, son retiré du push iOS.
 - [ ] 11. `openapi.yaml` complet, `TestOpenAPICoversAllRoutes`, `govulncheck`, lint.
 
 **Back-office**

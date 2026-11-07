@@ -28,8 +28,8 @@ type LogPush struct {
 }
 
 // Send implémente PushSender. Le jeton de l'appareil n'est pas journalisé.
-func (p LogPush) Send(_ context.Context, _ string, title, _ string, data map[string]string) error {
-	p.Logger.Info("[DEV] push", "title", title, "kind", data["kind"])
+func (p LogPush) Send(_ context.Context, _ string, title, _ string, data map[string]string, sound bool) error {
+	p.Logger.Info("[DEV] push", "title", title, "kind", data["kind"], "sound", sound)
 	return nil
 }
 
@@ -97,8 +97,9 @@ func NewFCM(serviceAccountJSON []byte) (*FCM, error) {
 
 // fcmMessage construit le message. Urgent (données « urgent » = « true ») : sans bloc notification sur
 // Android, l'app est réveillée et fait sonner l'alerte elle-même ; sur iOS, notification sensible au
-// temps, le seul plein écran permis n'existant pas.
-func fcmMessage(token, title, body string, data map[string]string) map[string]any {
+// temps, le seul plein écran permis n'existant pas, avec le son sauf si la sonnerie des alertes est
+// coupée sur ce téléphone (sound faux ; sur Android, l'app applique elle-même son réglage).
+func fcmMessage(token, title, body string, data map[string]string, sound bool) map[string]any {
 	if data["urgent"] != "true" {
 		return map[string]any{
 			"token":        token,
@@ -112,28 +113,31 @@ func fcmMessage(token, title, body string, data map[string]string) map[string]an
 		full[k] = v
 	}
 	full["title"], full["body"] = title, body
+	aps := map[string]any{
+		"alert":              map[string]string{"title": title, "body": body},
+		"interruption-level": "time-sensitive",
+	}
+	if sound {
+		aps["sound"] = "default"
+	}
 	return map[string]any{
 		"token":   token,
 		"data":    full,
 		"android": map[string]any{"priority": "high", "ttl": "600s"},
 		"apns": map[string]any{
 			"headers": map[string]string{"apns-priority": "10", "apns-push-type": "alert", "apns-expiration": "0"},
-			"payload": map[string]any{"aps": map[string]any{
-				"alert":              map[string]string{"title": title, "body": body},
-				"sound":              "default",
-				"interruption-level": "time-sensitive",
-			}},
+			"payload": map[string]any{"aps": aps},
 		},
 	}
 }
 
 // Send implémente PushSender.
-func (f *FCM) Send(ctx context.Context, token, title, body string, data map[string]string) error {
+func (f *FCM) Send(ctx context.Context, token, title, body string, data map[string]string, sound bool) error {
 	access, err := f.oauthToken(ctx)
 	if err != nil {
 		return err
 	}
-	payload, err := json.Marshal(map[string]any{"message": fcmMessage(token, title, body, data)})
+	payload, err := json.Marshal(map[string]any{"message": fcmMessage(token, title, body, data, sound)})
 	if err != nil {
 		return err
 	}

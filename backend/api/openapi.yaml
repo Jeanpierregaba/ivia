@@ -1130,6 +1130,10 @@ paths:
                     - seller
                     - driver
                     - pharmacy
+                alert_sound:
+                  type: boolean
+                  default: true
+                  description: "Sonnerie des alertes sur ce téléphone. Faux : l'alerte urgente part sans son sur iOS. Absent : active."
               required:
                 - token
                 - platform
