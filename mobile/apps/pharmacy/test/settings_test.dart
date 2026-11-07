@@ -189,4 +189,21 @@ void main() {
     expect(tester.takeException(), isNull);
     expect(find.byType(IviaLogo), findsNothing);
   });
+
+  testWidgets('police à 200 % sur 320 dp : relevé et informations tiennent', (
+    tester,
+  ) async {
+    tester.view.physicalSize = const Size(320, 640);
+    tester.view.devicePixelRatio = 1;
+    tester.platformDispatcher.textScaleFactorTestValue = 2;
+    addTearDown(tester.view.reset);
+    addTearDown(tester.platformDispatcher.clearTextScaleFactorTestValue);
+    await openProfile(tester);
+    await tapText(tester, 'Relevé des versements');
+    expect(tester.takeException(), isNull);
+    await tester.tap(find.bySemanticsLabel('Retour'));
+    await tester.pumpAndSettle();
+    await tapText(tester, 'Informations');
+    expect(tester.takeException(), isNull);
+  });
 }

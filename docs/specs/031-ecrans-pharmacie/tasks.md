@@ -88,7 +88,7 @@
       comme en arrière-plan, et iOS sans son.
 
 **Finitions**
-- [ ] 23. Passe d'accessibilité : chaque écran en 320 dp à 200 %, libellés du lecteur d'écran.
+- [x] 23. Passe d'accessibilité : chaque écran en 320 dp à 200 %, libellés du lecteur d'écran.
       Habiller l'écran d'autorisation des alertes à la charte.
 - [ ] 24. Vérification sur le simulateur iPhone 17 Pro, écran par écran contre les maquettes
       (`seed-demo`). Sur Android si un émulateur est disponible : F10 plein écran, sonnerie,

@@ -489,4 +489,33 @@ void main() {
       expect(tester.takeException(), isNull);
     });
   });
+
+  testWidgets('police à 200 % sur 320 dp : pièces et versement tiennent', (
+    tester,
+  ) async {
+    tester.view.physicalSize = const Size(320, 640);
+    tester.view.devicePixelRatio = 1;
+    tester.platformDispatcher.textScaleFactorTestValue = 2;
+    addTearDown(tester.view.reset);
+    addTearDown(tester.platformDispatcher.clearTextScaleFactorTestValue);
+    profile = pharmacyBody(documents: ['storefront_photo']);
+    app.server.on(
+      'GET',
+      '/v1/pharmacy/me/duty-shifts',
+      (_) => FakeResponse.json(200, {'items': <Object>[]}),
+    );
+    await app.launch(tester);
+    expect(find.text('3 sur 5'), findsOneWidget);
+    expect(tester.takeException(), isNull);
+    profile = pharmacyBody(
+      documents: ['opening_authorization', 'owner_id', 'storefront_photo'],
+    );
+    await tester.pumpWidget(const SizedBox());
+    await app.launch(tester);
+    expect(find.text('4 sur 5'), findsOneWidget);
+    expect(tester.takeException(), isNull);
+    await tapText(tester, 'Passer cette étape');
+    expect(find.text('5 sur 5'), findsOneWidget);
+    expect(tester.takeException(), isNull);
+  });
 }

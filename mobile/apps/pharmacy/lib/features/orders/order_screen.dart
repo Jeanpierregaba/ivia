@@ -497,11 +497,13 @@ class _OrderScreenState extends ConsumerState<OrderScreen> {
                           ),
                         ),
                         const SizedBox(width: 8),
-                        const PPill(
-                          'Livraison',
-                          icon: Icons.two_wheeler,
-                          bg: P.softBlue,
-                          fg: P.blue,
+                        const Flexible(
+                          child: PPill(
+                            'Livraison',
+                            icon: Icons.two_wheeler,
+                            bg: P.softBlue,
+                            fg: P.blue,
+                          ),
                         ),
                       ],
                     ),

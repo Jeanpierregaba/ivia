@@ -364,11 +364,13 @@ class _PlanningScreenState extends ConsumerState<PlanningScreen> {
                                 children: [
                                   const Icon(Icons.add, color: P.green),
                                   const SizedBox(width: 10),
-                                  Text(
-                                    'Ajouter une garde',
-                                    style: PText.button.copyWith(
-                                      fontSize: 15,
-                                      color: P.green,
+                                  Expanded(
+                                    child: Text(
+                                      'Ajouter une garde',
+                                      style: PText.button.copyWith(
+                                        fontSize: 15,
+                                        color: P.green,
+                                      ),
                                     ),
                                   ),
                                 ],

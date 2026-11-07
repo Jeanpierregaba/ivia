@@ -236,4 +236,22 @@ void main() {
     await tapText(tester, 'Produits mis de côté');
     expect(tester.takeException(), isNull);
   });
+
+  testWidgets('police à 200 % sur 320 dp : livraison et F19 tiennent', (
+    tester,
+  ) async {
+    tester.view.physicalSize = const Size(320, 640);
+    tester.view.devicePixelRatio = 1;
+    tester.platformDispatcher.textScaleFactorTestValue = 2;
+    addTearDown(tester.view.reset);
+    addTearDown(tester.platformDispatcher.clearTextScaleFactorTestValue);
+    order = orderBody(delivery: true, status: 'courier_search');
+    await openOrder(tester);
+    expect(tester.takeException(), isNull);
+    order = {...order, 'status': 'picked_up'};
+    await tester.pump(const Duration(seconds: 5));
+    await tester.pumpAndSettle();
+    expect(find.text('Commande remise au livreur'), findsOneWidget);
+    expect(tester.takeException(), isNull);
+  });
 }
