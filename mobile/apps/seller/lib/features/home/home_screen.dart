@@ -163,11 +163,17 @@ class HomeScreen extends ConsumerWidget {
                                   ],
                                 ),
                               ),
-                              Text(
-                                formatXof(o.subtotalXof),
-                                style: t.titleSmall?.copyWith(
-                                  fontWeight: FontWeight.w800,
-                                  fontFeatures: Pro.tabular,
+                              const SizedBox(width: 8),
+                              // Souple : à 200 %, le montant passe à la ligne
+                              // au lieu de déborder.
+                              Flexible(
+                                child: Text(
+                                  formatXof(o.subtotalXof),
+                                  textAlign: TextAlign.end,
+                                  style: t.titleSmall?.copyWith(
+                                    fontWeight: FontWeight.w800,
+                                    fontFeatures: Pro.tabular,
+                                  ),
                                 ),
                               ),
                             ],
@@ -251,11 +257,15 @@ class _FreshOrder extends StatelessWidget {
                   style: t.titleMedium?.copyWith(fontWeight: FontWeight.w800),
                 ),
               ),
-              Text(
-                formatXof(o.subtotalXof),
-                style: t.titleMedium?.copyWith(
-                  fontWeight: FontWeight.w800,
-                  fontFeatures: Pro.tabular,
+              const SizedBox(width: 8),
+              Flexible(
+                child: Text(
+                  formatXof(o.subtotalXof),
+                  textAlign: TextAlign.end,
+                  style: t.titleMedium?.copyWith(
+                    fontWeight: FontWeight.w800,
+                    fontFeatures: Pro.tabular,
+                  ),
                 ),
               ),
             ],
