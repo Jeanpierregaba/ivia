@@ -45,11 +45,11 @@
       - « Voir l'alerte » et « Ignorer » ;
       - branchement du push (`onAlertReceived` avec l'identifiant) ;
       - relecture sans Firebase, une seule fois par alerte.
-- [ ] 12. Détail F11 :
+- [x] 12. Détail F11 :
       - ordonnance, produits, générique accepté, précision du client ;
       - compte à rebours ;
       - « Alerte terminée ».
-- [ ] 13. Ordonnance F12 :
+- [x] 13. Ordonnance F12 :
       - pages, zoom (doigt et boutons), pivot ;
       - canal `FLAG_SECURE` dans `MainActivity` et son test ;
       - mention Android seulement.

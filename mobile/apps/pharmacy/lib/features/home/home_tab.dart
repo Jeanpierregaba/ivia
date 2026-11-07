@@ -329,23 +329,40 @@ class AlertCard extends StatelessWidget {
       child: Column(
         crossAxisAlignment: CrossAxisAlignment.stretch,
         children: [
-          Row(
-            children: [
-              Flexible(
-                child: Text(
+          // Police très agrandie : l'heure et les pastilles passent à la
+          // ligne plutôt que de déborder.
+          if (MediaQuery.textScalerOf(context).scale(10) > 13)
+            Wrap(
+              spacing: 8,
+              runSpacing: 6,
+              crossAxisAlignment: WrapCrossAlignment.center,
+              children: [
+                Text(
                   'Reçue à ${hhmm(a.receivedAt)}',
                   style: PText.cardTitle.copyWith(fontSize: 18),
                 ),
-              ),
-              if (!a.seen) ...[
-                const SizedBox(width: 8),
-                const PPill('Nouvelle', bg: P.softRed, fg: P.red),
+                if (!a.seen) const PPill('Nouvelle', bg: P.softRed, fg: P.red),
+                PCountdownPill(deadline: a.searchEndsAt),
               ],
-              const Spacer(),
-              const SizedBox(width: 8),
-              PCountdownPill(deadline: a.searchEndsAt),
-            ],
-          ),
+            )
+          else
+            Row(
+              children: [
+                Flexible(
+                  child: Text(
+                    'Reçue à ${hhmm(a.receivedAt)}',
+                    style: PText.cardTitle.copyWith(fontSize: 18),
+                  ),
+                ),
+                if (!a.seen) ...[
+                  const SizedBox(width: 8),
+                  const PPill('Nouvelle', bg: P.softRed, fg: P.red),
+                ],
+                const Spacer(),
+                const SizedBox(width: 8),
+                PCountdownPill(deadline: a.searchEndsAt),
+              ],
+            ),
           const SizedBox(height: 10),
           Text(alertSummary(a), style: PText.body.copyWith(fontSize: 16)),
           const SizedBox(height: 14),

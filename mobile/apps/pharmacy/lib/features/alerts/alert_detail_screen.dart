@@ -2,12 +2,15 @@ import 'package:flutter/material.dart';
 import 'package:flutter_riverpod/flutter_riverpod.dart';
 import 'package:ivia_api_client/ivia_api_client.dart';
 import 'package:ivia_app_core/ivia_app_core.dart';
-import 'package:ivia_ui/ivia_ui.dart';
 
 import '../../common/providers.dart';
 import '../../common/ui.dart';
+import 'alert_logic.dart';
+import 'prescription_viewer.dart';
+import 'response_screen.dart';
 
-/// Détail d'une alerte : produits et photos, réponse ligne par ligne.
+/// Détail d'une alerte (F11) : ordonnance, produits demandés, précision du
+/// client ; « Ignorer » ou « Répondre ». Lire le détail marque l'alerte vue.
 class AlertDetailScreen extends ConsumerStatefulWidget {
   const AlertDetailScreen({super.key, required this.alertId});
   final String alertId;
@@ -18,10 +21,9 @@ class AlertDetailScreen extends ConsumerStatefulWidget {
 
 class _AlertDetailScreenState extends ConsumerState<AlertDetailScreen> {
   InboxAlert? _alert;
-  List<ResponseLineDraft> _lines = [];
-  final _note = TextEditingController();
-  var _busy = false;
   String? _error;
+  var _busy = false;
+  var _expired = false;
 
   @override
   void initState() {
@@ -29,66 +31,21 @@ class _AlertDetailScreenState extends ConsumerState<AlertDetailScreen> {
     _load();
   }
 
-  @override
-  void dispose() {
-    _note.dispose();
-    super.dispose();
-  }
-
+  /// Relu aussi quand le lien des photos (10 minutes) a expiré.
   Future<void> _load() async {
     try {
       final a = await ref
           .read(apiClientProvider)
           .pharmacyInboxItem(widget.alertId);
+      if (!mounted) return;
       setState(() {
         _alert = a;
-        _lines = a.responded && a.myLines.isNotEmpty
-            ? [
-                for (final l in a.myLines)
-                  ResponseLineDraft(
-                    name: l.name,
-                    quantity: l.quantity,
-                    unitPriceXof: l.unitPriceXof,
-                    available: l.available,
-                    prescriptionRequired: l.prescriptionRequired,
-                  ),
-              ]
-            : a.items.isEmpty
-            ? [ResponseLineDraft(name: 'Ordonnance complète', quantity: 1)]
-            : [
-                for (final i in a.items)
-                  ResponseLineDraft(
-                    alertItemId: i.id,
-                    name: i.name,
-                    quantity: i.quantity,
-                  ),
-              ];
+        _error = null;
+        _expired = false;
       });
-    } on ApiException catch (e) {
-      setState(() => _error = e.message);
-    }
-  }
-
-  Future<void> _send() async {
-    setState(() {
-      _busy = true;
-      _error = null;
-    });
-    try {
-      await ref
-          .read(apiClientProvider)
-          .pharmacyRespond(widget.alertId, _lines, note: _note.text.trim());
       ref.invalidate(inboxProvider);
-      if (mounted) {
-        ScaffoldMessenger.of(context).showSnackBar(
-          const SnackBar(content: Text('Réponse envoyée au patient.')),
-        );
-        Navigator.of(context).pop();
-      }
     } on ApiException catch (e) {
-      setState(() => _error = e.message);
-    } finally {
-      if (mounted) setState(() => _busy = false);
+      if (mounted) setState(() => _error = e.message);
     }
   }
 
@@ -99,273 +56,272 @@ class _AlertDetailScreenState extends ConsumerState<AlertDetailScreen> {
       ref.invalidate(inboxProvider);
       if (mounted) Navigator.of(context).pop();
     } on ApiException catch (e) {
-      setState(() => _error = e.message);
-    } finally {
-      if (mounted) setState(() => _busy = false);
+      if (mounted) {
+        setState(() => _busy = false);
+        say(context, e.message);
+      }
+    }
+  }
+
+  Future<void> _respond() async {
+    final sent = await Navigator.of(context).push<bool>(
+      MaterialPageRoute(
+        builder: (_) => ResponseScreen(alertId: widget.alertId),
+      ),
+    );
+    if (sent == true && mounted) {
+      Navigator.of(context).pop();
+    } else {
+      await _load();
     }
   }
 
   @override
   Widget build(BuildContext context) {
-    final t = Theme.of(context).textTheme;
     final a = _alert;
-    final total = _lines
-        .where((l) => l.available)
-        .fold<int>(0, (s, l) => s + l.unitPriceXof * l.quantity);
-    final canAnswer =
+    final live =
         a != null &&
+        !_expired &&
+        a.status == 'pending' &&
         !a.unlocked &&
-        a.searchEndsAt.isAfter(DateTime.now()) &&
-        a.status != 'declined';
+        a.searchEndsAt.isAfter(DateTime.now());
     return Scaffold(
       backgroundColor: P.page,
-      appBar: AppBar(
-        backgroundColor: P.page,
-        title: const Text('Alerte médicament'),
+      body: SafeArea(
+        child: Column(
+          children: [
+            PHeader(
+              title: a == null ? 'Alerte' : 'Alerte de ${hhmm(a.receivedAt)}',
+              trailing: a != null && live
+                  ? PCountdownPill(
+                      deadline: a.searchEndsAt,
+                      onExpired: () => setState(() => _expired = true),
+                    )
+                  : null,
+            ),
+            Expanded(
+              child: a == null
+                  ? Center(
+                      child: _error == null
+                          ? const CircularProgressIndicator()
+                          : Padding(
+                              padding: const EdgeInsets.all(P.gutter),
+                              child: PErrorRetry(message: _error!),
+                            ),
+                    )
+                  : RefreshIndicator(
+                      color: P.green,
+                      onRefresh: _load,
+                      child: _Details(alert: a, onReload: _load),
+                    ),
+            ),
+            if (a != null)
+              PBottomBar(
+                children: live
+                    ? [
+                        PButton(
+                          label: 'Ignorer',
+                          style: PButtonStyle.outline,
+                          busy: _busy,
+                          onTap: a.responded ? null : _decline,
+                        ),
+                        PButton(
+                          label: a.responded ? 'Modifier' : 'Répondre',
+                          onTap: _busy ? null : _respond,
+                        ),
+                      ]
+                    : [
+                        PButton(
+                          label: 'Retour',
+                          style: PButtonStyle.outline,
+                          onTap: () => Navigator.of(context).pop(),
+                        ),
+                      ],
+              ),
+          ],
+        ),
       ),
-      body: a == null
-          ? Center(
-              child: _error == null
-                  ? const CircularProgressIndicator()
-                  : Text(_error!),
-            )
-          : ListView(
-              padding: const EdgeInsets.all(IviaSpacing.screen),
-              children: [
-                Text(
-                  a.title,
-                  style: t.headlineSmall?.copyWith(fontWeight: FontWeight.w800),
+    );
+  }
+}
+
+class _Details extends StatelessWidget {
+  const _Details({required this.alert, required this.onReload});
+  final InboxAlert alert;
+  final Future<void> Function() onReload;
+
+  @override
+  Widget build(BuildContext context) {
+    final a = alert;
+    final pages = a.photos.length;
+    return ListView(
+      physics: const AlwaysScrollableScrollPhysics(),
+      padding: const EdgeInsets.fromLTRB(P.gutter, 4, P.gutter, 12),
+      children: [
+        if (!isOpenAlert(a, DateTime.now()) || a.unlocked)
+          Padding(
+            padding: const EdgeInsets.only(bottom: 12),
+            child: PCard(
+              color: a.unlocked ? P.softGreen : P.softYellow,
+              child: Text(
+                a.unlocked
+                    ? 'Le client a confirmé votre pharmacie : la commande est '
+                          "dans l'onglet Commandes."
+                    : a.responded
+                    ? 'Réponse envoyée. Le client choisit sa pharmacie.'
+                    : 'Alerte terminée : le délai est passé ou elle a été '
+                          'ignorée.',
+                style: PText.body,
+              ),
+            ),
+          ),
+        if (pages > 0) ...[
+          Semantics(
+            button: true,
+            label:
+                'Ordonnance, $pages page${pages > 1 ? 's' : ''}, toucher pour agrandir',
+            excludeSemantics: true,
+            child: PCard(
+              padding: const EdgeInsets.all(10),
+              onTap: () => Navigator.of(context).push(
+                MaterialPageRoute<void>(
+                  fullscreenDialog: true,
+                  builder: (_) =>
+                      PrescriptionViewer(photos: a.photos, onExpired: onReload),
                 ),
-                Text(
-                  'Patient à ${formatDistance(a.distanceM)} · reçue à ${hhmm(a.receivedAt)}',
-                  style: t.bodyMedium?.copyWith(color: P.muted),
-                ),
-                const SizedBox(height: 10),
-                Wrap(
-                  spacing: 8,
-                  children: [
-                    if (a.genericAccepted)
-                      const PPill(
-                        'Générique accepté',
-                        bg: P.softBlue,
-                        fg: P.blue,
-                      ),
-                    if (canAnswer)
-                      PPill(
-                        'Répondre avant ${hhmm(a.searchEndsAt)}',
-                        bg: P.softRed,
-                        fg: P.red,
-                      ),
-                  ],
-                ),
-                if (a.note.isNotEmpty) ...[
-                  const SizedBox(height: 12),
-                  PCard(
-                    color: P.softYellow,
-                    child: Text('« ${a.note} »', style: t.bodyLarge),
-                  ),
-                ],
-                if (a.photos.isNotEmpty) ...[
-                  const SizedBox(height: 14),
-                  SizedBox(
-                    height: 220,
-                    child: ListView.separated(
-                      scrollDirection: Axis.horizontal,
-                      itemCount: a.photos.length,
-                      separatorBuilder: (_, _) => const SizedBox(width: 10),
-                      itemBuilder: (context, i) {
-                        final ph = a.photos[i];
-                        return GestureDetector(
-                          onTap: ph.url == null
-                              ? null
-                              : () => showDialog<void>(
-                                  context: context,
-                                  builder: (_) => Dialog(
-                                    child: InteractiveViewer(
-                                      child: Image.network(ph.url!),
-                                    ),
-                                  ),
-                                ),
-                          child: ClipRRect(
-                            borderRadius: BorderRadius.circular(20),
-                            child: ph.url == null
-                                ? Container(
-                                    width: 180,
-                                    color: const Color(0xFFE3E5E9),
-                                    child: const Icon(
-                                      Icons.image_not_supported,
-                                    ),
-                                  )
-                                : Image.network(
-                                    ph.url!,
-                                    width: 180,
-                                    fit: BoxFit.cover,
-                                  ),
+              ),
+              child: Row(
+                children: [
+                  SizedBox.square(
+                    dimension: 76,
+                    child: Stack(
+                      fit: StackFit.expand,
+                      children: [
+                        ClipRRect(
+                          borderRadius: BorderRadius.circular(14),
+                          child: PrescriptionImage(
+                            url: a.photos.first.url,
+                            onExpired: onReload,
                           ),
-                        );
-                      },
+                        ),
+                        Positioned(
+                          right: 6,
+                          bottom: 6,
+                          child: Container(
+                            width: 24,
+                            height: 24,
+                            decoration: const BoxDecoration(
+                              color: Colors.white,
+                              shape: BoxShape.circle,
+                            ),
+                            child: const Icon(
+                              Icons.zoom_in,
+                              size: 16,
+                              color: P.ink,
+                            ),
+                          ),
+                        ),
+                      ],
                     ),
                   ),
-                  Text(
-                    'Photos visibles pendant l\'alerte seulement. Touchez pour agrandir.',
-                    style: t.bodySmall?.copyWith(color: P.muted),
+                  const SizedBox(width: 14),
+                  Expanded(
+                    child: Column(
+                      crossAxisAlignment: CrossAxisAlignment.start,
+                      children: [
+                        Text(
+                          'Ordonnance · $pages page${pages > 1 ? 's' : ''}',
+                          style: PText.cardTitle.copyWith(fontSize: 18),
+                        ),
+                        Text('Touchez pour agrandir', style: PText.bodyMuted),
+                      ],
+                    ),
                   ),
                 ],
-                const SizedBox(height: 18),
-                Text(
-                  a.responded
-                      ? 'Votre réponse'
-                      : 'Votre réponse, produit par produit',
-                  style: t.titleMedium?.copyWith(fontWeight: FontWeight.w800),
-                ),
-                const SizedBox(height: 10),
-                for (final l in _lines)
-                  Padding(
-                    padding: const EdgeInsets.only(bottom: 10),
-                    child: PCard(
-                      child: Column(
-                        crossAxisAlignment: CrossAxisAlignment.start,
+              ),
+            ),
+          ),
+          const SizedBox(height: 12),
+        ],
+        if (a.items.isNotEmpty || a.genericAccepted) ...[
+          PCard(
+            child: Column(
+              crossAxisAlignment: CrossAxisAlignment.start,
+              children: [
+                if (a.items.isNotEmpty) ...[
+                  Text('Produits demandés', style: PText.label),
+                  const SizedBox(height: 6),
+                  for (final (i, item) in a.items.indexed) ...[
+                    if (i > 0) const Divider(height: 1, color: P.line),
+                    Padding(
+                      padding: const EdgeInsets.symmetric(vertical: 10),
+                      child: Row(
                         children: [
-                          Row(
-                            children: [
-                              Expanded(
-                                child: Text(
-                                  '${l.quantity} × ${l.name}',
-                                  style: t.titleMedium?.copyWith(
-                                    fontWeight: FontWeight.w800,
-                                  ),
-                                ),
-                              ),
-                              Switch(
-                                value: l.available,
-                                activeTrackColor: P.green,
-                                onChanged: canAnswer
-                                    ? (v) => setState(() => l.available = v)
-                                    : null,
-                              ),
-                            ],
-                          ),
-                          Text(
-                            l.available ? 'Disponible' : 'Indisponible',
-                            style: t.bodySmall?.copyWith(
-                              color: l.available ? P.green : P.muted,
-                            ),
-                          ),
-                          if (l.available) ...[
-                            const SizedBox(height: 10),
-                            Row(
+                          const PIcon(Icons.medication),
+                          const SizedBox(width: 12),
+                          Expanded(
+                            child: Column(
+                              crossAxisAlignment: CrossAxisAlignment.start,
                               children: [
-                                Expanded(
-                                  child: TextFormField(
-                                    initialValue: l.unitPriceXof == 0
-                                        ? ''
-                                        : '${l.unitPriceXof}',
-                                    enabled: canAnswer,
-                                    keyboardType: TextInputType.number,
-                                    decoration: const InputDecoration(
-                                      labelText: 'Prix unitaire (F)',
-                                    ),
-                                    onChanged: (v) => setState(
-                                      () => l.unitPriceXof =
-                                          int.tryParse(
-                                            v.replaceAll(RegExp(r'\D'), ''),
-                                          ) ??
-                                          0,
-                                    ),
-                                  ),
-                                ),
-                                const SizedBox(width: 12),
-                                SizedBox(
-                                  width: 90,
-                                  child: TextFormField(
-                                    initialValue: '${l.quantity}',
-                                    enabled: canAnswer,
-                                    keyboardType: TextInputType.number,
-                                    decoration: const InputDecoration(
-                                      labelText: 'Qté',
-                                    ),
-                                    onChanged: (v) => setState(
-                                      () => l.quantity = (int.tryParse(v) ?? 1)
-                                          .clamp(1, 99),
-                                    ),
-                                  ),
-                                ),
+                                Text(item.name, style: PText.cardTitle),
+                                if (item.form.isNotEmpty)
+                                  Text(item.form, style: PText.bodyMuted),
                               ],
                             ),
-                            CheckboxListTile(
-                              contentPadding: EdgeInsets.zero,
-                              dense: true,
-                              value: l.prescriptionRequired,
-                              onChanged: canAnswer
-                                  ? (v) => setState(
-                                      () => l.prescriptionRequired = v ?? false,
-                                    )
-                                  : null,
-                              title: const Text('Sur ordonnance'),
-                            ),
-                          ],
+                          ),
+                          const SizedBox(width: 8),
+                          Text(
+                            '×${item.quantity}',
+                            semanticsLabel: 'quantité ${item.quantity}',
+                            style: PText.cardTitle,
+                          ),
                         ],
                       ),
                     ),
-                  ),
-                if (canAnswer)
-                  TextField(
-                    controller: _note,
-                    maxLength: 300,
-                    decoration: const InputDecoration(
-                      hintText: 'Message au patient (facultatif)',
-                    ),
-                  ),
-                const SizedBox(height: 8),
-                PCard(
-                  color: P.navy,
-                  child: Row(
-                    children: [
-                      Expanded(
-                        child: Text(
-                          'Total proposé',
-                          style: t.titleMedium?.copyWith(color: Colors.white70),
-                        ),
-                      ),
-                      Text(
-                        formatXof(total),
-                        style: t.titleLarge?.copyWith(
-                          color: Colors.white,
-                          fontWeight: FontWeight.w800,
-                        ),
-                      ),
-                    ],
-                  ),
-                ),
-                if (_error != null)
-                  Padding(
-                    padding: const EdgeInsets.only(top: 10),
-                    child: Text(_error!, style: const TextStyle(color: P.red)),
-                  ),
-                const SizedBox(height: 16),
-                if (canAnswer) ...[
-                  PButton(
-                    label: a.responded
-                        ? 'Mettre à jour ma réponse'
-                        : 'Envoyer ma réponse',
-                    icon: Icons.send,
-                    busy: _busy,
-                    onTap: _send,
-                  ),
-                  if (!a.responded)
-                    TextButton(
-                      onPressed: _busy ? null : _decline,
-                      child: const Text('Je n\'ai pas ces produits'),
-                    ),
-                ] else
-                  Text(
-                    a.unlocked
-                        ? 'Le patient a débloqué votre pharmacie : voyez l\'onglet Réservations.'
-                        : 'Alerte terminée.',
-                    style: t.bodyMedium,
-                  ),
+                  ],
+                ],
+                if (a.genericAccepted) ...[
+                  const SizedBox(height: 4),
+                  const PPill('Générique accepté'),
+                ],
               ],
             ),
+          ),
+          const SizedBox(height: 12),
+        ],
+        if (a.note.isNotEmpty) ...[
+          PCard(
+            child: Column(
+              crossAxisAlignment: CrossAxisAlignment.start,
+              children: [
+                Text('Précision du client', style: PText.label),
+                const SizedBox(height: 4),
+                Text('« ${a.note} »', style: PText.body.copyWith(fontSize: 17)),
+              ],
+            ),
+          ),
+          const SizedBox(height: 12),
+        ],
+        Padding(
+          padding: const EdgeInsets.symmetric(vertical: 4),
+          child: Row(
+            crossAxisAlignment: CrossAxisAlignment.start,
+            children: [
+              const ExcludeSemantics(
+                child: Icon(Icons.visibility_off, size: 20, color: P.muted),
+              ),
+              const SizedBox(width: 10),
+              Expanded(
+                child: Text(
+                  "Client anonyme jusqu'à la confirmation · à "
+                  '${formatDistance(a.distanceM)}',
+                  style: PText.bodyMuted,
+                ),
+              ),
+            ],
+          ),
+        ),
+      ],
     );
   }
 }

@@ -157,6 +157,7 @@ void main() {
   });
 
   testWidgets('police à 200 % sur 320 dp : l\'accueil tient', (tester) async {
+    // Alertes et commandes du setUp : les cartes doivent tenir aussi.
     tester.view.physicalSize = const Size(320, 640);
     tester.view.devicePixelRatio = 1;
     tester.platformDispatcher.textScaleFactorTestValue = 2;

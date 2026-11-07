@@ -49,9 +49,12 @@ abstract final class IviaPharmacyColors {
   static const warning = Color(0xFF8A5A00);
   static const warningSoft = Color(0xFFFFF1D6);
 
-  /// Ordonnance en grand (F12).
+  /// Ordonnance en grand (F12) : fond, cadre de la photo, boutons ronds et
+  /// texte du bas.
   static const night = IviaColors.text;
-  static const nightPanel = Color(0xFF15253A);
+  static const nightPanel = Color(0xFF1A2B42);
+  static const nightButton = Color(0xFF2D3A4D);
+  static const nightMuted = Color(0xFF9DA9BA);
 
   /// Voile derrière une feuille (F18) : encre à 50 %.
   static const scrim = Color(0x800A1A30);

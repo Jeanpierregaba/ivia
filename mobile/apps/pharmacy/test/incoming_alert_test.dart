@@ -67,7 +67,7 @@ void main() {
     await tapText(tester, "Voir l'alerte");
     expect(find.text('ALERTE MÉDICAMENT'), findsNothing);
     expect(app.server.calls('GET', '/v1/pharmacy/inbox/a9'), isNotEmpty);
-    await tester.pageBack();
+    await tester.binding.handlePopRoute();
     await tester.pumpAndSettle();
     await poll(tester);
     // Déjà montrée : pas une deuxième fois.
