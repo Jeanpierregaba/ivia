@@ -68,7 +68,7 @@
       - F19 « Commande remise au livreur ».
 - [x] 17. Feuille F18 « Annuler cette commande ? » : motifs, « Autre motif » avec texte libre,
       « Garder la commande ».
-- [ ] 18. Onglet Alertes F21 (En cours, Commandes, Historique par jour) et onglet Commandes, avec
+- [x] 18. Onglet Alertes F21 (En cours, Commandes, Historique par jour) et onglet Commandes, avec
       leurs états vides.
 - [ ] 19. Planning F20 :
       - bande de la semaine et points des gardes ;

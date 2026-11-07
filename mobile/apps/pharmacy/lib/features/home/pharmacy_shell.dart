@@ -9,7 +9,7 @@ import 'package:ivia_ui/ivia_ui.dart';
 import '../../common/providers.dart';
 import '../../common/ui.dart';
 import '../alerts/alert_logic.dart';
-import '../alerts/inbox_tab.dart';
+import '../alerts/alerts_tab.dart';
 import '../alerts/incoming_alert_screen.dart';
 import '../orders/orders_tab.dart';
 import '../profile/office_tab.dart';
@@ -83,7 +83,7 @@ class _PharmacyShellState extends ConsumerState<PharmacyShell> {
         index: _tab,
         children: [
           HomeTab(onSeeAlerts: () => _go(1), onSeeOrders: () => _go(2)),
-          const SafeArea(bottom: false, child: InboxTab()),
+          const SafeArea(bottom: false, child: AlertsTab()),
           const SafeArea(bottom: false, child: OrdersTab()),
           const SafeArea(bottom: false, child: OfficeTab()),
         ],
