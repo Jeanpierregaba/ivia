@@ -90,10 +90,10 @@
 **Finitions**
 - [x] 23. Passe d'accessibilité : chaque écran en 320 dp à 200 %, libellés du lecteur d'écran.
       Habiller l'écran d'autorisation des alertes à la charte.
-- [ ] 24. Vérification sur le simulateur iPhone 17 Pro, écran par écran contre les maquettes
+- [x] 24. Vérification sur le simulateur iPhone 17 Pro, écran par écran contre les maquettes
       (`seed-demo`). Sur Android si un émulateur est disponible : F10 plein écran, sonnerie,
       blocage de capture.
-- [ ] 25. `TASKS.md` : manques notés pour Gedeon (liste de la spec et opérateur du versement,
+- [x] 25. `TASKS.md` : manques notés pour Gedeon (liste de la spec et opérateur du versement,
       compteurs du jour). Retirer les écrans et fichiers devenus inutiles.
-- [ ] Vérifier tous les critères d'acceptation de spec.md
-- [ ] Relecture par le sous-agent reviewer
+- [x] Vérifier tous les critères d'acceptation de spec.md (Android réel : plein écran, sonnerie, capture à voir)
+- [x] Relecture par le sous-agent reviewer (9 points importants corrigés, voir le commit d443054)

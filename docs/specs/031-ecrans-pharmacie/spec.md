@@ -185,51 +185,52 @@ lignes.
 
 ## Critères d'acceptation
 
-- [ ] Étant donné un premier lancement, après le splash vert (F00) et la localisation, la
+- [x] Étant donné un premier lancement, après le splash vert (F00) et la localisation, la
       présentation en 3 pages s'affiche une fois. « Passer » ou « Commencer » ouvre la connexion,
       et elle ne revient plus.
-- [ ] La connexion (F04) n'a pas d'onglet e-mail. Elle affiche « Espace pharmacie », la pastille
+- [x] La connexion (F04) n'a pas d'onglet e-mail. Elle affiche « Espace pharmacie », la pastille
       verte, WhatsApp puis SMS, et les « Conditions partenaires ». Les autres apps ne changent pas.
-- [ ] Étant donné un code demandé par SMS, l'écran du code titre « Vérifiez vos SMS ». Par WhatsApp,
+- [x] Étant donné un code demandé par SMS, l'écran du code titre « Vérifiez vos SMS ». Par WhatsApp,
       il titre « Vérifiez WhatsApp ». « Valider » reste gris tant que le code n'a pas 6 chiffres.
-- [ ] Étant donné un compte sans pharmacie, le dossier déroule 5 étapes numérotées « n sur 5 ». La
+- [x] Étant donné un compte sans pharmacie, le dossier déroule 5 étapes numérotées « n sur 5 ». La
       devanture choisie à l'étape 1 est envoyée après la création. L'étape 3 exige la case
       « Je certifie… ». « Envoyer pour validation » reste gris tant qu'une pièce obligatoire ou le
       compte de versement manque.
-- [ ] Étant donné un brouillon existant, l'app rouvre le dossier à la première étape incomplète.
-- [ ] Étant donné des compléments demandés, le motif s'affiche et le dossier se modifie.
-- [ ] Étant donné un dossier envoyé, l'écran F08 montre la frise. « Préparer mon planning de garde »
+- [x] Étant donné un brouillon existant, l'app rouvre le dossier à la première étape incomplète.
+- [x] Étant donné des compléments demandés, le motif s'affiche et le dossier se modifie.
+- [x] Étant donné un dossier envoyé, l'écran F08 montre la frise. « Préparer mon planning de garde »
       ouvre le planning.
-- [ ] Étant donné une pharmacie validée, l'Accueil (F09) affiche le nom, l'interrupteur « En
+- [x] Étant donné une pharmacie validée, l'Accueil (F09) affiche le nom, l'interrupteur « En
       service » (qui change le statut ouvert), les 3 chiffres du jour, les alertes ouvertes et la
       carte des commandes à préparer.
-- [ ] La barre du bas montre la pilule verte sur l'onglet actif et la pastille du nombre d'alertes
+- [x] La barre du bas montre la pilule verte sur l'onglet actif et la pastille du nombre d'alertes
       non vues.
-- [ ] Étant donné un push d'alerte touché ou une alerte reçue app ouverte, l'écran F10 s'affiche.
+- [x] Étant donné un push d'alerte touché ou une alerte reçue app ouverte, l'écran F10 s'affiche.
       « Voir l'alerte » ouvre le détail (F11), et « Ignorer » refuse l'alerte.
-- [ ] Le détail (F11) affiche les produits, « Générique accepté », la précision du client et la
+- [x] Le détail (F11) affiche les produits, « Générique accepté », la précision du client et la
       miniature. La miniature ouvre l'ordonnance en grand (F12), avec zoom et rotation.
-- [ ] Étant donné l'ordonnance en grand sur Android, la capture d'écran est bloquée, puis permise de
-      nouveau en quittant l'écran.
-- [ ] La réponse (F13) calcule le total indicatif des produits disponibles et le compte
+- [x] Étant donné l'ordonnance en grand sur Android, la capture d'écran est bloquée, puis permise de
+      nouveau en quittant l'écran. (Testé par le canal ; reste à voir sur un vrai Android.)
+- [x] La réponse (F13) calcule le total indicatif des produits disponibles et le compte
       « n / N disponibles ». Elle envoie prix, quantités, générique et mention « sur ordonnance ».
       Elle mène ensuite à « Réponse envoyée » (F14).
-- [ ] Étant donné une commande en retrait confirmée, « Produits mis de côté » la marque préparée.
+- [x] Étant donné une commande en retrait confirmée, « Produits mis de côté » la marque préparée.
       La remise (F16) exige les 4 chiffres et les cases, puis affiche le succès. Un code faux affiche
       l'erreur sans quitter l'écran.
-- [ ] Étant donné une commande en livraison, l'écran F17 montre l'étape en cours. « Marquer prête »
+- [x] Étant donné une commande en livraison, l'écran F17 montre l'étape en cours. « Marquer prête »
       la marque préparée, et une commande récupérée par le livreur affiche F19.
-- [ ] « Signaler une rupture » ouvre la feuille F18. L'annulation envoie le motif choisi, ou le texte
+- [x] « Signaler une rupture » ouvre la feuille F18. L'annulation envoie le motif choisi, ou le texte
       saisi pour « Autre motif ». « Garder la commande » ferme sans rien faire.
-- [ ] Le planning (F20) affiche la semaine et les gardes du jour choisi, ajoute une garde (« + ») et
+- [x] Le planning (F20) affiche la semaine et les gardes du jour choisi, ajoute une garde (« + ») et
       règle les heures de nuit.
-- [ ] L'onglet Alertes (F21) affiche « En cours · n », « Commandes » et « Historique » (groupé par
+- [x] L'onglet Alertes (F21) affiche « En cours · n », « Commandes » et « Historique » (groupé par
       jour, pastilles d'état).
-- [ ] Le relevé (F22) affiche le solde, les commandes livrées et le compte de versement.
-- [ ] Le profil (F23) ouvre Informations, Planning, Documents et Relevé. « Sonnerie des alertes »
+- [x] Le relevé (F22) affiche le solde, les commandes livrées et le compte de versement.
+- [x] Le profil (F23) ouvre Informations, Planning, Documents et Relevé. « Sonnerie des alertes »
       coupé ⇒ le push d'alerte ne sonne plus sur ce téléphone, mais la notification reste. « Se
-      déconnecter » retire d'abord l'appareil du push.
-- [ ] Chaque écran tient sans débordement en police à 200 % sur un écran de 320 dp, et les éléments
+      déconnecter » retire d'abord l'appareil du push. (Sonnerie : Android seulement, voir « Hors
+      périmètre » ; reste à entendre sur un vrai Android.)
+- [x] Chaque écran tient sans débordement en police à 200 % sur un écran de 320 dp, et les éléments
       interactifs ont un libellé pour le lecteur d'écran.
 
 ## Cas limites et erreurs
