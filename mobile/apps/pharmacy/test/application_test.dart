@@ -1,9 +1,11 @@
 import 'package:flutter/material.dart';
+import 'package:flutter_riverpod/flutter_riverpod.dart';
 import 'package:flutter_test/flutter_test.dart';
 import 'package:ivia_api_client/ivia_api_client.dart';
 import 'package:ivia_api_client/testing.dart';
 import 'package:ivia_app_core/ivia_app_core.dart';
 import 'package:ivia_pharmacy/common/ui.dart';
+import 'package:ivia_pharmacy/main.dart';
 import 'package:ivia_pharmacy/features/application/application_flow.dart';
 
 import 'helpers.dart';
@@ -109,6 +111,33 @@ void main() {
         1,
       );
     });
+  });
+
+  testWidgets('fiche lue après l\'ouverture : reprise à la bonne étape', (
+    tester,
+  ) async {
+    Widget flow(PharmacyProfile? p) => ProviderScope(
+      overrides: [
+        appIdentityProvider.overrideWithValue(pharmacyIdentity),
+        apiClientProvider.overrideWithValue(
+          IviaApiClient(
+            config: ApiConfig(baseUrl: Uri.parse('http://api.test')),
+            adapter: app.server,
+          ),
+        ),
+      ],
+      child: MaterialApp(home: ApplicationFlow(profile: p)),
+    );
+    await tester.pumpWidget(flow(null));
+    await tester.pumpAndSettle();
+    expect(find.text('1 sur 5'), findsOneWidget);
+    await tester.pumpWidget(
+      flow(
+        PharmacyProfile.fromJson(pharmacyBody(documents: ['storefront_photo'])),
+      ),
+    );
+    await tester.pumpAndSettle();
+    expect(find.text('3 sur 5'), findsOneWidget);
   });
 
   group('étapes 1 et 2 (F06)', () {

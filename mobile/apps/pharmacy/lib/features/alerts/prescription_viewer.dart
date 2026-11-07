@@ -15,10 +15,14 @@ class PrescriptionImage extends StatefulWidget {
     required this.url,
     this.onExpired,
     this.fit = BoxFit.cover,
+    this.dark = false,
   });
   final String? url;
   final VoidCallback? onExpired;
   final BoxFit fit;
+
+  /// Sur le fond bleu nuit de F12 : emplacement sombre.
+  final bool dark;
 
   @override
   State<PrescriptionImage> createState() => _PrescriptionImageState();
@@ -27,10 +31,19 @@ class PrescriptionImage extends StatefulWidget {
 class _PrescriptionImageState extends State<PrescriptionImage> {
   var _reported = false;
 
+  Widget _missing() => widget.dark
+      ? Center(
+          child: Text(
+            'Photo indisponible',
+            style: PText.body.copyWith(color: IviaPharmacyColors.nightMuted),
+          ),
+        )
+      : const IviaImagePlaceholder(radius: 0);
+
   @override
   Widget build(BuildContext context) {
     final url = widget.url;
-    if (url == null) return const IviaImagePlaceholder(radius: 0);
+    if (url == null) return _missing();
     return Image.network(
       url,
       fit: widget.fit,
@@ -41,7 +54,7 @@ class _PrescriptionImageState extends State<PrescriptionImage> {
             (_) => widget.onExpired?.call(),
           );
         }
-        return const IviaImagePlaceholder(radius: 0);
+        return _missing();
       },
     );
   }
@@ -208,6 +221,7 @@ class _PrescriptionViewerState extends State<PrescriptionViewer> {
                                     child: PrescriptionImage(
                                       url: widget.photos[i].url,
                                       fit: BoxFit.contain,
+                                      dark: true,
                                       onExpired: widget.onExpired,
                                     ),
                                   ),

@@ -28,9 +28,20 @@ class IviaStep {
 /// coche pour les étapes faites, anneau pour l'étape en cours, cercle vide
 /// et texte atténué pour les suivantes.
 class IviaStepList extends StatelessWidget {
-  const IviaStepList({super.key, required this.steps, this.footer});
+  const IviaStepList({
+    super.key,
+    required this.steps,
+    this.footer,
+    this.doneColor = IviaColors.cobaltBlue,
+    this.upcomingColor = IviaColors.borderInput,
+  });
 
   final List<IviaStep> steps;
+
+  /// Coche des étapes faites et cercle des étapes à venir (pharmacie : vert
+  /// et gris clair des maquettes).
+  final Color doneColor;
+  final Color upcomingColor;
 
   /// Élément sous les étapes, dans la même carte (ex. un bouton).
   final Widget? footer;
@@ -55,7 +66,14 @@ class IviaStepList extends StatelessWidget {
                 child: Row(
                   crossAxisAlignment: CrossAxisAlignment.start,
                   children: [
-                    ExcludeSemantics(child: _Marker(step.state, action)),
+                    ExcludeSemantics(
+                      child: _Marker(
+                        step.state,
+                        action,
+                        doneColor,
+                        upcomingColor,
+                      ),
+                    ),
                     const SizedBox(width: IviaSpacing.lg),
                     Expanded(
                       child: Column(
@@ -92,10 +110,10 @@ class IviaStepList extends StatelessWidget {
 }
 
 class _Marker extends StatelessWidget {
-  const _Marker(this.state, this.action);
+  const _Marker(this.state, this.action, this.done, this.upcoming);
 
   final IviaStepState state;
-  final Color action;
+  final Color action, done, upcoming;
 
   static const _size = 28.0;
 
@@ -105,10 +123,7 @@ class _Marker extends StatelessWidget {
       IviaStepState.done => Container(
         width: _size,
         height: _size,
-        decoration: const BoxDecoration(
-          color: IviaColors.cobaltBlue,
-          shape: BoxShape.circle,
-        ),
+        decoration: BoxDecoration(color: done, shape: BoxShape.circle),
         child: const Icon(Icons.check, size: 18, color: Colors.white),
       ),
       IviaStepState.current => Container(
@@ -130,7 +145,7 @@ class _Marker extends StatelessWidget {
         height: _size,
         decoration: BoxDecoration(
           shape: BoxShape.circle,
-          border: Border.all(color: IviaColors.borderInput, width: 2),
+          border: Border.all(color: upcoming, width: 2),
         ),
       ),
     };

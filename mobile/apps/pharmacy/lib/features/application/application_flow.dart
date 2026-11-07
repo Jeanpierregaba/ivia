@@ -43,14 +43,31 @@ class _ApplicationFlowState extends ConsumerState<ApplicationFlow> {
   /// « Je certifie… » (étape 3), gardé en revenant en arrière.
   var _certified = false;
 
+  /// L'utilisateur a changé d'étape : sa position ne bouge plus d'elle-même.
+  var _moved = false;
+
+  @override
+  void didUpdateWidget(ApplicationFlow old) {
+    super.didUpdateWidget(old);
+    // Fiche lue après l'ouverture : reprise à la première étape incomplète.
+    if (old.profile == null && widget.profile != null && !_moved) {
+      _step = initialDossierStep(widget.profile);
+    }
+  }
+
+  void _go(int step) => setState(() {
+    _moved = true;
+    _step = step;
+  });
+
   void _back() {
     switch (_step) {
       case 1:
         signOutPharmacy(ref);
       case 3:
-        setState(() => _step = 1);
+        _go(1);
       default:
-        setState(() => _step -= 1);
+        _go(_step - 1);
     }
   }
 
@@ -69,7 +86,7 @@ class _ApplicationFlowState extends ConsumerState<ApplicationFlow> {
         profile: profile,
         storefront: _storefront,
         onStorefront: (bytes) => setState(() => _storefront = bytes),
-        onSaved: () => setState(() => _step = 3),
+        onSaved: () => _go(3),
         header: _header('Votre pharmacie'),
       );
     } else if (profile == null) {
@@ -80,15 +97,11 @@ class _ApplicationFlowState extends ConsumerState<ApplicationFlow> {
         profile: profile,
         certified: _certified,
         onCertified: (v) => setState(() => _certified = v),
-        onNext: () => setState(() => _step = 4),
+        onNext: () => _go(4),
         header: _header('Documents'),
       );
     } else if (_step == 4) {
-      body = PlanningScreen(
-        step: 4,
-        onBack: _back,
-        onNext: () => setState(() => _step = 5),
-      );
+      body = PlanningScreen(step: 4, onBack: _back, onNext: () => _go(5));
     } else {
       body = PayoutScreen(step: 5, onBack: _back);
     }

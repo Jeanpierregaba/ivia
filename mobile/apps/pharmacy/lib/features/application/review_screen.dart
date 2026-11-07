@@ -88,10 +88,12 @@ class ReviewScreen extends ConsumerWidget {
                           : "L'équipe ivia vérifie votre autorisation "
                                 "d'exercice. Vous recevrez une notification et "
                                 'un e-mail.',
-                      style: PText.bodyMuted.copyWith(fontSize: 16),
+                      style: PText.body.copyWith(fontSize: 16, color: P.label),
                     ),
                     const SizedBox(height: 22),
                     IviaStepList(
+                      doneColor: P.green,
+                      upcomingColor: IviaPharmacyColors.checkOff,
                       steps: [
                         const IviaStep(
                           title: 'Compte créé',

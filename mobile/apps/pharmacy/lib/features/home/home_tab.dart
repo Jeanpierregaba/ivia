@@ -131,7 +131,10 @@ class _HomeTabState extends ConsumerState<HomeTab> {
                         style: TextButton.styleFrom(foregroundColor: P.green),
                         child: Text(
                           'Tout voir',
-                          style: PText.button.copyWith(fontSize: 15),
+                          style: PText.button.copyWith(
+                            fontSize: 15,
+                            color: P.green,
+                          ),
                         ),
                       ),
                     ],
@@ -338,7 +341,8 @@ class AlertCard extends StatelessWidget {
               crossAxisAlignment: WrapCrossAlignment.center,
               children: [
                 Text(
-                  'Reçue à ${hhmm(a.receivedAt)}',
+                  hhmm(a.receivedAt),
+                  semanticsLabel: 'Reçue à ${hhmm(a.receivedAt)}',
                   style: PText.cardTitle.copyWith(fontSize: 18),
                 ),
                 if (!a.seen) const PPill('Nouvelle', bg: P.softRed, fg: P.red),
@@ -350,7 +354,8 @@ class AlertCard extends StatelessWidget {
               children: [
                 Flexible(
                   child: Text(
-                    'Reçue à ${hhmm(a.receivedAt)}',
+                    hhmm(a.receivedAt),
+                    semanticsLabel: 'Reçue à ${hhmm(a.receivedAt)}',
                     style: PText.cardTitle.copyWith(fontSize: 18),
                   ),
                 ),
