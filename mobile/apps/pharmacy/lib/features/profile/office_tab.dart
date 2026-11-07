@@ -7,6 +7,7 @@ import 'package:ivia_ui/ivia_ui.dart';
 import '../../common/providers.dart';
 import '../../common/ui.dart';
 import '../planning/planning_screen.dart';
+import '../earnings/balance_tab.dart';
 import '../push/push.dart';
 
 class OfficeTab extends ConsumerStatefulWidget {
@@ -191,6 +192,23 @@ class _OfficeTabState extends ConsumerState<OfficeTab> {
                 leading: const PIcon(Icons.place_outlined, size: 42),
                 title: const Text('Adresse'),
                 subtitle: Text(p.addressText),
+              ),
+              const Divider(height: 1),
+              ListTile(
+                leading: const PIcon(
+                  Icons.account_balance_wallet_outlined,
+                  size: 42,
+                ),
+                title: const Text('Relevé des versements'),
+                trailing: const Icon(Icons.chevron_right),
+                onTap: () => Navigator.of(context).push(
+                  MaterialPageRoute<void>(
+                    builder: (_) => const Scaffold(
+                      backgroundColor: P.page,
+                      body: SafeArea(child: BalanceTab()),
+                    ),
+                  ),
+                ),
               ),
               const Divider(height: 1),
               ListTile(

@@ -3,15 +3,19 @@ import 'dart:async';
 import 'package:flutter/material.dart';
 import 'package:flutter_riverpod/flutter_riverpod.dart';
 import 'package:ivia_api_client/ivia_api_client.dart';
+import 'package:ivia_ui/ivia_ui.dart';
 
 import '../../common/providers.dart';
 import '../../common/ui.dart';
+import '../alerts/alert_logic.dart';
 import '../alerts/inbox_tab.dart';
 import '../orders/orders_tab.dart';
 import '../profile/office_tab.dart';
-import '../earnings/balance_tab.dart';
+import 'home_tab.dart';
 
-/// Espace pharmacie : Alertes, Réservations, Officine, Solde.
+/// Espace pharmacie : Accueil, Alertes, Commandes, Profil, dans une barre
+/// flottante (F09). Alertes et commandes sont relues toutes les 5 s (le
+/// push complète sur téléphone).
 class PharmacyShell extends ConsumerStatefulWidget {
   const PharmacyShell({super.key});
 
@@ -26,8 +30,6 @@ class _PharmacyShellState extends ConsumerState<PharmacyShell> {
   @override
   void initState() {
     super.initState();
-    // Alertes et réservations relues en direct (les notifications push
-    // complètent sur téléphone).
     _poll = Timer.periodic(const Duration(seconds: 5), (_) {
       ref
         ..invalidate(inboxProvider)
@@ -41,55 +43,43 @@ class _PharmacyShellState extends ConsumerState<PharmacyShell> {
     super.dispose();
   }
 
+  void _go(int tab) => setState(() => _tab = tab);
+
   @override
   Widget build(BuildContext context) {
     final inbox = ref.watch(inboxProvider).value ?? const <InboxAlert>[];
-    final waiting = inbox
-        .where(
-          (a) =>
-              !a.responded &&
-              a.status == 'pending' &&
-              a.searchEndsAt.isAfter(DateTime.now()),
-        )
-        .length;
-    final orders = ref.watch(ordersProvider).value ?? const <PharmacyOrder>[];
-    final active = orders.where((o) => o.active).length;
+    final now = DateTime.now();
+    final unseen = inbox.where((a) => isNewAlert(a, now)).length;
     return Scaffold(
       backgroundColor: P.page,
-      body: SafeArea(
-        child: IndexedStack(
-          index: _tab,
-          children: const [InboxTab(), OrdersTab(), OfficeTab(), BalanceTab()],
-        ),
+      extendBody: true,
+      body: IndexedStack(
+        index: _tab,
+        children: [
+          HomeTab(onSeeAlerts: () => _go(1), onSeeOrders: () => _go(2)),
+          const SafeArea(bottom: false, child: InboxTab()),
+          const SafeArea(bottom: false, child: OrdersTab()),
+          const SafeArea(bottom: false, child: OfficeTab()),
+        ],
       ),
-      bottomNavigationBar: NavigationBar(
-        selectedIndex: _tab,
-        indicatorColor: P.softGreen,
-        onDestinationSelected: (i) => setState(() => _tab = i),
-        destinations: [
-          NavigationDestination(
-            icon: Badge(
-              isLabelVisible: waiting > 0,
-              label: Text('$waiting'),
-              child: const Icon(Icons.notifications_none),
-            ),
+      bottomNavigationBar: IviaBottomNav(
+        currentIndex: _tab,
+        onSelected: _go,
+        items: [
+          const IviaNavItem(icon: Icons.home_rounded, label: 'Accueil'),
+          IviaNavItem(
+            icon: Icons.notifications_none_rounded,
             label: 'Alertes',
+            badge: unseen,
+            badgeLabel: unseen > 1 ? '$unseen nouvelles' : '1 nouvelle',
           ),
-          NavigationDestination(
-            icon: Badge(
-              isLabelVisible: active > 0,
-              label: Text('$active'),
-              child: const Icon(Icons.inventory_2_outlined),
-            ),
-            label: 'Réservations',
+          const IviaNavItem(
+            icon: Icons.inventory_2_outlined,
+            label: 'Commandes',
           ),
-          const NavigationDestination(
-            icon: Icon(Icons.local_pharmacy_outlined),
-            label: 'Officine',
-          ),
-          const NavigationDestination(
-            icon: Icon(Icons.account_balance_wallet_outlined),
-            label: 'Solde',
+          const IviaNavItem(
+            icon: Icons.person_outline_rounded,
+            label: 'Profil',
           ),
         ],
       ),

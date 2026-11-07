@@ -34,7 +34,7 @@
       tirant, pharmacie suspendue.
 
 **Espace pharmacie**
-- [ ] 10. Barre flottante à 4 onglets (pilule verte, pastille des alertes non vues). Accueil F09 :
+- [x] 10. Barre flottante à 4 onglets (pilule verte, pastille des alertes non vues). Accueil F09 :
       - en-tête vert ;
       - interrupteur « En service » ;
       - chiffres du jour ;

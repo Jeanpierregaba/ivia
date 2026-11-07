@@ -44,7 +44,19 @@ class _CheckBadge extends StatelessWidget {
       children: [
         _CheckDot(color: color),
         const SizedBox(width: 12),
-        Text(text, style: IviaTextStyles.title3.copyWith(fontSize: 16)),
+        // Largeur de la maquette : le texte rétrécit plutôt que de déborder
+        // du panneau.
+        Flexible(
+          child: FittedBox(
+            fit: BoxFit.scaleDown,
+            alignment: Alignment.centerLeft,
+            child: Text(
+              text,
+              maxLines: 1,
+              style: IviaTextStyles.title3.copyWith(fontSize: 15),
+            ),
+          ),
+        ),
       ],
     ),
   );
@@ -201,6 +213,7 @@ class AlertIllustration extends StatelessWidget {
             const Positioned(
               left: 42,
               top: 282,
+              width: 262,
               child: Tilted(
                 degrees: 3,
                 child: _CheckBadge(
@@ -281,6 +294,7 @@ class ResponseIllustration extends StatelessWidget {
             const Positioned(
               left: 22,
               top: 270,
+              width: 196,
               child: Tilted(
                 degrees: -3,
                 child: _CheckBadge(text: 'Réponse envoyée', color: _green),

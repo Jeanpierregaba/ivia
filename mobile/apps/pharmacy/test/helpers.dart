@@ -193,3 +193,154 @@ Finder fieldOf(String label) => find.descendant(
   ),
   matching: find.byType(TextField),
 );
+
+/// Alerte reçue type (schéma `PharmacyInboxItem`), à [endsIn] de la fin.
+Map<String, dynamic> alertBody({
+  String id = 'a1',
+  bool seen = false,
+  bool responded = false,
+  bool unlocked = false,
+  String status = 'pending',
+  Duration endsIn = const Duration(minutes: 18, seconds: 42),
+  Duration receivedAgo = Duration.zero,
+  List<Map<String, dynamic>>? items,
+  List<Map<String, dynamic>> photos = const [],
+  bool generic = true,
+  String note = '',
+}) {
+  final now = DateTime.now().toUtc();
+  return {
+    'alert_id': id,
+    'items':
+        items ??
+        [
+          {
+            'id': 'i1',
+            'name': 'Paracétamol 1000 mg',
+            'form': 'Comprimés · boîte',
+            'quantity': 1,
+          },
+          {
+            'id': 'i2',
+            'name': 'Amoxicilline 500 mg',
+            'form': 'Gélules · boîte',
+            'quantity': 2,
+          },
+        ],
+    'photos': photos,
+    'photo_count': photos.length,
+    'note': note,
+    'generic_accepted': generic,
+    'distance_m': 650,
+    'status': status,
+    'alert_status': 'searching',
+    'search_ends_at': now.add(endsIn).toIso8601String(),
+    'seen': seen,
+    'received_at': now.subtract(receivedAgo).toIso8601String(),
+    'my_response': responded
+        ? {'total_xof': 7450, 'unlocked': unlocked, 'lines': <Object>[]}
+        : null,
+  };
+}
+
+/// Réservation type (schéma `PharmacyReservation`).
+Map<String, dynamic> orderBody({
+  String id = 'o1',
+  String status = 'reserved',
+  bool delivery = false,
+  bool prepared = false,
+  Map<String, dynamic>? courier,
+  Duration expiresIn = const Duration(minutes: 55),
+}) {
+  final now = DateTime.now().toUtc();
+  return {
+    'id': id,
+    'number': 'M-208',
+    'fulfillment': delivery ? 'delivery' : 'pickup',
+    'status': status,
+    'lines': [
+      {
+        'name': 'Paracétamol 1000 mg',
+        'quantity': 1,
+        'unit_price_xof': 1250,
+        'line_total_xof': 1250,
+        'available': true,
+        'prescription_required': false,
+      },
+      {
+        'name': 'Amoxicilline Denk 500 mg',
+        'quantity': 2,
+        'unit_price_xof': 3100,
+        'line_total_xof': 6200,
+        'available': true,
+        'prescription_required': true,
+      },
+    ],
+    'items_xof': 7450,
+    'pharmacy_due_xof': 7450,
+    'prescription_required': true,
+    'buyer_first_name': 'Afi',
+    'expires_at': now.add(expiresIn).toIso8601String(),
+    'prepared_at': prepared ? now.toIso8601String() : null,
+    'cancel_reason': '',
+    'courier': courier,
+    'created_at': now.subtract(const Duration(minutes: 5)).toIso8601String(),
+    'completed_at': null,
+  };
+}
+
+extension ApprovedPharmacy on PharmacyHarness {
+  /// Pharmacie validée, ouverte, avec ses alertes et ses réservations.
+  Future<void> signInApproved({
+    Map<String, dynamic> Function()? profile,
+    List<Map<String, dynamic>> Function()? inbox,
+    List<Map<String, dynamic>> Function()? orders,
+  }) async {
+    await signIn();
+    server
+      ..on(
+        'GET',
+        '/v1/pharmacy/me',
+        (_) => FakeResponse.json(
+          200,
+          profile?.call() ??
+              pharmacyBody(
+                status: 'approved',
+                payout: true,
+                documents: [
+                  'opening_authorization',
+                  'owner_id',
+                  'storefront_photo',
+                ],
+              ),
+        ),
+      )
+      ..on(
+        'GET',
+        '/v1/pharmacy/inbox',
+        (_) => FakeResponse.json(200, {'items': inbox?.call() ?? <Object>[]}),
+      )
+      ..on(
+        'GET',
+        '/v1/pharmacy/reservations',
+        (_) => FakeResponse.json(200, {'items': orders?.call() ?? <Object>[]}),
+      )
+      ..on(
+        'GET',
+        '/v1/pharmacy/me/duty-shifts',
+        (_) => FakeResponse.json(200, {'items': <Object>[]}),
+      )
+      ..on(
+        'GET',
+        '/v1/pharmacy/earnings',
+        (_) => FakeResponse.json(200, {
+          'due_xof': 0,
+          'paid_out_xof': 0,
+          'balance_xof': 0,
+          'delivered_count': 0,
+          'pickup_count': 0,
+          'payouts': <Object>[],
+        }),
+      );
+  }
+}
