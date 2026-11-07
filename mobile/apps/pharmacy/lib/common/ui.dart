@@ -578,6 +578,36 @@ class PErrorRetry extends StatelessWidget {
   );
 }
 
+/// Coche verte dans son halo (F14, F19, remise au client) ; double coche
+/// pour une remise au livreur.
+class DoneBadge extends StatelessWidget {
+  const DoneBadge({super.key, this.doubleCheck = false});
+  final bool doubleCheck;
+
+  @override
+  Widget build(BuildContext context) => ExcludeSemantics(
+    child: Container(
+      width: 112,
+      height: 112,
+      alignment: Alignment.center,
+      decoration: const BoxDecoration(
+        color: IviaPharmacyColors.doneHalo,
+        shape: BoxShape.circle,
+      ),
+      child: Container(
+        width: 88,
+        height: 88,
+        decoration: const BoxDecoration(color: P.green, shape: BoxShape.circle),
+        child: Icon(
+          doubleCheck ? Icons.done_all_rounded : Icons.check_rounded,
+          size: 46,
+          color: Colors.white,
+        ),
+      ),
+    ),
+  );
+}
+
 /// Formulaires des maquettes (F06, F07) : champs blancs sans bord, bord vert
 /// quand ils sont actifs, libellés de 15 dp. S'applique aux champs communs
 /// (numéro, listes) placés dessous.

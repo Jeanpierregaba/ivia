@@ -53,7 +53,7 @@
       - pages, zoom (doigt et boutons), pivot ;
       - canal `FLAG_SECURE` dans `MainActivity` et son test ;
       - mention Android seulement.
-- [ ] 14. Réponse F13 :
+- [x] 14. Réponse F13 :
       - disponible, prix, quantité, générique, « sur ordonnance » ;
       - total indicatif et « n / N » ;
       - ajout de produits pour une ordonnance en photo seule ;

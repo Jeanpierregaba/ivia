@@ -1,4 +1,5 @@
 import 'package:flutter/material.dart';
+import 'package:flutter/services.dart';
 import 'package:flutter_riverpod/flutter_riverpod.dart';
 import 'package:ivia_api_client/ivia_api_client.dart';
 import 'package:ivia_app_core/ivia_app_core.dart';
@@ -7,7 +8,95 @@ import 'package:ivia_ui/ivia_ui.dart';
 import '../../common/providers.dart';
 import '../../common/ui.dart';
 
-/// Réponse à une alerte, produit par produit (F13).
+/// Prix saisi en francs : chiffres seuls, groupés par milliers (« 1 250 »).
+class _PriceFormatter extends TextInputFormatter {
+  @override
+  TextEditingValue formatEditUpdate(
+    TextEditingValue oldValue,
+    TextEditingValue newValue,
+  ) {
+    final digits = newValue.text.replaceAll(RegExp(r'\D'), '');
+    final trimmed = digits.replaceFirst(RegExp(r'^0+(?=\d)'), '');
+    final out = StringBuffer();
+    for (var i = 0; i < trimmed.length; i++) {
+      if (i > 0 && (trimmed.length - i) % 3 == 0) out.write(' ');
+      out.write(trimmed[i]);
+    }
+    final text = out.toString();
+    return TextEditingValue(
+      text: text,
+      selection: TextSelection.collapsed(offset: text.length),
+    );
+  }
+}
+
+int _digits(String s) => int.tryParse(s.replaceAll(RegExp(r'\D'), '')) ?? 0;
+
+String _grouped(int n) => n == 0
+    ? ''
+    : _PriceFormatter()
+          .formatEditUpdate(
+            TextEditingValue.empty,
+            TextEditingValue(text: '$n'),
+          )
+          .text;
+
+/// Une ligne de la réponse : produit demandé (ou ajouté, ordonnance en photo
+/// seule), disponibilité, prix, quantité, générique, ordonnance.
+class _Line {
+  _Line({
+    this.itemId,
+    required this.requested,
+    required this.requestedQty,
+    String name = '',
+    int price = 0,
+    int? quantity,
+    this.available = true,
+    this.prescription = false,
+    String generic = '',
+  }) : name = TextEditingController(text: name),
+       price = TextEditingController(text: _grouped(price)),
+       quantity = TextEditingController(text: '${quantity ?? requestedQty}'),
+       generic = TextEditingController(text: generic);
+
+  /// `null` : produit ajouté par la pharmacie (ordonnance en photo seule).
+  final String? itemId;
+  final String requested;
+  final int requestedQty;
+  final TextEditingController name, price, quantity, generic;
+  bool available, prescription;
+
+  bool get added => itemId == null;
+  int get unitPrice => _digits(price.text);
+  int get qty => _digits(quantity.text).clamp(1, 100);
+
+  /// Nom envoyé : le générique proposé, sinon le produit demandé.
+  String get sentName {
+    if (added) return name.text.trim();
+    final g = generic.text.trim();
+    return g.isEmpty ? requested : g;
+  }
+
+  bool get complete => !available || (unitPrice > 0 && sentName.length >= 2);
+
+  ResponseLineDraft toDraft() => ResponseLineDraft(
+    alertItemId: itemId,
+    name: sentName,
+    quantity: qty,
+    unitPriceXof: available ? unitPrice : 0,
+    available: available,
+    prescriptionRequired: available && prescription,
+  );
+
+  void dispose() {
+    for (final c in [name, price, quantity, generic]) {
+      c.dispose();
+    }
+  }
+}
+
+/// Réponse à une alerte (F13) : une carte par produit, total indicatif des
+/// produits disponibles, puis « Réponse envoyée » (F14).
 class ResponseScreen extends ConsumerStatefulWidget {
   const ResponseScreen({super.key, required this.alertId});
   final String alertId;
@@ -18,9 +107,9 @@ class ResponseScreen extends ConsumerStatefulWidget {
 
 class _ResponseScreenState extends ConsumerState<ResponseScreen> {
   InboxAlert? _alert;
-  List<ResponseLineDraft> _lines = [];
-  final _note = TextEditingController();
+  final _lines = <_Line>[];
   var _busy = false;
+  var _expired = false;
   String? _error;
 
   @override
@@ -31,7 +120,9 @@ class _ResponseScreenState extends ConsumerState<ResponseScreen> {
 
   @override
   void dispose() {
-    _note.dispose();
+    for (final l in _lines) {
+      l.dispose();
+    }
     super.dispose();
   }
 
@@ -40,332 +131,582 @@ class _ResponseScreenState extends ConsumerState<ResponseScreen> {
       final a = await ref
           .read(apiClientProvider)
           .pharmacyInboxItem(widget.alertId);
+      if (!mounted) return;
+      final previous = a.responded ? a.myLines : const <MedLine>[];
       setState(() {
         _alert = a;
-        _lines = a.responded && a.myLines.isNotEmpty
-            ? [
-                for (final l in a.myLines)
-                  ResponseLineDraft(
-                    name: l.name,
-                    quantity: l.quantity,
-                    unitPriceXof: l.unitPriceXof,
-                    available: l.available,
-                    prescriptionRequired: l.prescriptionRequired,
-                  ),
-              ]
-            : a.items.isEmpty
-            ? [ResponseLineDraft(name: 'Ordonnance complète', quantity: 1)]
-            : [
-                for (final i in a.items)
-                  ResponseLineDraft(
-                    alertItemId: i.id,
-                    name: i.name,
-                    quantity: i.quantity,
-                  ),
-              ];
+        _lines.addAll([
+          for (final (i, item) in a.items.indexed)
+            _fromItem(item, i < previous.length ? previous[i] : null),
+          if (a.items.isEmpty)
+            for (final l in previous)
+              _Line(
+                requested: '',
+                requestedQty: 1,
+                name: l.name,
+                price: l.unitPriceXof,
+                quantity: l.quantity,
+                available: l.available,
+                prescription: l.prescriptionRequired,
+              ),
+          // Ordonnance en photo seule : une ligne vide à remplir.
+          if (a.items.isEmpty && previous.isEmpty)
+            _Line(requested: '', requestedQty: 1),
+        ]);
       });
     } on ApiException catch (e) {
-      setState(() => _error = e.message);
+      if (mounted) setState(() => _error = e.message);
     }
   }
 
+  _Line _fromItem(InboxAlertItem item, MedLine? sent) => _Line(
+    itemId: item.id,
+    requested: item.name,
+    requestedQty: item.quantity,
+    price: sent?.unitPriceXof ?? 0,
+    quantity: sent?.quantity,
+    available: sent?.available ?? true,
+    prescription: sent?.prescriptionRequired ?? false,
+    generic: sent != null && sent.name != item.name ? sent.name : '',
+  );
+
+  int get _total => _lines
+      .where((l) => l.available)
+      .fold(0, (sum, l) => sum + l.unitPrice * l.qty);
+
   Future<void> _send() async {
+    final a = _alert!;
     setState(() {
       _busy = true;
       _error = null;
     });
+    final drafts = [for (final l in _lines) l.toDraft()];
     try {
-      await ref
-          .read(apiClientProvider)
-          .pharmacyRespond(widget.alertId, _lines, note: _note.text.trim());
+      await ref.read(apiClientProvider).pharmacyRespond(widget.alertId, drafts);
       ref.invalidate(inboxProvider);
+      if (!mounted) return;
+      await Navigator.of(context).pushReplacement(
+        MaterialPageRoute<void>(
+          builder: (_) => ResponseSentScreen(
+            receivedAt: a.receivedAt,
+            available: drafts.where((d) => d.available).length,
+            count: drafts.length,
+            totalXof: _total,
+          ),
+        ),
+      );
+    } on ApiException catch (e) {
       if (mounted) {
-        ScaffoldMessenger.of(context).showSnackBar(
-          const SnackBar(content: Text('Réponse envoyée au patient.')),
-        );
-        Navigator.of(context).pop(true);
+        setState(() {
+          _busy = false;
+          _error = e.fields.values.firstOrNull ?? e.message;
+        });
       }
-    } on ApiException catch (e) {
-      setState(() => _error = e.message);
-    } finally {
-      if (mounted) setState(() => _busy = false);
-    }
-  }
-
-  Future<void> _decline() async {
-    setState(() => _busy = true);
-    try {
-      await ref.read(apiClientProvider).pharmacyDecline(widget.alertId);
-      ref.invalidate(inboxProvider);
-      if (mounted) Navigator.of(context).pop();
-    } on ApiException catch (e) {
-      setState(() => _error = e.message);
-    } finally {
-      if (mounted) setState(() => _busy = false);
     }
   }
 
   @override
   Widget build(BuildContext context) {
-    final t = Theme.of(context).textTheme;
     final a = _alert;
-    final total = _lines
-        .where((l) => l.available)
-        .fold<int>(0, (s, l) => s + l.unitPriceXof * l.quantity);
-    final canAnswer =
+    final available = _lines.where((l) => l.available).length;
+    final canSend =
         a != null &&
-        !a.unlocked &&
-        a.searchEndsAt.isAfter(DateTime.now()) &&
-        a.status != 'declined';
+        !_expired &&
+        available > 0 &&
+        _lines.every((l) => l.complete);
     return Scaffold(
       backgroundColor: P.page,
-      appBar: AppBar(
-        backgroundColor: P.page,
-        title: const Text('Alerte médicament'),
-      ),
-      body: a == null
-          ? Center(
-              child: _error == null
-                  ? const CircularProgressIndicator()
-                  : Text(_error!),
-            )
-          : ListView(
-              padding: const EdgeInsets.all(IviaSpacing.screen),
-              children: [
-                Text(
-                  a.title,
-                  style: t.headlineSmall?.copyWith(fontWeight: FontWeight.w800),
-                ),
-                Text(
-                  'Patient à ${formatDistance(a.distanceM)} · reçue à ${hhmm(a.receivedAt)}',
-                  style: t.bodyMedium?.copyWith(color: P.muted),
-                ),
-                const SizedBox(height: 10),
-                Wrap(
-                  spacing: 8,
-                  children: [
-                    if (a.genericAccepted)
-                      const PPill(
-                        'Générique accepté',
-                        bg: P.softBlue,
-                        fg: P.blue,
-                      ),
-                    if (canAnswer)
-                      PPill(
-                        'Répondre avant ${hhmm(a.searchEndsAt)}',
-                        bg: P.softRed,
-                        fg: P.red,
-                      ),
-                  ],
-                ),
-                if (a.note.isNotEmpty) ...[
-                  const SizedBox(height: 12),
-                  PCard(
-                    color: P.softYellow,
-                    child: Text('« ${a.note} »', style: t.bodyLarge),
-                  ),
-                ],
-                if (a.photos.isNotEmpty) ...[
-                  const SizedBox(height: 14),
-                  SizedBox(
-                    height: 220,
-                    child: ListView.separated(
-                      scrollDirection: Axis.horizontal,
-                      itemCount: a.photos.length,
-                      separatorBuilder: (_, _) => const SizedBox(width: 10),
-                      itemBuilder: (context, i) {
-                        final ph = a.photos[i];
-                        return GestureDetector(
-                          onTap: ph.url == null
-                              ? null
-                              : () => showDialog<void>(
-                                  context: context,
-                                  builder: (_) => Dialog(
-                                    child: InteractiveViewer(
-                                      child: Image.network(ph.url!),
-                                    ),
-                                  ),
-                                ),
-                          child: ClipRRect(
-                            borderRadius: BorderRadius.circular(20),
-                            child: ph.url == null
-                                ? Container(
-                                    width: 180,
-                                    color: const Color(0xFFE3E5E9),
-                                    child: const Icon(
-                                      Icons.image_not_supported,
-                                    ),
-                                  )
-                                : Image.network(
-                                    ph.url!,
-                                    width: 180,
-                                    fit: BoxFit.cover,
-                                  ),
-                          ),
-                        );
-                      },
+      body: SafeArea(
+        child: Column(
+          children: [
+            PHeader(
+              title: 'Votre réponse',
+              trailing: a == null
+                  ? null
+                  : PCountdownPill(
+                      deadline: a.searchEndsAt,
+                      onExpired: () => setState(() => _expired = true),
                     ),
-                  ),
-                  Text(
-                    'Photos visibles pendant l\'alerte seulement. Touchez pour agrandir.',
-                    style: t.bodySmall?.copyWith(color: P.muted),
-                  ),
-                ],
-                const SizedBox(height: 18),
-                Text(
-                  a.responded
-                      ? 'Votre réponse'
-                      : 'Votre réponse, produit par produit',
-                  style: t.titleMedium?.copyWith(fontWeight: FontWeight.w800),
-                ),
-                const SizedBox(height: 10),
-                for (final l in _lines)
-                  Padding(
-                    padding: const EdgeInsets.only(bottom: 10),
-                    child: PCard(
-                      child: Column(
-                        crossAxisAlignment: CrossAxisAlignment.start,
-                        children: [
-                          Row(
+            ),
+            Expanded(
+              child: a == null
+                  ? Center(
+                      child: _error == null
+                          ? const CircularProgressIndicator()
+                          : Padding(
+                              padding: const EdgeInsets.all(P.gutter),
+                              child: PErrorRetry(message: _error!),
+                            ),
+                    )
+                  : ListView(
+                      padding: const EdgeInsets.fromLTRB(
+                        P.gutter,
+                        4,
+                        P.gutter,
+                        12,
+                      ),
+                      children: [
+                        for (final l in _lines)
+                          Padding(
+                            padding: const EdgeInsets.only(bottom: 10),
+                            child: _LineCard(
+                              line: l,
+                              genericAccepted: a.genericAccepted,
+                              enabled: !_busy && !_expired,
+                              onChanged: () => setState(() {}),
+                              onRemove: l.added && _lines.length > 1
+                                  ? () => setState(() {
+                                      _lines.remove(l);
+                                      l.dispose();
+                                    })
+                                  : null,
+                            ),
+                          ),
+                        if (a.items.isEmpty)
+                          Padding(
+                            padding: const EdgeInsets.only(bottom: 10),
+                            child: PButton(
+                              label: 'Ajouter un produit',
+                              icon: Icons.add,
+                              style: PButtonStyle.outline,
+                              height: 48,
+                              onTap: _busy || _lines.length >= 30
+                                  ? null
+                                  : () => setState(
+                                      () => _lines.add(
+                                        _Line(requested: '', requestedQty: 1),
+                                      ),
+                                    ),
+                            ),
+                          ),
+                        PCard(
+                          child: Row(
                             children: [
                               Expanded(
-                                child: Text(
-                                  '${l.quantity} × ${l.name}',
-                                  style: t.titleMedium?.copyWith(
-                                    fontWeight: FontWeight.w800,
-                                  ),
+                                child: Column(
+                                  crossAxisAlignment: CrossAxisAlignment.start,
+                                  children: [
+                                    Text(
+                                      'Total indicatif',
+                                      style: PText.bodyMuted,
+                                    ),
+                                    Text(
+                                      formatXof(_total),
+                                      style: PText.figure.copyWith(
+                                        fontSize: 24,
+                                      ),
+                                    ),
+                                  ],
                                 ),
                               ),
-                              Switch(
-                                value: l.available,
-                                activeTrackColor: P.green,
-                                onChanged: canAnswer
-                                    ? (v) => setState(() => l.available = v)
-                                    : null,
+                              const SizedBox(width: 8),
+                              PPill(
+                                '$available / ${_lines.length} disponible'
+                                '${available > 1 ? 's' : ''}',
                               ),
                             ],
                           ),
-                          Text(
-                            l.available ? 'Disponible' : 'Indisponible',
-                            style: t.bodySmall?.copyWith(
-                              color: l.available ? P.green : P.muted,
+                        ),
+                        if (_expired)
+                          Padding(
+                            padding: const EdgeInsets.only(top: 12),
+                            child: Text(
+                              'Alerte terminée : la réponse ne peut plus partir.',
+                              style: PText.body.copyWith(color: P.danger),
                             ),
                           ),
-                          if (l.available) ...[
-                            const SizedBox(height: 10),
-                            Row(
-                              children: [
-                                Expanded(
-                                  child: TextFormField(
-                                    initialValue: l.unitPriceXof == 0
-                                        ? ''
-                                        : '${l.unitPriceXof}',
-                                    enabled: canAnswer,
-                                    keyboardType: TextInputType.number,
-                                    decoration: const InputDecoration(
-                                      labelText: 'Prix unitaire (F)',
-                                    ),
-                                    onChanged: (v) => setState(
-                                      () => l.unitPriceXof =
-                                          int.tryParse(
-                                            v.replaceAll(RegExp(r'\D'), ''),
-                                          ) ??
-                                          0,
-                                    ),
-                                  ),
-                                ),
-                                const SizedBox(width: 12),
-                                SizedBox(
-                                  width: 90,
-                                  child: TextFormField(
-                                    initialValue: '${l.quantity}',
-                                    enabled: canAnswer,
-                                    keyboardType: TextInputType.number,
-                                    decoration: const InputDecoration(
-                                      labelText: 'Qté',
-                                    ),
-                                    onChanged: (v) => setState(
-                                      () => l.quantity = (int.tryParse(v) ?? 1)
-                                          .clamp(1, 99),
-                                    ),
-                                  ),
-                                ),
-                              ],
+                        if (_error != null)
+                          Padding(
+                            padding: const EdgeInsets.only(top: 12),
+                            child: Semantics(
+                              liveRegion: true,
+                              child: Text(
+                                _error!,
+                                style: PText.body.copyWith(color: P.danger),
+                              ),
                             ),
-                            CheckboxListTile(
-                              contentPadding: EdgeInsets.zero,
-                              dense: true,
-                              value: l.prescriptionRequired,
-                              onChanged: canAnswer
-                                  ? (v) => setState(
-                                      () => l.prescriptionRequired = v ?? false,
-                                    )
-                                  : null,
-                              title: const Text('Sur ordonnance'),
-                            ),
-                          ],
-                        ],
-                      ),
+                          ),
+                      ],
+                    ),
+            ),
+            if (a != null)
+              PBottomBar(
+                children: [
+                  PButton(
+                    label: a.responded
+                        ? 'Mettre à jour la réponse'
+                        : 'Envoyer la réponse',
+                    icon: Icons.send,
+                    busy: _busy,
+                    onTap: canSend ? _send : null,
+                  ),
+                ],
+              ),
+          ],
+        ),
+      ),
+    );
+  }
+}
+
+class _LineCard extends StatelessWidget {
+  const _LineCard({
+    required this.line,
+    required this.genericAccepted,
+    required this.enabled,
+    required this.onChanged,
+    required this.onRemove,
+  });
+
+  final _Line line;
+  final bool genericAccepted, enabled;
+  final VoidCallback onChanged;
+  final VoidCallback? onRemove;
+
+  /// Champ gris des maquettes (F13).
+  static InputDecoration _input({String? suffix, String? hint}) {
+    const border = OutlineInputBorder(
+      borderRadius: BorderRadius.all(Radius.circular(16)),
+      borderSide: BorderSide.none,
+    );
+    return InputDecoration(
+      filled: true,
+      fillColor: P.page,
+      hintText: hint,
+      suffixText: suffix,
+      suffixStyle: PText.label.copyWith(color: P.muted),
+      contentPadding: const EdgeInsets.symmetric(horizontal: 14, vertical: 14),
+      border: border,
+      enabledBorder: border,
+      disabledBorder: border,
+      focusedBorder: const OutlineInputBorder(
+        borderRadius: BorderRadius.all(Radius.circular(16)),
+        borderSide: BorderSide(color: P.green, width: 2),
+      ),
+    );
+  }
+
+  Future<void> _editGeneric(BuildContext context) async {
+    final value = await showDialog<String>(
+      context: context,
+      builder: (_) =>
+          _GenericDialog(initial: line.generic.text, requested: line.requested),
+    );
+    if (value == null) return;
+    line.generic.text = value;
+    onChanged();
+  }
+
+  @override
+  Widget build(BuildContext context) {
+    final l = line;
+    final title = l.added
+        ? IviaFieldLabel(
+            label: 'Produit',
+            child: TextField(
+              controller: l.name,
+              enabled: enabled,
+              maxLength: 160,
+              textCapitalization: TextCapitalization.sentences,
+              onChanged: (_) => onChanged(),
+              decoration: _input(hint: 'Nom et dosage')
+                  .copyWith(counterText: ''),
+            ),
+          )
+        : Column(
+            crossAxisAlignment: CrossAxisAlignment.start,
+            children: [
+              Text(l.requested, style: PText.cardTitle.copyWith(fontSize: 18)),
+              Text('Demandé : ${l.requestedQty}', style: PText.small),
+            ],
+          );
+    final availability = MergeSemantics(
+      child: Row(
+        mainAxisSize: MainAxisSize.min,
+        children: [
+          Flexible(
+            child: Text(
+              l.available ? 'Disponible' : 'Indisponible',
+              style: PText.button.copyWith(
+                fontSize: 16,
+                color: l.available ? P.green : P.muted,
+              ),
+            ),
+          ),
+          PSwitch(
+            value: l.available,
+            onChanged: enabled
+                ? (v) {
+                    l.available = v;
+                    onChanged();
+                  }
+                : null,
+          ),
+        ],
+      ),
+    );
+    final remove = onRemove == null
+        ? null
+        : IconButton(
+            tooltip: 'Retirer ce produit',
+            onPressed: enabled ? onRemove : null,
+            icon: const Icon(Icons.close, color: P.muted),
+          );
+    // Police très agrandie : la disponibilité passe sous le nom.
+    final stacked = MediaQuery.textScalerOf(context).scale(10) > 13;
+    return PCard(
+      child: Column(
+        crossAxisAlignment: CrossAxisAlignment.stretch,
+        children: [
+          if (stacked) ...[
+            Row(
+              crossAxisAlignment: CrossAxisAlignment.start,
+              children: [
+                Expanded(child: title),
+                ?remove,
+              ],
+            ),
+            Align(alignment: Alignment.centerLeft, child: availability),
+          ] else
+            Row(
+              crossAxisAlignment: CrossAxisAlignment.start,
+              children: [
+                Expanded(child: title),
+                const SizedBox(width: 8),
+                availability,
+                ?remove,
+              ],
+            ),
+          if (l.available) ...[
+            const SizedBox(height: 10),
+            Row(
+              crossAxisAlignment: CrossAxisAlignment.start,
+              children: [
+                Expanded(
+                  flex: 5,
+                  child: IviaFieldLabel(
+                    label: 'Prix unitaire',
+                    child: TextField(
+                      controller: l.price,
+                      enabled: enabled,
+                      keyboardType: TextInputType.number,
+                      inputFormatters: [_PriceFormatter()],
+                      onChanged: (_) => onChanged(),
+                      decoration: _input(suffix: 'F', hint: '0'),
                     ),
                   ),
-                if (canAnswer)
-                  TextField(
-                    controller: _note,
-                    maxLength: 300,
-                    decoration: const InputDecoration(
-                      hintText: 'Message au patient (facultatif)',
+                ),
+                const SizedBox(width: 8),
+                Expanded(
+                  flex: 3,
+                  child: IviaFieldLabel(
+                    label: 'Quantité',
+                    child: TextField(
+                      controller: l.quantity,
+                      enabled: enabled,
+                      keyboardType: TextInputType.number,
+                      inputFormatters: [
+                        FilteringTextInputFormatter.digitsOnly,
+                        LengthLimitingTextInputFormatter(3),
+                      ],
+                      onChanged: (_) => onChanged(),
+                      decoration: _input(),
                     ),
                   ),
-                const SizedBox(height: 8),
-                PCard(
-                  color: P.navy,
-                  child: Row(
+                ),
+              ],
+            ),
+            if (genericAccepted && !l.added)
+              Semantics(
+                button: true,
+                label: l.generic.text.isEmpty
+                    ? 'Proposer un générique'
+                    : 'Générique : ${l.generic.text}, modifier',
+                excludeSemantics: true,
+                child: InkWell(
+                  onTap: enabled ? () => _editGeneric(context) : null,
+                  borderRadius: BorderRadius.circular(8),
+                  child: ConstrainedBox(
+                    constraints: const BoxConstraints(minHeight: 48),
+                    child: Row(
+                      children: [
+                        const Icon(Icons.swap_horiz, size: 20, color: P.green),
+                        const SizedBox(width: 10),
+                        if (l.generic.text.isEmpty)
+                          Expanded(
+                            child: Text(
+                              'Proposer un générique',
+                              style: PText.button.copyWith(
+                                fontSize: 15,
+                                color: P.green,
+                              ),
+                            ),
+                          )
+                        else
+                          Expanded(
+                            child: Text.rich(
+                              TextSpan(
+                                text: 'Générique :  ',
+                                children: [
+                                  TextSpan(
+                                    text: l.generic.text,
+                                    style: const TextStyle(
+                                      fontWeight: FontWeight.w700,
+                                      color: P.ink,
+                                    ),
+                                  ),
+                                ],
+                              ),
+                              style: PText.body.copyWith(color: P.label),
+                            ),
+                          ),
+                      ],
+                    ),
+                  ),
+                ),
+              ),
+            PCheckRow(
+              value: l.prescription,
+              onChanged: enabled
+                  ? (v) {
+                      l.prescription = v;
+                      onChanged();
+                    }
+                  : null,
+              label: 'Délivré sur ordonnance uniquement',
+            ),
+          ],
+        ],
+      ),
+    );
+  }
+}
+
+/// Nom du générique proposé ; « Aucun » le retire.
+class _GenericDialog extends StatefulWidget {
+  const _GenericDialog({required this.initial, required this.requested});
+  final String initial, requested;
+
+  @override
+  State<_GenericDialog> createState() => _GenericDialogState();
+}
+
+class _GenericDialogState extends State<_GenericDialog> {
+  late final _c = TextEditingController(text: widget.initial);
+
+  @override
+  void dispose() {
+    _c.dispose();
+    super.dispose();
+  }
+
+  @override
+  Widget build(BuildContext context) => AlertDialog(
+    title: const Text('Générique proposé'),
+    content: TextField(
+      controller: _c,
+      autofocus: true,
+      maxLength: 160,
+      textCapitalization: TextCapitalization.sentences,
+      decoration: InputDecoration(hintText: widget.requested),
+    ),
+    actions: [
+      TextButton(
+        onPressed: () => Navigator.pop(context, ''),
+        child: const Text('Aucun'),
+      ),
+      TextButton(
+        onPressed: () => Navigator.pop(context, _c.text.trim()),
+        child: const Text('Valider'),
+      ),
+    ],
+  );
+}
+
+/// Réponse envoyée (F14) : produits disponibles, total, « Retour aux
+/// alertes ».
+class ResponseSentScreen extends StatelessWidget {
+  const ResponseSentScreen({
+    super.key,
+    required this.receivedAt,
+    required this.available,
+    required this.count,
+    required this.totalXof,
+  });
+
+  final DateTime receivedAt;
+  final int available, count, totalXof;
+
+  @override
+  Widget build(BuildContext context) {
+    Widget row(String label, String value) => Padding(
+      padding: const EdgeInsets.symmetric(vertical: 4),
+      child: Row(
+        children: [
+          Expanded(
+            child: Text(label, style: PText.body.copyWith(color: P.label)),
+          ),
+          Text(value, style: PText.cardTitle.copyWith(fontSize: 16)),
+        ],
+      ),
+    );
+    return Scaffold(
+      backgroundColor: P.page,
+      body: SafeArea(
+        child: Column(
+          children: [
+            Expanded(
+              child: Center(
+                child: SingleChildScrollView(
+                  padding: const EdgeInsets.symmetric(horizontal: P.gutter),
+                  child: Column(
+                    crossAxisAlignment: CrossAxisAlignment.start,
                     children: [
-                      Expanded(
-                        child: Text(
-                          'Total proposé',
-                          style: t.titleMedium?.copyWith(color: Colors.white70),
+                      const DoneBadge(),
+                      const SizedBox(height: 22),
+                      Semantics(
+                        header: true,
+                        liveRegion: true,
+                        child: Text('Réponse envoyée', style: PText.heading),
+                      ),
+                      const SizedBox(height: 6),
+                      Text(
+                        'Si le client confirme votre pharmacie, vous recevrez '
+                        'une notification. Vos prix sont engageants pendant la '
+                        'mise de côté.',
+                        style: PText.bodyMuted.copyWith(
+                          fontSize: 16,
+                          color: P.label,
                         ),
                       ),
-                      Text(
-                        formatXof(total),
-                        style: t.titleLarge?.copyWith(
-                          color: Colors.white,
-                          fontWeight: FontWeight.w800,
+                      const SizedBox(height: 22),
+                      PCard(
+                        child: Column(
+                          children: [
+                            row('Alerte', 'Reçue à ${hhmm(receivedAt)}'),
+                            row('Produits disponibles', '$available / $count'),
+                            row('Total indicatif', formatXof(totalXof)),
+                          ],
                         ),
                       ),
                     ],
                   ),
                 ),
-                if (_error != null)
-                  Padding(
-                    padding: const EdgeInsets.only(top: 10),
-                    child: Text(_error!, style: const TextStyle(color: P.red)),
-                  ),
-                const SizedBox(height: 16),
-                if (canAnswer) ...[
-                  PButton(
-                    label: a.responded
-                        ? 'Mettre à jour ma réponse'
-                        : 'Envoyer ma réponse',
-                    icon: Icons.send,
-                    busy: _busy,
-                    onTap: _send,
-                  ),
-                  if (!a.responded)
-                    TextButton(
-                      onPressed: _busy ? null : _decline,
-                      child: const Text('Je n\'ai pas ces produits'),
-                    ),
-                ] else
-                  Text(
-                    a.unlocked
-                        ? 'Le patient a débloqué votre pharmacie : voyez l\'onglet Réservations.'
-                        : 'Alerte terminée.',
-                    style: t.bodyMedium,
-                  ),
+              ),
+            ),
+            PBottomBar(
+              children: [
+                PButton(
+                  label: 'Retour aux alertes',
+                  style: PButtonStyle.outline,
+                  onTap: () =>
+                      Navigator.of(context).popUntil((route) => route.isFirst),
+                ),
               ],
             ),
+          ],
+        ),
+      ),
     );
   }
 }

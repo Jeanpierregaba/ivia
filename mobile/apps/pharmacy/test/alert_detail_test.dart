@@ -94,7 +94,7 @@ void main() {
   testWidgets('« Répondre » ouvre la réponse', (tester) async {
     await openDetail(tester);
     await tapText(tester, 'Répondre');
-    expect(find.text('Votre réponse, produit par produit'), findsOneWidget);
+    expect(find.text('Votre réponse'), findsOneWidget);
   });
 
   testWidgets('alerte terminée : ni « Ignorer » ni « Répondre »', (

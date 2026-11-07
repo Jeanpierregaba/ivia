@@ -13,6 +13,9 @@ abstract final class IviaPharmacyColors {
   /// Interrupteur allumé, sur fond vert.
   static const switchOn = Color(0xFF2FBF85);
 
+  /// Halo de la coche des écrans de réussite (F14, F19).
+  static const doneHalo = Color(0xFFD7E5E2);
+
   /// Texte secondaire sur fond vert (« Vous recevez les alertes »).
   static const onGreenMuted = Color(0xFFCDEBDD);
 
