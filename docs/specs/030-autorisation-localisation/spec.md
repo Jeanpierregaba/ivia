@@ -26,8 +26,9 @@ l'app, avec une épingle) et le lien « Refuser ».
 | Pharmacie | vert `#0B7A55` | Pharmacie | pharmacie · 4 personnes | Les alertes **de votre quartier** | Activez la localisation pour recevoir les demandes des clients proches. |
 
 Le lien du bas des maquettes (« Choisir mon quartier », « Saisir l'adresse », « Plus tard ») est
-remplacé par **« Refuser »** dans les 4 apps : l'écran ne propose ni choix de quartier ni saisie
-d'adresse.
+remplacé par **« Plus tard »** (pharmacie : « Saisir l'adresse ») : l'écran ne propose ni choix de
+quartier ni saisie d'adresse. D'abord « Refuser » ; libellés de Gedeon gardés par décision du
+porteur du projet (2026-11-07). Dans la suite de cette spec, « Refuser » désigne ce lien.
 
 **Premier lancement**
 1. Splash, puis l'écran de localisation, si la position n'est pas déjà autorisée.
