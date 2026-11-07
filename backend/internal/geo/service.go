@@ -50,6 +50,24 @@ func NewService(db *database.DB, audit *admin.Service) *Service {
 
 var errNotFound = apperr.NotFound("neighborhood_not_found", "Quartier introuvable.")
 
+// nearestMaxM : au-delà, le point n'est rattaché à aucun quartier connu.
+const nearestMaxM = 4000
+
+// NearestName retourne le nom du quartier le plus proche de p ; « » si aucun quartier connu n'est
+// assez près. Ne renvoie jamais le point lui-même.
+func (s *Service) NearestName(ctx context.Context, p Point) (string, error) {
+	name, err := store.New(s.db.Conn(ctx)).NearestNeighborhood(ctx, store.NearestNeighborhoodParams{
+		Lat: p.Lat, Lng: p.Lng, MaxM: nearestMaxM,
+	})
+	if database.IsNoRows(err) {
+		return "", nil
+	}
+	if err != nil {
+		return "", fmt.Errorf("quartier le plus proche : %w", err)
+	}
+	return name, nil
+}
+
 // List retourne les quartiers (actifs seulement, sauf includeInactive).
 func (s *Service) List(ctx context.Context, includeInactive bool) ([]Neighborhood, error) {
 	rows, err := store.New(s.db.Conn(ctx)).ListNeighborhoods(ctx, includeInactive)

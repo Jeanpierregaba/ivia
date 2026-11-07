@@ -14431,6 +14431,9 @@ components:
         id:
           type: string
           format: uuid
+        number:
+          type: string
+          description: "Numéro court affiché (« A-12 »), qui ne repasse jamais par zéro."
         kind:
           type: string
           enum:
@@ -14491,6 +14494,7 @@ components:
           format: date-time
       required:
         - id
+        - number
         - kind
         - items
         - photos
@@ -14633,6 +14637,14 @@ components:
         alert_id:
           type: string
           format: uuid
+        number:
+          type: string
+          description: "Numéro court de l'alerte (« A-12 »)."
+        client_neighborhood:
+          type:
+            - string
+            - "null"
+          description: "Quartier connu le plus proche du client (à moins de 4 km), jamais sa position ; null sinon."
         kind:
           type: string
           enum:
@@ -14688,6 +14700,8 @@ components:
           format: date-time
       required:
         - alert_id
+        - number
+        - client_neighborhood
         - kind
         - items
         - photos

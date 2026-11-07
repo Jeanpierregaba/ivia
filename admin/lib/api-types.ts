@@ -6595,6 +6595,8 @@ export interface components {
         MedicineAlert: {
             /** Format: uuid */
             id: string;
+            /** @description Numéro court affiché (« A-12 »), qui ne repasse jamais par zéro. */
+            number: string;
             /** @enum {string} */
             kind: "prescription" | "box_photo" | "name" | "mixed";
             items: components["schemas"]["MedicineAlertItem"][];
@@ -6665,6 +6667,10 @@ export interface components {
         PharmacyInboxItem: {
             /** Format: uuid */
             alert_id: string;
+            /** @description Numéro court de l'alerte (« A-12 »). */
+            number: string;
+            /** @description Quartier connu le plus proche du client (à moins de 4 km), jamais sa position ; null sinon. */
+            client_neighborhood: string | null;
             /** @enum {string} */
             kind: "prescription" | "box_photo" | "name" | "mixed";
             items: components["schemas"]["MedicineAlertItem"][];

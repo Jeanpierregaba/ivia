@@ -951,7 +951,7 @@ const getAlert = `-- name: GetAlert :one
 SELECT a.id, a.buyer_id, a.kind, a.medicine_name, a.quantity, a.note, a.photo_key, a.photo_purged_at,
        ST_Y(a.location::geometry)::float8 AS lat, ST_X(a.location::geometry)::float8 AS lng,
        a.radius_m, a.status, a.search_ends_at, a.widened_at, a.closed_at, a.unlocked_at, a.created_at, a.updated_at,
-       a.generic_accepted, a.relaunched_from
+       a.generic_accepted, a.relaunched_from, a.number
 FROM pharmacy_alerts a WHERE a.id = $1
 `
 
@@ -976,6 +976,7 @@ type GetAlertRow struct {
 	UpdatedAt       time.Time
 	GenericAccepted bool
 	RelaunchedFrom  *uuid.UUID
+	Number          int64
 }
 
 func (q *Queries) GetAlert(ctx context.Context, id uuid.UUID) (GetAlertRow, error) {
@@ -1002,6 +1003,7 @@ func (q *Queries) GetAlert(ctx context.Context, id uuid.UUID) (GetAlertRow, erro
 		&i.UpdatedAt,
 		&i.GenericAccepted,
 		&i.RelaunchedFrom,
+		&i.Number,
 	)
 	return i, err
 }
@@ -1347,7 +1349,9 @@ func (q *Queries) GetTarget(ctx context.Context, arg GetTargetParams) (PharmacyA
 const inbox = `-- name: Inbox :many
 SELECT t.alert_id, t.distance_m, t.status AS target_status, t.notified_at,
        a.kind, a.medicine_name, a.quantity, a.note, a.photo_key, a.status AS alert_status, a.search_ends_at,
-       a.generic_accepted, t.seen_at
+       a.generic_accepted, t.seen_at, a.number,
+       -- Position du client : sert seulement à trouver son quartier, jamais renvoyée à la pharmacie.
+       ST_Y(a.location::geometry)::float8 AS lat, ST_X(a.location::geometry)::float8 AS lng
 FROM pharmacy_alert_targets t
 JOIN pharmacy_alerts a ON a.id = t.alert_id
 WHERE t.pharmacy_id = $1
@@ -1377,6 +1381,9 @@ type InboxRow struct {
 	SearchEndsAt    time.Time
 	GenericAccepted bool
 	SeenAt          *time.Time
+	Number          int64
+	Lat             float64
+	Lng             float64
 }
 
 // Alertes adressées à la pharmacie (sans aucune donnée du client).
@@ -1408,6 +1415,9 @@ func (q *Queries) Inbox(ctx context.Context, arg InboxParams) ([]InboxRow, error
 			&i.SearchEndsAt,
 			&i.GenericAccepted,
 			&i.SeenAt,
+			&i.Number,
+			&i.Lat,
+			&i.Lng,
 		); err != nil {
 			return nil, err
 		}
@@ -1422,7 +1432,9 @@ func (q *Queries) Inbox(ctx context.Context, arg InboxParams) ([]InboxRow, error
 const inboxItem = `-- name: InboxItem :one
 SELECT t.alert_id, t.distance_m, t.status AS target_status, t.notified_at,
        a.kind, a.medicine_name, a.quantity, a.note, a.photo_key, a.status AS alert_status, a.search_ends_at,
-       a.generic_accepted, t.seen_at
+       a.generic_accepted, t.seen_at, a.number,
+       -- Position du client : sert seulement à trouver son quartier, jamais renvoyée à la pharmacie.
+       ST_Y(a.location::geometry)::float8 AS lat, ST_X(a.location::geometry)::float8 AS lng
 FROM pharmacy_alert_targets t
 JOIN pharmacy_alerts a ON a.id = t.alert_id
 WHERE t.alert_id = $1 AND t.pharmacy_id = $2
@@ -1447,6 +1459,9 @@ type InboxItemRow struct {
 	SearchEndsAt    time.Time
 	GenericAccepted bool
 	SeenAt          *time.Time
+	Number          int64
+	Lat             float64
+	Lng             float64
 }
 
 func (q *Queries) InboxItem(ctx context.Context, arg InboxItemParams) (InboxItemRow, error) {
@@ -1466,6 +1481,9 @@ func (q *Queries) InboxItem(ctx context.Context, arg InboxItemParams) (InboxItem
 		&i.SearchEndsAt,
 		&i.GenericAccepted,
 		&i.SeenAt,
+		&i.Number,
+		&i.Lat,
+		&i.Lng,
 	)
 	return i, err
 }

@@ -149,6 +149,29 @@ func (q *Queries) ListNeighborhoods(ctx context.Context, includeInactive bool) (
 	return items, nil
 }
 
+const nearestNeighborhood = `-- name: NearestNeighborhood :one
+SELECT name
+FROM neighborhoods
+WHERE is_active AND center IS NOT NULL
+  AND ST_DWithin(center, ST_SetSRID(ST_MakePoint($1::float8, $2::float8), 4326)::geography, $3::float8)
+ORDER BY center <-> ST_SetSRID(ST_MakePoint($1::float8, $2::float8), 4326)::geography
+LIMIT 1
+`
+
+type NearestNeighborhoodParams struct {
+	Lng  float64
+	Lat  float64
+	MaxM float64
+}
+
+// Quartier actif dont le centre est le plus proche du point, à moins de max_m mètres.
+func (q *Queries) NearestNeighborhood(ctx context.Context, arg NearestNeighborhoodParams) (string, error) {
+	row := q.db.QueryRow(ctx, nearestNeighborhood, arg.Lng, arg.Lat, arg.MaxM)
+	var name string
+	err := row.Scan(&name)
+	return name, err
+}
+
 const updateNeighborhood = `-- name: UpdateNeighborhood :one
 UPDATE neighborhoods
 SET name       = $1,

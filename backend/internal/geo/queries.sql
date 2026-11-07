@@ -40,3 +40,12 @@ SELECT ST_Distance(
   ST_SetSRID(ST_MakePoint(sqlc.arg(from_lng)::float8, sqlc.arg(from_lat)::float8), 4326)::geography,
   ST_SetSRID(ST_MakePoint(sqlc.arg(to_lng)::float8, sqlc.arg(to_lat)::float8), 4326)::geography
 )::float8 AS meters;
+
+-- name: NearestNeighborhood :one
+-- Quartier actif dont le centre est le plus proche du point, à moins de max_m mètres.
+SELECT name
+FROM neighborhoods
+WHERE is_active AND center IS NOT NULL
+  AND ST_DWithin(center, ST_SetSRID(ST_MakePoint(sqlc.arg(lng)::float8, sqlc.arg(lat)::float8), 4326)::geography, sqlc.arg(max_m)::float8)
+ORDER BY center <-> ST_SetSRID(ST_MakePoint(sqlc.arg(lng)::float8, sqlc.arg(lat)::float8), 4326)::geography
+LIMIT 1;

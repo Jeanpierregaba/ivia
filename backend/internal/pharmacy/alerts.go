@@ -89,7 +89,9 @@ type AlertStats struct {
 
 // Alert est l'alerte vue par le client.
 type Alert struct {
-	ID              uuid.UUID    `json:"id"`
+	ID uuid.UUID `json:"id"`
+	// Number : numéro court affiché (« A-12 »), qui ne repasse jamais par zéro.
+	Number          string       `json:"number"`
 	Kind            string       `json:"kind"`
 	Items           []AlertItem  `json:"items"`
 	Photos          []AlertPhoto `json:"photos"`
@@ -157,9 +159,13 @@ type PharmacyContact struct {
 
 // InboxItem est une alerte reçue par une pharmacie : jamais d'identité ni de position du client.
 type InboxItem struct {
-	AlertID uuid.UUID   `json:"alert_id"`
-	Kind    string      `json:"kind"`
-	Items   []AlertItem `json:"items"`
+	AlertID uuid.UUID `json:"alert_id"`
+	Number  string    `json:"number"`
+	// ClientNeighborhood : quartier le plus proche du client (le client reste anonyme : jamais sa
+	// position) ; nil hors des quartiers connus.
+	ClientNeighborhood *string     `json:"client_neighborhood"`
+	Kind               string      `json:"kind"`
+	Items              []AlertItem `json:"items"`
 	// Photos : liens de 10 minutes (détail seulement), tant que l'alerte est ouverte.
 	Photos          []AlertPhoto `json:"photos"`
 	PhotoCount      int          `json:"photo_count"`
@@ -717,7 +723,7 @@ func (s *Service) alertView(ctx context.Context, a store.GetAlertRow, unmask boo
 		return Alert{}, fmt.Errorf("réponses : %w", err)
 	}
 	out := Alert{
-		ID: a.ID, Kind: a.Kind, Items: toItems(items), Photos: photos, Note: a.Note, GenericAccepted: a.GenericAccepted,
+		ID: a.ID, Number: alertNumber(a.Number), Kind: a.Kind, Items: toItems(items), Photos: photos, Note: a.Note, GenericAccepted: a.GenericAccepted,
 		Status: a.Status, Location: geo.Point{Lat: a.Lat, Lng: a.Lng}, RadiusM: a.RadiusM, SearchEndsAt: a.SearchEndsAt,
 		Stats: AlertStats{Notified: st.Notified, Seen: st.Seen, Responded: st.Responded}, UnlockFeeXOF: settings.UnlockFeeXOF,
 		Responses: make([]AlertResponse, 0, len(rows)), RelaunchedFrom: a.RelaunchedFrom, CreatedAt: a.CreatedAt, ClosedAt: a.ClosedAt,
@@ -825,7 +831,12 @@ type inboxRow struct {
 	searchEndsAt time.Time
 	generic      bool
 	seenAt       *time.Time
+	number       int64
+	lat, lng     float64
 }
+
+// alertNumber met en forme le numéro court d'une alerte.
+func alertNumber(n int64) string { return fmt.Sprintf("A-%d", n) }
 
 func (s *Service) inboxItem(ctx context.Context, pharmacyID uuid.UUID, r inboxRow, detail bool) (InboxItem, error) {
 	q := s.q(ctx)
@@ -839,10 +850,17 @@ func (s *Service) inboxItem(ctx context.Context, pharmacyID uuid.UUID, r inboxRo
 	if err != nil {
 		return InboxItem{}, err
 	}
+	hood, err := s.geo.NearestName(ctx, geo.Point{Lat: r.lat, Lng: r.lng})
+	if err != nil {
+		return InboxItem{}, err
+	}
 	it := InboxItem{
-		AlertID: r.alertID, Kind: r.kind, Items: toItems(items), Photos: photos, PhotoCount: len(photos), Note: r.note,
+		AlertID: r.alertID, Number: alertNumber(r.number), Kind: r.kind, Items: toItems(items), Photos: photos, PhotoCount: len(photos), Note: r.note,
 		GenericAccepted: r.generic, DistanceM: r.distanceM, Status: r.targetStatus, AlertStatus: r.alertStatus,
 		SearchEndsAt: r.searchEndsAt, Seen: r.seenAt != nil || detail, ReceivedAt: r.notifiedAt,
+	}
+	if hood != "" {
+		it.ClientNeighborhood = &hood
 	}
 	resp, err := q.ResponseOf(ctx, store.ResponseOfParams{AlertID: r.alertID, PharmacyID: pharmacyID})
 	if err == nil {
@@ -872,6 +890,7 @@ func (s *Service) Inbox(ctx context.Context, ownerID uuid.UUID, openOnly bool, l
 		it, err := s.inboxItem(ctx, ph.ID, inboxRow{
 			alertID: r.AlertID, distanceM: r.DistanceM, targetStatus: r.TargetStatus, notifiedAt: r.NotifiedAt, kind: r.Kind,
 			note: r.Note, alertStatus: r.AlertStatus, searchEndsAt: r.SearchEndsAt, generic: r.GenericAccepted, seenAt: r.SeenAt,
+			number: r.Number, lat: r.Lat, lng: r.Lng,
 		}, false)
 		if err != nil {
 			return nil, err
@@ -902,6 +921,7 @@ func (s *Service) InboxGet(ctx context.Context, ownerID, alertID uuid.UUID) (Inb
 	return s.inboxItem(ctx, ph.ID, inboxRow{
 		alertID: r.AlertID, distanceM: r.DistanceM, targetStatus: r.TargetStatus, notifiedAt: r.NotifiedAt, kind: r.Kind,
 		note: r.Note, alertStatus: r.AlertStatus, searchEndsAt: r.SearchEndsAt, generic: r.GenericAccepted, seenAt: r.SeenAt,
+		number: r.Number, lat: r.Lat, lng: r.Lng,
 	}, true)
 }
 
