@@ -8,6 +8,7 @@ import 'package:ivia_ui/ivia_ui.dart';
 
 import 'common/providers.dart';
 import 'features/alerts/alert_detail_screen.dart';
+import 'features/alerts/incoming_alert_screen.dart';
 import 'features/application/application_screen.dart';
 import 'features/home/pharmacy_shell.dart';
 import 'features/launch/onboarding_screen.dart';
@@ -159,6 +160,11 @@ final routerProvider = Provider<GoRouter>((ref) {
         builder: (_, _) => const PharmacyShell(),
         routes: [
           GoRoute(
+            path: 'incoming/:id',
+            builder: (_, state) =>
+                IncomingAlertScreen(alertId: state.pathParameters['id']!),
+          ),
+          GoRoute(
             path: 'alert/:id',
             builder: (_, state) =>
                 AlertDetailScreen(alertId: state.pathParameters['id']!),
@@ -212,9 +218,19 @@ class _PharmacyAppState extends ConsumerState<PharmacyApp> {
   void initState() {
     super.initState();
     final push = ref.read(pushProvider);
+    // Notification touchée : l'alerte entrante (F10).
     push.onOpenAlert = (id) =>
-        ref.read(routerProvider).push('${Routes.home}/alert/$id');
-    push.onAlertReceived = () => ref.invalidate(inboxProvider);
+        ref.read(routerProvider).push(incomingAlertPath(id));
+    // App ouverte sur l'accueil : l'alerte s'affiche en plein écran, une fois.
+    push.onAlertReceived = (id) {
+      ref.invalidate(inboxProvider);
+      final router = ref.read(routerProvider);
+      final here = router.routerDelegate.currentConfiguration.uri.path;
+      if (here == Routes.home &&
+          ref.read(incomingShownProvider.notifier).markShown(id)) {
+        router.push(incomingAlertPath(id));
+      }
+    };
     // Dès la connexion, y compris dossier en attente : la validation arrive aussi par push.
     ref.listenManual(authControllerProvider.select((a) => a is AuthSignedIn), (
       _,

@@ -111,7 +111,7 @@ class PushManager {
   void Function(String alertId)? onOpenAlert;
 
   /// Nouvelle alerte reçue, app ouverte.
-  VoidCallback? onAlertReceived;
+  void Function(String alertId)? onAlertReceived;
 
   String get _platform =>
       defaultTargetPlatform == TargetPlatform.iOS ? 'ios' : 'android';
@@ -133,7 +133,10 @@ class PushManager {
     messaging.onTokenRefresh.listen(_register);
     FirebaseMessaging.onMessage.listen((m) {
       _ring(m.data);
-      if (m.data['kind'] == _kindAlert) onAlertReceived?.call();
+      final id = m.data['alert_id'];
+      if (m.data['kind'] == _kindAlert && id is String) {
+        onAlertReceived?.call(id);
+      }
     });
     FirebaseMessaging.onMessageOpenedApp.listen((m) {
       final id = m.data['alert_id'];

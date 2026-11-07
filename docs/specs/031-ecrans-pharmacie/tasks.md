@@ -40,7 +40,7 @@
       - chiffres du jour ;
       - alertes à traiter ;
       - carte des commandes à préparer.
-- [ ] 11. Alerte entrante F10 :
+- [x] 11. Alerte entrante F10 :
       - route `incoming/:id` ;
       - « Voir l'alerte » et « Ignorer » ;
       - branchement du push (`onAlertReceived` avec l'identifiant) ;

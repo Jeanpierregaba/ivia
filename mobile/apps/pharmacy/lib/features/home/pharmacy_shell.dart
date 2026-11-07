@@ -2,6 +2,7 @@ import 'dart:async';
 
 import 'package:flutter/material.dart';
 import 'package:flutter_riverpod/flutter_riverpod.dart';
+import 'package:go_router/go_router.dart';
 import 'package:ivia_api_client/ivia_api_client.dart';
 import 'package:ivia_ui/ivia_ui.dart';
 
@@ -9,6 +10,7 @@ import '../../common/providers.dart';
 import '../../common/ui.dart';
 import '../alerts/alert_logic.dart';
 import '../alerts/inbox_tab.dart';
+import '../alerts/incoming_alert_screen.dart';
 import '../orders/orders_tab.dart';
 import '../profile/office_tab.dart';
 import 'home_tab.dart';
@@ -26,6 +28,27 @@ class PharmacyShell extends ConsumerStatefulWidget {
 class _PharmacyShellState extends ConsumerState<PharmacyShell> {
   var _tab = 0;
   Timer? _poll;
+
+  /// Alertes de la première lecture : connues, pas montrées en plein écran.
+  var _baseline = false;
+
+  /// Sans push (Firebase absent), une alerte apparue à la relecture s'ouvre
+  /// en plein écran (F10), une seule fois, et jamais par-dessus un autre
+  /// écran (une réponse en cours de saisie).
+  void _watchNewAlerts(List<InboxAlert> inbox) {
+    final shown = ref.read(incomingShownProvider.notifier);
+    final now = DateTime.now();
+    final fresh = [
+      for (final a in inbox)
+        if (isNewAlert(a, now) && shown.markShown(a.alertId)) a,
+    ];
+    if (!_baseline) {
+      _baseline = true;
+      return;
+    }
+    if (fresh.isEmpty || ModalRoute.of(context)?.isCurrent != true) return;
+    context.push(incomingAlertPath(fresh.first.alertId));
+  }
 
   @override
   void initState() {
@@ -47,6 +70,9 @@ class _PharmacyShellState extends ConsumerState<PharmacyShell> {
 
   @override
   Widget build(BuildContext context) {
+    ref.listen(inboxProvider, (_, next) {
+      if (next.value case final items?) _watchNewAlerts(items);
+    });
     final inbox = ref.watch(inboxProvider).value ?? const <InboxAlert>[];
     final now = DateTime.now();
     final unseen = inbox.where((a) => isNewAlert(a, now)).length;
