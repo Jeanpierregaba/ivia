@@ -13,7 +13,7 @@ import (
 )
 
 const activeDeliveryForDriver = `-- name: ActiveDeliveryForDriver :one
-SELECT id, reservation_id, driver_id, offer_id, status, fee_xof, assigned_at, picked_up_at, delivered_at, ended_at, created_at, updated_at, prescription_checked FROM pharmacy_deliveries WHERE driver_id = $1 AND status IN ('assigned', 'picked_up')
+SELECT id, reservation_id, driver_id, offer_id, status, fee_xof, assigned_at, picked_up_at, delivered_at, ended_at, created_at, updated_at, prescription_checked, pickup_code, cash_paid_xof, cash_paid_at FROM pharmacy_deliveries WHERE driver_id = $1 AND status IN ('assigned', 'picked_up')
 `
 
 func (q *Queries) ActiveDeliveryForDriver(ctx context.Context, driverID uuid.UUID) (PharmacyDelivery, error) {
@@ -33,12 +33,15 @@ func (q *Queries) ActiveDeliveryForDriver(ctx context.Context, driverID uuid.UUI
 		&i.CreatedAt,
 		&i.UpdatedAt,
 		&i.PrescriptionChecked,
+		&i.PickupCode,
+		&i.CashPaidXof,
+		&i.CashPaidAt,
 	)
 	return i, err
 }
 
 const activeDeliveryForReservation = `-- name: ActiveDeliveryForReservation :one
-SELECT id, reservation_id, driver_id, offer_id, status, fee_xof, assigned_at, picked_up_at, delivered_at, ended_at, created_at, updated_at, prescription_checked FROM pharmacy_deliveries WHERE reservation_id = $1 AND status IN ('assigned', 'picked_up')
+SELECT id, reservation_id, driver_id, offer_id, status, fee_xof, assigned_at, picked_up_at, delivered_at, ended_at, created_at, updated_at, prescription_checked, pickup_code, cash_paid_xof, cash_paid_at FROM pharmacy_deliveries WHERE reservation_id = $1 AND status IN ('assigned', 'picked_up')
 `
 
 func (q *Queries) ActiveDeliveryForReservation(ctx context.Context, reservationID uuid.UUID) (PharmacyDelivery, error) {
@@ -58,6 +61,9 @@ func (q *Queries) ActiveDeliveryForReservation(ctx context.Context, reservationI
 		&i.CreatedAt,
 		&i.UpdatedAt,
 		&i.PrescriptionChecked,
+		&i.PickupCode,
+		&i.CashPaidXof,
+		&i.CashPaidAt,
 	)
 	return i, err
 }
@@ -531,7 +537,7 @@ func (q *Queries) CreateCourierOffer(ctx context.Context, arg CreateCourierOffer
 
 const createDelivery = `-- name: CreateDelivery :one
 INSERT INTO pharmacy_deliveries (reservation_id, driver_id, offer_id, fee_xof) VALUES ($1, $2, $3, $4)
-RETURNING id, reservation_id, driver_id, offer_id, status, fee_xof, assigned_at, picked_up_at, delivered_at, ended_at, created_at, updated_at, prescription_checked
+RETURNING id, reservation_id, driver_id, offer_id, status, fee_xof, assigned_at, picked_up_at, delivered_at, ended_at, created_at, updated_at, prescription_checked, pickup_code, cash_paid_xof, cash_paid_at
 `
 
 type CreateDeliveryParams struct {
@@ -563,6 +569,9 @@ func (q *Queries) CreateDelivery(ctx context.Context, arg CreateDeliveryParams) 
 		&i.CreatedAt,
 		&i.UpdatedAt,
 		&i.PrescriptionChecked,
+		&i.PickupCode,
+		&i.CashPaidXof,
+		&i.CashPaidAt,
 	)
 	return i, err
 }
@@ -747,7 +756,7 @@ func (q *Queries) DeleteDocumentsOf(ctx context.Context, pharmacyID uuid.UUID) e
 }
 
 const deleteDutyShift = `-- name: DeleteDutyShift :one
-DELETE FROM pharmacy_duty_shifts WHERE id = $1 RETURNING id, pharmacy_id, starts_at, ends_at, created_by, created_at
+DELETE FROM pharmacy_duty_shifts WHERE id = $1 RETURNING id, pharmacy_id, starts_at, ends_at, created_by, created_at, source, imported_at
 `
 
 func (q *Queries) DeleteDutyShift(ctx context.Context, id uuid.UUID) (PharmacyDutyShift, error) {
@@ -760,12 +769,14 @@ func (q *Queries) DeleteDutyShift(ctx context.Context, id uuid.UUID) (PharmacyDu
 		&i.EndsAt,
 		&i.CreatedBy,
 		&i.CreatedAt,
+		&i.Source,
+		&i.ImportedAt,
 	)
 	return i, err
 }
 
 const deleteOwnDutyShift = `-- name: DeleteOwnDutyShift :one
-DELETE FROM pharmacy_duty_shifts WHERE id = $1 AND pharmacy_id = $2 RETURNING id, pharmacy_id, starts_at, ends_at, created_by, created_at
+DELETE FROM pharmacy_duty_shifts WHERE id = $1 AND pharmacy_id = $2 RETURNING id, pharmacy_id, starts_at, ends_at, created_by, created_at, source, imported_at
 `
 
 type DeleteOwnDutyShiftParams struct {
@@ -783,6 +794,8 @@ func (q *Queries) DeleteOwnDutyShift(ctx context.Context, arg DeleteOwnDutyShift
 		&i.EndsAt,
 		&i.CreatedBy,
 		&i.CreatedAt,
+		&i.Source,
+		&i.ImportedAt,
 	)
 	return i, err
 }
@@ -994,7 +1007,7 @@ func (q *Queries) GetAlert(ctx context.Context, id uuid.UUID) (GetAlertRow, erro
 }
 
 const getDelivery = `-- name: GetDelivery :one
-SELECT id, reservation_id, driver_id, offer_id, status, fee_xof, assigned_at, picked_up_at, delivered_at, ended_at, created_at, updated_at, prescription_checked FROM pharmacy_deliveries WHERE id = $1
+SELECT id, reservation_id, driver_id, offer_id, status, fee_xof, assigned_at, picked_up_at, delivered_at, ended_at, created_at, updated_at, prescription_checked, pickup_code, cash_paid_xof, cash_paid_at FROM pharmacy_deliveries WHERE id = $1
 `
 
 func (q *Queries) GetDelivery(ctx context.Context, id uuid.UUID) (PharmacyDelivery, error) {
@@ -1014,6 +1027,9 @@ func (q *Queries) GetDelivery(ctx context.Context, id uuid.UUID) (PharmacyDelive
 		&i.CreatedAt,
 		&i.UpdatedAt,
 		&i.PrescriptionChecked,
+		&i.PickupCode,
+		&i.CashPaidXof,
+		&i.CashPaidAt,
 	)
 	return i, err
 }
@@ -1526,7 +1542,7 @@ func (q *Queries) InsertDocument(ctx context.Context, arg InsertDocumentParams) 
 
 const insertDutyShift = `-- name: InsertDutyShift :one
 
-INSERT INTO pharmacy_duty_shifts (pharmacy_id, starts_at, ends_at, created_by) VALUES ($1, $2, $3, $4) RETURNING id, pharmacy_id, starts_at, ends_at, created_by, created_at
+INSERT INTO pharmacy_duty_shifts (pharmacy_id, starts_at, ends_at, created_by) VALUES ($1, $2, $3, $4) RETURNING id, pharmacy_id, starts_at, ends_at, created_by, created_at, source, imported_at
 `
 
 type InsertDutyShiftParams struct {
@@ -1552,6 +1568,8 @@ func (q *Queries) InsertDutyShift(ctx context.Context, arg InsertDutyShiftParams
 		&i.EndsAt,
 		&i.CreatedBy,
 		&i.CreatedAt,
+		&i.Source,
+		&i.ImportedAt,
 	)
 	return i, err
 }
@@ -1675,7 +1693,7 @@ func (q *Queries) InsertTarget(ctx context.Context, arg InsertTargetParams) (int
 }
 
 const latestDeliveryForReservation = `-- name: LatestDeliveryForReservation :one
-SELECT id, reservation_id, driver_id, offer_id, status, fee_xof, assigned_at, picked_up_at, delivered_at, ended_at, created_at, updated_at, prescription_checked FROM pharmacy_deliveries WHERE reservation_id = $1 ORDER BY created_at DESC LIMIT 1
+SELECT id, reservation_id, driver_id, offer_id, status, fee_xof, assigned_at, picked_up_at, delivered_at, ended_at, created_at, updated_at, prescription_checked, pickup_code, cash_paid_xof, cash_paid_at FROM pharmacy_deliveries WHERE reservation_id = $1 ORDER BY created_at DESC LIMIT 1
 `
 
 func (q *Queries) LatestDeliveryForReservation(ctx context.Context, reservationID uuid.UUID) (PharmacyDelivery, error) {
@@ -1695,6 +1713,9 @@ func (q *Queries) LatestDeliveryForReservation(ctx context.Context, reservationI
 		&i.CreatedAt,
 		&i.UpdatedAt,
 		&i.PrescriptionChecked,
+		&i.PickupCode,
+		&i.CashPaidXof,
+		&i.CashPaidAt,
 	)
 	return i, err
 }
@@ -1941,7 +1962,7 @@ func (q *Queries) ListDocuments(ctx context.Context, pharmacyID uuid.UUID) ([]Ph
 }
 
 const listDriverDeliveries = `-- name: ListDriverDeliveries :many
-SELECT id, reservation_id, driver_id, offer_id, status, fee_xof, assigned_at, picked_up_at, delivered_at, ended_at, created_at, updated_at, prescription_checked FROM pharmacy_deliveries WHERE driver_id = $1 ORDER BY created_at DESC LIMIT $3 OFFSET $2
+SELECT id, reservation_id, driver_id, offer_id, status, fee_xof, assigned_at, picked_up_at, delivered_at, ended_at, created_at, updated_at, prescription_checked, pickup_code, cash_paid_xof, cash_paid_at FROM pharmacy_deliveries WHERE driver_id = $1 ORDER BY created_at DESC LIMIT $3 OFFSET $2
 `
 
 type ListDriverDeliveriesParams struct {
@@ -1973,6 +1994,9 @@ func (q *Queries) ListDriverDeliveries(ctx context.Context, arg ListDriverDelive
 			&i.CreatedAt,
 			&i.UpdatedAt,
 			&i.PrescriptionChecked,
+			&i.PickupCode,
+			&i.CashPaidXof,
+			&i.CashPaidAt,
 		); err != nil {
 			return nil, err
 		}
@@ -1985,7 +2009,7 @@ func (q *Queries) ListDriverDeliveries(ctx context.Context, arg ListDriverDelive
 }
 
 const listDutyShifts = `-- name: ListDutyShifts :many
-SELECT id, pharmacy_id, starts_at, ends_at, created_by, created_at FROM pharmacy_duty_shifts WHERE pharmacy_id = $1 AND ends_at > $2
+SELECT id, pharmacy_id, starts_at, ends_at, created_by, created_at, source, imported_at FROM pharmacy_duty_shifts WHERE pharmacy_id = $1 AND ends_at > $2
 ORDER BY starts_at LIMIT 200
 `
 
@@ -2010,6 +2034,8 @@ func (q *Queries) ListDutyShifts(ctx context.Context, arg ListDutyShiftsParams) 
 			&i.EndsAt,
 			&i.CreatedBy,
 			&i.CreatedAt,
+			&i.Source,
+			&i.ImportedAt,
 		); err != nil {
 			return nil, err
 		}
@@ -2350,7 +2376,7 @@ func (q *Queries) LockCourierOffer(ctx context.Context, id uuid.UUID) (PharmacyC
 }
 
 const lockDelivery = `-- name: LockDelivery :one
-SELECT id, reservation_id, driver_id, offer_id, status, fee_xof, assigned_at, picked_up_at, delivered_at, ended_at, created_at, updated_at, prescription_checked FROM pharmacy_deliveries WHERE id = $1 FOR UPDATE
+SELECT id, reservation_id, driver_id, offer_id, status, fee_xof, assigned_at, picked_up_at, delivered_at, ended_at, created_at, updated_at, prescription_checked, pickup_code, cash_paid_xof, cash_paid_at FROM pharmacy_deliveries WHERE id = $1 FOR UPDATE
 `
 
 func (q *Queries) LockDelivery(ctx context.Context, id uuid.UUID) (PharmacyDelivery, error) {
@@ -2370,6 +2396,9 @@ func (q *Queries) LockDelivery(ctx context.Context, id uuid.UUID) (PharmacyDeliv
 		&i.CreatedAt,
 		&i.UpdatedAt,
 		&i.PrescriptionChecked,
+		&i.PickupCode,
+		&i.CashPaidXof,
+		&i.CashPaidAt,
 	)
 	return i, err
 }

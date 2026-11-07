@@ -76,6 +76,9 @@ type PharmacyDelivery struct {
 	CreatedAt           time.Time
 	UpdatedAt           time.Time
 	PrescriptionChecked bool
+	PickupCode          *string
+	CashPaidXof         *int64
+	CashPaidAt          *time.Time
 }
 
 type PharmacyDocument struct {
@@ -93,6 +96,8 @@ type PharmacyDutyShift struct {
 	EndsAt     time.Time
 	CreatedBy  uuid.UUID
 	CreatedAt  time.Time
+	Source     string
+	ImportedAt *time.Time
 }
 
 type PharmacyPayment struct {

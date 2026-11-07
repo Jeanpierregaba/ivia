@@ -5,7 +5,7 @@
 **Décision et données**
 - [x] 1. ADR 0014 : paiement en espèces de la pharmacie par le livreur. `TASKS.md` : règlement des
       livreurs à prévoir.
-- [ ] 2. Migration `00038`, puis `sqlc generate`. **Soumise à Gedeon avant la suite.**
+- [x] 2. Migration `00038`, puis `sqlc generate`. **Soumise à Gedeon avant la suite.**
 
 **Serveur**
 - [ ] 3. Numéro d'alerte : création, boîte, détail, vue client, back-office. Tests Go.
