@@ -48,6 +48,10 @@ type CourierMission struct {
 	AssignedAt  time.Time   `json:"assigned_at"`
 	PickedUpAt  *time.Time  `json:"picked_up_at"`
 	DeliveredAt *time.Time  `json:"delivered_at"`
+	// PickupCode : code de retrait à montrer à la pharmacie, tant que la remise n'est pas validée.
+	PickupCode *string `json:"pickup_code"`
+	// CashAdvancedXOF : espèces payées à la pharmacie par le livreur, que ivia lui rembourse.
+	CashAdvancedXOF *int64 `json:"cash_advanced_xof"`
 }
 
 // MissionPOI est un lieu de la course.
@@ -213,7 +217,14 @@ func (s *Service) AcceptCourierOffer(ctx context.Context, driverID, offerID uuid
 		if err != nil {
 			return fmt.Errorf("lecture de la réservation : %w", err)
 		}
-		d, err := q.CreateDelivery(ctx, store.CreateDeliveryParams{ReservationID: r.ID, DriverID: driverID, OfferID: &o.ID, FeeXof: r.DeliveryFeeXof})
+		// Code de retrait du livreur, saisi par la pharmacie à la remise (ADR 0014).
+		pickupCode, err := newCode()
+		if err != nil {
+			return err
+		}
+		d, err := q.CreateDelivery(ctx, store.CreateDeliveryParams{
+			ReservationID: r.ID, DriverID: driverID, OfferID: &o.ID, FeeXof: r.DeliveryFeeXof, PickupCode: &pickupCode,
+		})
 		if database.IsUniqueViolation(err, "") {
 			return apperr.Conflict("offer_expired", "Cette course a déjà été attribuée.")
 		}
@@ -328,7 +339,10 @@ func (s *Service) missionView(ctx context.Context, deliveryID uuid.UUID) (Courie
 		Pharmacy: MissionPOI{
 			Name: ph.Name, Phone: ph.Phone, AddressText: ph.AddressText, Location: geo.Point{Lat: ph.Lat, Lng: ph.Lng},
 		},
-		AssignedAt: d.AssignedAt, PickedUpAt: d.PickedUpAt, DeliveredAt: d.DeliveredAt,
+		AssignedAt: d.AssignedAt, PickedUpAt: d.PickedUpAt, DeliveredAt: d.DeliveredAt, CashAdvancedXOF: d.CashPaidXof,
+	}
+	if d.Status == "assigned" {
+		m.PickupCode = d.PickupCode
 	}
 	if d.Status == "assigned" || d.Status == "picked_up" {
 		c, err := s.users.Contact(ctx, r.BuyerID)
@@ -404,6 +418,11 @@ func (s *Service) CourierPickedUp(ctx context.Context, driverID, deliveryID uuid
 		}
 		if cur == ResAwaitingPayment {
 			return apperr.Conflict("awaiting_payment", "Le client n'a pas encore payé : attendez la confirmation avant de récupérer les produits.")
+		}
+		// Course avec code (ADR 0014) : c'est la pharmacie qui valide la remise. Une course acceptée
+		// avant ce changement, sans code, garde l'ancienne étape.
+		if d.PickupCode != nil {
+			return apperr.Conflict("handover_by_pharmacy", "La pharmacie valide la remise : montrez-lui votre code de retrait et payez-la en espèces.")
 		}
 		n, err := q.SetDeliveryStatus(ctx, store.SetDeliveryStatusParams{ID: d.ID, NewStatus: "picked_up", FromStatuses: []string{"assigned"}})
 		if err != nil {

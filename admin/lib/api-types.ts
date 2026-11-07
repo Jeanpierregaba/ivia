@@ -3451,6 +3451,26 @@ export interface paths {
         patch?: never;
         trace?: never;
     };
+    "/v1/pharmacy/reservations/{id}/courier-handover": {
+        parameters: {
+            query?: never;
+            header?: never;
+            path?: never;
+            cookie?: never;
+        };
+        get?: never;
+        put?: never;
+        /**
+         * Remettre au livreur : code de retrait du livreur et paiement en espèces confirmé (ADR 0014)
+         * @description Commande et course passent « récupérées », l'avance du livreur est enregistrée. 5 essais de code par 10 minutes (429 au-delà). 409 awaiting_payment avant le paiement du client, 409 no_pickup_code pour une course sans code (le livreur confirme dans son app), 422 cash_not_confirmed si cash_paid n'est pas vrai.
+         */
+        post: operations["postPharmacyReservationsByIdCourierHandover"];
+        delete?: never;
+        options?: never;
+        head?: never;
+        patch?: never;
+        trace?: never;
+    };
     "/v1/pharmacy/reservations/{id}/cancel": {
         parameters: {
             query?: never;
@@ -3579,7 +3599,10 @@ export interface paths {
         };
         get?: never;
         put?: never;
-        /** Commande récupérée à la pharmacie (refusé tant que le client n'a pas payé) */
+        /**
+         * Commande récupérée à la pharmacie (refusé tant que le client n'a pas payé)
+         * @description Course avec code (ADR 0014) : 409 handover_by_pharmacy, la pharmacie valide la remise (POST /v1/pharmacy/reservations/{id}/courier-handover). Reste possible pour une course acceptée sans code.
+         */
         post: operations["postDriverPharmacyMissionsByIdPickedUp"];
         delete?: never;
         options?: never;
@@ -6819,6 +6842,16 @@ export interface components {
             created_at: string;
             /** Format: date-time */
             completed_at: string | null;
+            /**
+             * Format: date-time
+             * @description Remise au livreur validée.
+             */
+            picked_up_at?: string | null;
+            /**
+             * Format: int64
+             * @description Espèces reçues du livreur à la remise (ADR 0014).
+             */
+            cash_paid_xof?: number | null;
         };
         PharmacyPayout: {
             /** Format: uuid */
@@ -6892,6 +6925,12 @@ export interface components {
             /** @enum {string} */
             outcome: "succeeded" | "failed";
         };
+        PharmacyCourierHandover: {
+            /** @description Code de retrait affiché dans l'app du livreur. */
+            code: string;
+            /** @description Le livreur a payé la pharmacie en espèces ; doit être vrai. */
+            cash_paid: boolean;
+        };
         HandoverCode: {
             code: string;
         };
@@ -6947,6 +6986,13 @@ export interface components {
             picked_up_at: string | null;
             /** Format: date-time */
             delivered_at: string | null;
+            /** @description Code de retrait à montrer à la pharmacie, tant que la remise n'est pas validée (null pour une course sans code). */
+            pickup_code?: string | null;
+            /**
+             * Format: int64
+             * @description Espèces payées à la pharmacie par le livreur, que ivia lui rembourse.
+             */
+            cash_advanced_xof?: number | null;
         };
         /** @description Réglages de l'alerte médicament. */
         PharmacySettings: {
@@ -14289,6 +14335,41 @@ export interface operations {
         requestBody: {
             content: {
                 "application/json": components["schemas"]["HandoverCode"];
+            };
+        };
+        responses: {
+            /** @description Succès */
+            200: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["PharmacyReservation"];
+                };
+            };
+            /** @description Erreur (voir `code`) */
+            default: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["Error"];
+                };
+            };
+        };
+    };
+    postPharmacyReservationsByIdCourierHandover: {
+        parameters: {
+            query?: never;
+            header?: never;
+            path: {
+                id: string;
+            };
+            cookie?: never;
+        };
+        requestBody: {
+            content: {
+                "application/json": components["schemas"]["PharmacyCourierHandover"];
             };
         };
         responses: {

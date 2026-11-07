@@ -114,6 +114,9 @@ type PharmacyReservation struct {
 	Courier              *CourierContact `json:"courier"`
 	CreatedAt            time.Time       `json:"created_at"`
 	CompletedAt          *time.Time      `json:"completed_at"`
+	// PickedUpAt : remise au livreur validée ; CashPaidXOF : espèces reçues du livreur (ADR 0014).
+	PickedUpAt  *time.Time `json:"picked_up_at"`
+	CashPaidXOF *int64     `json:"cash_paid_xof"`
 }
 
 // CourierContact : le livreur ivia d'une livraison (téléphone pendant la course seulement).
@@ -500,16 +503,20 @@ func (s *Service) pharmacyReservationView(ctx context.Context, r store.GetReserv
 	if err != nil {
 		return PharmacyReservation{}, err
 	}
-	courier, _, err := s.courierOf(ctx, r.ID)
+	courier, d, err := s.courierOf(ctx, r.ID)
 	if err != nil {
 		return PharmacyReservation{}, err
 	}
-	return PharmacyReservation{
+	out := PharmacyReservation{
 		ID: r.ID, Number: reservationNumber(r.Number), AlertID: r.AlertID, Fulfillment: r.Fulfillment, Status: r.Status,
 		Lines: lines, ItemsXOF: r.ItemsXof, CommissionXOF: r.CommissionXof, PharmacyDueXOF: r.PharmacyDueXof,
 		PrescriptionRequired: r.PrescriptionRequired, BuyerFirstName: buyer.FirstName, ExpiresAt: r.ExpiresAt,
 		PreparedAt: r.PreparedAt, CancelReason: r.CancelReason, Courier: courier, CreatedAt: r.CreatedAt, CompletedAt: r.CompletedAt,
-	}, nil
+	}
+	if d != nil && d.Status != "cancelled" {
+		out.PickedUpAt, out.CashPaidXOF = d.PickedUpAt, d.CashPaidXof
+	}
+	return out, nil
 }
 
 func (s *Service) ownReservation(ctx context.Context, ownerID, id uuid.UUID) (store.GetReservationRow, store.GetPharmacyRow, error) {
@@ -611,6 +618,75 @@ func (s *Service) CompletePickup(ctx context.Context, ownerID, id uuid.UUID, cod
 		return s.notify.Notify(ctx, notifications.Message{
 			UserID: r.BuyerID, App: notifications.AppBuyer, Kind: "pharmacy_completed",
 			Title: "Produits retirés", Body: "Merci d'avoir utilisé l'alerte médicament ivia. Prompt rétablissement !",
+			Data: map[string]string{"reservation_id": r.ID.String()},
+		})
+	})
+	if err != nil {
+		return PharmacyReservation{}, err
+	}
+	return s.PharmacyGetReservation(ctx, ownerID, id)
+}
+
+// CourierHandover : la pharmacie valide la remise au livreur avec son code de retrait et confirme
+// qu'il l'a payée en espèces (ADR 0014). Commande et course passent « récupérées » ; l'avance du
+// livreur est enregistrée. Essais de code limités par le handler.
+func (s *Service) CourierHandover(ctx context.Context, ownerID, id uuid.UUID, code string, cashPaid bool) (PharmacyReservation, error) {
+	r, _, err := s.ownReservation(ctx, ownerID, id)
+	if err != nil {
+		return PharmacyReservation{}, err
+	}
+	if r.Fulfillment != Delivery {
+		return PharmacyReservation{}, apperr.Conflict("not_delivery", "Cette commande est retirée au comptoir par le client.")
+	}
+	if !cashPaid {
+		return PharmacyReservation{}, apperr.Unprocessable("cash_not_confirmed", "Confirmez que le livreur vous a payé en espèces.")
+	}
+	err = s.db.InTx(ctx, func(ctx context.Context) error {
+		q := s.q(ctx)
+		cur, err := q.LockReservation(ctx, r.ID)
+		if err != nil {
+			return fmt.Errorf("verrou de la réservation : %w", err)
+		}
+		switch cur {
+		case ResCourierAssigned:
+		case ResAwaitingPayment:
+			return apperr.Conflict("awaiting_payment", "Le client n'a pas encore payé : ne remettez pas encore les produits.")
+		default:
+			return apperr.Conflict("invalid_transition", "Cette commande n'attend pas de remise au livreur.")
+		}
+		d, err := q.ActiveDeliveryForReservation(ctx, r.ID)
+		if database.IsNoRows(err) {
+			return apperr.Conflict("invalid_transition", "Aucun livreur n'est en route pour cette commande.")
+		}
+		if err != nil {
+			return fmt.Errorf("livraison de la réservation : %w", err)
+		}
+		if d.PickupCode == nil {
+			return apperr.Conflict("no_pickup_code", "Ce livreur confirme la récupération dans son app.")
+		}
+		if subtle.ConstantTimeCompare([]byte(code), []byte(*d.PickupCode)) != 1 {
+			return apperr.Validation(map[string]string{"code": "Code incorrect."})
+		}
+		n, err := q.RecordCourierHandover(ctx, store.RecordCourierHandoverParams{ID: d.ID, CashPaidXof: &r.PharmacyDueXof})
+		if err != nil {
+			return fmt.Errorf("remise au livreur : %w", err)
+		}
+		if n == 0 {
+			return apperr.Conflict("invalid_transition", "Cette remise est déjà faite.")
+		}
+		if _, err := q.SetReservationStatus(ctx, store.SetReservationStatusParams{ID: r.ID, NewStatus: ResPickedUp, FromStatuses: []string{ResCourierAssigned}}); err != nil {
+			return fmt.Errorf("réservation récupérée : %w", err)
+		}
+		if err := s.notify.Notify(ctx, notifications.Message{
+			UserID: d.DriverID, App: notifications.AppDriver, Kind: "pharmacy_handover_done",
+			Title: "Remise validée", Body: "La pharmacie a validé la remise. Livrez le client.",
+			Data: map[string]string{"mission_id": d.ID.String()},
+		}); err != nil {
+			return err
+		}
+		return s.notify.Notify(ctx, notifications.Message{
+			UserID: r.BuyerID, App: notifications.AppBuyer, Kind: "pharmacy_picked_up",
+			Title: "Médicament en route", Body: "Votre livreur a récupéré le médicament. Préparez votre code de remise.",
 			Data: map[string]string{"reservation_id": r.ID.String()},
 		})
 	})

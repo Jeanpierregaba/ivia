@@ -283,7 +283,8 @@ func TestPharmacyAlertDeliveryFlow(t *testing.T) {
 	if len(code) != 4 || r.Body["courier"] == nil || tl["paid_at"] == nil || tl["prepared_at"] == nil {
 		t.Fatalf("suivi de livraison : %v", r.Body)
 	}
-	mustStatus(t, call(t, driver, "POST", "/v1/driver/pharmacy-missions/"+missionID+"/picked-up", nil), http.StatusOK)
+	// ADR 0014 : la pharmacie valide la remise avec le code du livreur, payée en espèces.
+	mustStatus(t, handover(t, ph1, resID, pickupCode(t, driver), true), http.StatusOK)
 	wrong := "0000"
 	if code == wrong {
 		wrong = "1111"
@@ -362,7 +363,7 @@ func TestPharmacyPrescriptionDeliveryNeedsCheck(t *testing.T) {
 		return call(t, b.token, "GET", "/v1/medicine-reservations/"+resID, nil).str("status") == "courier_assigned"
 	})
 	code := mustStatus(t, call(t, b.token, "GET", "/v1/medicine-reservations/"+resID, nil), http.StatusOK).str("handover_code")
-	mustStatus(t, call(t, driver, "POST", "/v1/driver/pharmacy-missions/"+missionID+"/picked-up", nil), http.StatusOK)
+	mustStatus(t, handover(t, ph, resID, pickupCode(t, driver), true), http.StatusOK)
 	if x := call(t, driver, "POST", "/v1/driver/pharmacy-missions/"+missionID+"/delivered", map[string]any{"code": code}); x.code() != "prescription_check_required" {
 		t.Fatalf("remise sans vérification de l'ordonnance : %d %s", x.Status, x.code())
 	}

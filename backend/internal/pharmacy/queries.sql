@@ -549,8 +549,15 @@ UPDATE pharmacy_courier_offers SET status = 'cancelled', responded_at = now()
 WHERE reservation_id = $1 AND status = 'pending';
 
 -- name: CreateDelivery :one
-INSERT INTO pharmacy_deliveries (reservation_id, driver_id, offer_id, fee_xof) VALUES ($1, $2, $3, $4)
+INSERT INTO pharmacy_deliveries (reservation_id, driver_id, offer_id, fee_xof, pickup_code) VALUES ($1, $2, $3, $4, $5)
 RETURNING *;
+
+-- name: RecordCourierHandover :execrows
+-- Remise validée par la pharmacie (ADR 0014) : produits récupérés, espèces payées par le livreur.
+UPDATE pharmacy_deliveries
+SET status = 'picked_up', picked_up_at = now(), cash_paid_xof = sqlc.arg(cash_paid_xof), cash_paid_at = now(),
+    updated_at = now()
+WHERE id = sqlc.arg(id) AND status = 'assigned';
 
 -- name: GetDelivery :one
 SELECT * FROM pharmacy_deliveries WHERE id = $1;

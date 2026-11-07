@@ -7605,6 +7605,41 @@ paths:
             application/json:
               schema:
                 "$ref": "#/components/schemas/Error"
+  "/v1/pharmacy/reservations/{id}/courier-handover":
+    post:
+      summary: "Remettre au livreur : code de retrait du livreur et paiement en espèces confirmé (ADR 0014)"
+      description: "Commande et course passent « récupérées », l'avance du livreur est enregistrée. 5 essais de code par 10 minutes (429 au-delà). 409 awaiting_payment avant le paiement du client, 409 no_pickup_code pour une course sans code (le livreur confirme dans son app), 422 cash_not_confirmed si cash_paid n'est pas vrai."
+      tags:
+        - Pharmacie
+      operationId: postPharmacyReservationsByIdCourierHandover
+      parameters:
+        - name: id
+          in: path
+          required: true
+          schema:
+            type: string
+            format: uuid
+      x-roles:
+        - pharmacist
+      requestBody:
+        required: true
+        content:
+          application/json:
+            schema:
+              "$ref": "#/components/schemas/PharmacyCourierHandover"
+      responses:
+        "200":
+          description: "Succès"
+          content:
+            application/json:
+              schema:
+                "$ref": "#/components/schemas/PharmacyReservation"
+        default:
+          description: "Erreur (voir `code`)"
+          content:
+            application/json:
+              schema:
+                "$ref": "#/components/schemas/Error"
   "/v1/pharmacy/reservations/{id}/cancel":
     post:
       summary: "Annuler (produit plus disponible) : client remboursé, forfait de déblocage compris"
@@ -7821,6 +7856,7 @@ paths:
   "/v1/driver/pharmacy-missions/{id}/picked-up":
     post:
       summary: "Commande récupérée à la pharmacie (refusé tant que le client n'a pas payé)"
+      description: "Course avec code (ADR 0014) : 409 handover_by_pharmacy, la pharmacie valide la remise (POST /v1/pharmacy/reservations/{id}/courier-handover). Reste possible pour une course acceptée sans code."
       tags:
         - Livreur
       operationId: postDriverPharmacyMissionsByIdPickedUp
@@ -15034,6 +15070,18 @@ components:
             - string
             - "null"
           format: date-time
+        picked_up_at:
+          type:
+            - string
+            - "null"
+          format: date-time
+          description: "Remise au livreur validée."
+        cash_paid_xof:
+          type:
+            - integer
+            - "null"
+          format: int64
+          description: "Espèces reçues du livreur à la remise (ADR 0014)."
       required:
         - id
         - number
@@ -15228,6 +15276,19 @@ components:
             - failed
       required:
         - outcome
+    PharmacyCourierHandover:
+      type: object
+      properties:
+        code:
+          type: string
+          pattern: "^[0-9]{4}$"
+          description: "Code de retrait affiché dans l'app du livreur."
+        cash_paid:
+          type: boolean
+          description: "Le livreur a payé la pharmacie en espèces ; doit être vrai."
+      required:
+        - code
+        - cash_paid
     HandoverCode:
       type: object
       properties:
@@ -15353,6 +15414,17 @@ components:
             - string
             - "null"
           format: date-time
+        pickup_code:
+          type:
+            - string
+            - "null"
+          description: "Code de retrait à montrer à la pharmacie, tant que la remise n'est pas validée (null pour une course sans code)."
+        cash_advanced_xof:
+          type:
+            - integer
+            - "null"
+          format: int64
+          description: "Espèces payées à la pharmacie par le livreur, que ivia lui rembourse."
       required:
         - id
         - reservation_id

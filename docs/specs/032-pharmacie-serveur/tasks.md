@@ -15,7 +15,7 @@
       - bon code, code faux, 5 essais ;
       - commande d'autrui, état incorrect, case non cochée ;
       - « récupéré » refusé au livreur, mission sans code.
-- [ ] 6. Remise par code :
+- [x] 6. Remise par code :
       - code tiré à l'acceptation de la course ;
       - route `courier-handover` ;
       - avance enregistrée ;

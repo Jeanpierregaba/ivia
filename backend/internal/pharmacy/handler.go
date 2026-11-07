@@ -22,11 +22,16 @@ const AlertsPerUserPerHour = 10
 // quart d'heure ; le code n'a que 4 chiffres.
 const CodeAttemptsPerWindow = 5
 
+// HandoverAttemptsPerWindow : essais du code du livreur à la remise, par commande et par 10 minutes.
+const HandoverAttemptsPerWindow = 5
+
 // Handler expose les routes du module.
 type Handler struct {
 	svc    *Service
 	alerts *ratelimit.Limiter
 	codes  *ratelimit.Limiter
+	// handovers : essais du code du livreur à la remise, par commande (5 par 10 minutes).
+	handovers *ratelimit.Limiter
 	// fake : faux prestataire, exposé en développement local seulement (nil sinon).
 	fake *payments.FakeProvider
 }
@@ -35,7 +40,8 @@ type Handler struct {
 func NewHandler(svc *Service, fake *payments.FakeProvider) *Handler {
 	return &Handler{
 		svc: svc, alerts: ratelimit.New(AlertsPerUserPerHour, time.Hour), codes: ratelimit.New(CodeAttemptsPerWindow, 15*time.Minute),
-		fake: fake,
+		handovers: ratelimit.New(HandoverAttemptsPerWindow, 10*time.Minute),
+		fake:      fake,
 	}
 }
 
@@ -87,6 +93,7 @@ func (h *Handler) Register(rt *httpapi.Router) {
 	rt.Roles("GET /v1/pharmacy/reservations/{id}", h.pharmacyReservation, ph)
 	rt.Roles("POST /v1/pharmacy/reservations/{id}/prepared", h.prepared, ph)
 	rt.Roles("POST /v1/pharmacy/reservations/{id}/complete", h.completePickup, ph)
+	rt.Roles("POST /v1/pharmacy/reservations/{id}/courier-handover", h.courierHandover, ph)
 	rt.Roles("POST /v1/pharmacy/reservations/{id}/cancel", h.pharmacyCancel, ph)
 	rt.Roles("GET /v1/pharmacy/earnings", h.earnings, ph)
 
@@ -493,6 +500,26 @@ func (h *Handler) completePickup(w http.ResponseWriter, r *http.Request) error {
 			return nil, err
 		}
 		return h.svc.CompletePickup(r.Context(), me(r), id, in.Code)
+	})
+	return ok(w, v, err)
+}
+
+// handoverInput : code de retrait du livreur et paiement en espèces confirmé.
+type handoverInput struct {
+	Code     string `json:"code"`
+	CashPaid bool   `json:"cash_paid"`
+}
+
+func (h *Handler) courierHandover(w http.ResponseWriter, r *http.Request) error {
+	var in handoverInput
+	if err := httpapi.Decode(r, &in); err != nil {
+		return err
+	}
+	v, err := withID(r, func(id uuid.UUID) (any, error) {
+		if allowed, retry := h.handovers.Allow(id.String()); !allowed {
+			return nil, apperr.TooManyRequests("too_many_attempts", "Trop de codes essayés. Réessayez dans quelques minutes.", retry)
+		}
+		return h.svc.CourierHandover(r.Context(), me(r), id, in.Code, in.CashPaid)
 	})
 	return ok(w, v, err)
 }

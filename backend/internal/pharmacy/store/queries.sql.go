@@ -536,7 +536,7 @@ func (q *Queries) CreateCourierOffer(ctx context.Context, arg CreateCourierOffer
 }
 
 const createDelivery = `-- name: CreateDelivery :one
-INSERT INTO pharmacy_deliveries (reservation_id, driver_id, offer_id, fee_xof) VALUES ($1, $2, $3, $4)
+INSERT INTO pharmacy_deliveries (reservation_id, driver_id, offer_id, fee_xof, pickup_code) VALUES ($1, $2, $3, $4, $5)
 RETURNING id, reservation_id, driver_id, offer_id, status, fee_xof, assigned_at, picked_up_at, delivered_at, ended_at, created_at, updated_at, prescription_checked, pickup_code, cash_paid_xof, cash_paid_at
 `
 
@@ -545,6 +545,7 @@ type CreateDeliveryParams struct {
 	DriverID      uuid.UUID
 	OfferID       *uuid.UUID
 	FeeXof        int64
+	PickupCode    *string
 }
 
 func (q *Queries) CreateDelivery(ctx context.Context, arg CreateDeliveryParams) (PharmacyDelivery, error) {
@@ -553,6 +554,7 @@ func (q *Queries) CreateDelivery(ctx context.Context, arg CreateDeliveryParams) 
 		arg.DriverID,
 		arg.OfferID,
 		arg.FeeXof,
+		arg.PickupCode,
 	)
 	var i PharmacyDelivery
 	err := row.Scan(
@@ -2966,6 +2968,27 @@ func (q *Queries) RecentRequestsByBuyer(ctx context.Context, arg RecentRequestsB
 	var column_1 int64
 	err := row.Scan(&column_1)
 	return column_1, err
+}
+
+const recordCourierHandover = `-- name: RecordCourierHandover :execrows
+UPDATE pharmacy_deliveries
+SET status = 'picked_up', picked_up_at = now(), cash_paid_xof = $1, cash_paid_at = now(),
+    updated_at = now()
+WHERE id = $2 AND status = 'assigned'
+`
+
+type RecordCourierHandoverParams struct {
+	CashPaidXof *int64
+	ID          uuid.UUID
+}
+
+// Remise validée par la pharmacie (ADR 0014) : produits récupérés, espèces payées par le livreur.
+func (q *Queries) RecordCourierHandover(ctx context.Context, arg RecordCourierHandoverParams) (int64, error) {
+	result, err := q.db.Exec(ctx, recordCourierHandover, arg.CashPaidXof, arg.ID)
+	if err != nil {
+		return 0, err
+	}
+	return result.RowsAffected(), nil
 }
 
 const reinstate = `-- name: Reinstate :execrows
