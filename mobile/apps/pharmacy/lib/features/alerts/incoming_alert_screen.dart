@@ -8,6 +8,7 @@ import 'package:ivia_ui/ivia_ui.dart';
 
 import '../../common/providers.dart';
 import '../../common/ui.dart';
+import '../push/push.dart';
 import 'alert_logic.dart';
 
 /// Chemin de l'alerte entrante (F10) et du détail (F11).
@@ -58,6 +59,8 @@ class _IncomingAlertScreenState extends ConsumerState<IncomingAlertScreen> {
     WidgetsBinding.instance.addPostFrameCallback((_) async {
       if (!mounted) return;
       ref.read(incomingShownProvider.notifier).markShown(widget.alertId);
+      // L'alerte est à l'écran : la sonnerie s'arrête.
+      ref.read(pushProvider).dismiss(widget.alertId);
       ref.invalidate(inboxProvider);
       try {
         await ref.read(inboxProvider.future);

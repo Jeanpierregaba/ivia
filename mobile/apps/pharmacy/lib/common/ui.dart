@@ -551,11 +551,12 @@ class PEmpty extends StatelessWidget {
   );
 }
 
-/// Liste illisible (réseau) : le message de l'API, puis « Tirer pour
-/// réessayer ».
+/// Lecture impossible (réseau) : le message de l'API, puis « Réessayer »
+/// ([onRetry]) ou « Tirer pour réessayer » dans une liste à tirer.
 class PErrorRetry extends StatelessWidget {
-  const PErrorRetry({super.key, required this.message});
+  const PErrorRetry({super.key, required this.message, this.onRetry});
   final String message;
+  final VoidCallback? onRetry;
 
   @override
   Widget build(BuildContext context) => PCard(
@@ -566,10 +567,22 @@ class PErrorRetry extends StatelessWidget {
         const SizedBox(width: 12),
         Expanded(
           child: Column(
+            mainAxisSize: MainAxisSize.min,
             crossAxisAlignment: CrossAxisAlignment.start,
             children: [
               Text(message, style: PText.body.copyWith(color: P.danger)),
-              Text('Tirer pour réessayer', style: PText.small),
+              if (onRetry == null)
+                Text('Tirer pour réessayer', style: PText.small)
+              else
+                TextButton(
+                  onPressed: onRetry,
+                  style: TextButton.styleFrom(
+                    foregroundColor: P.danger,
+                    padding: EdgeInsets.zero,
+                    textStyle: PText.button.copyWith(fontSize: 15),
+                  ),
+                  child: const Text('Réessayer'),
+                ),
             ],
           ),
         ),
@@ -658,8 +671,16 @@ String? errorOf(AsyncValue<Object?> value) => switch (value.error) {
   _ => 'Connexion impossible. Vérifiez votre réseau.',
 };
 
+/// Jour de Lomé (UTC+0) de [d], à minuit.
+DateTime lomeDay(DateTime d) {
+  final u = d.toUtc();
+  return DateTime.utc(u.year, u.month, u.day);
+}
+
+/// Heure de Lomé (UTC+0, sans heure d'été), quel que soit le fuseau du
+/// téléphone.
 String hhmm(DateTime d) {
-  final l = d.toLocal();
+  final l = d.toUtc();
   return '${l.hour.toString().padLeft(2, '0')}:${l.minute.toString().padLeft(2, '0')}';
 }
 

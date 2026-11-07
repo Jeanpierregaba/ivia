@@ -63,12 +63,36 @@ class _ApplicationFlowState extends ConsumerState<ApplicationFlow> {
   void _back() {
     switch (_step) {
       case 1:
-        signOutPharmacy(ref);
+        _confirmSignOut();
       case 3:
         _go(1);
       default:
         _go(_step - 1);
     }
+  }
+
+  /// Retour depuis la fiche : quitter le dossier, c'est se déconnecter.
+  Future<void> _confirmSignOut() async {
+    final ok = await showDialog<bool>(
+      context: context,
+      builder: (c) => AlertDialog(
+        title: const Text('Quitter le dossier ?'),
+        content: const Text(
+          'Vous serez déconnecté. Ce qui n\'est pas enregistré sera perdu.',
+        ),
+        actions: [
+          TextButton(
+            onPressed: () => Navigator.pop(c, false),
+            child: const Text('Rester'),
+          ),
+          TextButton(
+            onPressed: () => Navigator.pop(c, true),
+            child: const Text('Me déconnecter'),
+          ),
+        ],
+      ),
+    );
+    if (ok == true && mounted) await signOutPharmacy(ref);
   }
 
   PHeader _header(String title) => PHeader(

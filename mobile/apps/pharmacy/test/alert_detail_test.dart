@@ -145,6 +145,7 @@ void main() {
 
   testWidgets('iOS : rien n\'est annoncé ni demandé', (tester) async {
     debugDefaultTargetPlatformOverride = TargetPlatform.iOS;
+    addTearDown(() => debugDefaultTargetPlatformOverride = null);
     await tester.pumpWidget(
       const MaterialApp(home: PrescriptionViewer(photos: [])),
     );
@@ -153,6 +154,22 @@ void main() {
     await tester.pumpWidget(const SizedBox());
     expect(secureCalls, isEmpty);
     debugDefaultTargetPlatformOverride = null;
+  });
+
+  testWidgets('détail illisible : « Réessayer » le relit', (tester) async {
+    var fail = true;
+    app.server.on(
+      'GET',
+      '/v1/pharmacy/inbox/a1',
+      (_) => fail
+          ? FakeResponse.error(503, 'unavailable', 'Service indisponible.')
+          : FakeResponse.json(200, alert),
+    );
+    await openDetail(tester);
+    expect(find.text('Service indisponible.'), findsOneWidget);
+    fail = false;
+    await tapText(tester, 'Réessayer');
+    expect(find.text('Produits demandés'), findsOneWidget);
   });
 
   testWidgets('photo au lien expiré : le détail est relu', (tester) async {

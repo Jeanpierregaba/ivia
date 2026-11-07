@@ -5,7 +5,9 @@ import 'package:ivia_app_core/ivia_app_core.dart';
 
 import '../../common/providers.dart';
 import '../../common/ui.dart';
+import '../push/push.dart';
 import 'alert_logic.dart';
+import 'incoming_alert_screen.dart';
 import 'prescription_viewer.dart';
 import 'response_screen.dart';
 
@@ -29,6 +31,18 @@ class _AlertDetailScreenState extends ConsumerState<AlertDetailScreen> {
   void initState() {
     super.initState();
     _load();
+    // L'alerte est à l'écran : la sonnerie s'arrête.
+    ref.read(pushProvider).dismiss(widget.alertId);
+    ref.read(incomingShownProvider.notifier).markShown(widget.alertId);
+  }
+
+  @override
+  void dispose() {
+    // Miniature de l'ordonnance : pas gardée après la fermeture.
+    for (final p in _alert?.photos ?? const <InboxPhoto>[]) {
+      if (p.url case final url?) NetworkImage(url).evict();
+    }
+    super.dispose();
   }
 
   /// Relu aussi quand le lien des photos (10 minutes) a expiré.
@@ -47,6 +61,11 @@ class _AlertDetailScreenState extends ConsumerState<AlertDetailScreen> {
     } on ApiException catch (e) {
       if (mounted) setState(() => _error = e.message);
     }
+  }
+
+  void _retry() {
+    setState(() => _error = null);
+    _load();
   }
 
   Future<void> _decline() async {
@@ -106,13 +125,20 @@ class _AlertDetailScreenState extends ConsumerState<AlertDetailScreen> {
                           ? const CircularProgressIndicator()
                           : Padding(
                               padding: const EdgeInsets.all(P.gutter),
-                              child: PErrorRetry(message: _error!),
+                              child: PErrorRetry(
+                                message: _error!,
+                                onRetry: _retry,
+                              ),
                             ),
                     )
                   : RefreshIndicator(
                       color: P.green,
                       onRefresh: _load,
-                      child: _Details(alert: a, onReload: _load),
+                      child: _Details(
+                        alert: a,
+                        onReload: _load,
+                        onPhotos: () => _alert?.photos,
+                      ),
                     ),
             ),
             if (a != null)
@@ -146,7 +172,14 @@ class _AlertDetailScreenState extends ConsumerState<AlertDetailScreen> {
 }
 
 class _Details extends StatelessWidget {
-  const _Details({required this.alert, required this.onReload});
+  const _Details({
+    required this.alert,
+    required this.onReload,
+    required this.onPhotos,
+  });
+
+  /// Photos du détail relu (liens renouvelés).
+  final List<InboxPhoto>? Function() onPhotos;
   final InboxAlert alert;
   final Future<void> Function() onReload;
 
@@ -186,8 +219,13 @@ class _Details extends StatelessWidget {
               onTap: () => Navigator.of(context).push(
                 MaterialPageRoute<void>(
                   fullscreenDialog: true,
-                  builder: (_) =>
-                      PrescriptionViewer(photos: a.photos, onExpired: onReload),
+                  builder: (_) => PrescriptionViewer(
+                    photos: a.photos,
+                    reload: () async {
+                      await onReload();
+                      return onPhotos();
+                    },
+                  ),
                 ),
               ),
               child: Row(

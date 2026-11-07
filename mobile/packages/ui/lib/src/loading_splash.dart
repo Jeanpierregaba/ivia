@@ -4,13 +4,6 @@ import 'package:flutter/services.dart';
 import 'brand.dart';
 import 'tokens.dart';
 
-/// Splash de chargement, dessiné par Flutter juste après le splash natif :
-/// même fond et même visuel au même endroit (aucun saut), plus un titre
-/// éventuel, un slogan et trois points animés.
-///
-/// Deux variantes, comme les splashs natifs (`flutter_native_splash.yaml`) :
-/// logotype blanc de 174 dp (acheteur), ou tuile blanche de 172 dp portant le
-/// logotype de la couleur de l'app ([tile], marchand).
 /// Tuile du splash : taille, coins et logotype. Par défaut, celle du splash
 /// natif du marchand.
 class IviaSplashTile {
@@ -32,6 +25,13 @@ class IviaSplashTile {
   final Color? logoTint;
 }
 
+/// Splash de chargement, dessiné par Flutter juste après le splash natif :
+/// même fond et même visuel au même endroit (aucun saut), plus un titre
+/// éventuel, un slogan et trois points animés.
+///
+/// Deux variantes, comme les splashs natifs (`flutter_native_splash.yaml`) :
+/// logotype blanc de 174 dp (acheteur), ou tuile blanche de 172 dp portant le
+/// logotype de la couleur de l'app ([tile], marchand).
 class IviaLoadingSplash extends StatefulWidget {
   const IviaLoadingSplash({
     super.key,

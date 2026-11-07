@@ -80,10 +80,10 @@ void main() {
   }
 
   test('jour des sections : aujourd\'hui, hier, la date', () {
-    final now = DateTime(2026, 11, 6, 10);
-    expect(dayLabel(DateTime(2026, 11, 6, 1), now), "Aujourd'hui");
-    expect(dayLabel(DateTime(2026, 11, 5, 23), now), 'Hier');
-    expect(dayLabel(DateTime(2026, 11, 2, 9), now), '2 novembre');
+    final now = DateTime.utc(2026, 11, 6, 10);
+    expect(dayLabel(DateTime.utc(2026, 11, 6, 1), now), "Aujourd'hui");
+    expect(dayLabel(DateTime.utc(2026, 11, 5, 23), now), 'Hier');
+    expect(dayLabel(DateTime.utc(2026, 11, 2, 9), now), '2 novembre');
   });
 
   testWidgets('Alertes (F21) : en cours, commandes, historique', (

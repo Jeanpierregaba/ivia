@@ -192,8 +192,10 @@ void main() {
       order = orderBody(delivery: true, status: 'courier_search');
       await openOrder(tester);
       expect(find.text('Livraison #M-208'), findsOneWidget);
-      expect(find.text("Payée dans l'app"), findsOneWidget);
+      // Pas de livreur : le client n'a pas encore payé.
+      expect(find.text('Paiement du client en attente'), findsOneWidget);
       expect(find.text('Préparer la commande'), findsOneWidget);
+      expect(find.text('Signaler une rupture'), findsOneWidget);
       expect(find.text("Recherche d'un livreur"), findsOneWidget);
       await tapText(tester, 'Marquer prête');
       expect(
@@ -213,6 +215,7 @@ void main() {
         courier: {'first_name': 'Kossi', 'vehicle_plate': 'TG 1234'},
       );
       await openOrder(tester);
+      expect(find.text("Payée dans l'app"), findsOneWidget);
       expect(find.textContaining('Kossi'), findsOneWidget);
       order = {...order, 'status': 'picked_up'};
       await tester.pump(const Duration(seconds: 5));

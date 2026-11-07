@@ -29,6 +29,22 @@ que sa partie interface (apps Flutter, back-office), sauf mention « backend ».
 `backend/api/openapi.yaml`. Ordre : dépendances d'abord, puis valeur ; les phases 1 et 2 forment la
 version « retrait seulement » (voir `docs/PRD.md`).
 
+### Pharmacie (031) — manques côté serveur (Gedeon)
+L'app pharmacie fait sans en attendant (spec 031, « Hors périmètre ») :
+- [ ] **Backend** : numéro court d'alerte (« #A-3107 ») ; l'app affiche l'heure de réception
+- [ ] **Backend** : opérateur du compte de versement (Flooz ou T-Money) dans `GET /v1/pharmacy/me` ; le relevé et le profil n'affichent que le numéro masqué
+- [ ] **Backend** : code du livreur à la remise en pharmacie (F17) ; l'app indique que le livreur confirme dans son app
+- [ ] **Backend** : heure d'arrivée estimée et heure de récupération par le livreur (F17, F19)
+- [ ] **Backend** : période du relevé et date du prochain versement (« 1er au 15 nov », « le 16 nov »)
+- [ ] **Backend** : origine « planning officiel importé » des gardes, et date d'import
+- [ ] **Backend** : quartier du client dans l'alerte (« Tokoin »), sans adresse précise
+- [ ] **Backend** : montant du forfait remboursé à l'annulation (« 100 F »)
+- [ ] **Backend** : adresse de la photo de devanture (photo de profil de la pharmacie) ; l'app affiche une tuile
+- [ ] **Backend** : compteurs du jour (alertes reçues, répondues, confirmées) ; l'app les calcule sur les 50 dernières alertes
+- [ ] **Backend** : envoi des pièces du dossier en PDF (aujourd'hui photo seulement)
+- [ ] **Backend** : push d'alerte iOS sans son imposé (`aps.sound`), pour que « Sonnerie coupée » s'applique aussi sur iPhone ; le réglage n'est proposé que sur Android
+- [ ] **Mobile** (antérieur à la 031) : si la lecture de la pharmacie échoue au lancement, une pharmacie validée voit le formulaire de création au lieu d'un écran « réessayer »
+
 ### Phase 1 — Comptes et catalogue
 - [x] 001 — Écrans de connexion par OTP e-mail dans les 3 apps
 - [ ] 002 — Profil, carnet d'adresses (choix du point sur la carte), suppression du compte

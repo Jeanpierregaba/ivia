@@ -274,6 +274,8 @@ lignes.
 - Envoi de PDF pour les pièces : photo seulement, comme aujourd'hui. « PDF ou photo » devient
   « Photo lisible ».
 - Blocage de capture sur iOS : impossible à garantir, la mention n'y est pas affichée.
+- Sonnerie coupée sur iOS : le serveur envoie le push avec son propre son, que l'app ne peut pas
+  couper ; le réglage n'est proposé que sur Android (manque noté pour Gedeon).
 - Mise en service de Firebase (Gedeon, `docs/mise-en-service-push-pharmacie.md`).
 - Mode sombre et tablette.
 

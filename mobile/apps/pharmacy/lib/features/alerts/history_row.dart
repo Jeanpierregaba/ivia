@@ -82,8 +82,9 @@ String orderStatusLabel(PharmacyOrder o) => switch (o.status) {
 
 /// Jour d'une section : « Aujourd'hui », « Hier », sinon la date.
 String dayLabel(DateTime at, DateTime now) {
-  final d = DateTime(at.toLocal().year, at.toLocal().month, at.toLocal().day);
-  final today = DateTime(now.year, now.month, now.day);
+  // Jours de Lomé, quel que soit le fuseau du téléphone.
+  final d = lomeDay(at);
+  final today = lomeDay(now);
   final days = today.difference(d).inDays;
   if (days == 0) return "Aujourd'hui";
   if (days == 1) return 'Hier';

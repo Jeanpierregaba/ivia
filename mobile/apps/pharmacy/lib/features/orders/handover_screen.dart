@@ -52,12 +52,12 @@ class _HandoverScreenState extends ConsumerState<HandoverScreen> {
     });
     try {
       await ref.read(apiClientProvider).pharmacyCompletePickup(o.id, code);
-      // Le code saisi n'est pas gardé.
-      _code.clear();
       ref
         ..invalidate(ordersProvider)
         ..invalidate(earningsProvider);
       if (!mounted) return;
+      // Le code saisi n'est pas gardé.
+      _code.clear();
       Navigator.of(context).pushReplacement(
         MaterialPageRoute<void>(
           builder: (_) => OrderDoneScreen(
@@ -76,6 +76,7 @@ class _HandoverScreenState extends ConsumerState<HandoverScreen> {
       );
     } on ApiException catch (e) {
       if (!mounted) return;
+      // Le code saisi n'est pas gardé.
       _code.clear();
       setState(() {
         _busy = false;
@@ -91,129 +92,132 @@ class _HandoverScreenState extends ConsumerState<HandoverScreen> {
       for (final l in o.lines)
         if (l.available && l.prescriptionRequired) l.name,
     ];
-    return Scaffold(
-      backgroundColor: P.page,
-      body: SafeArea(
-        child: Column(
-          children: [
-            PHeader(
-              title: 'Remise #${o.number}',
-              trailing: o.expiresAt == null
-                  ? null
-                  : Semantics(
-                      label: "Mise de côté jusqu'à ${hhmm(o.expiresAt!)}",
-                      excludeSemantics: true,
-                      child: PPill(
-                        '→ ${hhmm(o.expiresAt!)}',
-                        bg: P.softRed,
-                        fg: P.red,
-                      ),
-                    ),
-              onBack: _busy ? () {} : null,
-            ),
-            Expanded(
-              child: ListView(
-                padding: const EdgeInsets.fromLTRB(P.gutter, 4, P.gutter, 12),
-                children: [
-                  Semantics(
-                    header: true,
-                    child: Text(
-                      'Code de retrait du client',
-                      style: PText.heading,
-                    ),
-                  ),
-                  const SizedBox(height: 6),
-                  Text(
-                    'Demandez au client son code à 4 chiffres.',
-                    style: PText.body.copyWith(color: P.label),
-                  ),
-                  const SizedBox(height: 16),
-                  IviaCodeInput(
-                    controller: _code,
-                    length: 4,
-                    autofocus: true,
-                    autofill: false,
-                    enabled: !_busy,
-                    hasError: _error != null,
-                    semanticLabel: 'Code de retrait à 4 chiffres',
-                  ),
-                  if (_error != null) ...[
-                    const SizedBox(height: 8),
-                    Semantics(
-                      liveRegion: true,
-                      child: Text(
-                        _error!,
-                        style: PText.body.copyWith(color: P.danger),
-                      ),
-                    ),
-                  ],
-                  const SizedBox(height: 16),
-                  PCard(
-                    padding: const EdgeInsets.symmetric(horizontal: 16),
-                    child: Column(
-                      children: [
-                        if (o.prescriptionRequired) ...[
-                          PCheckRow(
-                            value: _sawPrescription,
-                            onChanged: _busy
-                                ? null
-                                : (v) => setState(() => _sawPrescription = v),
-                            label: "J'ai vu l'original de l'ordonnance",
-                          ),
-                          const Divider(height: 1, color: P.line),
-                        ],
-                        PCheckRow(
-                          value: _paid,
-                          onChanged: _busy
-                              ? null
-                              : (v) => setState(() => _paid = v),
-                          label:
-                              'Le client a payé ${formatXof(o.itemsXof)} sur place',
+    return PopScope(
+      canPop: !_busy,
+      child: Scaffold(
+        backgroundColor: P.page,
+        body: SafeArea(
+          child: Column(
+            children: [
+              PHeader(
+                title: 'Remise #${o.number}',
+                trailing: o.expiresAt == null
+                    ? null
+                    : Semantics(
+                        label: "Mise de côté jusqu'à ${hhmm(o.expiresAt!)}",
+                        excludeSemantics: true,
+                        child: PPill(
+                          '→ ${hhmm(o.expiresAt!)}',
+                          bg: P.softRed,
+                          fg: P.red,
                         ),
-                      ],
+                      ),
+                onBack: _busy ? () {} : null,
+              ),
+              Expanded(
+                child: ListView(
+                  padding: const EdgeInsets.fromLTRB(P.gutter, 4, P.gutter, 12),
+                  children: [
+                    Semantics(
+                      header: true,
+                      child: Text(
+                        'Code de retrait du client',
+                        style: PText.heading,
+                      ),
                     ),
-                  ),
-                  if (rx.isNotEmpty) ...[
+                    const SizedBox(height: 6),
+                    Text(
+                      'Demandez au client son code à 4 chiffres.',
+                      style: PText.body.copyWith(color: P.label),
+                    ),
+                    const SizedBox(height: 16),
+                    IviaCodeInput(
+                      controller: _code,
+                      length: 4,
+                      autofocus: true,
+                      autofill: false,
+                      enabled: !_busy,
+                      hasError: _error != null,
+                      semanticLabel: 'Code de retrait à 4 chiffres',
+                    ),
+                    if (_error != null) ...[
+                      const SizedBox(height: 8),
+                      Semantics(
+                        liveRegion: true,
+                        child: Text(
+                          _error!,
+                          style: PText.body.copyWith(color: P.danger),
+                        ),
+                      ),
+                    ],
                     const SizedBox(height: 16),
                     PCard(
-                      color: P.softYellow,
-                      child: Row(
-                        crossAxisAlignment: CrossAxisAlignment.start,
+                      padding: const EdgeInsets.symmetric(horizontal: 16),
+                      child: Column(
                         children: [
-                          const ExcludeSemantics(
-                            child: Icon(
-                              Icons.assignment_late,
-                              color: P.yellow,
-                              size: 22,
+                          if (o.prescriptionRequired) ...[
+                            PCheckRow(
+                              value: _sawPrescription,
+                              onChanged: _busy
+                                  ? null
+                                  : (v) => setState(() => _sawPrescription = v),
+                              label: "J'ai vu l'original de l'ordonnance",
                             ),
-                          ),
-                          const SizedBox(width: 12),
-                          Expanded(
-                            child: Text(
-                              rx.length == 1
-                                  ? '${rx.single} est délivré sur ordonnance.'
-                                  : '${rx.join(', ')} sont délivrés sur '
-                                        'ordonnance.',
-                              style: PText.body.copyWith(color: P.ink),
-                            ),
+                            const Divider(height: 1, color: P.line),
+                          ],
+                          PCheckRow(
+                            value: _paid,
+                            onChanged: _busy
+                                ? null
+                                : (v) => setState(() => _paid = v),
+                            label:
+                                'Le client a payé ${formatXof(o.itemsXof)} sur place',
                           ),
                         ],
                       ),
                     ),
+                    if (rx.isNotEmpty) ...[
+                      const SizedBox(height: 16),
+                      PCard(
+                        color: P.softYellow,
+                        child: Row(
+                          crossAxisAlignment: CrossAxisAlignment.start,
+                          children: [
+                            const ExcludeSemantics(
+                              child: Icon(
+                                Icons.assignment_late,
+                                color: P.yellow,
+                                size: 22,
+                              ),
+                            ),
+                            const SizedBox(width: 12),
+                            Expanded(
+                              child: Text(
+                                rx.length == 1
+                                    ? '${rx.single} est délivré sur ordonnance.'
+                                    : '${rx.join(', ')} sont délivrés sur '
+                                          'ordonnance.',
+                                style: PText.body.copyWith(color: P.ink),
+                              ),
+                            ),
+                          ],
+                        ),
+                      ),
+                    ],
                   ],
+                ),
+              ),
+              PBottomBar(
+                children: [
+                  PButton(
+                    label: 'Valider la remise',
+                    busy: _busy,
+                    onTap: _ready ? _validate : null,
+                  ),
                 ],
               ),
-            ),
-            PBottomBar(
-              children: [
-                PButton(
-                  label: 'Valider la remise',
-                  busy: _busy,
-                  onTap: _ready ? _validate : null,
-                ),
-              ],
-            ),
-          ],
+            ],
+          ),
         ),
       ),
     );

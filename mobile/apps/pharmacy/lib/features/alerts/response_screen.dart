@@ -68,7 +68,10 @@ class _Line {
 
   bool get added => itemId == null;
   int get unitPrice => _digits(price.text);
-  int get qty => _digits(quantity.text).clamp(1, 100);
+  int get qty => _digits(quantity.text);
+
+  /// Quantité acceptée par le serveur : 1 à 100.
+  bool get qtyValid => qty >= 1 && qty <= 100;
 
   /// Nom envoyé : le générique proposé, sinon le produit demandé.
   String get sentName {
@@ -77,7 +80,8 @@ class _Line {
     return g.isEmpty ? requested : g;
   }
 
-  bool get complete => !available || (unitPrice > 0 && sentName.length >= 2);
+  bool get complete =>
+      !available || (unitPrice > 0 && qtyValid && sentName.length >= 2);
 
   ResponseLineDraft toDraft() => ResponseLineDraft(
     alertItemId: itemId,
@@ -137,7 +141,7 @@ class _ResponseScreenState extends ConsumerState<ResponseScreen> {
         _alert = a;
         _lines.addAll([
           for (final (i, item) in a.items.indexed)
-            _fromItem(item, i < previous.length ? previous[i] : null),
+            _fromItem(item, _sentFor(item, i, previous)),
           if (a.items.isEmpty)
             for (final l in previous)
               _Line(
@@ -157,6 +161,15 @@ class _ResponseScreenState extends ConsumerState<ResponseScreen> {
     } on ApiException catch (e) {
       if (mounted) setState(() => _error = e.message);
     }
+  }
+
+  /// Ligne déjà envoyée pour ce produit : même nom, sinon même position (un
+  /// générique a changé le nom).
+  MedLine? _sentFor(InboxAlertItem item, int i, List<MedLine> previous) {
+    for (final l in previous) {
+      if (l.name == item.name) return l;
+    }
+    return i < previous.length ? previous[i] : null;
   }
 
   _Line _fromItem(InboxAlertItem item, MedLine? sent) => _Line(
@@ -235,7 +248,13 @@ class _ResponseScreenState extends ConsumerState<ResponseScreen> {
                           ? const CircularProgressIndicator()
                           : Padding(
                               padding: const EdgeInsets.all(P.gutter),
-                              child: PErrorRetry(message: _error!),
+                              child: PErrorRetry(
+                                message: _error!,
+                                onRetry: () {
+                                  setState(() => _error = null);
+                                  _load();
+                                },
+                              ),
                             ),
                     )
                   : ListView(
@@ -510,7 +529,9 @@ class _LineCard extends StatelessWidget {
                         LengthLimitingTextInputFormatter(3),
                       ],
                       onChanged: (_) => onChanged(),
-                      decoration: _input(),
+                      decoration: _input().copyWith(
+                        errorText: l.qtyValid ? null : '1 à 100',
+                      ),
                     ),
                   ),
                 ),

@@ -106,7 +106,13 @@ class _OrderScreenState extends ConsumerState<OrderScreen> {
                       ? const CircularProgressIndicator()
                       : Padding(
                           padding: const EdgeInsets.all(P.gutter),
-                          child: PErrorRetry(message: _error!),
+                          child: PErrorRetry(
+                            message: _error!,
+                            onRetry: () {
+                              setState(() => _error = null);
+                              _load();
+                            },
+                          ),
                         ),
                 ),
               ),
@@ -457,6 +463,13 @@ class _OrderScreenState extends ConsumerState<OrderScreen> {
     final prepared = o.preparedAt != null;
     final courier = o.courier?.firstName ?? '';
     final active = o.active;
+    // Le client paie quand un livreur est trouvé.
+    final paid = const [
+      'courier_assigned',
+      'picked_up',
+      'completed',
+    ].contains(o.status);
+    final cancellable = active && o.status != 'picked_up';
     final step2 = switch (o.status) {
       'courier_search' => "Recherche d'un livreur",
       'awaiting_payment' => 'Livreur trouvé · paiement du client',
@@ -485,12 +498,17 @@ class _OrderScreenState extends ConsumerState<OrderScreen> {
                             crossAxisAlignment: CrossAxisAlignment.start,
                             children: [
                               Text(
-                                "Payée dans l'app",
+                                paid
+                                    ? "Payée dans l'app"
+                                    : 'Paiement du client en attente',
                                 style: PText.cardTitle.copyWith(fontSize: 20),
                               ),
                               Text(
-                                '${formatXof(o.dueXof)} · versés sur votre '
-                                'relevé',
+                                paid
+                                    ? '${formatXof(o.dueXof)} · versés sur '
+                                          'votre relevé'
+                                    : 'Le client paie dans l\'app dès qu\'un '
+                                          'livreur est trouvé.',
                                 style: PText.bodyMuted,
                               ),
                             ],
@@ -545,15 +563,34 @@ class _OrderScreenState extends ConsumerState<OrderScreen> {
                 ],
               ),
             ),
-            if (active && !prepared)
-              PBottomBar(
-                children: [
-                  PButton(
-                    label: 'Marquer prête',
-                    busy: _busy,
-                    onTap: () => _run((api) => api.pharmacyMarkPrepared(o.id)),
+            if (cancellable)
+              SafeArea(
+                top: false,
+                minimum: const EdgeInsets.only(bottom: 8),
+                child: Padding(
+                  padding: const EdgeInsets.fromLTRB(P.gutter, 8, P.gutter, 0),
+                  child: Column(
+                    mainAxisSize: MainAxisSize.min,
+                    children: [
+                      if (!prepared)
+                        PButton(
+                          label: 'Marquer prête',
+                          busy: _busy,
+                          onTap: () =>
+                              _run((api) => api.pharmacyMarkPrepared(o.id)),
+                        ),
+                      TextButton(
+                        onPressed: _busy ? null : () => _cancel(o),
+                        style: TextButton.styleFrom(
+                          foregroundColor: P.danger,
+                          minimumSize: const Size(160, 48),
+                          textStyle: PText.button,
+                        ),
+                        child: const Text('Signaler une rupture'),
+                      ),
+                    ],
                   ),
-                ],
+                ),
               ),
           ],
         ),

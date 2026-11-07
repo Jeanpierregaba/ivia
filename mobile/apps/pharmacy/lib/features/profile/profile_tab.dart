@@ -1,3 +1,4 @@
+import 'package:flutter/foundation.dart';
 import 'package:flutter/material.dart';
 import 'package:flutter_riverpod/flutter_riverpod.dart';
 import 'package:ivia_app_core/ivia_app_core.dart';
@@ -26,12 +27,8 @@ String nextDutyLabel(
   if (next.isEmpty) return 'Aucune garde prévue';
   final start = next.first.startsAt;
   if (!start.isAfter(now)) return 'De garde maintenant';
-  final local = start.toLocal();
-  final days = DateTime(
-    local.year,
-    local.month,
-    local.day,
-  ).difference(DateTime(now.year, now.month, now.day)).inDays;
+  // Jours de Lomé, quel que soit le fuseau du téléphone.
+  final days = lomeDay(start).difference(lomeDay(now)).inDays;
   return switch (days) {
     0 => 'Prochaine garde : ce soir',
     1 => 'Prochaine garde : demain',
@@ -152,18 +149,22 @@ class ProfileTab extends ConsumerWidget {
         const SizedBox(height: 12),
         _Group(
           rows: [
-            _Row(
-              icon: Icons.volume_up,
-              title: 'Sonnerie des alertes',
-              subtitle: sound
-                  ? 'Forte · répétée'
-                  : 'Coupée · notification seule',
-              trailing: PSwitch(
-                value: sound,
-                onChanged: (v) => ref.read(alertSoundProvider.notifier).set(v),
+            // iOS : le serveur fait sonner le push lui-même ; le réglage n'y
+            // aurait pas d'effet (noté pour Gedeon).
+            if (defaultTargetPlatform == TargetPlatform.android)
+              _Row(
+                icon: Icons.volume_up,
+                title: 'Sonnerie des alertes',
+                subtitle: sound
+                    ? 'Forte · répétée'
+                    : 'Coupée · notification seule',
+                trailing: PSwitch(
+                  value: sound,
+                  onChanged: (v) =>
+                      ref.read(alertSoundProvider.notifier).set(v),
+                ),
+                onTap: () => ref.read(alertSoundProvider.notifier).set(!sound),
               ),
-              onTap: () => ref.read(alertSoundProvider.notifier).set(!sound),
-            ),
             _Row(
               icon: Icons.help_outline,
               title: 'Aide et contact ivia',

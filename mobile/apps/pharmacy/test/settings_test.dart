@@ -5,6 +5,8 @@ import 'package:ivia_app_core/ivia_app_core.dart';
 import 'package:ivia_pharmacy/common/ui.dart';
 import 'package:ivia_pharmacy/features/planning/planning_screen.dart';
 import 'package:ivia_pharmacy/features/profile/alert_sound.dart';
+import 'package:ivia_pharmacy/features/profile/profile_tab.dart';
+import 'package:ivia_pharmacy/features/push/push.dart';
 import 'package:ivia_ui/ivia_ui.dart';
 import 'package:shared_preferences/shared_preferences.dart';
 
@@ -19,12 +21,13 @@ void main() {
     PharmacyHarness.resetDevice();
     app = PharmacyHarness();
     final now = DateTime.now();
-    final tonight = DateTime.utc(now.year, now.month, now.day, 20);
+    // Garde le jour même à Lomé, quelle que soit l'heure du test.
+    final start = lomeDay(now).add(const Duration(minutes: 30));
     shifts = [
       {
         'id': 's1',
-        'starts_at': tonight.toIso8601String(),
-        'ends_at': tonight.add(const Duration(hours: 12)).toIso8601String(),
+        'starts_at': start.toIso8601String(),
+        'ends_at': start.add(const Duration(hours: 12)).toIso8601String(),
       },
     ];
     orders = [
@@ -86,6 +89,42 @@ void main() {
     await tester.pumpAndSettle();
   }
 
+  test('prochaine garde : en cours, ce soir, demain, la date', () {
+    final now = DateTime.utc(2026, 11, 6, 10);
+    ({String id, DateTime startsAt, DateTime endsAt}) at(DateTime start) => (
+      id: 's',
+      startsAt: start,
+      endsAt: start.add(const Duration(hours: 12)),
+    );
+    expect(nextDutyLabel(const [], now), 'Aucune garde prévue');
+    expect(
+      nextDutyLabel([at(DateTime.utc(2026, 11, 6, 8))], now),
+      'De garde maintenant',
+    );
+    expect(
+      nextDutyLabel([at(DateTime.utc(2026, 11, 6, 20))], now),
+      'Prochaine garde : ce soir',
+    );
+    expect(
+      nextDutyLabel([at(DateTime.utc(2026, 11, 7, 20))], now),
+      'Prochaine garde : demain',
+    );
+    expect(
+      nextDutyLabel([at(DateTime.utc(2026, 11, 12, 20))], now),
+      'Prochaine garde : le 12 novembre',
+    );
+  });
+
+  test('sonnerie : canal sonore ou canal muet', () {
+    final loud = alertNotificationDetails(loud: true);
+    final quiet = alertNotificationDetails(loud: false);
+    expect(loud.android!.channelId, alertChannelId);
+    expect(loud.android!.fullScreenIntent, isTrue);
+    expect(quiet.android!.channelId, quietAlertChannelId);
+    expect(quiet.android!.playSound, isFalse);
+    expect(quiet.iOS!.presentSound, isFalse);
+  });
+
   test('import : une garde par ligne, ligne illisible signalée', () {
     final ok = parseShiftList('08/11/2026 20:00 07:00\n15/11/2026 20h00 07h00');
     expect(ok.badLine, isNull);
@@ -101,7 +140,15 @@ void main() {
     await openProfile(tester);
     expect(find.text('Pharmacie du Boulevard'), findsOneWidget);
     expect(find.text('Validée'), findsOneWidget);
-    expect(find.text('Prochaine garde : ce soir'), findsOneWidget);
+    final parsed = [
+      for (final m in shifts)
+        (
+          id: m['id'] as String,
+          startsAt: DateTime.parse(m['starts_at'] as String),
+          endsAt: DateTime.parse(m['ends_at'] as String),
+        ),
+    ];
+    expect(find.text(nextDutyLabel(parsed, DateTime.now())), findsOneWidget);
     expect(find.text('${formatXof(3950)} à recevoir'), findsOneWidget);
 
     await tapText(tester, 'Planning de garde');

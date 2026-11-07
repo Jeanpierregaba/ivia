@@ -247,10 +247,19 @@ void main() {
       );
     });
 
-    testWidgets('retour depuis la fiche : déconnexion', (tester) async {
+    testWidgets('retour depuis la fiche : confirmation, puis déconnexion', (
+      tester,
+    ) async {
       await app.launch(tester);
       await tester.tap(find.bySemanticsLabel('Retour'));
       await tester.pumpAndSettle();
+      expect(find.text('Quitter le dossier ?'), findsOneWidget);
+      await tapText(tester, 'Rester');
+      expect(app.server.calls('POST', '/v1/auth/logout'), isEmpty);
+      expect(find.text('1 sur 5'), findsOneWidget);
+      await tester.tap(find.bySemanticsLabel('Retour'));
+      await tester.pumpAndSettle();
+      await tapText(tester, 'Me déconnecter');
       expect(app.server.calls('POST', '/v1/auth/logout'), hasLength(1));
     });
 

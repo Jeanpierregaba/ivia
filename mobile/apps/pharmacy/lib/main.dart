@@ -221,16 +221,9 @@ class _PharmacyAppState extends ConsumerState<PharmacyApp> {
     // Notification touchée : l'alerte entrante (F10).
     push.onOpenAlert = (id) =>
         ref.read(routerProvider).push(incomingAlertPath(id));
-    // App ouverte sur l'accueil : l'alerte s'affiche en plein écran, une fois.
-    push.onAlertReceived = (id) {
-      ref.invalidate(inboxProvider);
-      final router = ref.read(routerProvider);
-      final here = router.routerDelegate.currentConfiguration.uri.path;
-      if (here == Routes.home &&
-          ref.read(incomingShownProvider.notifier).markShown(id)) {
-        router.push(incomingAlertPath(id));
-      }
-    };
+    // App ouverte : la boîte est relue, et l'accueil ouvre l'alerte en plein
+    // écran s'il est au premier plan (jamais par-dessus une réponse).
+    push.onAlertReceived = (_) => ref.invalidate(inboxProvider);
     // Dès la connexion, y compris dossier en attente : la validation arrive aussi par push.
     ref.listenManual(authControllerProvider.select((a) => a is AuthSignedIn), (
       _,

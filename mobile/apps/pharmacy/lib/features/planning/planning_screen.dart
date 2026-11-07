@@ -97,10 +97,8 @@ class _PlanningScreenState extends ConsumerState<PlanningScreen> {
   late DateTime _day = _today();
   var _busy = false;
 
-  static DateTime _today() {
-    final n = DateTime.now();
-    return DateTime(n.year, n.month, n.day);
-  }
+  /// Jour de Lomé : les gardes sont en heure de Lomé (UTC).
+  static DateTime _today() => lomeDay(DateTime.now());
 
   bool _sameDay(DateTime a, DateTime b) =>
       a.year == b.year && a.month == b.month && a.day == b.day;
@@ -108,7 +106,7 @@ class _PlanningScreenState extends ConsumerState<PlanningScreen> {
   /// Gardes qui commencent le jour [d] (heure locale).
   List<Shift> _on(List<Shift> shifts, DateTime d) => [
     for (final s in shifts)
-      if (_sameDay(s.startsAt.toLocal(), d)) s,
+      if (_sameDay(lomeDay(s.startsAt), d)) s,
   ]..sort((a, b) => a.startsAt.compareTo(b.startsAt));
 
   Future<void> _send(List<NewShift> shifts) async {

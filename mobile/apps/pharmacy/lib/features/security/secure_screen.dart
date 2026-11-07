@@ -10,8 +10,18 @@ abstract final class SecureScreen {
   static bool get supported =>
       !kIsWeb && defaultTargetPlatform == TargetPlatform.android;
 
-  static Future<void> enable() => _call('enable');
-  static Future<void> disable() => _call('disable');
+  /// Écrans protégés ouverts : la capture ne revient qu'à la fermeture du
+  /// dernier.
+  static var _open = 0;
+
+  static Future<void> enable() async {
+    if (_open++ == 0) await _call('enable');
+  }
+
+  static Future<void> disable() async {
+    if (_open == 0) return;
+    if (--_open == 0) await _call('disable');
+  }
 
   static Future<void> _call(String method) async {
     if (!supported) return;

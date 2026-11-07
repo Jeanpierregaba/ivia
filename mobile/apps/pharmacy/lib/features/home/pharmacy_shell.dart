@@ -40,13 +40,22 @@ class _PharmacyShellState extends ConsumerState<PharmacyShell> {
     final now = DateTime.now();
     final fresh = [
       for (final a in inbox)
-        if (isNewAlert(a, now) && shown.markShown(a.alertId)) a,
+        if (isNewAlert(a, now) &&
+            !ref.read(incomingShownProvider).contains(a.alertId))
+          a,
     ];
     if (!_baseline) {
+      // Alertes déjà là au lancement : connues, pas de plein écran.
       _baseline = true;
+      for (final a in fresh) {
+        shown.markShown(a.alertId);
+      }
       return;
     }
+    // Un autre écran est ouvert : l'alerte s'ouvrira au retour sur l'accueil,
+    // si elle est encore nouvelle.
     if (fresh.isEmpty || ModalRoute.of(context)?.isCurrent != true) return;
+    shown.markShown(fresh.first.alertId);
     context.push(incomingAlertPath(fresh.first.alertId));
   }
 

@@ -11,12 +11,13 @@ import '../profile/alert_sound.dart';
 // Alertes médicament : un push urgent réveille l'app, qui sonne comme un réveil et affiche l'alerte
 // par-dessus l'écran verrouillé (Android). Sans configuration Firebase, l'app fonctionne sans push.
 
-const _channelId = 'pharmacy_alerts';
+/// Canaux Android des alertes.
+const alertChannelId = 'pharmacy_alerts';
 
 /// Sonnerie coupée sur ce téléphone (profil) : notification sans son. Un canal
 /// Android ne change pas de son après sa création, d'où deux canaux ; le canal
 /// sonore garde son identifiant pour les installations existantes.
-const _quietChannelId = 'pharmacy_alerts_quiet';
+const quietAlertChannelId = 'pharmacy_alerts_quiet';
 const _kindAlert = 'pharmacy_alert';
 
 final _plugin = FlutterLocalNotificationsPlugin();
@@ -51,22 +52,13 @@ Future<void> _initPlugin(void Function(String alertId)? onOpen) =>
       },
     );
 
-/// Fait sonner l'alerte : son de réveil, répété jusqu'à ce que le responsable
-/// réagisse ; ou, sonnerie coupée sur ce téléphone, une notification muette.
-Future<void> _ring(Map<String, dynamic> data) async {
-  final alertId = data['alert_id'] as String?;
-  if (data['kind'] != _kindAlert || alertId == null) return;
-  final loud = await readAlertSound();
-  await _plugin.show(
-    id: _idOf(alertId),
-    title: data['title'] as String? ?? 'Alerte médicament',
-    body:
-        data['body'] as String? ??
-        'Un patient cherche des produits. Répondez vite !',
-    notificationDetails: NotificationDetails(
+/// Notification d'une alerte : canal sonore (son de réveil répété, plein
+/// écran) ou, sonnerie coupée sur ce téléphone, canal muet.
+NotificationDetails alertNotificationDetails({required bool loud}) =>
+    NotificationDetails(
       android: loud
           ? AndroidNotificationDetails(
-              _channelId,
+              alertChannelId,
               'Alertes médicament',
               channelDescription:
                   'Sonne quand un patient cherche des produits près de vous.',
@@ -85,7 +77,7 @@ Future<void> _ring(Map<String, dynamic> data) async {
               autoCancel: true,
             )
           : const AndroidNotificationDetails(
-              _quietChannelId,
+              quietAlertChannelId,
               'Alertes médicament (sans son)',
               channelDescription:
                   'Sonnerie coupée dans le profil : la notification reste.',
@@ -102,7 +94,21 @@ Future<void> _ring(Map<String, dynamic> data) async {
         presentSound: loud,
         interruptionLevel: InterruptionLevel.timeSensitive,
       ),
-    ),
+    );
+
+/// Fait sonner l'alerte : son de réveil, répété jusqu'à ce que le responsable
+/// réagisse ; ou, sonnerie coupée sur ce téléphone, une notification muette.
+Future<void> _ring(Map<String, dynamic> data) async {
+  final alertId = data['alert_id'] as String?;
+  if (data['kind'] != _kindAlert || alertId == null) return;
+  final loud = await readAlertSound();
+  await _plugin.show(
+    id: _idOf(alertId),
+    title: data['title'] as String? ?? 'Alerte médicament',
+    body:
+        data['body'] as String? ??
+        'Un patient cherche des produits. Répondez vite !',
+    notificationDetails: alertNotificationDetails(loud: loud),
     payload: alertId,
   );
 }
@@ -175,6 +181,16 @@ class PushManager {
     final initial = await messaging.getInitialMessage();
     final id = initial?.data['alert_id'];
     if (id is String) _open(id);
+  }
+
+  /// Alerte ouverte dans l'app : la notification (et sa sonnerie) s'arrête.
+  Future<void> dismiss(String alertId) async {
+    if (kIsWeb) return;
+    try {
+      await _plugin.cancel(id: _idOf(alertId));
+    } on Object {
+      // Notifications pas encore prêtes : rien ne sonne.
+    }
   }
 
   void _open(String alertId) {

@@ -9,6 +9,7 @@ import '../../common/providers.dart';
 import '../../common/ui.dart';
 import '../alerts/alert_detail_screen.dart';
 import '../alerts/alert_logic.dart';
+import '../alerts/response_screen.dart';
 
 /// Ligne sous le nom : la garde en cours (« De garde · 20:00 → 08:00 »),
 /// sinon l'ouverture.
@@ -388,7 +389,11 @@ class AlertCard extends StatelessWidget {
                 child: PButton(
                   label: 'Répondre',
                   height: 44,
-                  onTap: () => _open(context),
+                  onTap: () => Navigator.of(context).push(
+                    MaterialPageRoute<void>(
+                      builder: (_) => ResponseScreen(alertId: alert.alertId),
+                    ),
+                  ),
                 ),
               ),
             ],

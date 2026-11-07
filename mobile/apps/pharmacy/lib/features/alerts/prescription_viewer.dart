@@ -63,9 +63,12 @@ class _PrescriptionImageState extends State<PrescriptionImage> {
 /// Ordonnance en grand (F12) : pages, zoom au doigt et par boutons, pivot.
 /// Sur Android, la capture d'écran est bloquée tant que l'écran est ouvert.
 class PrescriptionViewer extends StatefulWidget {
-  const PrescriptionViewer({super.key, required this.photos, this.onExpired});
+  const PrescriptionViewer({super.key, required this.photos, this.reload});
   final List<InboxPhoto> photos;
-  final VoidCallback? onExpired;
+
+  /// Lien expiré (10 minutes) : relit le détail et renvoie les nouvelles
+  /// photos.
+  final Future<List<InboxPhoto>?> Function()? reload;
 
   @override
   State<PrescriptionViewer> createState() => _PrescriptionViewerState();
@@ -78,6 +81,20 @@ class _PrescriptionViewerState extends State<PrescriptionViewer> {
   late final _zoom = [
     for (final _ in widget.photos) TransformationController(),
   ];
+  late var _photos = widget.photos;
+  var _reloading = false;
+
+  Future<void> _refresh() async {
+    if (_reloading || widget.reload == null) return;
+    _reloading = true;
+    final fresh = await widget.reload!();
+    if (!mounted) return;
+    if (fresh != null && fresh.length == _photos.length) {
+      setState(() => _photos = fresh);
+    }
+    _reloading = false;
+  }
+
   var _page = 0;
   var _turns = 0;
   var _scale = 1.0;
@@ -101,7 +118,7 @@ class _PrescriptionViewerState extends State<PrescriptionViewer> {
   void dispose() {
     SecureScreen.disable();
     // Aucune copie de l'ordonnance gardée après la fermeture.
-    for (final p in widget.photos) {
+    for (final p in _photos) {
       if (p.url case final url?) NetworkImage(url).evict();
     }
     for (final z in _zoom) {
@@ -151,7 +168,7 @@ class _PrescriptionViewerState extends State<PrescriptionViewer> {
 
   @override
   Widget build(BuildContext context) {
-    final n = widget.photos.length;
+    final n = _photos.length;
     return AnnotatedRegion<SystemUiOverlayStyle>(
       value: SystemUiOverlayStyle.light,
       child: Scaffold(
@@ -219,10 +236,11 @@ class _PrescriptionViewerState extends State<PrescriptionViewer> {
                                     image: true,
                                     label: 'Ordonnance, page ${i + 1}',
                                     child: PrescriptionImage(
-                                      url: widget.photos[i].url,
+                                      key: ValueKey(_photos[i].url),
+                                      url: _photos[i].url,
                                       fit: BoxFit.contain,
                                       dark: true,
-                                      onExpired: widget.onExpired,
+                                      onExpired: _refresh,
                                     ),
                                   ),
                                 ),
