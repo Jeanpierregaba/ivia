@@ -191,7 +191,9 @@ class HistoryRow extends StatelessWidget {
               ),
               const SizedBox(width: 8),
               // Souple : en police très agrandie, le texte passe à la ligne.
-              Flexible(child: PPill(e.status, bg: bg, fg: fg)),
+              Flexible(
+                child: PPill(e.status, bg: bg, fg: fg),
+              ),
             ],
           ),
         ),

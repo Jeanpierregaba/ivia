@@ -70,21 +70,21 @@
       « Garder la commande ».
 - [x] 18. Onglet Alertes F21 (En cours, Commandes, Historique par jour) et onglet Commandes, avec
       leurs états vides.
-- [ ] 19. Planning F20 :
+- [x] 19. Planning F20 :
       - bande de la semaine et points des gardes ;
       - « + » pour ajouter ;
       - import ;
       - carte bleue ;
       - heures de nuit.
-- [ ] 20. Relevé F22 : solde, « 0 % de commission », commandes livrées, compte de versement.
-- [ ] 21. Profil F23 :
+- [x] 20. Relevé F22 : solde, « 0 % de commission », commandes livrées, compte de versement.
+- [x] 21. Profil F23 :
       - Informations (`updatePharmacyContact`, ouverte 24 h/24, de garde) ;
       - Documents ;
       - Planning ;
       - Relevé ;
       - aide ;
       - déconnexion.
-- [ ] 22. Sonnerie des alertes par téléphone : deux canaux Android, réglage lu au premier plan
+- [x] 22. Sonnerie des alertes par téléphone : deux canaux Android, réglage lu au premier plan
       comme en arrière-plan, et iOS sans son.
 
 **Finitions**

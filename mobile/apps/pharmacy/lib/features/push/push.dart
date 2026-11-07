@@ -6,10 +6,17 @@ import 'package:flutter_riverpod/flutter_riverpod.dart';
 import 'package:ivia_api_client/ivia_api_client.dart';
 import 'package:ivia_app_core/ivia_app_core.dart';
 
+import '../profile/alert_sound.dart';
+
 // Alertes médicament : un push urgent réveille l'app, qui sonne comme un réveil et affiche l'alerte
 // par-dessus l'écran verrouillé (Android). Sans configuration Firebase, l'app fonctionne sans push.
 
 const _channelId = 'pharmacy_alerts';
+
+/// Sonnerie coupée sur ce téléphone (profil) : notification sans son. Un canal
+/// Android ne change pas de son après sa création, d'où deux canaux ; le canal
+/// sonore garde son identifiant pour les installations existantes.
+const _quietChannelId = 'pharmacy_alerts_quiet';
 const _kindAlert = 'pharmacy_alert';
 
 final _plugin = FlutterLocalNotificationsPlugin();
@@ -44,10 +51,12 @@ Future<void> _initPlugin(void Function(String alertId)? onOpen) =>
       },
     );
 
-/// Fait sonner l'alerte : son de réveil, répété jusqu'à ce que le responsable réagisse.
+/// Fait sonner l'alerte : son de réveil, répété jusqu'à ce que le responsable
+/// réagisse ; ou, sonnerie coupée sur ce téléphone, une notification muette.
 Future<void> _ring(Map<String, dynamic> data) async {
   final alertId = data['alert_id'] as String?;
   if (data['kind'] != _kindAlert || alertId == null) return;
+  final loud = await readAlertSound();
   await _plugin.show(
     id: _idOf(alertId),
     title: data['title'] as String? ?? 'Alerte médicament',
@@ -55,28 +64,42 @@ Future<void> _ring(Map<String, dynamic> data) async {
         data['body'] as String? ??
         'Un patient cherche des produits. Répondez vite !',
     notificationDetails: NotificationDetails(
-      android: AndroidNotificationDetails(
-        _channelId,
-        'Alertes médicament',
-        channelDescription:
-            'Sonne quand un patient cherche des produits près de vous.',
-        importance: Importance.max,
-        priority: Priority.max,
-        category: AndroidNotificationCategory.alarm,
-        visibility: NotificationVisibility.public,
-        fullScreenIntent: true,
-        audioAttributesUsage: AudioAttributesUsage.alarm,
-        sound: const UriAndroidNotificationSound(
-          'content://settings/system/alarm_alert',
-        ),
-        // FLAG_INSISTENT : le son se répète jusqu'à l'ouverture.
-        additionalFlags: Int32List.fromList(const [4]),
-        timeoutAfter: _ringMs,
-        autoCancel: true,
-      ),
-      iOS: const DarwinNotificationDetails(
+      android: loud
+          ? AndroidNotificationDetails(
+              _channelId,
+              'Alertes médicament',
+              channelDescription:
+                  'Sonne quand un patient cherche des produits près de vous.',
+              importance: Importance.max,
+              priority: Priority.max,
+              category: AndroidNotificationCategory.alarm,
+              visibility: NotificationVisibility.public,
+              fullScreenIntent: true,
+              audioAttributesUsage: AudioAttributesUsage.alarm,
+              sound: const UriAndroidNotificationSound(
+                'content://settings/system/alarm_alert',
+              ),
+              // FLAG_INSISTENT : le son se répète jusqu'à l'ouverture.
+              additionalFlags: Int32List.fromList(const [4]),
+              timeoutAfter: _ringMs,
+              autoCancel: true,
+            )
+          : const AndroidNotificationDetails(
+              _quietChannelId,
+              'Alertes médicament (sans son)',
+              channelDescription:
+                  'Sonnerie coupée dans le profil : la notification reste.',
+              importance: Importance.high,
+              priority: Priority.high,
+              category: AndroidNotificationCategory.message,
+              visibility: NotificationVisibility.public,
+              playSound: false,
+              timeoutAfter: _ringMs,
+              autoCancel: true,
+            ),
+      iOS: DarwinNotificationDetails(
         presentAlert: true,
-        presentSound: true,
+        presentSound: loud,
         interruptionLevel: InterruptionLevel.timeSensitive,
       ),
     ),

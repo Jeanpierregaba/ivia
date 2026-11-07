@@ -12,7 +12,7 @@ import '../alerts/alert_logic.dart';
 import '../alerts/alerts_tab.dart';
 import '../alerts/incoming_alert_screen.dart';
 import '../orders/orders_tab.dart';
-import '../profile/office_tab.dart';
+import '../profile/profile_tab.dart';
 import 'home_tab.dart';
 
 /// Espace pharmacie : Accueil, Alertes, Commandes, Profil, dans une barre
@@ -85,7 +85,7 @@ class _PharmacyShellState extends ConsumerState<PharmacyShell> {
           HomeTab(onSeeAlerts: () => _go(1), onSeeOrders: () => _go(2)),
           const SafeArea(bottom: false, child: AlertsTab()),
           const SafeArea(bottom: false, child: OrdersTab()),
-          const SafeArea(bottom: false, child: OfficeTab()),
+          const SafeArea(bottom: false, child: ProfileTab()),
         ],
       ),
       bottomNavigationBar: IviaBottomNav(

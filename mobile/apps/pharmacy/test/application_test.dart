@@ -461,7 +461,7 @@ void main() {
       );
 
       await tapText(tester, 'Préparer mon planning de garde');
-      expect(find.text('Planning de garde'), findsOneWidget);
+      expect(find.text('Planning'), findsOneWidget);
       expect(find.text('Passer cette étape'), findsNothing);
     });
 

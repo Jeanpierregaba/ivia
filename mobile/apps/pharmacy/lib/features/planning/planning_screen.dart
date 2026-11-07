@@ -7,8 +7,80 @@ import 'package:ivia_ui/ivia_ui.dart';
 import '../../common/providers.dart';
 import '../../common/ui.dart';
 
-/// Planning de garde : créneau par créneau, ou import d'une liste. Dans le
-/// dossier ([step]), il se passe : « Passer cette étape » ou « Continuer ».
+typedef Shift = ({String id, DateTime startsAt, DateTime endsAt});
+typedef NewShift = ({DateTime startsAt, DateTime endsAt});
+
+const _weekdays = ['Lun', 'Mar', 'Mer', 'Jeu', 'Ven', 'Sam', 'Dim'];
+const _weekdaysLong = [
+  'Lundi',
+  'Mardi',
+  'Mercredi',
+  'Jeudi',
+  'Vendredi',
+  'Samedi',
+  'Dimanche',
+];
+const _months = [
+  'janvier',
+  'février',
+  'mars',
+  'avril',
+  'mai',
+  'juin',
+  'juillet',
+  'août',
+  'septembre',
+  'octobre',
+  'novembre',
+  'décembre',
+];
+
+String _two(int n) => n.toString().padLeft(2, '0');
+
+/// Heure de Lomé, soit UTC ; une fin avant le début tombe le lendemain.
+NewShift shiftOn(DateTime day, TimeOfDay from, TimeOfDay to) {
+  final start = DateTime.utc(
+    day.year,
+    day.month,
+    day.day,
+    from.hour,
+    from.minute,
+  );
+  var end = DateTime.utc(day.year, day.month, day.day, to.hour, to.minute);
+  if (!end.isAfter(start)) end = end.add(const Duration(days: 1));
+  return (startsAt: start, endsAt: end);
+}
+
+/// Une garde par ligne : « 08/11/2026 20:00 07:00 ». Renvoie les gardes, ou
+/// le numéro de la première ligne illisible.
+({List<NewShift> shifts, int? badLine}) parseShiftList(String text) {
+  final line = RegExp(
+    r'^(\d{1,2})/(\d{1,2})/(\d{4})\s+(\d{1,2})[:h](\d{2})\s+(\d{1,2})[:h](\d{2})$',
+  );
+  final out = <NewShift>[];
+  final lines = text
+      .split('\n')
+      .map((l) => l.trim())
+      .where((l) => l.isNotEmpty)
+      .toList();
+  for (final (i, l) in lines.indexed) {
+    final m = line.firstMatch(l);
+    if (m == null) return (shifts: const [], badLine: i + 1);
+    int n(int g) => int.parse(m.group(g)!);
+    out.add(
+      shiftOn(
+        DateTime.utc(n(3), n(2), n(1)),
+        TimeOfDay(hour: n(4) % 24, minute: n(5) % 60),
+        TimeOfDay(hour: n(6) % 24, minute: n(7) % 60),
+      ),
+    );
+  }
+  return (shifts: out, badLine: null);
+}
+
+/// Planning de garde (F20) : bande des jours, service de jour et gardes du
+/// jour choisi, ajout, import, heures de nuit. Dans le dossier ([step]), il
+/// se passe : « Passer cette étape » ou « Continuer ».
 class PlanningScreen extends ConsumerStatefulWidget {
   const PlanningScreen({super.key, this.step, this.onBack, this.onNext});
 
@@ -22,44 +94,28 @@ class PlanningScreen extends ConsumerStatefulWidget {
 }
 
 class _PlanningScreenState extends ConsumerState<PlanningScreen> {
-  DateTime? _day;
-  var _from = const TimeOfDay(hour: 20, minute: 0);
-  var _to = const TimeOfDay(hour: 7, minute: 0);
-  final _import = TextEditingController();
+  late DateTime _day = _today();
   var _busy = false;
 
-  @override
-  void dispose() {
-    _import.dispose();
-    super.dispose();
+  static DateTime _today() {
+    final n = DateTime.now();
+    return DateTime(n.year, n.month, n.day);
   }
 
-  /// Heure de Lomé, soit UTC ; une fin avant le début tombe le lendemain.
-  ({DateTime startsAt, DateTime endsAt}) _shift(
-    DateTime day,
-    TimeOfDay from,
-    TimeOfDay to,
-  ) {
-    final start = DateTime.utc(
-      day.year,
-      day.month,
-      day.day,
-      from.hour,
-      from.minute,
-    );
-    var end = DateTime.utc(day.year, day.month, day.day, to.hour, to.minute);
-    if (!end.isAfter(start)) end = end.add(const Duration(days: 1));
-    return (startsAt: start, endsAt: end);
-  }
+  bool _sameDay(DateTime a, DateTime b) =>
+      a.year == b.year && a.month == b.month && a.day == b.day;
 
-  Future<void> _send(
-    List<({DateTime startsAt, DateTime endsAt})> shifts,
-  ) async {
+  /// Gardes qui commencent le jour [d] (heure locale).
+  List<Shift> _on(List<Shift> shifts, DateTime d) => [
+    for (final s in shifts)
+      if (_sameDay(s.startsAt.toLocal(), d)) s,
+  ]..sort((a, b) => a.startsAt.compareTo(b.startsAt));
+
+  Future<void> _send(List<NewShift> shifts) async {
     setState(() => _busy = true);
     try {
       await ref.read(apiClientProvider).addPharmacyDutyShifts(shifts);
       ref.invalidate(shiftsProvider);
-      _import.clear();
       if (mounted) {
         say(
           context,
@@ -75,212 +131,323 @@ class _PlanningScreenState extends ConsumerState<PlanningScreen> {
     }
   }
 
-  /// Une garde par ligne : 08/11/2026 20:00 07:00
-  void _importList() {
-    final line = RegExp(
-      r'^(\d{1,2})/(\d{1,2})/(\d{4})\s+(\d{1,2})[:h](\d{2})\s+(\d{1,2})[:h](\d{2})$',
-    );
-    final out = <({DateTime startsAt, DateTime endsAt})>[];
-    final lines = _import.text
-        .split('\n')
-        .map((l) => l.trim())
-        .where((l) => l.isNotEmpty)
-        .toList();
-    for (final (i, l) in lines.indexed) {
-      final m = line.firstMatch(l);
-      if (m == null) {
-        say(
-          context,
-          'Ligne ${i + 1} illisible. Format : 08/11/2026 20:00 07:00',
-        );
-        return;
-      }
-      int n(int g) => int.parse(m.group(g)!);
-      out.add(
-        _shift(
-          DateTime.utc(n(3), n(2), n(1)),
-          TimeOfDay(hour: n(4) % 24, minute: n(5) % 60),
-          TimeOfDay(hour: n(6) % 24, minute: n(7) % 60),
-        ),
-      );
-    }
-    if (out.isNotEmpty) _send(out);
-  }
-
-  Future<void> _delete(String id) async {
+  Future<void> _delete(Shift s) async {
     try {
-      await ref.read(apiClientProvider).deletePharmacyDutyShift(id);
+      await ref.read(apiClientProvider).deletePharmacyDutyShift(s.id);
       ref.invalidate(shiftsProvider);
+      if (mounted) say(context, 'Garde retirée.');
     } on ApiException catch (e) {
       if (mounted) say(context, e.message);
     }
   }
 
-  String _date(DateTime d) =>
-      '${d.day.toString().padLeft(2, '0')}/${d.month.toString().padLeft(2, '0')}/${d.year}';
+  Future<void> _add() async {
+    final shift = await showModalBottomSheet<NewShift>(
+      context: context,
+      isScrollControlled: true,
+      showDragHandle: true,
+      backgroundColor: Colors.white,
+      builder: (_) => _AddShiftSheet(day: _day),
+    );
+    if (shift != null) await _send([shift]);
+  }
+
+  Future<void> _import() async {
+    final shifts = await showModalBottomSheet<List<NewShift>>(
+      context: context,
+      isScrollControlled: true,
+      showDragHandle: true,
+      backgroundColor: Colors.white,
+      builder: (_) => const _ImportSheet(),
+    );
+    if (shifts != null && shifts.isNotEmpty) await _send(shifts);
+  }
+
+  Future<void> _nightHours(PharmacyProfile? p) async {
+    final saved = await showModalBottomSheet<bool>(
+      context: context,
+      isScrollControlled: true,
+      showDragHandle: true,
+      backgroundColor: Colors.white,
+      builder: (_) => _NightHoursSheet(
+        from: p?.nightFromHour ?? 20,
+        to: p?.nightToHour ?? 8,
+      ),
+    );
+    if (saved == true) ref.invalidate(pharmacyProfileProvider);
+  }
+
+  Widget _days(List<Shift> shifts) {
+    final monday = _today().subtract(Duration(days: _today().weekday - 1));
+    return SizedBox(
+      height: 72,
+      child: ListView.separated(
+        scrollDirection: Axis.horizontal,
+        padding: const EdgeInsets.symmetric(horizontal: P.gutter),
+        itemCount: 28,
+        separatorBuilder: (_, _) => const SizedBox(width: 6),
+        itemBuilder: (context, i) {
+          final d = monday.add(Duration(days: i));
+          final selected = _sameDay(d, _day);
+          final duty = _on(shifts, d).isNotEmpty;
+          final fg = selected ? Colors.white : P.ink;
+          return Semantics(
+            button: true,
+            selected: selected,
+            label:
+                '${_weekdaysLong[d.weekday - 1]} ${d.day} ${_months[d.month - 1]}'
+                '${duty ? ', de garde' : ''}',
+            excludeSemantics: true,
+            child: Material(
+              color: selected ? P.green : Colors.white,
+              borderRadius: BorderRadius.circular(16),
+              child: InkWell(
+                borderRadius: BorderRadius.circular(16),
+                onTap: () => setState(() => _day = d),
+                child: SizedBox(
+                  width: 49,
+                  child: MediaQuery.withClampedTextScaling(
+                    maxScaleFactor: 1.2,
+                    child: Column(
+                      mainAxisAlignment: MainAxisAlignment.center,
+                      children: [
+                        Text(
+                          _weekdays[d.weekday - 1],
+                          style: PText.body.copyWith(
+                            fontSize: 13,
+                            color: selected ? Colors.white : P.muted,
+                          ),
+                        ),
+                        Text(
+                          '${d.day}',
+                          style: PText.cardTitle.copyWith(color: fg),
+                        ),
+                        const SizedBox(height: 2),
+                        Container(
+                          width: 5,
+                          height: 5,
+                          decoration: BoxDecoration(
+                            shape: BoxShape.circle,
+                            color: !duty
+                                ? Colors.transparent
+                                : selected
+                                ? Colors.white
+                                : P.green,
+                          ),
+                        ),
+                      ],
+                    ),
+                  ),
+                ),
+              ),
+            ),
+          );
+        },
+      ),
+    );
+  }
+
+  Widget _row(String title, String sub, Widget pill, {Widget? action}) =>
+      Padding(
+        padding: const EdgeInsets.fromLTRB(14, 12, 8, 12),
+        child: Row(
+          children: [
+            Expanded(
+              child: Column(
+                crossAxisAlignment: CrossAxisAlignment.start,
+                children: [
+                  Text(title, style: PText.cardTitle),
+                  Text(sub, style: PText.bodyMuted),
+                ],
+              ),
+            ),
+            Flexible(child: pill),
+            ?action,
+          ],
+        ),
+      );
 
   @override
   Widget build(BuildContext context) {
-    final t = Theme.of(context).textTheme;
-    final shifts = ref.watch(shiftsProvider).value ?? const [];
-    final day = _day;
     final step = widget.step;
     final next = widget.onNext;
+    final shifts = ref.watch(shiftsProvider).value ?? const <Shift>[];
+    final p = ref.watch(pharmacyProfileProvider).value;
+    final nightFrom = p?.nightFromHour ?? 20;
+    final nightTo = p?.nightToHour ?? 8;
+    final today = _on(shifts, _day);
     return Scaffold(
       backgroundColor: P.page,
       body: SafeArea(
         child: Column(
           children: [
             PHeader(
-              title: 'Planning de garde',
-              trailing: step == null ? null : PStepPill(step: step, of: 5),
+              title: step == null ? 'Planning' : 'Planning de garde',
+              trailing: step == null
+                  ? Semantics(
+                      button: true,
+                      label: 'Ajouter une garde',
+                      excludeSemantics: true,
+                      child: SizedBox.square(
+                        dimension: 48,
+                        child: Center(
+                          child: Material(
+                            color: Colors.white,
+                            shape: const CircleBorder(),
+                            child: InkWell(
+                              customBorder: const CircleBorder(),
+                              onTap: _busy ? null : _add,
+                              child: const SizedBox.square(
+                                dimension: 44,
+                                child: Icon(Icons.add, color: P.ink),
+                              ),
+                            ),
+                          ),
+                        ),
+                      ),
+                    )
+                  : PStepPill(step: step, of: 5),
               onBack: widget.onBack,
             ),
+            const SizedBox(height: 4),
+            _days(shifts),
             Expanded(
               child: ListView(
-                padding: const EdgeInsets.fromLTRB(P.gutter, 4, P.gutter, 8),
+                padding: const EdgeInsets.fromLTRB(P.gutter, 12, P.gutter, 16),
                 children: [
-                  const _NightHours(),
-                  const SizedBox(height: 12),
                   PCard(
+                    padding: EdgeInsets.zero,
                     child: Column(
                       crossAxisAlignment: CrossAxisAlignment.stretch,
                       children: [
-                        Text(
-                          'Ajouter une garde',
-                          style: t.titleSmall?.copyWith(
-                            fontWeight: FontWeight.w800,
+                        Padding(
+                          padding: const EdgeInsets.fromLTRB(14, 14, 14, 10),
+                          child: Semantics(
+                            header: true,
+                            child: Text(
+                              '${_weekdaysLong[_day.weekday - 1]} ${_day.day} '
+                              '${_months[_day.month - 1]}',
+                              style: PText.label,
+                            ),
                           ),
                         ),
-                        const SizedBox(height: 10),
-                        OutlinedButton.icon(
-                          icon: const Icon(
-                            Icons.calendar_today_outlined,
-                            size: 18,
-                          ),
-                          label: Text(
-                            day == null ? 'Choisir le jour' : _date(day),
-                          ),
-                          onPressed: () async {
-                            final now = DateTime.now();
-                            final d = await showDatePicker(
-                              context: context,
-                              firstDate: now,
-                              lastDate: now.add(const Duration(days: 365)),
-                              initialDate: day ?? now,
-                            );
-                            if (d != null) setState(() => _day = d);
-                          },
+                        const Divider(height: 1, color: P.line),
+                        _row(
+                          'Service de jour',
+                          '${_two(nightTo)}:00 → ${_two(nightFrom)}:00',
+                          const PPill('En service', bg: P.page, fg: P.label),
                         ),
-                        const SizedBox(height: 8),
-                        Row(
-                          children: [
-                            Expanded(
-                              child: OutlinedButton(
-                                child: Text('De ${_from.format(context)}'),
-                                onPressed: () async {
-                                  final v = await showTimePicker(
-                                    context: context,
-                                    initialTime: _from,
-                                  );
-                                  if (v != null) setState(() => _from = v);
-                                },
+                        for (final s in today) ...[
+                          const Divider(height: 1, color: P.line),
+                          _row(
+                            'Garde de nuit',
+                            '${hhmm(s.startsAt)} → ${hhmm(s.endsAt)}',
+                            const PPill('De garde'),
+                            action: IconButton(
+                              tooltip: 'Retirer cette garde',
+                              onPressed: () => _delete(s),
+                              icon: const Icon(
+                                Icons.close,
+                                color: P.muted,
+                                size: 20,
                               ),
                             ),
-                            const SizedBox(width: 8),
-                            Expanded(
-                              child: OutlinedButton(
-                                child: Text('À ${_to.format(context)}'),
-                                onPressed: () async {
-                                  final v = await showTimePicker(
-                                    context: context,
-                                    initialTime: _to,
-                                  );
-                                  if (v != null) setState(() => _to = v);
-                                },
+                          ),
+                        ],
+                        if (step != null) ...[
+                          const Divider(height: 1, color: P.line),
+                          InkWell(
+                            onTap: _busy ? null : _add,
+                            child: Padding(
+                              padding: const EdgeInsets.all(14),
+                              child: Row(
+                                children: [
+                                  const Icon(Icons.add, color: P.green),
+                                  const SizedBox(width: 10),
+                                  Text(
+                                    'Ajouter une garde',
+                                    style: PText.button.copyWith(
+                                      fontSize: 15,
+                                      color: P.green,
+                                    ),
+                                  ),
+                                ],
                               ),
                             ),
-                          ],
-                        ),
-                        const SizedBox(height: 10),
-                        PButton(
-                          label: 'Ajouter',
-                          busy: _busy,
-                          onTap: day == null
-                              ? null
-                              : () => _send([_shift(day, _from, _to)]),
+                          ),
+                        ],
+                      ],
+                    ),
+                  ),
+                  const SizedBox(height: 12),
+                  PCard(
+                    onTap: _busy ? null : _import,
+                    child: Row(
+                      children: [
+                        const PIcon(Icons.download, size: 40),
+                        const SizedBox(width: 14),
+                        Expanded(
+                          child: Column(
+                            crossAxisAlignment: CrossAxisAlignment.start,
+                            children: [
+                              Text(
+                                'Importer une liste',
+                                style: PText.cardTitle,
+                              ),
+                              Text(
+                                'Le planning officiel : une garde par ligne',
+                                style: PText.bodyMuted,
+                              ),
+                            ],
+                          ),
                         ),
                       ],
                     ),
                   ),
                   const SizedBox(height: 12),
                   PCard(
-                    child: Column(
-                      crossAxisAlignment: CrossAxisAlignment.stretch,
+                    onTap: () => _nightHours(p),
+                    child: Row(
                       children: [
-                        Text(
-                          'Importer une liste',
-                          style: t.titleSmall?.copyWith(
-                            fontWeight: FontWeight.w800,
+                        const PIcon(Icons.nightlight_outlined, size: 40),
+                        const SizedBox(width: 14),
+                        Expanded(
+                          child: Column(
+                            crossAxisAlignment: CrossAxisAlignment.start,
+                            children: [
+                              Text('Heures de nuit', style: PText.cardTitle),
+                              Text(
+                                'De ${_two(nightFrom)}:00 à ${_two(nightTo)}:00',
+                                style: PText.bodyMuted,
+                              ),
+                            ],
                           ),
                         ),
-                        const SizedBox(height: 4),
-                        Text(
-                          'Une garde par ligne, 60 au plus.',
-                          style: t.bodySmall?.copyWith(color: P.muted),
+                        const Icon(Icons.chevron_right, color: P.muted),
+                      ],
+                    ),
+                  ),
+                  const SizedBox(height: 12),
+                  PCard(
+                    color: P.softBlue,
+                    child: Row(
+                      crossAxisAlignment: CrossAxisAlignment.start,
+                      children: [
+                        const ExcludeSemantics(
+                          child: Icon(Icons.info, color: P.blue, size: 20),
                         ),
-                        const SizedBox(height: 10),
-                        TextField(
-                          controller: _import,
-                          minLines: 3,
-                          maxLines: 8,
-                          decoration: const InputDecoration(
-                            hintText: '08/11/2026 20:00 07:00\n15/11/2026 20:00 07:00',
+                        const SizedBox(width: 12),
+                        Expanded(
+                          child: Text(
+                            'En journée, les alertes vont à toutes les '
+                            'pharmacies en service. La nuit, uniquement aux '
+                            'pharmacies de garde.',
+                            style: PText.body.copyWith(color: P.ink),
                           ),
-                        ),
-                        const SizedBox(height: 10),
-                        OutlinedButton(
-                          onPressed: _busy ? null : _importList,
-                          child: const Text('Importer'),
                         ),
                       ],
                     ),
                   ),
-                  const SizedBox(height: 18),
-                  Text(
-                    'Gardes à venir',
-                    style: t.titleMedium?.copyWith(fontWeight: FontWeight.w800),
-                  ),
-                  const SizedBox(height: 8),
-                  if (shifts.isEmpty)
-                    PCard(
-                      child: Text(
-                        'Aucune garde planifiée.',
-                        style: t.bodyMedium,
-                      ),
-                    ),
-                  for (final s in shifts)
-                    Padding(
-                      padding: const EdgeInsets.only(bottom: 8),
-                      child: PCard(
-                        padding: const EdgeInsets.fromLTRB(16, 6, 6, 6),
-                        child: Row(
-                          children: [
-                            Expanded(
-                              child: Text(
-                                '${_date(s.startsAt.toLocal())} · ${hhmm(s.startsAt)} → ${hhmm(s.endsAt)}',
-                                style: t.bodyMedium,
-                              ),
-                            ),
-                            IconButton(
-                              tooltip: 'Retirer',
-                              icon: const Icon(Icons.delete_outline),
-                              onPressed: () => _delete(s.id),
-                            ),
-                          ],
-                        ),
-                      ),
-                    ),
                 ],
               ),
             ),
@@ -303,28 +470,187 @@ class _PlanningScreenState extends ConsumerState<PlanningScreen> {
   }
 }
 
-/// Heures de nuit choisies par la pharmacie.
-class _NightHours extends ConsumerStatefulWidget {
-  const _NightHours();
+/// Ajout d'une garde : jour, début, fin.
+class _AddShiftSheet extends StatefulWidget {
+  const _AddShiftSheet({required this.day});
+  final DateTime day;
 
   @override
-  ConsumerState<_NightHours> createState() => _NightHoursState();
+  State<_AddShiftSheet> createState() => _AddShiftSheetState();
 }
 
-class _NightHoursState extends ConsumerState<_NightHours> {
-  int? _from, _to;
+class _AddShiftSheetState extends State<_AddShiftSheet> {
+  late var _day = widget.day;
+  var _from = const TimeOfDay(hour: 20, minute: 0);
+  var _to = const TimeOfDay(hour: 8, minute: 0);
+
+  @override
+  Widget build(BuildContext context) {
+    Widget choice(String label, String value, VoidCallback onTap) => Expanded(
+      child: PCard(
+        color: P.page,
+        onTap: onTap,
+        padding: const EdgeInsets.all(12),
+        child: Column(
+          crossAxisAlignment: CrossAxisAlignment.start,
+          children: [
+            Text(label, style: PText.small),
+            Text(value, style: PText.cardTitle),
+          ],
+        ),
+      ),
+    );
+    return SafeArea(
+      child: Padding(
+        padding: const EdgeInsets.fromLTRB(P.gutter, 0, P.gutter, 12),
+        child: Column(
+          mainAxisSize: MainAxisSize.min,
+          crossAxisAlignment: CrossAxisAlignment.stretch,
+          children: [
+            Text(
+              'Ajouter une garde',
+              style: PText.heading.copyWith(fontSize: 24),
+            ),
+            const SizedBox(height: 14),
+            Row(
+              children: [
+                choice(
+                  'Jour',
+                  '${_two(_day.day)}/${_two(_day.month)}/${_day.year}',
+                  () async {
+                    final now = DateTime.now();
+                    final d = await showDatePicker(
+                      context: context,
+                      firstDate: DateTime(now.year, now.month, now.day),
+                      lastDate: now.add(const Duration(days: 365)),
+                      initialDate: _day.isBefore(now) ? now : _day,
+                    );
+                    if (d != null) setState(() => _day = d);
+                  },
+                ),
+              ],
+            ),
+            const SizedBox(height: 8),
+            Row(
+              children: [
+                choice('De', _from.format(context), () async {
+                  final v = await showTimePicker(
+                    context: context,
+                    initialTime: _from,
+                  );
+                  if (v != null) setState(() => _from = v);
+                }),
+                const SizedBox(width: 8),
+                choice('À', _to.format(context), () async {
+                  final v = await showTimePicker(
+                    context: context,
+                    initialTime: _to,
+                  );
+                  if (v != null) setState(() => _to = v);
+                }),
+              ],
+            ),
+            const SizedBox(height: 16),
+            PButton(
+              label: 'Ajouter',
+              onTap: () => Navigator.of(context).pop(shiftOn(_day, _from, _to)),
+            ),
+          ],
+        ),
+      ),
+    );
+  }
+}
+
+/// Import d'une liste de gardes collée.
+class _ImportSheet extends StatefulWidget {
+  const _ImportSheet();
+
+  @override
+  State<_ImportSheet> createState() => _ImportSheetState();
+}
+
+class _ImportSheetState extends State<_ImportSheet> {
+  final _text = TextEditingController();
+  String? _error;
+
+  @override
+  void dispose() {
+    _text.dispose();
+    super.dispose();
+  }
+
+  void _submit() {
+    final r = parseShiftList(_text.text);
+    if (r.badLine case final line?) {
+      setState(
+        () => _error = 'Ligne $line illisible. Format : 08/11/2026 20:00 07:00',
+      );
+      return;
+    }
+    Navigator.of(context).pop(r.shifts);
+  }
+
+  @override
+  Widget build(BuildContext context) => Padding(
+    padding: EdgeInsets.only(bottom: MediaQuery.viewInsetsOf(context).bottom),
+    child: SafeArea(
+      child: Padding(
+        padding: const EdgeInsets.fromLTRB(P.gutter, 0, P.gutter, 12),
+        child: Column(
+          mainAxisSize: MainAxisSize.min,
+          crossAxisAlignment: CrossAxisAlignment.stretch,
+          children: [
+            Text(
+              'Importer une liste',
+              style: PText.heading.copyWith(fontSize: 24),
+            ),
+            const SizedBox(height: 6),
+            Text('Une garde par ligne, 60 au plus.', style: PText.bodyMuted),
+            const SizedBox(height: 12),
+            TextField(
+              controller: _text,
+              minLines: 3,
+              maxLines: 8,
+              decoration: InputDecoration(
+                hintText: '08/11/2026 20:00 07:00\n15/11/2026 20:00 07:00',
+                errorText: _error,
+                errorMaxLines: 2,
+              ),
+            ),
+            const SizedBox(height: 14),
+            PButton(label: 'Importer', onTap: _submit),
+          ],
+        ),
+      ),
+    ),
+  );
+}
+
+/// Heures de nuit : seules les pharmacies de garde sont alertées.
+class _NightHoursSheet extends ConsumerStatefulWidget {
+  const _NightHoursSheet({required this.from, required this.to});
+  final int from, to;
+
+  @override
+  ConsumerState<_NightHoursSheet> createState() => _NightHoursSheetState();
+}
+
+class _NightHoursSheetState extends ConsumerState<_NightHoursSheet> {
+  late var _from = widget.from;
+  late var _to = widget.to;
   var _busy = false;
 
-  Future<void> _save(int from, int to) async {
+  Future<void> _save() async {
     setState(() => _busy = true);
     try {
-      await ref.read(apiClientProvider).setPharmacyNightHours(from, to);
-      ref.invalidate(pharmacyProfileProvider);
-      if (mounted) say(context, 'Heures de nuit enregistrées.');
+      await ref.read(apiClientProvider).setPharmacyNightHours(_from, _to);
+      if (mounted) Navigator.of(context).pop(true);
     } on ApiException catch (e) {
-      if (mounted) say(context, e.fields.values.firstOrNull ?? e.message);
-    } finally {
-      if (mounted) setState(() => _busy = false);
+      if (mounted) {
+        setState(() => _busy = false);
+        say(context, e.fields.values.firstOrNull ?? e.message);
+      }
     }
   }
 
@@ -336,7 +662,7 @@ class _NightHoursState extends ConsumerState<_NightHours> {
             initialValue: value,
             items: [
               for (var h = 0; h < 24; h++)
-                DropdownMenuItem(value: h, child: Text('$h h')),
+                DropdownMenuItem(value: h, child: Text('${_two(h)}:00')),
             ],
             onChanged: (v) {
               if (v != null) onChanged(v);
@@ -346,39 +672,32 @@ class _NightHoursState extends ConsumerState<_NightHours> {
       );
 
   @override
-  Widget build(BuildContext context) {
-    final t = Theme.of(context).textTheme;
-    final p = ref.watch(pharmacyProfileProvider).value;
-    final from = _from ?? p?.nightFromHour ?? 20;
-    final to = _to ?? p?.nightToHour ?? 7;
-    return PCard(
+  Widget build(BuildContext context) => SafeArea(
+    child: Padding(
+      padding: const EdgeInsets.fromLTRB(P.gutter, 0, P.gutter, 12),
       child: Column(
+        mainAxisSize: MainAxisSize.min,
         crossAxisAlignment: CrossAxisAlignment.stretch,
         children: [
+          Text('Heures de nuit', style: PText.heading.copyWith(fontSize: 24)),
+          const SizedBox(height: 6),
           Text(
-            'Vos heures de nuit',
-            style: t.titleSmall?.copyWith(fontWeight: FontWeight.w800),
+            'Pendant ces heures, vous ne recevez les alertes que si vous êtes '
+            'de garde.',
+            style: PText.bodyMuted,
           ),
-          const SizedBox(height: 4),
-          Text(
-            'Pendant ces heures, vous ne recevez les alertes que si vous êtes de garde.',
-            style: t.bodySmall?.copyWith(color: P.muted),
-          ),
-          const SizedBox(height: 10),
+          const SizedBox(height: 14),
           Row(
             children: [
-              _hour('De', from, (v) => setState(() => _from = v)),
+              _hour('De', _from, (v) => setState(() => _from = v)),
               const SizedBox(width: 10),
-              _hour('À', to, (v) => setState(() => _to = v)),
+              _hour('À', _to, (v) => setState(() => _to = v)),
             ],
           ),
-          const SizedBox(height: 10),
-          OutlinedButton(
-            onPressed: _busy ? null : () => _save(from, to),
-            child: Text(_busy ? 'Patientez…' : 'Enregistrer mes heures'),
-          ),
+          const SizedBox(height: 16),
+          PButton(label: 'Enregistrer', busy: _busy, onTap: _save),
         ],
       ),
-    );
-  }
+    ),
+  );
 }

@@ -250,6 +250,18 @@ extension PharmacistApi on IviaApiClient {
     ),
   );
 
+  /// Téléphone et horaires d'une pharmacie validée (`PATCH /v1/pharmacy/me`).
+  Future<PharmacyProfile> updatePharmacyContact({
+    required String phone,
+    required String openingHours,
+  }) async => PharmacyProfile.fromJson(
+    await _send(
+      'PATCH',
+      '/v1/pharmacy/me',
+      data: {'phone': phone, 'opening_hours': openingHours},
+    ),
+  );
+
   Future<void> pharmacyAddDocument(String kind, String objectKey) => _send(
     'POST',
     '/v1/pharmacy/me/documents',
