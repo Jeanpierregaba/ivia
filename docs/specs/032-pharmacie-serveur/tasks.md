@@ -11,7 +11,7 @@
 - [x] 3. Numéro d'alerte : création, boîte, détail, vue client, back-office. Tests Go.
 - [x] 4. Quartier du client (`geo.NearestNeighborhood`) dans la boîte et le détail. Test : position
       jamais renvoyée.
-- [ ] 5. Tests de la remise par code, écrits avant le code (partie critique) :
+- [x] 5. Tests de la remise par code, écrits avant le code (partie critique) :
       - bon code, code faux, 5 essais ;
       - commande d'autrui, état incorrect, case non cochée ;
       - « récupéré » refusé au livreur, mission sans code.
