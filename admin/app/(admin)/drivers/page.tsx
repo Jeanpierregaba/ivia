@@ -13,13 +13,15 @@ import {
   Td,
 } from "@/components/ui";
 import { api, ApiError, type Schemas } from "@/lib/api";
-import { DRIVER_STATUS, formatDateTime, formatPhone, statusOf, VEHICLE } from "@/lib/format";
+import { DRIVER_ACTIVITY, DRIVER_STATUS, formatDateTime, formatPhone, statusOf } from "@/lib/format";
 
 export const metadata = { title: "Livreurs" };
 
 const LIMIT = 20;
 const TABS = [
   { value: "pending_review", label: "À valider", query: "review_status=pending_review" },
+  { value: "changes_requested", label: "Compléments demandés", query: "review_status=changes_requested" },
+  { value: "draft", label: "Inscriptions en cours", query: "review_status=draft" },
   { value: "approved", label: "Validés", query: "review_status=approved" },
   { value: "suspended", label: "Suspendus", query: "suspended=true" },
   { value: "rejected", label: "Refusés", query: "review_status=rejected" },
@@ -48,9 +50,9 @@ export default async function DriversPage({ searchParams }: Props) {
     <>
       <PageHeader
         overline="Flotte"
-        title="Les livreurs et leurs dossiers"
+        title="Les livreurs, les chauffeurs et leurs dossiers"
         highlight="livreurs"
-        description="Un livreur ne reçoit de missions qu'après validation de son dossier (pièce d'identité et permis)."
+        description="Une activité (livraison, taxi VTC) ne s'ouvre qu'après vérification du dossier et, si exigé, contrôle du véhicule. Les onglets filtrent sur le statut d'une activité."
       />
       <FilterTabs
         current={current}
@@ -59,7 +61,7 @@ export default async function DriversPage({ searchParams }: Props) {
       {page.items.length === 0 ? (
         <EmptyState title="Rien à afficher" message="Aucun livreur dans cette liste pour le moment." />
       ) : (
-        <Table head={["Livreur", "Véhicule", "Documents", "Statut", "Candidature", ""]}>
+        <Table head={["Partenaire", "Activités", "Documents", "Livraison", "Inscription", ""]}>
           {page.items.map((d) => (
             <tr key={d.user_id}>
               <Td>
@@ -72,7 +74,14 @@ export default async function DriversPage({ searchParams }: Props) {
                 </div>
               </Td>
               <Td>
-                {VEHICLE[d.vehicle_type] ?? d.vehicle_type} · {d.vehicle_plate}
+                <div className="flex flex-wrap gap-1">
+                  {(d.activities ?? []).map((a) => (
+                    <span key={a.activity} className="whitespace-nowrap text-[13px]">
+                      {DRIVER_ACTIVITY[a.activity] ?? a.activity} :{" "}
+                      {statusOf(DRIVER_STATUS, a.status).label}
+                    </span>
+                  ))}
+                </div>
               </Td>
               <Td>{d.documents.length}</Td>
               <Td>

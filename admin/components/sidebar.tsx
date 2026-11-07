@@ -60,6 +60,7 @@ const sections: { title: string; items: Item[] }[] = [
       { href: "/business", label: "Ivia Business", icon: Briefcase },
       { href: "/shops", label: "Boutiques", icon: Store, count: "shops" },
       { href: "/drivers", label: "Livreurs", icon: Truck, count: "drivers" },
+      { href: "/driver-settings", label: "Réglages partenaires", icon: SlidersHorizontal },
       { href: "/properties", label: "Immobilier", icon: Building2 },
     ],
   },

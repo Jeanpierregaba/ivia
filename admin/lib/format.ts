@@ -65,7 +65,10 @@ export const SHOP_STATUS: Record<string, { label: string; tone: Tone }> = {
 };
 
 export const DRIVER_STATUS: Record<string, { label: string; tone: Tone }> = {
+  draft: { label: "Brouillon", tone: "muted" },
   pending_review: { label: "À valider", tone: "warning" },
+  changes_requested: { label: "Compléments demandés", tone: "warning" },
+  approved: { label: "Validé", tone: "success" },
   rejected: { label: "Refusé", tone: "error" },
   suspended: { label: "Suspendu", tone: "error" },
   offline: { label: "Hors ligne", tone: "muted" },
@@ -77,12 +80,25 @@ export const DOCUMENT_KIND: Record<string, string> = {
   id_card: "Pièce d'identité",
   driving_license: "Permis de conduire",
   vehicle_registration: "Carte grise",
+  vehicle_insurance: "Assurance du véhicule",
+  vehicle_photo: "Photo du véhicule",
+  criminal_record: "Extrait de casier judiciaire",
   business_registration: "Registre du commerce (RCCM)",
   photo: "Photo",
   other: "Autre document",
 };
 
-export const VEHICLE: Record<string, string> = { motorbike: "Moto", car: "Voiture" };
+export const VEHICLE: Record<string, string> = { bicycle: "Vélo", motorbike: "Moto", car: "Voiture" };
+
+/** Activités partenaire (livreur, chauffeur). */
+export const DRIVER_ACTIVITY: Record<string, string> = { delivery: "Livraison", vtc: "Taxi VTC" };
+
+/** Ouverture du taxi VTC aux partenaires. */
+export const VTC_MODE: Record<string, string> = {
+  hidden: "Masqué",
+  preregistration: "Pré-inscription",
+  open: "Ouvert",
+};
 
 export function statusOf(map: Record<string, { label: string; tone: Tone }>, code: string) {
   return map[code] ?? { label: code, tone: "muted" as Tone };

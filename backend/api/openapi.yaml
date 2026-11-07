@@ -13063,6 +13063,9 @@ components:
             - id_card
             - driving_license
             - vehicle_registration
+            - vehicle_insurance
+            - vehicle_photo
+            - criminal_record
             - photo
             - other
         url:
@@ -13125,6 +13128,13 @@ components:
               type:
                 - integer
                 - "null"
+          required:
+            - type
+            - brand
+            - model
+            - color
+            - plate
+            - seats
         work_zone_id:
           type:
             - string
@@ -13143,6 +13153,10 @@ components:
                     - string
                     - "null"
                   format: date-time
+              required:
+                - passed
+                - note
+                - checked_at
             - type: "null"
         required_documents:
           type: array
@@ -13152,6 +13166,17 @@ components:
           type: array
           items:
             type: string
+      required:
+        - activity
+        - status
+        - review_note
+        - reviewed_at
+        - submitted_at
+        - vehicle
+        - work_zone_id
+        - vehicle_check
+        - required_documents
+        - missing_documents
     DriverActivityInput:
       type: object
       properties:
@@ -13193,6 +13218,10 @@ components:
           description: "Numéro complet : back-office seulement."
         holder:
           type: string
+      required:
+        - operator
+        - phone_masked
+        - holder
     DriverOptions:
       type: object
       properties:
@@ -13340,6 +13369,8 @@ components:
           format: date-time
       required:
         - user_id
+        - activities
+        - payout
         - status
         - review_status
         - review_note
@@ -13362,7 +13393,9 @@ components:
         status:
           type: string
           enum:
+            - draft
             - pending_review
+            - changes_requested
             - rejected
             - suspended
             - offline
@@ -13371,7 +13404,9 @@ components:
         review_status:
           type: string
           enum:
+            - draft
             - pending_review
+            - changes_requested
             - approved
             - rejected
         review_note:
@@ -13397,6 +13432,7 @@ components:
         vehicle_type:
           type: string
           enum:
+            - bicycle
             - motorbike
             - car
         vehicle_plate:
@@ -13415,12 +13451,22 @@ components:
         created_at:
           type: string
           format: date-time
+        activities:
+          type: array
+          items:
+            "$ref": "#/components/schemas/DriverActivity"
+        payout:
+          oneOf:
+            - "$ref": "#/components/schemas/DriverPayout"
+            - type: "null"
         first_name:
           type: string
         phone:
           type: string
       required:
         - user_id
+        - activities
+        - payout
         - status
         - review_status
         - review_note

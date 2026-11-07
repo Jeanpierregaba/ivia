@@ -6040,7 +6040,7 @@ export interface components {
             /** Format: uuid */
             id: string;
             /** @enum {string} */
-            kind: "id_card" | "driving_license" | "vehicle_registration" | "photo" | "other";
+            kind: "id_card" | "driving_license" | "vehicle_registration" | "vehicle_insurance" | "vehicle_photo" | "criminal_record" | "photo" | "other";
             /** @description Lien temporaire (10 min), fourni aux admins seulement. */
             url?: string;
             /** Format: date-time */
@@ -6048,34 +6048,34 @@ export interface components {
         };
         DriverActivity: {
             /** @enum {string} */
-            activity?: "delivery" | "vtc";
+            activity: "delivery" | "vtc";
             /** @enum {string} */
-            status?: "draft" | "pending_review" | "changes_requested" | "approved" | "rejected";
+            status: "draft" | "pending_review" | "changes_requested" | "approved" | "rejected";
             /** @description Motif des compléments demandés ou du refus. */
-            review_note?: string;
+            review_note: string;
             /** Format: date-time */
-            reviewed_at?: string | null;
+            reviewed_at: string | null;
             /** Format: date-time */
-            submitted_at?: string | null;
-            vehicle?: {
+            submitted_at: string | null;
+            vehicle: {
                 /** @enum {string} */
-                type?: "bicycle" | "motorbike" | "car";
-                brand?: string;
-                model?: string;
-                color?: string;
-                plate?: string;
-                seats?: number | null;
+                type: "bicycle" | "motorbike" | "car";
+                brand: string;
+                model: string;
+                color: string;
+                plate: string;
+                seats: number | null;
             };
             /** Format: uuid */
-            work_zone_id?: string | null;
-            vehicle_check?: {
-                passed?: boolean;
-                note?: string;
+            work_zone_id: string | null;
+            vehicle_check: {
+                passed: boolean;
+                note: string;
                 /** Format: date-time */
-                checked_at?: string | null;
+                checked_at: string | null;
             } | null;
-            required_documents?: string[];
-            missing_documents?: string[];
+            required_documents: string[];
+            missing_documents: string[];
         };
         DriverActivityInput: {
             /** @enum {string} */
@@ -6090,11 +6090,11 @@ export interface components {
         };
         DriverPayout: {
             /** @enum {string} */
-            operator?: "flooz" | "tmoney";
-            phone_masked?: string;
+            operator: "flooz" | "tmoney";
+            phone_masked: string;
             /** @description Numéro complet : back-office seulement. */
             phone?: string;
-            holder?: string;
+            holder: string;
         };
         DriverOptions: {
             activities?: {
@@ -6145,8 +6145,8 @@ export interface components {
             vehicle_type: "bicycle" | "motorbike" | "car";
             vehicle_plate: string;
             vehicle_description: string;
-            activities?: components["schemas"]["DriverActivity"][];
-            payout?: components["schemas"]["DriverPayout"] | null;
+            activities: components["schemas"]["DriverActivity"][];
+            payout: components["schemas"]["DriverPayout"] | null;
             /** Format: date-time */
             last_location_at: string | null;
             documents: components["schemas"]["Document"][];
@@ -6157,9 +6157,9 @@ export interface components {
             /** Format: uuid */
             user_id: string;
             /** @enum {string} */
-            status: "pending_review" | "rejected" | "suspended" | "offline" | "available" | "busy";
+            status: "draft" | "pending_review" | "changes_requested" | "rejected" | "suspended" | "offline" | "available" | "busy";
             /** @enum {string} */
-            review_status: "pending_review" | "approved" | "rejected";
+            review_status: "draft" | "pending_review" | "changes_requested" | "approved" | "rejected";
             review_note: string;
             /** Format: date-time */
             reviewed_at: string | null;
@@ -6169,7 +6169,7 @@ export interface components {
             /** @enum {string} */
             availability: "offline" | "available" | "busy";
             /** @enum {string} */
-            vehicle_type: "motorbike" | "car";
+            vehicle_type: "bicycle" | "motorbike" | "car";
             vehicle_plate: string;
             vehicle_description: string;
             /** Format: date-time */
@@ -6177,6 +6177,8 @@ export interface components {
             documents: components["schemas"]["Document"][];
             /** Format: date-time */
             created_at: string;
+            activities: components["schemas"]["DriverActivity"][];
+            payout: components["schemas"]["DriverPayout"] | null;
             first_name: string;
             phone: string;
         };
