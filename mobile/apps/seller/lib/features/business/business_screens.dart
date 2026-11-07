@@ -433,10 +433,11 @@ class _SpaceFormScreenState extends ConsumerState<SpaceFormScreen> {
       }
       if (mounted && navigator.canPop()) navigator.pop();
     } on ApiException catch (e) {
-      if (mounted)
+      if (mounted) {
         setState(
           () => _errors = e.fields.isEmpty ? {'name': e.message} : e.fields,
         );
+      }
     } finally {
       if (mounted) setState(() => _busy = false);
     }
@@ -1000,10 +1001,11 @@ class _PayoutScreenState extends ConsumerState<PayoutScreen> {
       await ref.read(businessGateProvider.notifier).refresh();
       if (mounted) navigator.pop();
     } on ApiException catch (e) {
-      if (mounted)
+      if (mounted) {
         setState(
           () => _errors = e.fields.isEmpty ? {'general': e.message} : e.fields,
         );
+      }
     } finally {
       if (mounted) setState(() => _busy = false);
     }
@@ -1964,10 +1966,11 @@ class _ItemFormScreenState extends ConsumerState<ItemFormScreen> {
       ref.invalidate(itemsProvider(widget.space.id));
       if (mounted) navigator.pop();
     } on ApiException catch (e) {
-      if (mounted)
+      if (mounted) {
         setState(
           () => _errors = e.fields.isEmpty ? {'title': e.message} : e.fields,
         );
+      }
     } finally {
       if (mounted) setState(() => _busy = null);
     }

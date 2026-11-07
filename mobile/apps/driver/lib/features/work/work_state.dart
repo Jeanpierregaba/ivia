@@ -108,8 +108,9 @@ class WorkController extends Notifier<WorkState> {
     final moved =
         last == null ||
         (p.lat - last.lat).abs() + (p.lng - last.lng).abs() > 0.0001;
-    if (!moved && at != null && DateTime.now().difference(at).inSeconds < 15)
+    if (!moved && at != null && DateTime.now().difference(at).inSeconds < 15) {
       return;
+    }
     _lastSent = p;
     _lastSentAt = DateTime.now();
     _openSocket();
