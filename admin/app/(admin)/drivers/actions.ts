@@ -75,7 +75,10 @@ export async function checkVehicle(_: ActionResult | null, form: FormData): Prom
     return failure(err);
   }
   refresh(id);
-  return { ok: true, message: passed ? "Véhicule conforme." : "Contrôle du véhicule non conforme enregistré." };
+  return {
+    ok: true,
+    message: passed ? "Véhicule conforme." : "Contrôle du véhicule non conforme enregistré.",
+  };
 }
 
 /** Réglages partenaires : ouverture du VTC, contrôle du véhicule en livraison, guide. */

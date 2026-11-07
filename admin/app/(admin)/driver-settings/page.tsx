@@ -63,7 +63,10 @@ export default async function DriverSettingsPage() {
               </span>
             </span>
           </label>
-          <Field label="Guide du partenaire" hint="Affiché dans l'app livreur pendant la vérification du dossier.">
+          <Field
+            label="Guide du partenaire"
+            hint="Affiché dans l'app livreur pendant la vérification du dossier."
+          >
             <textarea
               name="partner_guide"
               rows={10}

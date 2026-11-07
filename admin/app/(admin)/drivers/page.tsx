@@ -77,8 +77,7 @@ export default async function DriversPage({ searchParams }: Props) {
                 <div className="flex flex-wrap gap-1">
                   {(d.activities ?? []).map((a) => (
                     <span key={a.activity} className="whitespace-nowrap text-[13px]">
-                      {DRIVER_ACTIVITY[a.activity] ?? a.activity} :{" "}
-                      {statusOf(DRIVER_STATUS, a.status).label}
+                      {DRIVER_ACTIVITY[a.activity] ?? a.activity} : {statusOf(DRIVER_STATUS, a.status).label}
                     </span>
                   ))}
                 </div>

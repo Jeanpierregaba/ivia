@@ -62,7 +62,8 @@ export default async function DriverPage({ params }: { params: Promise<{ id: str
             {d.first_name || "Sans prénom"}
           </h1>
           <p className="mt-1 text-white/75">
-            {activities.map((a) => DRIVER_ACTIVITY[a.activity] ?? a.activity).join(" · ") || "Aucune activité"}
+            {activities.map((a) => DRIVER_ACTIVITY[a.activity] ?? a.activity).join(" · ") ||
+              "Aucune activité"}
             {" · "}
             {formatPhone(d.phone)}
           </p>
@@ -80,7 +81,10 @@ export default async function DriverPage({ params }: { params: Promise<{ id: str
               ["Prénom", d.first_name || "—"],
               ["Téléphone", formatPhone(d.phone)],
               ["Inscription", formatDateTime(d.created_at)],
-              ["Suspension", d.suspended_at ? `${formatDateTime(d.suspended_at)} · ${d.suspension_reason}` : "—"],
+              [
+                "Suspension",
+                d.suspended_at ? `${formatDateTime(d.suspended_at)} · ${d.suspension_reason}` : "—",
+              ],
             ]}
           />
         </Card>
@@ -161,7 +165,10 @@ export default async function DriverPage({ params }: { params: Promise<{ id: str
                 label="Rétablir"
                 variant="outline"
                 hidden={hidden("reinstate")}
-                confirm={{ title: `Rétablir ${name} ?`, body: "Le livreur pourra de nouveau passer en ligne." }}
+                confirm={{
+                  title: `Rétablir ${name} ?`,
+                  body: "Le livreur pourra de nouveau passer en ligne.",
+                }}
               />
             )}
           </div>
@@ -293,7 +300,10 @@ function ActivityCard({
             label="Refuser"
             variant="danger"
             hidden={{ ...base, decision: "reject" }}
-            confirm={{ title: `Refuser le dossier de ${name} ?`, body: "Le motif est communiqué au partenaire." }}
+            confirm={{
+              title: `Refuser le dossier de ${name} ?`,
+              body: "Le motif est communiqué au partenaire.",
+            }}
             reason={{ label: "Motif du refus", required: true }}
           />
         </div>
