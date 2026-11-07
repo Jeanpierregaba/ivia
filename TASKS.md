@@ -8,6 +8,7 @@ docs/specs/NNN-nom/tasks.md. Les petites tâches isolées (bug, retouche) peuven
 
 ## En cours
 
+- [ ] 032 — Pharmacie : manques côté serveur et paiement en espèces par le livreur ([spec](docs/specs/032-pharmacie-serveur/spec.md), [ADR 0014](docs/decisions/0014-pharmacie-paiement-especes-livreur.md)) : spec, plan et tâches validés (2026-11-07) ; migration à faire relire par Gedeon
 - [ ] 031 — Écrans de l'app pharmacie d'après les maquettes F00 à F23 ([spec](docs/specs/031-ecrans-pharmacie/spec.md)) : 24 écrans faits, testés (88 tests, police à 200 % sur 320 dp), vérifiés sur le simulateur iPhone, relus (2026-11-07). Reste : sur un vrai Android, alerte plein écran, sonnerie forte ou coupée, capture bloquée sur l'ordonnance ; manques serveur listés plus bas (Gedeon)
 - [ ] **ADR 0011 — connexion par mot de passe** (2026-11-03) : backend fait (création de compte par code puis mot de passe, connexion, verrou après 10 échecs, mot de passe oublié, changement de mot de passe, Google, double vérification des admins, migration 00024, tests). Back-office fait (maquettes B01, B02, B03 : mot de passe puis code, tableau de bord dynamique). Apps mobiles : passées à la connexion par numéro (ADR 0012), la 029 (e-mail, mot de passe, Google) en est retirée (2026-11-06). Reste : suppression côté serveur des routes de connexion par e-mail et par Google des apps (Gedeon) une fois les apps publiées
 - [ ] 018 — Espace livreur : lancement, connexion, dossier de candidature ([spec](docs/specs/018-espace-livreur/spec.md)) : relu et corrigé ; appareil photo à vérifier sur un vrai téléphone
@@ -29,8 +30,8 @@ que sa partie interface (apps Flutter, back-office), sauf mention « backend ».
 `backend/api/openapi.yaml`. Ordre : dépendances d'abord, puis valeur ; les phases 1 et 2 forment la
 version « retrait seulement » (voir `docs/PRD.md`).
 
-### Pharmacie (031) — manques côté serveur (Gedeon)
-L'app pharmacie fait sans en attendant (spec 031, « Hors périmètre ») :
+### Pharmacie (031) — manques côté serveur
+Traités par la spec 032 (sauf le dernier point mobile) ; l'app pharmacie fait sans en attendant :
 - [ ] **Backend** : numéro court d'alerte (« #A-3107 ») ; l'app affiche l'heure de réception
 - [ ] **Backend** : opérateur du compte de versement (Flooz ou T-Money) dans `GET /v1/pharmacy/me` ; le relevé et le profil n'affichent que le numéro masqué
 - [ ] **Backend** : code du livreur à la remise en pharmacie (F17) ; l'app indique que le livreur confirme dans son app
@@ -43,6 +44,7 @@ L'app pharmacie fait sans en attendant (spec 031, « Hors périmètre ») :
 - [ ] **Backend** : compteurs du jour (alertes reçues, répondues, confirmées) ; l'app les calcule sur les 50 dernières alertes
 - [ ] **Backend** : envoi des pièces du dossier en PDF (aujourd'hui photo seulement)
 - [ ] **Backend** : push d'alerte iOS sans son imposé (`aps.sound`), pour que « Sonnerie coupée » s'applique aussi sur iPhone ; le réglage n'est proposé que sur Android
+- [ ] **Backend** : règlement des livreurs, dont le remboursement des espèces avancées aux pharmacies (ADR 0014) ; aujourd'hui visible au back-office, réglé à part
 - [ ] **Mobile** (antérieur à la 031) : si la lecture de la pharmacie échoue au lancement, une pharmacie validée voit le formulaire de création au lieu d'un écran « réessayer »
 
 ### Phase 1 — Comptes et catalogue
