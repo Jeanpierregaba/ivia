@@ -1,7 +1,7 @@
 # Démarrer tout le projet en local
 
 Toute la plateforme tourne sur un seul PC, dans le navigateur, sans émulateur : API, back-office et
-les 4 apps mobiles (affichées dans un cadre iPhone).
+les 4 apps mobiles. Pour les voir en format téléphone, utiliser le mode appareil de Chrome (touche F12).
 
 Toutes les commandes se tapent dans **PowerShell**. Le dossier où les taper est indiqué à chaque
 fois ; « racine » désigne le dossier du dépôt, `C:\Users\<vous>\Desktop\ivia\ivia` (celui qui
@@ -23,10 +23,10 @@ contient `backend`, `admin`, `mobile` et `docker-compose.yml`).
 
    | Service | Adresse |
    | --- | --- |
-   | ivia (app client) | http://localhost:8090 |
-   | Ivia Business | http://localhost:8091 |
-   | Livreur | http://localhost:8092 |
-   | Pharmacie | http://localhost:8093 |
+   | ivia (app client) | http://localhost:3001 |
+   | Ivia Business | http://localhost:3002 |
+   | Livreur | http://localhost:3003 |
+   | Pharmacie | http://localhost:3004 |
    | Back-office | http://localhost:3000 |
    | API | http://localhost:8080 |
    | Documentation de l'API (Swagger) | http://localhost:8080/docs |
@@ -72,10 +72,10 @@ le casse (erreurs 500) jusqu'au prochain démarrage.
 ### 3. Construire les apps mobiles en version web
 
 Depuis **`mobile\apps\buyer`**, puis `mobile\apps\seller`, `mobile\apps\driver` et `mobile\apps\pharmacy`
-(la même commande dans chacun des 4 dossiers) :
+(la même commande dans chacun des 4 dossiers, avec le port de l'app à la place de `<port>` : 3001, 3002, 3003 ou 3004) :
 
 ```powershell
-flutter build web --profile --no-web-resources-cdn --dart-define=API_BASE_URL=http://localhost:8090 --dart-define=IVIA_DEV_OTP=true --dart-define=IVIA_DEV_PAYMENT=true
+flutter build web --profile --no-web-resources-cdn --dart-define=API_BASE_URL=http://localhost:<port> --dart-define=IVIA_DEV_OTP=true --dart-define=IVIA_DEV_PAYMENT=true
 ```
 
 Compter 5 à 7 minutes par app. Construire une app à la fois : plusieurs en parallèle saturent la

@@ -1,6 +1,6 @@
-"""Aperçu local d'une app ivia (build web) dans un cadre iPhone 17 Pro.
+"""Aperçu local d'une app ivia (build web), affichée directement dans le navigateur.
 
-Sert le build web sur http://localhost:8090 et relaie /v1/ et /dev/ vers l'API locale
+Sert le build web (cadre iPhone facultatif sur /iphone) et relaie /v1/ et /dev/ vers l'API locale
 (http://localhost:8080) : même origine, donc pas de CORS. Usage local uniquement.
 """
 import http.server
@@ -10,7 +10,7 @@ import urllib.error
 import urllib.request
 
 WEB = sys.argv[1]
-PORT = int(sys.argv[2]) if len(sys.argv) > 2 else 8090
+PORT = int(sys.argv[2]) if len(sys.argv) > 2 else 3001
 TITLE = sys.argv[3] if len(sys.argv) > 3 else "ivia"
 FRAME = os.path.join(os.path.dirname(os.path.abspath(__file__)), "iphone17.html")
 API = "http://localhost:8080"
@@ -82,7 +82,7 @@ class Handler(http.server.SimpleHTTPRequestHandler):
     def _route(self):
         if self.path.startswith("/v1/") or self.path.startswith("/dev/"):
             return self._proxy()
-        if self.path in ("/", "/iphone"):
+        if self.path == "/iphone":
             data = open(FRAME, "rb").read().replace(b"<h1>ivia", b"<h1>" + TITLE.encode())
             self.send_response(200)
             self.send_header("Content-Type", "text/html; charset=utf-8")

@@ -1,10 +1,10 @@
 # Aperçu local de toute la plateforme ivia, sans émulateur (peu de mémoire).
 #
 #   API          http://localhost:8080
-#   ivia         http://localhost:8090   (cadre iPhone 17 Pro)
-#   Business     http://localhost:8091
-#   Livreur      http://localhost:8092
-#   Pharmacie    http://localhost:8093
+#   ivia         http://localhost:3001
+#   Business     http://localhost:3002
+#   Livreur      http://localhost:3003
+#   Pharmacie    http://localhost:3004
 #   Back-office  http://localhost:3000   (admin@ivia.local, mot de passe de démo)
 #
 # Prérequis : Docker Desktop lancé, apps construites en web
@@ -46,7 +46,7 @@ if (Test-Path (Join-Path $root 'geo-data\osrm-car\togo-latest.osrm.mldgr')) {
 # API locale : codes de connexion dans le journal, images servies par l'aperçu ivia.
 $env:APP_ENV = 'local'
 $env:OTP_SENDER = 'smtp'
-$env:PUBLIC_BASE_URL = 'http://localhost:8090'
+$env:PUBLIC_BASE_URL = 'http://localhost:3001'
 $env:DATABASE_URL = 'postgres://ivia@127.0.0.1:5434/ivia?sslmode=disable'
 $env:PORT = '8080'
 $env:LOCAL_STORAGE_DIR = './var/uploads'
@@ -55,8 +55,8 @@ $api = Start-Process -FilePath (Join-Path $backend 'bin\api.exe') -WorkingDirect
   -RedirectStandardOutput (Join-Path $backend 'var\api.log') -RedirectStandardError (Join-Path $backend 'var\api.err.log') -PassThru
 $started += $api.Id
 
-# Apps Flutter (build web) dans le cadre iPhone, avec relais vers l'API.
-foreach ($app in @(@('buyer', 8090, 'ivia'), @('seller', 8091, 'Ivia Business'), @('driver', 8092, 'Ivia Driver'), @('pharmacy', 8093, 'ivia Pharmacie'))) {
+# Apps Flutter (build web), avec relais vers l'API.
+foreach ($app in @(@('buyer', 3001, 'ivia'), @('seller', 3002, 'Ivia Business'), @('driver', 3003, 'Ivia Driver'), @('pharmacy', 3004, 'ivia Pharmacie'))) {
   $web = Join-Path $root ('mobile\apps\' + $app[0] + '\build\web')
   $p = Start-Process -FilePath 'python' -ArgumentList @('-I', (Join-Path $here 'serve.py'), $web, $app[1], ('"' + $app[2] + '"')) `
     -WindowStyle Hidden -PassThru
@@ -78,8 +78,8 @@ if (Test-Path $standalone) {
 
 $started | Set-Content $pids
 Write-Output 'Aperçu démarré :'
-Write-Output '  ivia         http://localhost:8090'
-Write-Output '  Business     http://localhost:8091'
-Write-Output '  Livreur      http://localhost:8092'
-Write-Output '  Pharmacie    http://localhost:8093'
+Write-Output '  ivia         http://localhost:3001'
+Write-Output '  Business     http://localhost:3002'
+Write-Output '  Livreur      http://localhost:3003'
+Write-Output '  Pharmacie    http://localhost:3004'
 Write-Output '  Back-office  http://localhost:3000'
