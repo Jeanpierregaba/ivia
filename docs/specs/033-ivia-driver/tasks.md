@@ -43,7 +43,7 @@
       - glisser pour passer en ligne.
 - [x] 10. Accueil en ligne D09 : bandeau « En ligne · depuis », « Pause », carte ou fond neutre,
       volet « Recherche de missions… ».
-- [ ] 11. Mission proposée D10 : gain, compte à rebours, trajet, glisser pour accepter, refuser,
+- [x] 11. Mission proposée D10 : gain, compte à rebours, trajet, glisser pour accepter, refuser,
       proposition expirée ou prise.
 - [ ] 12. Vers le retrait D11 et vers le client D13 :
       - itinéraire dans l'app de navigation choisie ;

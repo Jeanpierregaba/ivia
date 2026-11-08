@@ -69,17 +69,33 @@ class WorkController extends Notifier<WorkState> {
     return const WorkState();
   }
 
+  /// Propositions expirées ou prises : plus affichées, même si une relecture
+  /// les renvoie encore.
+  final _gone = <String>{};
+
+  /// Retire la proposition (compte à rebours fini, prise par un autre) ;
+  /// [message] s'affiche dans la recherche.
+  void dropOffer(WorkOffer offer, {String? message}) {
+    _gone.add(offer.id);
+    if (state.offer?.id == offer.id) {
+      state = state.copy(clearOffer: true, error: message);
+    }
+  }
+
   Future<void> refresh() async {
     try {
       final mission = await _api.currentWorkMission();
-      final offer = mission == null && state.online
+      var offer = mission == null && state.online
           ? await _api.currentWorkOffer()
           : null;
+      if (offer != null && _gone.contains(offer.id)) offer = null;
       state = state.copy(
         mission: mission,
         clearMission: mission == null,
         offer: offer,
         clearOffer: offer == null,
+        // Un message reste jusqu'à la proposition suivante.
+        error: offer == null ? state.error : null,
       );
     } on ApiException {
       // Réseau : nouvel essai au prochain tour.

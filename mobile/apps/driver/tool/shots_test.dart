@@ -200,6 +200,20 @@ class _Online extends WorkController {
   );
 }
 
+/// Proposition reçue (D10), 31 s restantes.
+class _Offered extends WorkController {
+  @override
+  WorkState build() => WorkState(
+    online: true,
+    onlineSince: DateTime.now(),
+    offer: WorkOffer.shop(
+      driverOfferBody(
+        expiresIn: const Duration(seconds: 31, milliseconds: 500),
+      ),
+    ),
+  );
+}
+
 void main() {
   setUpAll(() async {
     TestWidgetsFlutterBinding.ensureInitialized();
@@ -211,6 +225,20 @@ void main() {
         );
     await loadFonts();
   });
+
+  testWidgets(
+    'D10',
+    (t) => shot(
+      t,
+      'D10',
+      const DriverShell(),
+      overrides: [
+        ...signedIn(dossier: _ApprovedDossier.new),
+        workProvider.overrideWith(_Offered.new),
+      ],
+      before: (t) => t.pump(const Duration(milliseconds: 500)),
+    ),
+  );
 
   testWidgets(
     'D09',

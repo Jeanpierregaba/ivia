@@ -103,6 +103,7 @@ actif en pastille bleue et son libellé.
 | Application de navigation (D19) | **Réglage du téléphone** : Google Maps, Waze ou Plans (iPhone). |
 | Sonnerie des missions (D19) | **Réglage du téléphone** : activée, une nouvelle proposition fait sonner et vibrer l'app. Ivia Driver n'a pas de notifications push (les propositions arrivent app ouverte) : `alert_sound` ne s'applique pas. Les notifications push des livreurs sont notées pour Gedeon. |
 | Km parcourus, temps en ligne, « 5/8 » objectif, note « 4,9 · 212 courses », demande par quartier (D08), « 4 commandes bientôt prêtes », plusieurs zones préférées | **Masqués**. Le nombre de courses terminées est affiché à la place de la note. |
+| Tracé de la proposition sur la carte (D10) | **Masqué** : la proposition ne donne pas les positions du retrait et du client. La carte reste centrée sur le livreur ; les distances et la durée estimée sont dans le volet. |
 | Versement prévu (« Versement vendredi 54 200 F ») | **Masqué** : seul le compte de versement est affiché. |
 | Guidage tour par tour dans l'app (« 250 m, tournez à droite ») | **Masqué**. Le bandeau affiche la destination et la distance à vol d'oiseau ; le guidage se fait dans l'application de navigation choisie. |
 | Messagerie avec la boutique ou le client | **Masquée** : seul l'appel est proposé. |

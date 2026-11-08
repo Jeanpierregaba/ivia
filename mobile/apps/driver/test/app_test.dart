@@ -1146,6 +1146,158 @@ void main() {
       }
     });
 
+    /// En ligne avec [offer] proposée (jusqu'à acceptation ou refus).
+    Future<void> onlineWithOffer(
+      WidgetTester tester,
+      Map<String, dynamic> offer, {
+      FakeResponse Function()? accept,
+    }) async {
+      await withDossier(review: 'approved', status: 'offline');
+      approvedHome();
+      goOnlineServer();
+      Map<String, dynamic>? current = offer;
+      final id = offer['id'];
+      server
+        ..on(
+          'GET',
+          '/v1/driver/offers/current',
+          (_) => FakeResponse.json(200, {'offer': current}),
+        )
+        ..on('POST', '/v1/driver/offers/$id/accept', (_) {
+          final response = accept?.call() ?? FakeResponse.json(204, null);
+          if (response.status == 204) current = null;
+          return response;
+        })
+        ..on('POST', '/v1/driver/offers/$id/decline', (_) {
+          current = null;
+          return FakeResponse.json(204, null);
+        });
+      await launchApp(tester);
+      await tester.drag(
+        find.byKey(const Key('slide-knob')),
+        const Offset(2000, 0),
+      );
+      for (var i = 0; i < 5; i++) {
+        await tester.pump(const Duration(milliseconds: 300));
+      }
+    }
+
+    Future<void> wait(WidgetTester tester, {int ticks = 5}) async {
+      for (var i = 0; i < ticks; i++) {
+        await tester.pump(const Duration(milliseconds: 300));
+      }
+    }
+
+    testWidgets('proposition (D10) : gain, trajet, glisser pour accepter', (
+      tester,
+    ) async {
+      await onlineWithOffer(tester, driverOfferBody());
+      expect(find.text('NOUVELLE MISSION'), findsOneWidget);
+      expect(find.text(formatXof(1200)), findsOneWidget);
+      expect(find.text('Gain indicatif · payé à la livraison'), findsOneWidget);
+      // 800 m + 3,4 km ; moto : ≈ 14 min (4 200 m × 1,3 à 22 km/h).
+      expect(find.text('4,2 km'), findsOneWidget);
+      expect(find.text('≈ 14 min'), findsOneWidget);
+      expect(find.text('Colis moyen'), findsOneWidget);
+      expect(find.text('Retrait · Chez Afi'), findsOneWidget);
+      expect(find.text('Rue 248, Tokoin · à 800 m'), findsOneWidget);
+      expect(find.text('Livraison · Bè Kpota'), findsOneWidget);
+      expect(find.text('3,4 km après le retrait'), findsOneWidget);
+      expect(
+        find.bySemanticsLabel(RegExp(r'secondes pour accepter')),
+        findsOneWidget,
+      );
+      // Glissement incomplet : rien ne part.
+      await tester.drag(
+        find.byKey(const Key('slide-knob')),
+        const Offset(80, 0),
+      );
+      await wait(tester);
+      expect(server.calls('POST', '/v1/driver/offers/offer-1/accept'), isEmpty);
+      await tester.drag(
+        find.byKey(const Key('slide-knob')),
+        const Offset(2000, 0),
+      );
+      await wait(tester);
+      expect(
+        server.calls('POST', '/v1/driver/offers/offer-1/accept'),
+        hasLength(1),
+      );
+    });
+
+    testWidgets('proposition prise par un autre : message, recherche', (
+      tester,
+    ) async {
+      await onlineWithOffer(
+        tester,
+        driverOfferBody(),
+        accept: () => FakeResponse.json(409, {
+          'error': {
+            'code': 'offer_expired',
+            'message': 'Cette mission a déjà été attribuée.',
+          },
+        }),
+      );
+      await tester.drag(
+        find.byKey(const Key('slide-knob')),
+        const Offset(2000, 0),
+      );
+      await wait(tester);
+      expect(find.text('Cette mission a déjà été attribuée.'), findsOneWidget);
+      expect(find.text('Recherche de missions…'), findsOneWidget);
+      // Relue par le serveur, elle ne revient pas.
+      await wait(tester, ticks: 15);
+      expect(find.text('NOUVELLE MISSION'), findsNothing);
+    });
+
+    testWidgets('compte à rebours fini : proposition retirée', (tester) async {
+      await onlineWithOffer(
+        tester,
+        driverOfferBody(expiresIn: const Duration(seconds: 3)),
+      );
+      expect(find.text('NOUVELLE MISSION'), findsOneWidget);
+      await wait(tester, ticks: 12);
+      expect(find.text('NOUVELLE MISSION'), findsNothing);
+      expect(
+        find.text('Proposition expirée. La recherche continue.'),
+        findsOneWidget,
+      );
+    });
+
+    testWidgets('Refuser : appel au serveur, retour à la recherche', (
+      tester,
+    ) async {
+      await onlineWithOffer(tester, driverOfferBody());
+      await tester.ensureVisible(find.text('Refuser'));
+      await tester.pump();
+      await tester.tap(find.text('Refuser'));
+      await wait(tester);
+      expect(
+        server.calls('POST', '/v1/driver/offers/offer-1/decline'),
+        hasLength(1),
+      );
+      expect(find.text('Recherche de missions…'), findsOneWidget);
+    });
+
+    testWidgets('proposition : police à 220 % sur 320 dp', (tester) async {
+      tester.view.physicalSize = const Size(320, 640);
+      tester.view.devicePixelRatio = 1;
+      addTearDown(tester.view.reset);
+      await onlineWithOffer(tester, driverOfferBody());
+      tester.platformDispatcher.textScaleFactorTestValue = 2.2;
+      addTearDown(tester.platformDispatcher.clearTextScaleFactorTestValue);
+      await wait(tester, ticks: 2);
+      expect(find.text('NOUVELLE MISSION'), findsOneWidget);
+      final error = tester.takeException();
+      expect(error, isNull, reason: '$error');
+      await tester.scrollUntilVisible(
+        find.text('Refuser'),
+        200,
+        scrollable: find.byType(Scrollable).last,
+      );
+      expect(tester.takeException(), isNull);
+    });
+
     testWidgets('accueil en ligne (D09) : bandeau, jour calculé, Pause', (
       tester,
     ) async {

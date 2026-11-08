@@ -30,6 +30,9 @@ class WorkOffer {
       toArea = j['delivery_neighborhood'] as String? ?? '',
       toPickupM = _i(j['distance_to_shop_m']),
       tripM = _i(j['shop_to_client_m']),
+      parcelSize = j['parcel_size'] == null
+          ? null
+          : ParcelSize.parse(j['parcel_size'] as String),
       earningXof = _i(j['earning_xof']),
       expiresAt = DateTime.parse(j['expires_at'] as String);
 
@@ -42,6 +45,7 @@ class WorkOffer {
       toArea = '',
       toPickupM = _i(j['distance_to_pharmacy_m']),
       tripM = _i(j['pharmacy_to_client_m']),
+      parcelSize = null,
       earningXof = _i(j['earning_xof']),
       expiresAt = DateTime.parse(j['expires_at'] as String);
 
@@ -49,6 +53,9 @@ class WorkOffer {
   final bool pharmacy;
   final int toPickupM, tripM, earningXof;
   final DateTime expiresAt;
+
+  /// Taille du colis (boutique) ; `null` : course pharmacie.
+  final ParcelSize? parcelSize;
 }
 
 /// Mission en cours ou passée (boutique ou pharmacie).

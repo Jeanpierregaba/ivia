@@ -10,7 +10,7 @@ import '../../app/driver_dossier.dart';
 import '../../common/formats.dart';
 import '../../common/ui.dart';
 import '../earnings/earnings.dart';
-import '../work/work_screens.dart';
+import '../offer/offer_card.dart';
 import '../work/work_state.dart';
 
 /// Position du livreur pour centrer la carte ; Lomé si elle est inconnue.
@@ -51,17 +51,22 @@ class OnlineHome extends ConsumerWidget {
                   ),
                 ),
                 const Positioned.fill(child: Center(child: _Radar())),
-                Positioned(
-                  left: 14,
-                  right: 14,
-                  top: MediaQuery.paddingOf(context).top + 4,
-                  child: _OnlineBanner(work: work),
-                ),
+                // Pendant une proposition, la carte seule (D10).
+                if (work.offer == null)
+                  Positioned(
+                    left: 14,
+                    right: 14,
+                    top: MediaQuery.paddingOf(context).top + 4,
+                    child: _OnlineBanner(work: work),
+                  ),
               ],
             ),
           ),
           ConstrainedBox(
-            constraints: BoxConstraints(maxHeight: box.maxHeight * .62),
+            // Une proposition passe avant la carte : le volet peut monter plus haut.
+            constraints: BoxConstraints(
+              maxHeight: box.maxHeight * (work.offer == null ? .62 : .85),
+            ),
             child: DecoratedBox(
               decoration: const BoxDecoration(
                 borderRadius: BorderRadius.vertical(top: Radius.circular(32)),
@@ -78,7 +83,10 @@ class OnlineHome extends ConsumerWidget {
                   child: SingleChildScrollView(
                     padding: const EdgeInsets.only(bottom: 18),
                     child: switch (work.offer) {
-                      final offer? => OfferCard(offer: offer),
+                      final offer? => OfferCard(
+                        key: ValueKey(offer.id),
+                        offer: offer,
+                      ),
                       null => _Searching(work: work),
                     },
                   ),

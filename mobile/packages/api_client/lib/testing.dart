@@ -425,6 +425,27 @@ Map<String, dynamic> driverBody({
 };
 
 /// Zone de travail type ([driverOptionsBody]).
+/// Proposition de mission boutique (schéma `Offer`) : 1 200 F, Chez Afi à
+/// 800 m, Bè Kpota 3,4 km après.
+Map<String, dynamic> driverOfferBody({
+  String id = 'offer-1',
+  Duration expiresIn = const Duration(seconds: 40),
+  String parcelSize = 'medium',
+}) => {
+  'id': id,
+  'order_id': 'order-1',
+  'order_reference': 'IV-001042',
+  'shop_name': 'Chez Afi',
+  'shop_address': 'Rue 248, Tokoin',
+  'shop_neighborhood': 'Tokoin',
+  'delivery_neighborhood': 'Bè Kpota',
+  'distance_to_shop_m': 800,
+  'shop_to_client_m': 3400,
+  'parcel_size': parcelSize,
+  'earning_xof': 1200,
+  'expires_at': DateTime.now().toUtc().add(expiresIn).toIso8601String(),
+};
+
 const workZoneTokoin = '5a1b2c3d-0000-4000-8000-00000000a001';
 
 /// Pièces exigées pour la livraison selon le véhicule (comme
