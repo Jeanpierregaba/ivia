@@ -2,6 +2,7 @@ import 'package:flutter/material.dart';
 import 'package:flutter_riverpod/flutter_riverpod.dart';
 
 import '../../common/ui.dart';
+import '../earnings/earnings.dart';
 import '../earnings/earnings_screen.dart';
 import '../home/home_screen.dart';
 import '../mission/mission_screen.dart';
@@ -34,21 +35,32 @@ class _DriverShellState extends ConsumerState<DriverShell> {
     });
     return Scaffold(
       backgroundColor: D.page,
-      body: mission != null && _tab == 0
-          ? MissionScreen(mission: mission)
-          : IndexedStack(
-              index: _tab,
-              children: [
-                const HomeTab(),
-                MissionsTab(onOpenMission: () => setState(() => _tab = 0)),
-                const EarningsTab(),
-                const ProfileTab(),
-              ],
-            ),
+      // L'écran de mission reste monté sur les autres onglets : arrivée
+      // gardée dans l'app (pharmacie), cases cochées et code saisi survivent
+      // au changement d'onglet.
+      body: IndexedStack(
+        index: _tab,
+        children: [
+          if (mission != null)
+            MissionScreen(key: ValueKey(mission.id), mission: mission)
+          else
+            const HomeTab(),
+          MissionsTab(onOpenMission: () => setState(() => _tab = 0)),
+          const EarningsTab(),
+          const ProfileTab(),
+        ],
+      ),
       bottomNavigationBar: DBottomNav(
         tabs: DBottomNav.driverTabs,
         index: _tab,
-        onSelect: (i) => setState(() => _tab = i),
+        onSelect: (i) {
+          // Missions et Gains : historique relu à chaque ouverture (missions
+          // annulées, livrées ou retirées depuis la dernière lecture).
+          if (i != _tab && (i == 1 || i == 2)) {
+            ref.invalidate(missionHistoryProvider);
+          }
+          setState(() => _tab = i);
+        },
       ),
     );
   }

@@ -1,5 +1,6 @@
 import 'dart:async';
 import 'dart:convert';
+import 'dart:ui' show CheckedState;
 
 import 'package:flutter/material.dart';
 import 'package:flutter/services.dart';
@@ -2043,6 +2044,60 @@ void main() {
       }
       expect(find.text('Glisser à l\'arrivée'), findsNothing);
       expect(find.textContaining('a été annulée'), findsNothing);
+    });
+
+    testWidgets('changement d\'onglet : arrivée pharmacie, cases et code '
+        'gardés', (tester) async {
+      await withMission(
+        tester,
+        driverPharmacyMissionBody(pickupCode: '4821'),
+        pharmacy: true,
+      );
+      Future<void> roundTrip() async {
+        await tester.tap(find.bySemanticsLabel('Gains'));
+        for (var i = 0; i < 3; i++) {
+          await tester.pump(const Duration(milliseconds: 300));
+        }
+        await tester.tap(find.bySemanticsLabel('Accueil'));
+        for (var i = 0; i < 3; i++) {
+          await tester.pump(const Duration(milliseconds: 300));
+        }
+      }
+
+      // Arrivée à la pharmacie gardée dans l'app : le code reste affiché.
+      await slideToEnd(tester);
+      expect(find.text('VOTRE CODE DE RETRAIT'), findsOneWidget);
+      await roundTrip();
+      expect(find.text('VOTRE CODE DE RETRAIT'), findsOneWidget);
+      expect(find.text("Glisser à l'arrivée"), findsNothing);
+    });
+
+    testWidgets('changement d\'onglet : cases du colis et code client gardés', (
+      tester,
+    ) async {
+      await withMission(tester, driverMissionBody(arrivedShop: true));
+      Future<void> roundTrip() async {
+        await tester.tap(find.bySemanticsLabel('Profil'));
+        for (var i = 0; i < 3; i++) {
+          await tester.pump(const Duration(milliseconds: 300));
+        }
+        await tester.tap(find.bySemanticsLabel('Accueil'));
+        for (var i = 0; i < 3; i++) {
+          await tester.pump(const Duration(milliseconds: 300));
+        }
+      }
+
+      await tapVisible(tester, find.text('3 articles reçus'));
+      await roundTrip();
+      final checked = tester.getSemantics(
+        find
+            .ancestor(
+              of: find.text('3 articles reçus'),
+              matching: find.byType(Semantics),
+            )
+            .first,
+      );
+      expect(checked.flagsCollection.isChecked, CheckedState.isTrue);
     });
 
     testWidgets('relecture lente pendant la remise : D15 reste affiché, '
