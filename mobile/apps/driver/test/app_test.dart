@@ -906,7 +906,114 @@ void main() {
       );
       await tester.fling(find.text('Compte créé'), const Offset(0, 400), 1000);
       await tester.pumpAndSettle();
-      expect(find.text('Profil'), findsOneWidget);
+      // Validé : l'app de travail, barre du bas et accueil hors ligne.
+      expect(find.byKey(const Key('bottom-nav')), findsOneWidget);
+      expect(find.text('Vous êtes hors ligne'), findsOneWidget);
+    });
+
+    /// Livreur validé, hors ligne ; [delivered] : missions livrées (heure).
+    void approvedHome({List<DateTime> delivered = const []}) {
+      server
+        ..on(
+          'GET',
+          '/v1/driver/missions/current',
+          (_) => FakeResponse.json(200, {'mission': null}),
+        )
+        ..on(
+          'GET',
+          '/v1/driver/pharmacy-missions/current',
+          (_) => FakeResponse.json(200, {'mission': null}),
+        )
+        ..on(
+          'GET',
+          '/v1/driver/missions',
+          (_) => FakeResponse.json(200, {
+            'items': [
+              for (final (i, at) in delivered.indexed)
+                {
+                  'id': 'm$i',
+                  'order_reference': '#10$i',
+                  'status': 'delivered',
+                  'fee_xof': 1200,
+                  'items_count': 1,
+                  'parcel_size': 'small',
+                  'shop': {'name': 'Chez Afi'},
+                  'customer': null,
+                  'assigned_at': at.toIso8601String(),
+                  'delivered_at': at.toIso8601String(),
+                },
+            ],
+            'next_offset': null,
+          }),
+        )
+        ..on(
+          'GET',
+          '/v1/driver/pharmacy-missions',
+          (_) => FakeResponse.json(200, {'items': [], 'next_offset': null}),
+        );
+    }
+
+    testWidgets('accueil hors ligne (D08) : nom, jour calculé, glissière', (
+      tester,
+    ) async {
+      await withDossier(review: 'approved', status: 'offline');
+      final now = DateTime.now().toUtc();
+      approvedHome(
+        delivered: [now, now, now.subtract(const Duration(days: 40))],
+      );
+      await launchApp(tester);
+      expect(find.text('Awa Mensah'), findsOneWidget);
+      expect(
+        find.text('Bonjour').evaluate().length +
+            find.text('Bonsoir').evaluate().length,
+        1,
+      );
+      // Deux livraisons aujourd'hui (la troisième est ancienne) : 2 400 F.
+      expect(find.text('2'), findsOneWidget);
+      expect(find.text(formatXof(2400)), findsOneWidget);
+      expect(find.text('Vous êtes hors ligne'), findsOneWidget);
+      // Glissement incomplet : rien ne part.
+      await tester.drag(
+        find.byKey(const Key('slide-knob')),
+        const Offset(80, 0),
+      );
+      await tester.pumpAndSettle();
+      expect(server.calls('PUT', '/v1/driver/availability'), isEmpty);
+      // Masqués : objectif, km, temps en ligne, demande par quartier.
+      expect(find.textContaining('km'), findsNothing);
+      expect(find.text('Demande autour de vous'), findsNothing);
+    });
+
+    testWidgets('barre du bas : Missions, Gains, Profil', (tester) async {
+      await withDossier(review: 'approved', status: 'offline');
+      approvedHome();
+      await launchApp(tester);
+      await tester.tap(find.bySemanticsLabel('Gains'));
+      await tester.pumpAndSettle();
+      expect(find.text('CETTE SEMAINE'), findsOneWidget);
+      await tester.tap(find.bySemanticsLabel('Accueil'));
+      await tester.pumpAndSettle();
+      expect(find.text('Vous êtes hors ligne'), findsOneWidget);
+    });
+
+    testWidgets('accueil hors ligne : police à 200 % sur 320 dp', (
+      tester,
+    ) async {
+      tester.view.physicalSize = const Size(320, 640);
+      tester.view.devicePixelRatio = 1;
+      tester.platformDispatcher.textScaleFactorTestValue = 2;
+      addTearDown(tester.view.reset);
+      addTearDown(tester.platformDispatcher.clearTextScaleFactorTestValue);
+      await withDossier(review: 'approved', status: 'offline');
+      approvedHome(delivered: [DateTime.now().toUtc()]);
+      await launchApp(tester);
+      expect(tester.takeException(), isNull);
+      await tester.scrollUntilVisible(
+        find.text('Glisser pour passer en ligne'),
+        200,
+        scrollable: find.byType(Scrollable).first,
+      );
+      expect(tester.takeException(), isNull);
     });
 
     for (final allow in [false, true]) {
@@ -952,7 +1059,11 @@ void main() {
             (_) => FakeResponse.json(204, null),
           );
         await launchApp(tester);
-        await tester.tap(find.byType(Switch));
+        // Glissière amenée au bout : passage en ligne (D08).
+        await tester.drag(
+          find.byKey(const Key('slide-knob')),
+          const Offset(2000, 0),
+        );
         await tester.pumpAndSettle();
         expect(
           find.text('Des missions près de vous', findRichText: true),

@@ -15,6 +15,7 @@ import 'package:ivia_driver/app/driver_dossier.dart';
 import 'package:ivia_driver/app/identity.dart';
 import 'package:ivia_driver/features/dossier/dossier_form_screen.dart';
 import 'package:ivia_driver/features/dossier/dossier_pending_screen.dart';
+import 'package:ivia_driver/features/work/work_screens.dart';
 import 'package:ivia_driver/features/onboarding/onboarding_screen.dart';
 import 'package:ivia_driver/features/splash/loading_screen.dart';
 import 'package:ivia_ui/ivia_ui.dart';
@@ -110,12 +111,61 @@ class _PendingDossier extends DriverDossierNotifier {
 }
 
 /// Faux serveur des écrans connectés.
-FakeApiServer fakeServer() => FakeApiServer()
-  ..on(
-    'GET',
-    '/v1/driver/options',
-    (_) => FakeResponse.json(200, driverOptionsBody()),
-  );
+FakeApiServer fakeServer() {
+  final now = DateTime.now().toUtc();
+  // Cinq livraisons aujourd'hui (12 400 F, comme la maquette D08).
+  final fees = [3200, 2400, 2800, 2000, 2000];
+  return FakeApiServer()
+    ..on(
+      'GET',
+      '/v1/driver/options',
+      (_) => FakeResponse.json(200, driverOptionsBody()),
+    )
+    ..on(
+      'GET',
+      '/v1/driver/missions/current',
+      (_) => FakeResponse.json(200, {'mission': null}),
+    )
+    ..on(
+      'GET',
+      '/v1/driver/pharmacy-missions/current',
+      (_) => FakeResponse.json(200, {'mission': null}),
+    )
+    ..on(
+      'GET',
+      '/v1/driver/missions',
+      (_) => FakeResponse.json(200, {
+        'items': [
+          for (final (i, fee) in fees.indexed)
+            {
+              'id': 'm$i',
+              'order_reference': '#104$i',
+              'status': 'delivered',
+              'fee_xof': fee,
+              'items_count': 1,
+              'parcel_size': 'medium',
+              'shop': {'name': 'Chez Afi'},
+              'customer': null,
+              'assigned_at': now.toIso8601String(),
+              'delivered_at': now.toIso8601String(),
+            },
+        ],
+        'next_offset': null,
+      }),
+    )
+    ..on(
+      'GET',
+      '/v1/driver/pharmacy-missions',
+      (_) => FakeResponse.json(200, {'items': [], 'next_offset': null}),
+    );
+}
+
+/// Livreur validé.
+class _ApprovedDossier extends DriverDossierNotifier {
+  @override
+  Future<DriverDossier?> build() async =>
+      DriverDossier.fromJson(driverBody(review: 'approved', status: 'offline'));
+}
 
 List signedIn({DriverDossierNotifier Function() dossier = _NoDossier.new}) => [
   authControllerProvider.overrideWith(_SignedIn.new),
@@ -142,6 +192,20 @@ class _SentCode extends PhoneLoginFlow {
 
 void main() {
   setUpAll(loadFonts);
+
+  testWidgets(
+    'D08',
+    (t) => shot(
+      t,
+      'D08',
+      const DriverShell(),
+      overrides: signedIn(dossier: _ApprovedDossier.new),
+      before: (t) async {
+        await t.pump(const Duration(milliseconds: 500));
+        await t.pump(const Duration(milliseconds: 500));
+      },
+    ),
+  );
 
   testWidgets(
     'D07',

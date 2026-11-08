@@ -384,6 +384,21 @@ class _DSlideState extends State<DSlide> {
       builder: (context, constraints) {
         final max = constraints.maxWidth - _knob - 2 * _pad;
         final dx = _dx.clamp(0.0, max);
+        // Chevrons seulement si le libellé leur laisse la place.
+        final labelStyle = DText.button.copyWith(
+          color: textColor,
+          fontSize: 15,
+        );
+        final painter = TextPainter(
+          text: TextSpan(text: widget.label, style: labelStyle),
+          textDirection: Directionality.of(context),
+          textScaler: MediaQuery.textScalerOf(context),
+          maxLines: 1,
+        )..layout();
+        final labelWidth = painter.width;
+        painter.dispose();
+        final room = constraints.maxWidth - (_knob + 2 * _pad + 4) - 14;
+        final chevrons = labelWidth <= room - 40;
         return Semantics(
           button: true,
           enabled: enabled && !_busy,
@@ -399,34 +414,35 @@ class _DSlideState extends State<DSlide> {
             child: Stack(
               alignment: Alignment.centerLeft,
               children: [
+                if (chevrons)
+                  Positioned(
+                    right: 16,
+                    child: Row(
+                      children: [
+                        Icon(
+                          Icons.chevron_right,
+                          size: 20,
+                          color: textColor.withValues(alpha: .35),
+                        ),
+                        Icon(
+                          Icons.chevron_right,
+                          size: 20,
+                          color: textColor.withValues(alpha: .8),
+                        ),
+                      ],
+                    ),
+                  ),
                 Positioned.fill(
-                  left: _knob + 2 * _pad + 8,
-                  right: 40,
+                  left: _knob + 2 * _pad + 4,
+                  right: chevrons ? 40 : 14,
                   child: Align(
                     alignment: Alignment.centerLeft,
                     child: Text(
                       widget.label,
                       maxLines: 1,
                       overflow: TextOverflow.ellipsis,
-                      style: DText.button.copyWith(color: textColor),
+                      style: labelStyle,
                     ),
-                  ),
-                ),
-                Positioned(
-                  right: 16,
-                  child: Row(
-                    children: [
-                      Icon(
-                        Icons.chevron_right,
-                        size: 20,
-                        color: textColor.withValues(alpha: .35),
-                      ),
-                      Icon(
-                        Icons.chevron_right,
-                        size: 20,
-                        color: textColor.withValues(alpha: .8),
-                      ),
-                    ],
                   ),
                 ),
                 Positioned(

@@ -38,7 +38,7 @@
 - [x] 8. En vérification D07 ; dossier refusé ou suspendu et récapitulatif restylés.
 
 **Travail**
-- [ ] 9. Barre du bas claire et accueil hors ligne D08 :
+- [x] 9. Barre du bas claire et accueil hors ligne D08 :
       - salutation, carte du jour (calculée) ;
       - glisser pour passer en ligne.
 - [ ] 10. Accueil en ligne D09 : bandeau « En ligne · depuis », « Pause », carte ou fond neutre,

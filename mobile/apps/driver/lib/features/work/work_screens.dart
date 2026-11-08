@@ -7,11 +7,14 @@ import 'package:ivia_app_core/ivia_app_core.dart';
 import 'package:ivia_ui/ivia_ui.dart';
 
 import '../../app/driver_dossier.dart';
+import '../../common/ui.dart';
+import '../earnings/earnings_screen.dart';
+import '../home/home_screen.dart';
 import 'work_state.dart';
 import 'work_ui.dart';
 
-/// App livreur validé : Accueil (disponibilité, propositions, course en
-/// cours), Historique (gains), Profil.
+/// App livreur validé (spec 033) : Accueil, Missions, Gains, Profil, avec la
+/// barre du bas claire. Une mission en cours remplace l'Accueil.
 class DriverShell extends ConsumerStatefulWidget {
   const DriverShell({super.key});
 
@@ -26,41 +29,31 @@ class _DriverShellState extends ConsumerState<DriverShell> {
   Widget build(BuildContext context) {
     final mission = ref.watch(workProvider.select((s) => s.mission));
     return Scaffold(
-      backgroundColor: W.page,
+      backgroundColor: D.page,
       body: mission != null && _tab == 0
           ? MissionView(mission: mission)
           : IndexedStack(
               index: _tab,
-              children: const [_HomeTab(), _HistoryTab(), _ProfileTab()],
+              children: const [
+                HomeTab(),
+                _HistoryTab(),
+                EarningsTab(),
+                _ProfileTab(),
+              ],
             ),
-      bottomNavigationBar: NavigationBar(
-        selectedIndex: _tab,
-        indicatorColor: W.soft,
-        onDestinationSelected: (i) => setState(() => _tab = i),
-        destinations: const [
-          NavigationDestination(
-            icon: Icon(Icons.two_wheeler_outlined),
-            selectedIcon: Icon(Icons.two_wheeler, color: W.accent),
-            label: 'Courses',
-          ),
-          NavigationDestination(
-            icon: Icon(Icons.payments_outlined),
-            selectedIcon: Icon(Icons.payments, color: W.accent),
-            label: 'Gains',
-          ),
-          NavigationDestination(
-            icon: Icon(Icons.person_outline),
-            selectedIcon: Icon(Icons.person, color: W.accent),
-            label: 'Profil',
-          ),
-        ],
+      bottomNavigationBar: DBottomNav(
+        tabs: DBottomNav.driverTabs,
+        index: _tab,
+        onSelect: (i) => setState(() => _tab = i),
       ),
     );
   }
 }
 
-class _HomeTab extends ConsumerWidget {
-  const _HomeTab();
+/// Accueil en ligne : disponibilité, proposition, recherche (refait aux
+/// tâches 10 et 11 de la spec 033).
+class OnlineHome extends ConsumerWidget {
+  const OnlineHome({super.key});
 
   @override
   Widget build(BuildContext context, WidgetRef ref) {
