@@ -1491,6 +1491,261 @@ void main() {
       );
     }
 
+    // ── Retrait (D12) et preuve de remise (D14) : parties critiques, tests
+    // écrits avant le code (spec 033, tâche 13).
+
+    /// Glissière amenée au bout.
+    Future<void> slideToEnd(WidgetTester tester) async {
+      await tester.ensureVisible(find.byKey(const Key('slide-knob')));
+      await tester.drag(
+        find.byKey(const Key('slide-knob')),
+        const Offset(2000, 0),
+      );
+      for (var i = 0; i < 5; i++) {
+        await tester.pump(const Duration(milliseconds: 300));
+      }
+    }
+
+    Future<void> tapVisible(WidgetTester tester, Finder finder) async {
+      await tester.ensureVisible(finder);
+      await tester.pump();
+      await tester.tap(finder);
+      for (var i = 0; i < 3; i++) {
+        await tester.pump(const Duration(milliseconds: 300));
+      }
+    }
+
+    testWidgets('retrait boutique (D12) : cases du colis, puis « récupéré »', (
+      tester,
+    ) async {
+      await withMission(tester, driverMissionBody(arrivedShop: true));
+      server.on(
+        'POST',
+        '/v1/driver/missions/mission-1/picked-up',
+        (_) => FakeResponse.json(204, null),
+      );
+      expect(find.text('Retrait'), findsOneWidget);
+      expect(find.text('1 sur 2'), findsOneWidget);
+      expect(find.text('Chez Afi'), findsOneWidget);
+      expect(find.text('Commande #1042 · payée'), findsOneWidget);
+      expect(find.text('Vérifiez le colis'), findsOneWidget);
+      // Course de boutique : pas de code de retrait.
+      expect(find.text('VOTRE CODE DE RETRAIT'), findsNothing);
+      // Cases à cocher d'abord : la glissière ne fait rien.
+      await slideToEnd(tester);
+      expect(
+        server.calls('POST', '/v1/driver/missions/mission-1/picked-up'),
+        isEmpty,
+      );
+      await tapVisible(tester, find.text('3 articles reçus'));
+      await slideToEnd(tester);
+      expect(
+        server.calls('POST', '/v1/driver/missions/mission-1/picked-up'),
+        isEmpty,
+      );
+      await tapVisible(tester, find.text('Colis fermé et en bon état'));
+      await slideToEnd(tester);
+      expect(
+        server.calls('POST', '/v1/driver/missions/mission-1/picked-up'),
+        hasLength(1),
+      );
+    });
+
+    testWidgets('retrait pharmacie (D12) : code, sans glissière, passage seul '
+        'après la validation, montant avancé', (tester) async {
+      await withMission(
+        tester,
+        driverPharmacyMissionBody(pickupCode: '7319'),
+        pharmacy: true,
+      );
+      // Arrivée à la pharmacie (D11).
+      await slideToEnd(tester);
+      expect(find.text('VOTRE CODE DE RETRAIT'), findsOneWidget);
+      for (final digit in ['7', '3', '1', '9']) {
+        expect(find.text(digit), findsOneWidget);
+      }
+      expect(
+        find.textContaining('Montrez ce code au pharmacien'),
+        findsOneWidget,
+      );
+      expect(find.textContaining('Paracétamol 500 mg'), findsOneWidget);
+      // La pharmacie valide la remise : pas de glissière.
+      expect(find.byKey(const Key('slide-knob')), findsNothing);
+
+      // Elle valide : remise enregistrée, 4 500 F payés en espèces.
+      server.on(
+        'GET',
+        '/v1/driver/pharmacy-missions/current',
+        (_) => FakeResponse.json(200, {
+          'mission': driverPharmacyMissionBody(
+            pickedUp: true,
+            cashAdvancedXof: 4500,
+          ),
+        }),
+      );
+      for (var i = 0; i < 25; i++) {
+        await tester.pump(const Duration(milliseconds: 300));
+      }
+      // Étape suivante, seule, avec le montant avancé.
+      expect(find.text('ÉTAPE 2 SUR 2 · LIVRAISON'), findsOneWidget);
+      expect(
+        find.textContaining('La pharmacie a validé la remise'),
+        findsOneWidget,
+      );
+      expect(find.textContaining(formatXof(4500)), findsOneWidget);
+      // Le code n'est plus affiché.
+      expect(find.text('VOTRE CODE DE RETRAIT'), findsNothing);
+    });
+
+    testWidgets('ancienne course pharmacie sans code : « récupéré » proposé', (
+      tester,
+    ) async {
+      await withMission(tester, driverPharmacyMissionBody(), pharmacy: true);
+      server.on(
+        'POST',
+        '/v1/driver/pharmacy-missions/courier-1/picked-up',
+        (_) => FakeResponse.json(204, null),
+      );
+      await slideToEnd(tester);
+      expect(find.text('Retrait'), findsOneWidget);
+      expect(find.text('VOTRE CODE DE RETRAIT'), findsNothing);
+      await slideToEnd(tester);
+      expect(
+        server.calls(
+          'POST',
+          '/v1/driver/pharmacy-missions/courier-1/picked-up',
+        ),
+        hasLength(1),
+      );
+    });
+
+    testWidgets('preuve de remise (D14) : 4 chiffres, puis confirmer', (
+      tester,
+    ) async {
+      await withMission(
+        tester,
+        driverMissionBody(
+          arrivedShop: true,
+          pickedUp: true,
+          arrivedCustomer: true,
+        ),
+      );
+      server.on(
+        'POST',
+        '/v1/driver/missions/mission-1/deliver',
+        (_) => FakeResponse.json(204, null),
+      );
+      expect(find.text('Preuve de remise'), findsOneWidget);
+      expect(find.text('2 sur 2'), findsOneWidget);
+      expect(find.text('#1042 · Awa M.'), findsOneWidget);
+      expect(find.text('Code du client'), findsOneWidget);
+      // Photo du colis masquée (pas de serveur).
+      expect(find.text('Photo du colis remis'), findsNothing);
+
+      await tapVisible(tester, find.text('Confirmer la livraison'));
+      await tester.enterText(find.byType(TextField), '482');
+      await tester.pump();
+      await tapVisible(tester, find.text('Confirmer la livraison'));
+      expect(
+        server.calls('POST', '/v1/driver/missions/mission-1/deliver'),
+        isEmpty,
+      );
+      await tester.enterText(find.byType(TextField), '4827');
+      await tester.pump();
+      await tapVisible(tester, find.text('Confirmer la livraison'));
+      final calls = server.calls(
+        'POST',
+        '/v1/driver/missions/mission-1/deliver',
+      );
+      expect(calls, hasLength(1));
+      expect(calls.single.body, {'code': '4827'});
+    });
+
+    testWidgets('code faux : erreur du serveur, code effacé', (tester) async {
+      await withMission(
+        tester,
+        driverMissionBody(
+          arrivedShop: true,
+          pickedUp: true,
+          arrivedCustomer: true,
+        ),
+      );
+      server.on(
+        'POST',
+        '/v1/driver/missions/mission-1/deliver',
+        (_) => FakeResponse.json(422, {
+          'error': {
+            'code': 'handover_code_invalid',
+            'message': 'Code incorrect. Il reste 4 essai(s).',
+          },
+        }),
+      );
+      await tester.enterText(find.byType(TextField), '1111');
+      await tester.pump();
+      await tapVisible(tester, find.text('Confirmer la livraison'));
+      expect(find.text('Code incorrect. Il reste 4 essai(s).'), findsOneWidget);
+      expect(
+        tester.widget<TextField>(find.byType(TextField)).controller!.text,
+        isEmpty,
+      );
+    });
+
+    testWidgets('pharmacie : case ordonnance exigée, code faux du champ', (
+      tester,
+    ) async {
+      await withMission(
+        tester,
+        driverPharmacyMissionBody(pickedUp: true, prescription: true),
+        pharmacy: true,
+      );
+      var wrong = true;
+      server.on(
+        'POST',
+        '/v1/driver/pharmacy-missions/courier-1/delivered',
+        (_) => wrong
+            ? FakeResponse.json(422, {
+                'error': {
+                  'code': 'validation_failed',
+                  'message': 'Données invalides.',
+                  'fields': {'code': 'Code incorrect.'},
+                },
+              })
+            : FakeResponse.json(200, driverPharmacyMissionBody(pickedUp: true)),
+      );
+      // Arrivée chez le client (D13), dans l'app.
+      await slideToEnd(tester);
+      expect(find.text('Médicament sur ordonnance'), findsOneWidget);
+      await tester.enterText(find.byType(TextField), '1234');
+      await tester.pump();
+      // Sans la case : rien ne part.
+      await tapVisible(tester, find.text('Confirmer la livraison'));
+      expect(
+        server.calls(
+          'POST',
+          '/v1/driver/pharmacy-missions/courier-1/delivered',
+        ),
+        isEmpty,
+      );
+      await tapVisible(tester, find.text("J'ai vu l'original de l'ordonnance"));
+      await tapVisible(tester, find.text('Confirmer la livraison'));
+      expect(find.text('Code incorrect.'), findsOneWidget);
+      expect(
+        tester.widget<TextField>(find.byType(TextField)).controller!.text,
+        isEmpty,
+      );
+
+      wrong = false;
+      await tester.enterText(find.byType(TextField), '5678');
+      await tester.pump();
+      await tapVisible(tester, find.text('Confirmer la livraison'));
+      final calls = server.calls(
+        'POST',
+        '/v1/driver/pharmacy-missions/courier-1/delivered',
+      );
+      expect(calls, hasLength(2));
+      expect(calls.last.body, {'code': '5678', 'prescription_checked': true});
+    });
+
     testWidgets('accueil en ligne (D09) : bandeau, jour calculé, Pause', (
       tester,
     ) async {

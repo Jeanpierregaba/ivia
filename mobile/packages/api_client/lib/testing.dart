@@ -487,7 +487,15 @@ Map<String, dynamic> driverMissionBody({
 }
 
 /// Course pharmacie en cours (schéma `CourierMission`), payée par le client.
-Map<String, dynamic> driverPharmacyMissionBody({bool pickedUp = false}) {
+/// [pickupCode] : code de retrait (032) tant que la pharmacie n'a pas validé
+/// la remise ; `null` : ancienne course sans code, ou remise validée.
+/// [cashAdvancedXof] : espèces payées à la pharmacie par le livreur.
+Map<String, dynamic> driverPharmacyMissionBody({
+  bool pickedUp = false,
+  String? pickupCode,
+  int? cashAdvancedXof,
+  bool prescription = false,
+}) {
   final at = DateTime.now().toUtc().toIso8601String();
   return {
     'id': 'courier-1',
@@ -498,7 +506,7 @@ Map<String, dynamic> driverPharmacyMissionBody({bool pickedUp = false}) {
     'lines': [
       {'name': 'Paracétamol 500 mg', 'quantity': 2, 'available': true},
     ],
-    'prescription_check_required': false,
+    'prescription_check_required': prescription,
     'pharmacy': {
       'name': 'Pharmacie du Boulevard',
       'phone': '+22822212223',
@@ -519,6 +527,8 @@ Map<String, dynamic> driverPharmacyMissionBody({bool pickedUp = false}) {
     'picked_up_at': pickedUp ? at : null,
     'delivered_at': null,
     'prepared_at': at,
+    'pickup_code': pickupCode,
+    'cash_advanced_xof': cashAdvancedXof,
   };
 }
 

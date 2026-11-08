@@ -50,7 +50,7 @@
       - heure d'arrivée estimée (calcul testé) ;
       - appel ;
       - glisser à l'arrivée.
-- [ ] 13. Tests du retrait et de la preuve de remise, écrits avant le code (parties critiques) :
+- [x] 13. Tests du retrait et de la preuve de remise, écrits avant le code (parties critiques) :
       - boutique : cases du colis, puis glisser « récupéré » ;
       - pharmacie : code affiché, pas de glissière, passage seul après la validation, montant
         avancé ; ancienne course sans code ;
