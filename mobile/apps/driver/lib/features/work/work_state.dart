@@ -190,3 +190,20 @@ class WorkController extends Notifier<WorkState> {
 final workHistoryProvider = FutureProvider.autoDispose<List<WorkMission>>(
   (ref) => ref.read(apiClientProvider).workHistory(),
 );
+
+/// Position du téléphone, relue toutes les 10 s tant qu'un écran l'écoute ;
+/// `null` : inconnue (autorisation refusée, GPS lent).
+final herePositionProvider = StreamProvider.autoDispose<GeoPoint?>((
+  ref,
+) async* {
+  Future<GeoPoint?> read() async {
+    try {
+      return (await ref.read(locationServiceProvider).current()).point;
+    } on Exception {
+      return null;
+    }
+  }
+
+  yield await read();
+  yield* Stream.periodic(const Duration(seconds: 10)).asyncMap((_) => read());
+});

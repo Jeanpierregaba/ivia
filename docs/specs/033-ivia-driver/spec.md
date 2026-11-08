@@ -99,14 +99,15 @@ actif en pastille bleue et son libellé.
 |---|---|
 | Gains du jour, de la semaine, du mois, par jour ; nombre de livraisons | **Calculés** depuis l'historique des missions (gains des missions livrées, jours de Lomé). |
 | Variation « +14 % » | **Calculée** : comparaison avec la période précédente, si elle a des missions. |
-| Heure d'arrivée estimée (D13, D17) | **Calculée** sur la distance restante et une vitesse moyenne selon le véhicule. |
+| Heure d'arrivée estimée (D13, D17) | **Calculée** : distance et durée de l'itinéraire du serveur (`POST /v1/geo/route`, profil moto ou voiture, durée ralentie pour le vélo) ; repli sur la distance à vol d'oiseau et une vitesse moyenne selon le véhicule. |
 | Application de navigation (D19) | **Réglage du téléphone** : Google Maps, Waze ou Plans (iPhone). |
 | Sonnerie des missions (D19) | **Réglage du téléphone** : activée, une nouvelle proposition fait sonner et vibrer l'app. Ivia Driver n'a pas de notifications push (les propositions arrivent app ouverte) : `alert_sound` ne s'applique pas. Les notifications push des livreurs sont notées pour Gedeon. |
 | Km parcourus, temps en ligne, « 5/8 » objectif, note « 4,9 · 212 courses », demande par quartier (D08), « 4 commandes bientôt prêtes », plusieurs zones préférées | **Masqués**. Le nombre de courses terminées est affiché à la place de la note. |
 | Tracé de la proposition sur la carte (D10) | **Masqué** : la proposition ne donne pas les positions du retrait et du client. La carte reste centrée sur le livreur ; les distances et la durée estimée sont dans le volet. |
 | Versement prévu (« Versement vendredi 54 200 F ») | **Masqué** : seul le compte de versement est affiché. |
 | Guidage tour par tour dans l'app (« 250 m, tournez à droite ») | **Masqué**. Le bandeau affiche la destination et la distance à vol d'oiseau ; le guidage se fait dans l'application de navigation choisie. |
-| Messagerie avec la boutique ou le client | **Masquée** : seul l'appel est proposé. |
+| Messagerie avec la boutique ou le client | **Masquée** : seul l'appel est proposé. Sur D13, la place du bouton de messagerie sert à l'itinéraire. |
+| Arrivée à la pharmacie et chez le client (course pharmacie) | **Dans l'app** : le serveur n'a pas ces étapes pour les courses pharmacie ; « Glisser à l'arrivée » passe à l'écran suivant sans appel. |
 | Photo du colis remis (D14) | **Masquée**. |
 | « Colis endommagé », « Code refusé », « Adresse introuvable » (D16) | **Non proposés seuls**. Ils ouvrent l'appel au support. « Client injoignable » déclenche la livraison impossible existante (10 min d'attente, 2 appels). « Accident ou urgence » appelle le support. |
 | « Chez Afi a validé la remise » pour une boutique | **Masqué** : seules les pharmacies valident la remise. |

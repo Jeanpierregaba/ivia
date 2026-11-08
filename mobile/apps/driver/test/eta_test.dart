@@ -34,4 +34,57 @@ void main() {
   test('distance nulle : déjà arrivé', () {
     expect(travelTime(0, VehicleType.car), Duration.zero);
   });
+
+  GeoRoute route(int m, int s, {bool approximate = false}) =>
+      GeoRoute.fromJson({
+        'distance_m': m,
+        'duration_s': s,
+        'polyline': '',
+        'approximate': approximate,
+      });
+
+  test('distance à vol d\'oiseau', () {
+    const a = GeoPoint(lat: 6.1319, lng: 1.2228);
+    // Un centième de degré de latitude : environ 1 112 m.
+    final d = straightMeters(a, const GeoPoint(lat: 6.1419, lng: 1.2228));
+    expect(d, inInclusiveRange(1100, 1125));
+    expect(straightMeters(a, a), 0);
+  });
+
+  test('itinéraire du serveur : sa distance et sa durée', () {
+    final leg = estimateLeg(
+      straight: 2000,
+      vehicle: VehicleType.motorbike,
+      route: route(3400, 720),
+    );
+    expect(leg.meters, 3400);
+    expect(leg.duration, const Duration(minutes: 12));
+  });
+
+  test('vélo : durée moto ralentie', () {
+    final leg = estimateLeg(
+      straight: 2000,
+      vehicle: VehicleType.bicycle,
+      route: route(3400, 720),
+    );
+    // 720 s × 22 / 12.
+    expect(leg.duration, const Duration(seconds: 1320));
+  });
+
+  test('sans itinéraire ou estimé : repli à vol d\'oiseau', () {
+    for (final r in [null, route(9999, 9999, approximate: true)]) {
+      final leg = estimateLeg(
+        straight: 2000,
+        vehicle: VehicleType.car,
+        route: r,
+      );
+      expect(leg.meters, 2600);
+      expect(leg.duration, travelTime(2000, VehicleType.car));
+    }
+  });
+
+  test('profil d\'itinéraire', () {
+    expect(routeProfile(VehicleType.car), 'car');
+    expect(routeProfile(VehicleType.bicycle), 'moto');
+  });
 }

@@ -67,6 +67,9 @@ class WorkMission {
       status = j['status'] as String,
       feeXof = _i(j['fee_xof']),
       itemsCount = _i(j['items_count']),
+      parcelSize = j['parcel_size'] == null
+          ? null
+          : ParcelSize.parse(j['parcel_size'] as String),
       lines = const [],
       prescriptionCheck = false,
       pickup = MissionPlace.fromJson(
@@ -92,6 +95,7 @@ class WorkMission {
       feeXof = _i(j['fee_xof']),
       lines = [for (final l in _list(j['lines'])) MedLine.fromJson(l)],
       itemsCount = _list(j['lines']).length,
+      parcelSize = null,
       prescriptionCheck = j['prescription_check_required'] as bool? ?? false,
       pickup = MissionPlace.fromJson(
         j['pharmacy'] as Map<String, dynamic>? ?? const {},
@@ -111,6 +115,9 @@ class WorkMission {
   final String id, reference, status, failureReason;
   final bool pharmacy, prescriptionCheck;
   final int feeXof, itemsCount;
+
+  /// Taille du colis (boutique) ; `null` : course pharmacie.
+  final ParcelSize? parcelSize;
   final List<MedLine> lines;
   final MissionPlace pickup;
   final MissionPlace? client;

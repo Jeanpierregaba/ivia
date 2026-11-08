@@ -45,7 +45,7 @@
       volet « Recherche de missions… ».
 - [x] 11. Mission proposée D10 : gain, compte à rebours, trajet, glisser pour accepter, refuser,
       proposition expirée ou prise.
-- [ ] 12. Vers le retrait D11 et vers le client D13 :
+- [x] 12. Vers le retrait D11 et vers le client D13 :
       - itinéraire dans l'app de navigation choisie ;
       - heure d'arrivée estimée (calcul testé) ;
       - appel ;

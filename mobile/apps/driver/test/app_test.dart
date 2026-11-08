@@ -12,6 +12,7 @@ import 'package:ivia_app_core/ivia_app_core.dart';
 import 'package:ivia_app_core/testing.dart';
 import 'package:ivia_driver/app/identity.dart';
 import 'package:ivia_driver/common/ui.dart';
+import 'package:ivia_driver/features/mission/navigation.dart';
 import 'package:ivia_driver/features/onboarding/onboarding_screen.dart';
 import 'package:ivia_driver/main.dart';
 import 'package:ivia_ui/ivia_ui.dart';
@@ -61,6 +62,7 @@ void main() {
   late FakeApiServer server;
   late _FakePicker picker;
   late FakeLocationService location;
+  late List<Uri> launched;
   late List<Map<String, dynamic>> documentsSent;
 
   /// Dossier côté serveur : comme le backend, une pièce envoyée s'ajoute aux
@@ -84,6 +86,7 @@ void main() {
     FlutterSecureStorage.setMockInitialValues({});
     picker = _FakePicker();
     location = FakeLocationService();
+    launched = [];
     documentsSent = [];
     serverDocuments = [];
     serverVehicle = 'motorbike';
@@ -187,6 +190,10 @@ void main() {
           // Jamais le GPS du poste de test.
           locationServiceProvider.overrideWithValue(location),
           locationPromptStoreProvider.overrideWithValue(locationPrompt),
+          linkLauncherProvider.overrideWithValue((uri) async {
+            launched.add(uri);
+            return true;
+          }),
         ],
         child: const DriverApp(),
       ),
@@ -1297,6 +1304,192 @@ void main() {
       );
       expect(tester.takeException(), isNull);
     });
+
+    /// Livreur validé avec [mission] en cours ; itinéraire du serveur :
+    /// [routeM] mètres en [routeS] secondes.
+    Future<void> withMission(
+      WidgetTester tester,
+      Map<String, dynamic> mission, {
+      bool pharmacy = false,
+      int routeM = 800,
+      int routeS = 240,
+    }) async {
+      await withDossier(review: 'approved', status: 'offline');
+      approvedHome();
+      server
+        ..on(
+          'GET',
+          pharmacy
+              ? '/v1/driver/pharmacy-missions/current'
+              : '/v1/driver/missions/current',
+          (_) => FakeResponse.json(200, {'mission': mission}),
+        )
+        ..on(
+          'POST',
+          '/v1/geo/route',
+          (_) => FakeResponse.json(200, {
+            'distance_m': routeM,
+            'duration_s': routeS,
+            'polyline': '',
+            'approximate': false,
+          }),
+        );
+      await launchApp(tester, settle: false);
+      for (var i = 0; i < 8; i++) {
+        await tester.pump(const Duration(milliseconds: 300));
+      }
+    }
+
+    testWidgets('vers le retrait (D11) : boutique, Maps, appel, arrivée', (
+      tester,
+    ) async {
+      await withMission(tester, driverMissionBody());
+      server.on(
+        'POST',
+        '/v1/driver/missions/mission-1/arrived-at-shop',
+        (_) => FakeResponse.json(204, null),
+      );
+      expect(find.text('ÉTAPE 1 SUR 2 · RETRAIT'), findsOneWidget);
+      expect(find.text('Chez Afi'), findsOneWidget);
+      expect(find.text('#1042'), findsOneWidget);
+      expect(find.text('Rue 248, Tokoin'), findsOneWidget);
+      expect(find.text('3 articles'), findsOneWidget);
+      expect(find.text('Colis moyen'), findsOneWidget);
+      expect(find.text('Payée'), findsOneWidget);
+      // Bandeau : itinéraire du serveur (800 m, 4 min).
+      expect(find.text('Vers Chez Afi'), findsOneWidget);
+      expect(find.text('800 m'), findsOneWidget);
+      expect(find.text('4 min'), findsOneWidget);
+      // Messagerie masquée (pas de serveur).
+      expect(find.byIcon(Icons.chat_bubble_outline), findsNothing);
+
+      await tester.ensureVisible(find.text('Ouvrir dans Maps'));
+      await tester.tap(find.text('Ouvrir dans Maps'));
+      await tester.pump(const Duration(milliseconds: 300));
+      expect(launched.single.host, 'www.google.com');
+      expect(launched.single.queryParameters['destination'], '6.139,1.216');
+      await tester.tap(find.byTooltip('Appeler la boutique'));
+      await tester.pump(const Duration(milliseconds: 300));
+      expect(launched.last.toString(), 'tel:+22890112233');
+
+      await tester.ensureVisible(find.byKey(const Key('slide-knob')));
+      await tester.drag(
+        find.byKey(const Key('slide-knob')),
+        const Offset(2000, 0),
+      );
+      for (var i = 0; i < 5; i++) {
+        await tester.pump(const Duration(milliseconds: 300));
+      }
+      expect(
+        server.calls('POST', '/v1/driver/missions/mission-1/arrived-at-shop'),
+        hasLength(1),
+      );
+    });
+
+    testWidgets('vers le client (D13) : restant, arrivée, consigne', (
+      tester,
+    ) async {
+      await withMission(
+        tester,
+        driverMissionBody(arrivedShop: true, pickedUp: true),
+        routeM: 3400,
+        routeS: 720,
+      );
+      server.on(
+        'POST',
+        '/v1/driver/missions/mission-1/arrived-at-customer',
+        (_) => FakeResponse.json(204, null),
+      );
+      expect(find.text('ÉTAPE 2 SUR 2 · LIVRAISON'), findsOneWidget);
+      // Bandeau et volet : 3,4 km, 12 min.
+      expect(find.text('3,4 km'), findsNWidgets(2));
+      expect(find.text('12 min'), findsNWidgets(2));
+      expect(find.text('Restant'), findsOneWidget);
+      expect(find.text('Arrivée'), findsOneWidget);
+      expect(find.text('Awa M.'), findsOneWidget);
+      expect(find.text('Rue 112, portail bleu · Bè Kpota'), findsOneWidget);
+      expect(
+        find.text('« Appelez-moi en arrivant, je descends. »'),
+        findsOneWidget,
+      );
+      // Pas de retrait possible après le retrait du colis.
+      expect(find.text('Je ne peux pas faire cette course'), findsNothing);
+      await tester.tap(find.byTooltip('Ouvrir dans Maps'));
+      await tester.pump(const Duration(milliseconds: 300));
+      expect(launched.single.queryParameters['destination'], '6.16,1.24');
+      await tester.tap(find.byTooltip('Appeler le client'));
+      await tester.pump(const Duration(milliseconds: 300));
+      expect(launched.last.toString(), 'tel:+22890445566');
+
+      await tester.ensureVisible(find.byKey(const Key('slide-knob')));
+      await tester.drag(
+        find.byKey(const Key('slide-knob')),
+        const Offset(2000, 0),
+      );
+      for (var i = 0; i < 5; i++) {
+        await tester.pump(const Duration(milliseconds: 300));
+      }
+      expect(
+        server.calls(
+          'POST',
+          '/v1/driver/missions/mission-1/arrived-at-customer',
+        ),
+        hasLength(1),
+      );
+    });
+
+    testWidgets('pharmacie : arrivée signalée dans l\'app, sans serveur', (
+      tester,
+    ) async {
+      await withMission(tester, driverPharmacyMissionBody(), pharmacy: true);
+      expect(find.text('ÉTAPE 1 SUR 2 · PHARMACIE'), findsOneWidget);
+      expect(find.text('1 produit'), findsOneWidget);
+      await tester.ensureVisible(find.byKey(const Key('slide-knob')));
+      await tester.drag(
+        find.byKey(const Key('slide-knob')),
+        const Offset(2000, 0),
+      );
+      for (var i = 0; i < 5; i++) {
+        await tester.pump(const Duration(milliseconds: 300));
+      }
+      expect(
+        server.requests.where((r) => r.path.contains('/arrived')),
+        isEmpty,
+      );
+      expect(find.text('ÉTAPE 1 SUR 2 · PHARMACIE'), findsNothing);
+    });
+
+    testWidgets('position inconnue : distance et durée masquées', (
+      tester,
+    ) async {
+      location.next = const LocationResult.failed(LocationFailure.unavailable);
+      await withMission(tester, driverMissionBody());
+      expect(find.text('Position inconnue'), findsOneWidget);
+      expect(server.calls('POST', '/v1/geo/route'), isEmpty);
+    });
+
+    for (final toClient in [false, true]) {
+      testWidgets(
+        '${toClient ? 'vers le client' : 'vers le retrait'} : police à 220 % '
+        'sur 320 dp',
+        (tester) async {
+          tester.view.physicalSize = const Size(320, 640);
+          tester.view.devicePixelRatio = 1;
+          tester.platformDispatcher.textScaleFactorTestValue = 2.2;
+          addTearDown(tester.view.reset);
+          addTearDown(tester.platformDispatcher.clearTextScaleFactorTestValue);
+          await withMission(
+            tester,
+            driverMissionBody(arrivedShop: toClient, pickedUp: toClient),
+          );
+          final error = tester.takeException();
+          expect(error, isNull, reason: '$error');
+          await tester.ensureVisible(find.byKey(const Key('slide-knob')));
+          await tester.pump();
+          expect(tester.takeException(), isNull);
+        },
+      );
+    }
 
     testWidgets('accueil en ligne (D09) : bandeau, jour calculé, Pause', (
       tester,

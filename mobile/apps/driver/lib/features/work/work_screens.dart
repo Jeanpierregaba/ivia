@@ -10,6 +10,7 @@ import '../../app/driver_dossier.dart';
 import '../../common/ui.dart';
 import '../earnings/earnings_screen.dart';
 import '../home/home_screen.dart';
+import '../mission/mission_screen.dart';
 import 'work_state.dart';
 import 'work_ui.dart';
 
@@ -31,7 +32,7 @@ class _DriverShellState extends ConsumerState<DriverShell> {
     return Scaffold(
       backgroundColor: D.page,
       body: mission != null && _tab == 0
-          ? MissionView(mission: mission)
+          ? MissionScreen(mission: mission)
           : IndexedStack(
               index: _tab,
               children: const [

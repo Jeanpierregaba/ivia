@@ -13,15 +13,6 @@ import '../earnings/earnings.dart';
 import '../offer/offer_card.dart';
 import '../work/work_state.dart';
 
-/// Position du livreur pour centrer la carte ; Lomé si elle est inconnue.
-final _herePosition = FutureProvider.autoDispose<GeoPoint>((ref) async {
-  try {
-    return (await ref.read(locationServiceProvider).current()).point ?? lome;
-  } on Exception {
-    return lome;
-  }
-});
-
 /// Accueil en ligne (D09) : bandeau « En ligne », carte autour de la position,
 /// volet « Recherche de missions… » avec les livraisons et gains du jour.
 /// « 4 commandes bientôt prêtes » et les km sont masqués (pas de serveur,
@@ -32,7 +23,7 @@ class OnlineHome extends ConsumerWidget {
   @override
   Widget build(BuildContext context, WidgetRef ref) {
     final work = ref.watch(workProvider);
-    final here = ref.watch(_herePosition).value ?? lome;
+    final here = ref.watch(herePositionProvider).value ?? lome;
     return LayoutBuilder(
       builder: (context, box) => Column(
         children: [

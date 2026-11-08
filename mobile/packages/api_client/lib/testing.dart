@@ -446,6 +446,82 @@ Map<String, dynamic> driverOfferBody({
   'expires_at': DateTime.now().toUtc().add(expiresIn).toIso8601String(),
 };
 
+/// Mission boutique en cours (schéma `Mission`) : Chez Afi (Tokoin), puis
+/// Awa M. à Bè Kpota. Les étapes passées sont datées.
+Map<String, dynamic> driverMissionBody({
+  bool arrivedShop = false,
+  bool pickedUp = false,
+  bool arrivedCustomer = false,
+}) {
+  final at = DateTime.now().toUtc().toIso8601String();
+  return {
+    'id': 'mission-1',
+    'order_reference': 'IV-001042',
+    'status': 'assigned',
+    'fee_xof': 1200,
+    'items_count': 3,
+    'parcel_size': 'medium',
+    'shop': {
+      'name': 'Chez Afi',
+      'phone': '+22890112233',
+      'address_text': 'Rue 248, Tokoin',
+      'neighborhood': 'Tokoin',
+      'instructions': '',
+      'location': {'lat': 6.1390, 'lng': 1.2160},
+    },
+    'customer': {
+      'name': 'Awa M.',
+      'phone': '+22890445566',
+      'address_text': 'Rue 112, portail bleu',
+      'neighborhood': 'Bè Kpota',
+      'instructions': 'Appelez-moi en arrivant, je descends.',
+      'location': {'lat': 6.1600, 'lng': 1.2400},
+    },
+    'assigned_at': at,
+    'arrived_shop_at': arrivedShop ? at : null,
+    'picked_up_at': pickedUp ? at : null,
+    'arrived_customer_at': arrivedCustomer ? at : null,
+    'delivered_at': null,
+    'failed_at': null,
+  };
+}
+
+/// Course pharmacie en cours (schéma `CourierMission`), payée par le client.
+Map<String, dynamic> driverPharmacyMissionBody({bool pickedUp = false}) {
+  final at = DateTime.now().toUtc().toIso8601String();
+  return {
+    'id': 'courier-1',
+    'reservation_id': 'reservation-1',
+    'number': 'R-000312',
+    'status': pickedUp ? 'picked_up' : 'assigned',
+    'fee_xof': 1500,
+    'lines': [
+      {'name': 'Paracétamol 500 mg', 'quantity': 2, 'available': true},
+    ],
+    'prescription_check_required': false,
+    'pharmacy': {
+      'name': 'Pharmacie du Boulevard',
+      'phone': '+22822212223',
+      'address_text': 'Bd du 13 Janvier',
+      'neighborhood': 'Nyékonakpoè',
+      'instructions': '',
+      'location': {'lat': 6.1310, 'lng': 1.2200},
+    },
+    'client': {
+      'name': 'Kodjo A.',
+      'phone': '+22891001122',
+      'address_text': 'Rue 7',
+      'neighborhood': 'Adidogomé',
+      'instructions': '',
+      'location': {'lat': 6.1700, 'lng': 1.1800},
+    },
+    'assigned_at': at,
+    'picked_up_at': pickedUp ? at : null,
+    'delivered_at': null,
+    'prepared_at': at,
+  };
+}
+
 const workZoneTokoin = '5a1b2c3d-0000-4000-8000-00000000a001';
 
 /// Pièces exigées pour la livraison selon le véhicule (comme

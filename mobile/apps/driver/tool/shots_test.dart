@@ -168,13 +168,16 @@ class _ApprovedDossier extends DriverDossierNotifier {
       DriverDossier.fromJson(driverBody(review: 'approved', status: 'offline'));
 }
 
-List signedIn({DriverDossierNotifier Function() dossier = _NoDossier.new}) => [
+List signedIn({
+  DriverDossierNotifier Function() dossier = _NoDossier.new,
+  FakeApiServer? server,
+}) => [
   authControllerProvider.overrideWith(_SignedIn.new),
   driverDossierProvider.overrideWith(dossier),
   apiClientProvider.overrideWithValue(
     IviaApiClient(
       config: ApiConfig(baseUrl: Uri.parse('http://api.test')),
-      adapter: fakeServer(),
+      adapter: server ?? fakeServer(),
     ),
   ),
 ];
@@ -214,6 +217,37 @@ class _Offered extends WorkController {
   );
 }
 
+/// Mission en cours (D11, D13).
+class _OnMission extends WorkController {
+  _OnMission(this.body);
+  final Map<String, dynamic> body;
+
+  @override
+  WorkState build() => WorkState(online: true, mission: WorkMission.shop(body));
+}
+
+/// Position du livreur, et itinéraire du serveur [m] mètres en [s] secondes.
+List missionOverrides(Map<String, dynamic> body, int m, int s) => [
+  ...signedIn(
+    dossier: _ApprovedDossier.new,
+    server: fakeServer()
+      ..on(
+        'POST',
+        '/v1/geo/route',
+        (_) => FakeResponse.json(200, {
+          'distance_m': m,
+          'duration_s': s,
+          'polyline': '',
+          'approximate': false,
+        }),
+      ),
+  ),
+  workProvider.overrideWith(() => _OnMission(body)),
+  herePositionProvider.overrideWith(
+    (ref) => Stream.value(const GeoPoint(lat: 6.1330, lng: 1.2120)),
+  ),
+];
+
 void main() {
   setUpAll(() async {
     TestWidgetsFlutterBinding.ensureInitialized();
@@ -225,6 +259,32 @@ void main() {
         );
     await loadFonts();
   });
+
+  testWidgets(
+    'D11',
+    (t) => shot(
+      t,
+      'D11',
+      const DriverShell(),
+      overrides: missionOverrides(driverMissionBody(), 800, 240),
+      before: (t) => t.pump(const Duration(milliseconds: 500)),
+    ),
+  );
+
+  testWidgets(
+    'D13',
+    (t) => shot(
+      t,
+      'D13',
+      const DriverShell(),
+      overrides: missionOverrides(
+        driverMissionBody(arrivedShop: true, pickedUp: true),
+        3400,
+        720,
+      ),
+      before: (t) => t.pump(const Duration(milliseconds: 500)),
+    ),
+  );
 
   testWidgets(
     'D10',
