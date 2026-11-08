@@ -921,6 +921,20 @@ void main() {
       expect(find.text('Vous êtes hors ligne'), findsOneWidget);
     });
 
+    /// Téléphone de 320 dp, police agrandie à [scale].
+    void bigText(WidgetTester tester, double scale) {
+      tester.view.physicalSize = const Size(320, 640);
+      tester.view.devicePixelRatio = 1;
+      tester.platformDispatcher.textScaleFactorTestValue = scale;
+      addTearDown(tester.view.reset);
+      addTearDown(tester.platformDispatcher.clearTextScaleFactorTestValue);
+    }
+
+    void noOverflow(WidgetTester tester, String where) {
+      final error = tester.takeException();
+      expect(error, isNull, reason: '$where : $error');
+    }
+
     /// Livreur validé, hors ligne ; [delivered] : missions livrées (heure).
     void approvedHome({List<DateTime> delivered = const []}) {
       server
@@ -1095,6 +1109,17 @@ void main() {
         expect(location.calls, greaterThan(0));
         if (!allow) {
           expect(server.calls('POST', '/v1/driver/location'), isEmpty);
+          // Position inconnue : alerte et nouvelle demande d'autorisation.
+          expect(find.textContaining('Position inconnue'), findsOneWidget);
+          await tester.ensureVisible(find.text('Autoriser la localisation'));
+          await tester.tap(find.text('Autoriser la localisation'));
+          for (var i = 0; i < 3; i++) {
+            await tester.pump(const Duration(milliseconds: 300));
+          }
+          expect(location.requests, 1);
+          expect(find.textContaining('Position inconnue'), findsNothing);
+        } else {
+          expect(find.textContaining('Position inconnue'), findsNothing);
         }
         // Hors ligne : plus d'envoi périodique en attente.
         await tester.tap(find.text('Pause'));
@@ -1122,6 +1147,54 @@ void main() {
         (_) => FakeResponse.json(204, null),
       )
       ..on('POST', '/v1/driver/location', (_) => FakeResponse.json(204, null));
+
+    for (final big in [false, true]) {
+      testWidgets('localisation refusée définitivement : alerte, réglages'
+          '${big ? ' (police à 200 % sur 320 dp)' : ''}', (tester) async {
+        if (big) bigText(tester, 2);
+        await withDossier(review: 'approved', status: 'offline');
+        approvedHome();
+        goOnlineServer();
+        SharedPreferences.setMockInitialValues({
+          'onboarding_seen': true,
+          'location_prompt_done': true,
+        });
+        location.state = LocationAccess.deniedForever;
+        await launchApp(tester);
+        if (big) {
+          await tester.scrollUntilVisible(
+            find.text('Glisser pour passer en ligne'),
+            200,
+            scrollable: find.byType(Scrollable).first,
+          );
+          await tester.ensureVisible(find.byKey(const Key('slide-knob')));
+          await tester.pumpAndSettle();
+        }
+        await tester.drag(
+          find.byKey(const Key('slide-knob')),
+          const Offset(2000, 0),
+        );
+        for (var i = 0; i < 6; i++) {
+          await tester.pump(const Duration(milliseconds: 300));
+        }
+        // Écran de la 030 : « Plus tard », en ligne sans position.
+        if (find.text('Plus tard').evaluate().isNotEmpty) {
+          await tester.ensureVisible(find.text('Plus tard'));
+          await tester.tap(find.text('Plus tard'));
+          for (var i = 0; i < 6; i++) {
+            await tester.pump(const Duration(milliseconds: 300));
+          }
+        }
+        expect(find.textContaining('Position inconnue'), findsOneWidget);
+        await tester.ensureVisible(find.text('Autoriser la localisation'));
+        await tester.tap(find.text('Autoriser la localisation'));
+        for (var i = 0; i < 3; i++) {
+          await tester.pump(const Duration(milliseconds: 300));
+        }
+        expect(location.settingsOpened, 1);
+        noOverflow(tester, 'position inconnue');
+      });
+    }
 
     testWidgets('accueil en ligne : police à 200 % sur 320 dp', (tester) async {
       tester.view.physicalSize = const Size(320, 640);
@@ -1317,19 +1390,6 @@ void main() {
 
     /// Livreur validé avec [mission] en cours ; itinéraire du serveur :
     /// [routeM] mètres en [routeS] secondes.
-    /// Téléphone de 320 dp, police agrandie à [scale].
-    void bigText(WidgetTester tester, double scale) {
-      tester.view.physicalSize = const Size(320, 640);
-      tester.view.devicePixelRatio = 1;
-      tester.platformDispatcher.textScaleFactorTestValue = scale;
-      addTearDown(tester.view.reset);
-      addTearDown(tester.platformDispatcher.clearTextScaleFactorTestValue);
-    }
-
-    void noOverflow(WidgetTester tester, String where) {
-      final error = tester.takeException();
-      expect(error, isNull, reason: '$where : $error');
-    }
 
     Future<void> withMission(
       WidgetTester tester,

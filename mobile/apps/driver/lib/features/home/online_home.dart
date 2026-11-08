@@ -335,6 +335,12 @@ class _Searching extends ConsumerWidget {
             ),
           ),
         ],
+        // Position inconnue (localisation refusée) : aucune proposition ne
+        // peut arriver tant qu'elle n'est pas autorisée.
+        if (ref.watch(herePositionProvider) case AsyncData(value: null)) ...[
+          const SizedBox(height: 12),
+          const _UnknownPosition(),
+        ],
         const SizedBox(height: 16),
         Row(
           crossAxisAlignment: CrossAxisAlignment.start,
@@ -376,6 +382,73 @@ class _DayStat extends StatelessWidget {
         children: [
           Text(value, style: DText.amount.copyWith(fontSize: 18)),
           Text(label, style: DText.bodyMuted.copyWith(fontSize: 14)),
+        ],
+      ),
+    ),
+  );
+}
+
+/// Alerte « Position inconnue » : demande d'autorisation, ou réglages du
+/// téléphone si le système ne la demande plus.
+class _UnknownPosition extends ConsumerWidget {
+  const _UnknownPosition();
+
+  Future<void> _allow(WidgetRef ref) async {
+    final location = ref.read(locationServiceProvider);
+    final access = await location.access();
+    switch (access) {
+      case LocationAccess.askable:
+        await location.request();
+      case LocationAccess.deniedForever:
+        await location.openSettings();
+      case LocationAccess.granted:
+        break;
+    }
+    ref.invalidate(herePositionProvider);
+  }
+
+  @override
+  Widget build(BuildContext context, WidgetRef ref) => DecoratedBox(
+    decoration: BoxDecoration(
+      color: IviaDriverColors.warningSoft,
+      borderRadius: BorderRadius.circular(18),
+    ),
+    child: Padding(
+      padding: const EdgeInsets.fromLTRB(14, 12, 14, 6),
+      child: Column(
+        crossAxisAlignment: CrossAxisAlignment.stretch,
+        children: [
+          Semantics(
+            liveRegion: true,
+            child: Row(
+              crossAxisAlignment: CrossAxisAlignment.start,
+              children: [
+                const Icon(
+                  Icons.location_off_rounded,
+                  color: IviaDriverColors.warning,
+                ),
+                const SizedBox(width: 10),
+                Expanded(
+                  child: Text(
+                    'Position inconnue : sans localisation, aucune '
+                    'proposition ne peut vous parvenir.',
+                    style: DText.body.copyWith(color: D.ink, fontSize: 14),
+                  ),
+                ),
+              ],
+            ),
+          ),
+          Align(
+            alignment: AlignmentDirectional.centerEnd,
+            child: TextButton(
+              onPressed: () => _allow(ref),
+              style: TextButton.styleFrom(minimumSize: const Size(48, 48)),
+              child: Text(
+                'Autoriser la localisation',
+                style: DText.button.copyWith(color: D.blue, fontSize: 15),
+              ),
+            ),
+          ),
         ],
       ),
     ),
