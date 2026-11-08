@@ -135,13 +135,34 @@ class _ProblemSheet extends ConsumerWidget {
 
   Future<void> _withdraw(BuildContext context, WidgetRef ref) async {
     final messenger = ScaffoldMessenger.of(context);
+    final work = ref.read(workProvider.notifier);
+    // Sans retour possible : confirmation d'abord.
+    final ok = await showDialog<bool>(
+      context: context,
+      builder: (context) => AlertDialog(
+        title: const Text('Abandonner cette course ?'),
+        content: const Text(
+          'Elle repart vers un autre livreur. Vous ne pourrez pas la '
+          'reprendre.',
+        ),
+        actions: [
+          TextButton(
+            onPressed: () => Navigator.of(context).pop(false),
+            child: const Text('Garder la course'),
+          ),
+          TextButton(
+            onPressed: () => Navigator.of(context).pop(true),
+            child: const Text('Abandonner'),
+          ),
+        ],
+      ),
+    );
+    if (ok != true || !context.mounted) return;
     Navigator.of(context).pop();
-    final error = await ref
-        .read(workProvider.notifier)
-        .run(
-          (api) => api.withdrawMission(mission, 'Empêchement du livreur'),
-          ends: true,
-        );
+    final error = await work.run(
+      (api) => api.withdrawMission(mission, 'Empêchement du livreur'),
+      ends: true,
+    );
     if (error != null) messenger.showSnackBar(SnackBar(content: Text(error)));
   }
 

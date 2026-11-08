@@ -1340,6 +1340,38 @@ void main() {
       expect(find.text('NOUVELLE MISSION'), findsNothing);
     });
 
+    testWidgets('proposition reçue sur un autre onglet : retour à l\'Accueil', (
+      tester,
+    ) async {
+      await withDossier(review: 'approved', status: 'offline');
+      approvedHome();
+      goOnlineServer();
+      Map<String, dynamic>? current;
+      server.on(
+        'GET',
+        '/v1/driver/offers/current',
+        (_) => FakeResponse.json(200, {'offer': current}),
+      );
+      await launchApp(tester);
+      await tester.drag(
+        find.byKey(const Key('slide-knob')),
+        const Offset(2000, 0),
+      );
+      for (var i = 0; i < 5; i++) {
+        await tester.pump(const Duration(milliseconds: 300));
+      }
+      await tester.tap(find.bySemanticsLabel('Gains'));
+      for (var i = 0; i < 3; i++) {
+        await tester.pump(const Duration(milliseconds: 300));
+      }
+      expect(find.text('Glisser pour accepter'), findsNothing);
+      current = driverOfferBody();
+      for (var i = 0; i < 16; i++) {
+        await tester.pump(const Duration(milliseconds: 300));
+      }
+      expect(find.text('Glisser pour accepter').hitTestable(), findsOneWidget);
+    });
+
     testWidgets('compte à rebours fini : proposition retirée', (tester) async {
       await onlineWithOffer(
         tester,
@@ -2107,6 +2139,15 @@ void main() {
         return FakeResponse.json(204, null);
       });
       await tapVisible(tester, find.text('Je ne peux pas faire cette course'));
+      // Confirmation : « Garder la course » ne fait rien.
+      expect(find.text('Abandonner cette course ?'), findsOneWidget);
+      await tapVisible(tester, find.text('Garder la course'));
+      expect(
+        server.calls('POST', '/v1/driver/missions/mission-1/withdraw'),
+        isEmpty,
+      );
+      await tapVisible(tester, find.text('Je ne peux pas faire cette course'));
+      await tapVisible(tester, find.text('Abandonner'));
       expect(
         server.calls('POST', '/v1/driver/missions/mission-1/withdraw'),
         hasLength(1),
@@ -2800,6 +2841,42 @@ void main() {
       await tester.tap(find.text('Se déconnecter').last);
       await tester.pumpAndSettle();
       expect(server.calls('POST', '/v1/auth/logout'), hasLength(1));
+    });
+
+    testWidgets('profil (D19) : déconnexion en ligne sans réseau refusée', (
+      tester,
+    ) async {
+      tester.view.physicalSize = const Size(800, 1400);
+      tester.view.devicePixelRatio = 1;
+      addTearDown(tester.view.reset);
+      await withDossier(review: 'approved', status: 'offline');
+      approvedHome();
+      goOnlineServer();
+      await launchApp(tester);
+      await tester.drag(
+        find.byKey(const Key('slide-knob')),
+        const Offset(2000, 0),
+      );
+      for (var i = 0; i < 5; i++) {
+        await tester.pump(const Duration(milliseconds: 300));
+      }
+      server.on(
+        'PUT',
+        '/v1/driver/availability',
+        (_) => FakeResponse.networkError(),
+      );
+      await openProfile(tester);
+      await tester.tap(find.text('Se déconnecter'));
+      await tester.pumpAndSettle();
+      await tester.tap(find.text('Se déconnecter').last);
+      for (var i = 0; i < 5; i++) {
+        await tester.pump(const Duration(milliseconds: 300));
+      }
+      expect(server.calls('POST', '/v1/auth/logout'), isEmpty);
+      expect(
+        find.textContaining('Impossible de passer hors ligne'),
+        findsOneWidget,
+      );
     });
 
     testWidgets('profil (D19) : police à 220 % sur 320 dp', (tester) async {

@@ -224,8 +224,25 @@ class ProfileTab extends ConsumerWidget {
         ],
       ),
     );
-    if (ok != true) return;
-    await ref.read(workProvider.notifier).setOnline(false);
+    if (ok != true || !context.mounted) return;
+    final messenger = ScaffoldMessenger.of(context);
+    final work = ref.read(workProvider.notifier);
+    // En ligne : le serveur doit d'abord savoir que le livreur s'arrête,
+    // sinon il resterait disponible pour des propositions.
+    if (ref.read(workProvider).online) {
+      await work.setOnline(false);
+      if (ref.read(workProvider).online) {
+        messenger.showSnackBar(
+          const SnackBar(
+            content: Text(
+              'Impossible de passer hors ligne : vérifiez la connexion, '
+              'puis réessayez.',
+            ),
+          ),
+        );
+        return;
+      }
+    }
     await ref.read(authControllerProvider.notifier).signOut();
   }
 }

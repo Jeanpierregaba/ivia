@@ -30,6 +30,13 @@ class _DriverShellState extends ConsumerState<DriverShell> {
     );
     // Commande annulée pendant la mission : l'accueil affiche le message,
     // annoncé aussi au lecteur d'écran.
+    // Proposition reçue sur un autre onglet : retour à l'Accueil, où elle
+    // s'affiche (sinon elle sonnerait sans être visible).
+    ref.listen(workProvider.select((s) => s.offer?.id), (previous, offer) {
+      if (offer != null && offer != previous && _tab != 0) {
+        setState(() => _tab = 0);
+      }
+    });
     ref.listen(workProvider.select((s) => s.error), (_, error) {
       if (error == WorkController.cancelledMessage) announce(context, error!);
     });
