@@ -1,4 +1,4 @@
-# Splash natif de l'app livreur (docs/specs/027-splash-onboarding).
+# Splash natif de l'app Ivia Driver (ex-ivia Livreur) (docs/specs/027-splash-onboarding).
 # Après modification : dart run flutter_native_splash:create (depuis ce dossier).
 flutter_native_splash:
   color: "#004DA8"

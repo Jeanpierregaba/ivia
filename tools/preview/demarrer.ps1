@@ -56,7 +56,7 @@ $api = Start-Process -FilePath (Join-Path $backend 'bin\api.exe') -WorkingDirect
 $started += $api.Id
 
 # Apps Flutter (build web) dans le cadre iPhone, avec relais vers l'API.
-foreach ($app in @(@('buyer', 8090, 'ivia'), @('seller', 8091, 'Ivia Business'), @('driver', 8092, 'ivia Livreur'), @('pharmacy', 8093, 'ivia Pharmacie'))) {
+foreach ($app in @(@('buyer', 8090, 'ivia'), @('seller', 8091, 'Ivia Business'), @('driver', 8092, 'Ivia Driver'), @('pharmacy', 8093, 'ivia Pharmacie'))) {
   $web = Join-Path $root ('mobile\apps\' + $app[0] + '\build\web')
   $p = Start-Process -FilePath 'python' -ArgumentList @('-I', (Join-Path $here 'serve.py'), $web, $app[1], ('"' + $app[2] + '"')) `
     -WindowStyle Hidden -PassThru

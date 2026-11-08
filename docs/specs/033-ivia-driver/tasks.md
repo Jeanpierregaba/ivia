@@ -9,7 +9,7 @@
       - `openapi.yaml`, types du back-office.
 
 **Socle**
-- [ ] 2. Nom « Ivia Driver » :
+- [x] 2. Nom « Ivia Driver » :
       - Android, iOS, titre, identité (badge « Driver ») ;
       - splash natif régénéré ;
       - `mobile/README.md`, outil d'aperçu ;

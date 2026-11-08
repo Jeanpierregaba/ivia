@@ -238,7 +238,7 @@ void main() {
     ) async {
       location.state = LocationAccess.askable;
       await launchApp(tester);
-      expect(find.text('Livreur'), findsWidgets);
+      expect(find.text('Driver'), findsWidgets);
       expect(
         find.text('Des missions près de vous', findRichText: true),
         findsOneWidget,
@@ -256,10 +256,10 @@ void main() {
         settle: false,
       );
       await tester.pump(const Duration(milliseconds: 700));
-      expect(find.text('Livreur'), findsOneWidget);
+      expect(find.text('Driver'), findsOneWidget);
       expect(find.text('Livrez près de chez vous.'), findsOneWidget);
       final app = tester.widget<MaterialApp>(find.byType(MaterialApp));
-      expect(app.title, 'ivia Livreur');
+      expect(app.title, 'Ivia Driver');
       expect(app.theme?.colorScheme.primary, IviaColors.cobaltBlue);
       await tester.pump(const Duration(milliseconds: 200));
       await tester.pumpAndSettle();
@@ -271,7 +271,7 @@ void main() {
       final onboarding = tester.widget<IviaOnboarding>(
         find.byType(IviaOnboarding),
       );
-      expect(onboarding.appName, 'Livreur');
+      expect(onboarding.appName, 'Driver');
       await tapText(tester, 'Passer');
       expect(find.text('Espace livreur'), findsOneWidget);
       expect(

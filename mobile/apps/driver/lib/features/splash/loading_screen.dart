@@ -10,7 +10,7 @@ class LoadingScreen extends StatelessWidget {
     return const IviaLoadingSplash(
       brand: IviaAppBrand.driver,
       tile: true,
-      title: 'Livreur',
+      title: 'Driver',
       tagline: 'Livrez près de chez vous.',
     );
   }

@@ -42,7 +42,7 @@ class DriverApp extends ConsumerWidget {
   @override
   Widget build(BuildContext context, WidgetRef ref) {
     return MaterialApp.router(
-      title: 'ivia Livreur',
+      title: 'Ivia Driver',
       theme: IviaTheme.light(IviaAppBrand.driver),
       routerConfig: ref.watch(routerProvider),
       // Barre d'état sombre sur les écrans clairs ; le splash de chargement

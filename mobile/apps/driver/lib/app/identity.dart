@@ -2,18 +2,18 @@ import 'package:flutter/material.dart';
 import 'package:ivia_app_core/ivia_app_core.dart';
 import 'package:ivia_ui/ivia_ui.dart';
 
-/// Identité de l'app livreur dans les écrans communs de connexion.
+/// Identité de l'app Ivia Driver dans les écrans communs de connexion.
 const driverIdentity = AppIdentity(
   brand: IviaAppBrand.driver,
   loginTitle: 'Espace livreur',
   loginBody:
       "Connectez-vous avec votre numéro de téléphone. Les courses s'ouvrent "
       'après la validation de votre dossier par ivia.',
-  loginBadge: 'Livreur',
+  loginBadge: 'Driver',
   codeHint: _codeHint,
   appCode: 'driver',
   locationPrompt: LocationPromptCopy(
-    space: 'Livreur',
+    space: 'Driver',
     center: Icons.two_wheeler,
     satellites: [
       Icons.storefront,
