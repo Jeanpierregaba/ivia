@@ -1,6 +1,6 @@
 import 'dart:async';
 import 'dart:convert';
-import 'dart:ui' show CheckedState;
+import 'dart:ui' show CheckedState, SemanticsAction;
 
 import 'package:flutter/material.dart';
 import 'package:flutter/services.dart';
@@ -2158,6 +2158,28 @@ void main() {
             .first,
       );
       expect(checked.flagsCollection.isChecked, CheckedState.isTrue);
+    });
+
+    testWidgets('lecteur d\'écran (D13) : itinéraire et appel restent deux '
+        'boutons distincts', (tester) async {
+      final semantics = tester.ensureSemantics();
+      await withMission(
+        tester,
+        driverMissionBody(arrivedShop: true, pickedUp: true),
+      );
+      for (final label in ['Ouvrir dans Maps', 'Appeler le client']) {
+        final node = tester.getSemantics(find.byTooltip(label).first);
+        expect(
+          node.getSemanticsData().hasAction(SemanticsAction.tap),
+          isTrue,
+          reason: label,
+        );
+        expect(node.label, isNot(contains('Awa M.')), reason: label);
+      }
+      await tester.tap(find.byTooltip('Appeler le client'));
+      await tester.pump(const Duration(milliseconds: 300));
+      expect(launched.single.toString(), 'tel:+22890445566');
+      semantics.dispose();
     });
 
     testWidgets('relecture lente pendant la remise : D15 reste affiché, '

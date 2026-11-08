@@ -41,17 +41,24 @@ class RoundButton extends StatelessWidget {
   final double size;
 
   @override
-  Widget build(BuildContext context) => Tooltip(
-    message: tooltip,
-    child: Material(
-      color: bg,
-      shape: const CircleBorder(),
-      child: InkWell(
-        customBorder: const CircleBorder(),
-        onTap: onTap,
-        child: SizedBox.square(
-          dimension: size,
-          child: Icon(icon, color: fg, size: 22),
+  Widget build(BuildContext context) => Semantics(
+    // Un nœud par bouton : rôle, libellé et action pour le lecteur d'écran.
+    button: true,
+    label: tooltip,
+    onTap: onTap,
+    excludeSemantics: true,
+    child: Tooltip(
+      message: tooltip,
+      child: Material(
+        color: bg,
+        shape: const CircleBorder(),
+        child: InkWell(
+          customBorder: const CircleBorder(),
+          onTap: onTap,
+          child: SizedBox.square(
+            dimension: size,
+            child: Icon(icon, color: fg, size: 22),
+          ),
         ),
       ),
     ),

@@ -620,34 +620,36 @@ class _ToClient extends StatelessWidget {
         const SizedBox(height: 14),
         const Divider(height: 1, color: IviaDriverColors.line),
         const SizedBox(height: 14),
-        MergeSemantics(
-          child: Row(
-            crossAxisAlignment: CrossAxisAlignment.start,
-            children: [
-              ExcludeSemantics(
-                child: DecoratedBox(
-                  decoration: const BoxDecoration(
-                    color: D.blueSoft,
-                    shape: BoxShape.circle,
-                  ),
-                  child: SizedBox.square(
-                    dimension: 48,
-                    child: Center(
-                      child: MediaQuery.withNoTextScaling(
-                        child: Text(
-                          initials(client?.name ?? ''),
-                          style: DText.cardTitle.copyWith(
-                            color: D.blue,
-                            fontSize: 16,
-                          ),
+        // Seuls le nom et l'adresse sont fusionnés : les deux boutons restent
+        // deux actions distinctes pour le lecteur d'écran.
+        Row(
+          crossAxisAlignment: CrossAxisAlignment.start,
+          children: [
+            ExcludeSemantics(
+              child: DecoratedBox(
+                decoration: const BoxDecoration(
+                  color: D.blueSoft,
+                  shape: BoxShape.circle,
+                ),
+                child: SizedBox.square(
+                  dimension: 48,
+                  child: Center(
+                    child: MediaQuery.withNoTextScaling(
+                      child: Text(
+                        initials(client?.name ?? ''),
+                        style: DText.cardTitle.copyWith(
+                          color: D.blue,
+                          fontSize: 16,
                         ),
                       ),
                     ),
                   ),
                 ),
               ),
-              const SizedBox(width: 12),
-              Expanded(
+            ),
+            const SizedBox(width: 12),
+            Expanded(
+              child: MergeSemantics(
                 child: Column(
                   crossAxisAlignment: CrossAxisAlignment.start,
                   children: [
@@ -663,30 +665,30 @@ class _ToClient extends StatelessWidget {
                   ],
                 ),
               ),
-              // À la place de la messagerie des maquettes (pas de serveur) :
-              // l'itinéraire dans l'app de navigation.
-              if (onNavigate != null) ...[
-                const SizedBox(width: 8),
-                RoundButton(
-                  icon: Icons.map_rounded,
-                  tooltip: 'Ouvrir dans ${navApp.shortLabel}',
-                  bg: D.blueSoft,
-                  fg: D.blue,
-                  onTap: onNavigate!,
-                ),
-              ],
-              if ((client?.phone ?? '').isNotEmpty) ...[
-                const SizedBox(width: 8),
-                RoundButton(
-                  icon: Icons.call_rounded,
-                  tooltip: 'Appeler le client',
-                  bg: D.blue,
-                  fg: Colors.white,
-                  onTap: () => onCall(client!.phone),
-                ),
-              ],
+            ),
+            // À la place de la messagerie des maquettes (pas de serveur) :
+            // l'itinéraire dans l'app de navigation.
+            if (onNavigate != null) ...[
+              const SizedBox(width: 8),
+              RoundButton(
+                icon: Icons.map_rounded,
+                tooltip: 'Ouvrir dans ${navApp.shortLabel}',
+                bg: D.blueSoft,
+                fg: D.blue,
+                onTap: onNavigate!,
+              ),
             ],
-          ),
+            if ((client?.phone ?? '').isNotEmpty) ...[
+              const SizedBox(width: 8),
+              RoundButton(
+                icon: Icons.call_rounded,
+                tooltip: 'Appeler le client',
+                bg: D.blue,
+                fg: Colors.white,
+                onTap: () => onCall(client!.phone),
+              ),
+            ],
+          ],
         ),
         if ((client?.instructions ?? '').isNotEmpty) ...[
           const SizedBox(height: 12),
