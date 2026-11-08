@@ -81,4 +81,4 @@
       - `TASKS.md` : 033, tâche 20 de la 032 renvoyée vers la 033, manques serveur pour Gedeon.
       - `docs/DESIGN.md` : charte Ivia Driver.
 - [x] Vérifier tous les critères d'acceptation de spec.md
-- [ ] Relecture par le sous-agent reviewer
+- [x] Relecture par le sous-agent reviewer (2026-11-08) : points 1 à 5 corrigés ; le reste dans `TASKS.md`
