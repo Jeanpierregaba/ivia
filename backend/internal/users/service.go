@@ -264,6 +264,19 @@ func (s *Service) Contact(ctx context.Context, id uuid.UUID) (Contact, error) {
 	return c, nil
 }
 
+// FirstNames retourne les prénoms de plusieurs comptes en une requête.
+func (s *Service) FirstNames(ctx context.Context, ids []uuid.UUID) (map[uuid.UUID]string, error) {
+	rows, err := store.New(s.db.Conn(ctx)).FirstNamesByIDs(ctx, ids)
+	if err != nil {
+		return nil, fmt.Errorf("lecture des prénoms : %w", err)
+	}
+	out := make(map[uuid.UUID]string, len(rows))
+	for _, r := range rows {
+		out[r.ID] = r.FirstName
+	}
+	return out, nil
+}
+
 // UpdateProfile modifie prénom, nom et numéro.
 func (s *Service) UpdateProfile(ctx context.Context, id uuid.UUID, in ProfileInput) (User, error) {
 	cur, err := store.New(s.db.Conn(ctx)).GetUser(ctx, id)

@@ -117,21 +117,24 @@ type Notifier interface {
 
 // Service gère codes et sessions.
 type Service struct {
-	db       *database.DB
-	users    UserDirectory
-	sender   OTPSender
-	logger   *slog.Logger
-	opts     Options
-	reqByIP  *ratelimit.Limiter
-	verByIP  *ratelimit.Limiter
-	loginIP  *ratelimit.Limiter
-	channels map[Channel]bool
-	hasher   *passwordHasher
-	google   *googleVerifier
-	notifier Notifier
-	auditor  Auditor
-	byDevice *ratelimit.Limiter
-	capAlert alertGate
+	db      *database.DB
+	users   UserDirectory
+	sender  OTPSender
+	logger  *slog.Logger
+	opts    Options
+	reqByIP *ratelimit.Limiter
+	// Mot de passe oublié sur une adresse inconnue : mêmes limites que pour un compte existant.
+	unknownMinute *ratelimit.Limiter
+	unknownDay    *ratelimit.Limiter
+	verByIP       *ratelimit.Limiter
+	loginIP       *ratelimit.Limiter
+	channels      map[Channel]bool
+	hasher        *passwordHasher
+	google        *googleVerifier
+	notifier      Notifier
+	auditor       Auditor
+	byDevice      *ratelimit.Limiter
+	capAlert      alertGate
 }
 
 // SetNotifier branche les alertes (le module notifications est créé après auth).
@@ -155,13 +158,15 @@ func NewService(db *database.DB, userDir UserDirectory, sender OTPSender, logger
 	}
 	return &Service{
 		db: db, users: userDir, sender: sender, logger: logger, opts: opts,
-		reqByIP:  ratelimit.New(opts.RequestsPerIPPerHour, time.Hour),
-		verByIP:  ratelimit.New(opts.VerifiesPerIPPerHour, time.Hour),
-		loginIP:  ratelimit.New(opts.VerifiesPerIPPerHour, time.Hour),
-		channels: map[Channel]bool{ChannelEmail: true},
-		hasher:   newPasswordHasher(),
-		google:   newGoogleVerifier(opts.GoogleClientIDs),
-		byDevice: ratelimit.New(PhoneCodesPerDevicePerHour, time.Hour),
+		reqByIP:       ratelimit.New(opts.RequestsPerIPPerHour, time.Hour),
+		unknownMinute: ratelimit.New(OTPPerMinute, time.Minute),
+		unknownDay:    ratelimit.New(OTPPerDay, 24*time.Hour),
+		verByIP:       ratelimit.New(opts.VerifiesPerIPPerHour, time.Hour),
+		loginIP:       ratelimit.New(opts.VerifiesPerIPPerHour, time.Hour),
+		channels:      map[Channel]bool{ChannelEmail: true},
+		hasher:        newPasswordHasher(),
+		google:        newGoogleVerifier(opts.GoogleClientIDs),
+		byDevice:      ratelimit.New(PhoneCodesPerDevicePerHour, time.Hour),
 	}
 }
 
@@ -217,6 +222,14 @@ func (s *Service) RequestOTP(ctx context.Context, channel Channel, recipient, ip
 
 // sendCode génère, enregistre et envoie un code par e-mail pour un usage. recipient est déjà
 // normalisé.
+func errOTPPerMinute() error {
+	return apperr.TooManyRequests("otp_rate_limited", "Un code vient d'être envoyé. Patientez une minute avant d'en demander un autre.", 60)
+}
+
+func errOTPPerDay() error {
+	return apperr.TooManyRequests("otp_daily_limit", "Nombre maximal de codes atteint pour aujourd'hui. Réessayez demain.", 3600)
+}
+
 func (s *Service) sendCode(ctx context.Context, channel Channel, recipient string, purpose Purpose, ip string) (OTPRequested, error) {
 	return s.sendCodeVia(ctx, channel, recipient, purpose, ip, OTPTTL, []Channel{channel})
 }
@@ -247,14 +260,14 @@ func (s *Service) sendCodeVia(ctx context.Context, channel Channel, recipient st
 			return fmt.Errorf("limite par minute : %w", err)
 		}
 		if lastMinute >= OTPPerMinute {
-			return apperr.TooManyRequests("otp_rate_limited", "Un code vient d'être envoyé. Patientez une minute avant d'en demander un autre.", 60)
+			return errOTPPerMinute()
 		}
 		lastDay, err := q.CountRecentOTP(ctx, store.CountRecentOTPParams{Channel: string(channel), Recipient: recipient, Since: now.Add(-24 * time.Hour)})
 		if err != nil {
 			return fmt.Errorf("limite par jour : %w", err)
 		}
 		if lastDay >= OTPPerDay {
-			return apperr.TooManyRequests("otp_daily_limit", "Nombre maximal de codes atteint pour aujourd'hui. Réessayez demain.", 3600)
+			return errOTPPerDay()
 		}
 		if err := q.InvalidateOTPs(ctx, store.InvalidateOTPsParams{Channel: string(channel), Recipient: recipient, Purpose: string(purpose)}); err != nil {
 			return fmt.Errorf("annulation des anciens codes : %w", err)

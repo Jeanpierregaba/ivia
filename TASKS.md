@@ -9,7 +9,8 @@ docs/specs/NNN-nom/tasks.md. Les petites tâches isolées (bug, retouche) peuven
 ## En cours
 
 - [ ] 033 — Ivia Driver (ex-ivia Livreur) : nouveau nom et écrans d'après les maquettes D00 à D19 ([spec](docs/specs/033-ivia-driver/spec.md)) : 20 écrans faits (tâches 1 à 21), 123 tests, police à 200 % sur 320 dp, vérifiés sur le simulateur iPhone avec l'API locale (2026-11-08) ; reprend la tâche 20 de la 032 (code de retrait pharmacie côté livreur). relue (2026-11-08) : points 1 à 5 corrigés, reste listé plus bas (clé Maps avant publication) ; manques serveur listés plus bas (Gedeon)
-- [ ] 032 — Pharmacie : manques côté serveur et paiement en espèces par le livreur ([spec](docs/specs/032-pharmacie-serveur/spec.md), [ADR 0014](docs/decisions/0014-pharmacie-paiement-especes-livreur.md)) : spec, plan et tâches validés (2026-11-07) ; migration à faire relire par Gedeon
+- [ ] Workflow partenaire livreur et taxi VTC (BPMN du 2026-11-07, migration 00039) : serveur et back-office faits (Gedeon) ; tests Go du parcours à ajouter ; les courses VTC n'existent pas encore
+- [ ] 032 — Pharmacie : manques côté serveur et paiement en espèces par le livreur ([spec](docs/specs/032-pharmacie-serveur/spec.md), [ADR 0014](docs/decisions/0014-pharmacie-paiement-especes-livreur.md)) : spec, plan et tâches validés (2026-11-07) ; serveur fait, migration 00038 relue (2026-11-08 : additive, rien à reprendre) ; restent les écrans et le back-office (tâches 12 à 22)
 - [ ] 031 — Écrans de l'app pharmacie d'après les maquettes F00 à F23 ([spec](docs/specs/031-ecrans-pharmacie/spec.md)) : 24 écrans faits, testés (88 tests, police à 200 % sur 320 dp), vérifiés sur le simulateur iPhone, relus (2026-11-07). Reste : sur un vrai Android, alerte plein écran, sonnerie forte ou coupée, capture bloquée sur l'ordonnance ; manques serveur listés plus bas (Gedeon)
 - [ ] **ADR 0011 — connexion par mot de passe** (2026-11-03) : backend fait (création de compte par code puis mot de passe, connexion, verrou après 10 échecs, mot de passe oublié, changement de mot de passe, Google, double vérification des admins, migration 00024, tests). Back-office fait (maquettes B01, B02, B03 : mot de passe puis code, tableau de bord dynamique). Apps mobiles : passées à la connexion par numéro (ADR 0012), la 029 (e-mail, mot de passe, Google) en est retirée (2026-11-06). Reste : suppression côté serveur des routes de connexion par e-mail et par Google des apps (Gedeon) une fois les apps publiées
 - [ ] 018 — Espace livreur : lancement, connexion, dossier de candidature ([spec](docs/specs/018-espace-livreur/spec.md)) : relu et corrigé ; appareil photo à vérifier sur un vrai téléphone
@@ -32,19 +33,19 @@ que sa partie interface (apps Flutter, back-office), sauf mention « backend ».
 version « retrait seulement » (voir `docs/PRD.md`).
 
 ### Pharmacie (031) — manques côté serveur
-Traités par la spec 032 (sauf le dernier point mobile) ; l'app pharmacie fait sans en attendant :
-- [ ] **Backend** : numéro court d'alerte (« #A-3107 ») ; l'app affiche l'heure de réception
-- [ ] **Backend** : opérateur du compte de versement (Flooz ou T-Money) dans `GET /v1/pharmacy/me` ; le relevé et le profil n'affichent que le numéro masqué
-- [ ] **Backend** : code du livreur à la remise en pharmacie (F17) ; l'app indique que le livreur confirme dans son app
-- [ ] **Backend** : heure d'arrivée estimée et heure de récupération par le livreur (F17, F19)
-- [ ] **Backend** : période du relevé et date du prochain versement (« 1er au 15 nov », « le 16 nov »)
-- [ ] **Backend** : origine « planning officiel importé » des gardes, et date d'import
-- [ ] **Backend** : quartier du client dans l'alerte (« Tokoin »), sans adresse précise
-- [ ] **Backend** : montant du forfait remboursé à l'annulation (« 100 F »)
-- [ ] **Backend** : adresse de la photo de devanture (photo de profil de la pharmacie) ; l'app affiche une tuile
-- [ ] **Backend** : compteurs du jour (alertes reçues, répondues, confirmées) ; l'app les calcule sur les 50 dernières alertes
-- [ ] **Backend** : envoi des pièces du dossier en PDF (aujourd'hui photo seulement)
-- [ ] **Backend** : push d'alerte iOS sans son imposé (`aps.sound`), pour que « Sonnerie coupée » s'applique aussi sur iPhone ; le réglage n'est proposé que sur Android
+Partie serveur faite par la spec 032 (tâches 3 à 11, vérifié le 2026-11-08) ; restent les deux derniers points et les écrans de la 032 (tâches 12 à 22) :
+- [x] **Backend** : numéro court d'alerte (« #A-3107 ») ; l'app affiche l'heure de réception
+- [x] Sans objet (spec 032, point 6 : plus de versement aux pharmacies) : opérateur du compte de versement dans `GET /v1/pharmacy/me`
+- [x] **Backend** : code du livreur à la remise en pharmacie (F17) ; l'app indique que le livreur confirme dans son app
+- [x] **Backend** : heure d'arrivée estimée et heure de récupération par le livreur (F17, F19)
+- [x] Sans objet (spec 032, point 6 : le relevé devient « Encaissements ») : période du relevé et date du prochain versement
+- [x] **Backend** : origine « planning officiel importé » des gardes, et date d'import
+- [x] **Backend** : quartier du client dans l'alerte (« Tokoin »), sans adresse précise
+- [x] **Backend** : montant du forfait remboursé à l'annulation (« 100 F »)
+- [x] **Backend** : adresse de la photo de devanture (photo de profil de la pharmacie) ; l'app affiche une tuile
+- [x] **Backend** : compteurs du jour (alertes reçues, répondues, confirmées) ; l'app les calcule sur les 50 dernières alertes
+- [x] **Backend** : pièces du dossier en PDF : le serveur les accepte déjà ; le choix du fichier dans l'app est la tâche 19 de la 032
+- [x] **Backend** : push d'alerte iOS sans son imposé (`aps.sound`), pour que « Sonnerie coupée » s'applique aussi sur iPhone ; le réglage n'est proposé que sur Android
 - [ ] **Backend** : règlement des livreurs, dont le remboursement des espèces avancées aux pharmacies (ADR 0014) ; aujourd'hui visible au back-office, réglé à part
 - [ ] **Mobile** (antérieur à la 031) : si la lecture de la pharmacie échoue au lancement, une pharmacie validée voit le formulaire de création au lieu d'un écran « réessayer »
 
@@ -63,8 +64,8 @@ L'app livreur calcule ou masque en attendant (tableau « calculé ou masqué » 
 - [ ] **Backend** : date d'expiration des pièces (« permis jusqu'en 2027 », D19)
 - [ ] **Backend** : modification du véhicule ou de la zone d'un livreur validé (aujourd'hui `application_locked`, l'app renvoie au support) — à décider
 - [ ] **Backend** : messagerie avec la boutique ou le client (D11, D13) : seul l'appel est proposé
-- [ ] **Backend** : zones de travail ajoutées à `GET /v1/driver/options` à relire (seeds, `ActiveZoneExists`)
-- [ ] **Produit** : numéro du support livreurs à confirmer (+228 99 30 99 45, aussi numéro WhatsApp des codes) — `problem_sheet.dart`
+- [x] **Backend** : zones de travail de `GET /v1/driver/options` relues (Gedeon, 2026-11-08) : seules les zones desservies actives sont acceptées ; sans zone saisie au back-office, le dossier n'est plus bloqué (`seed-demo` n'en crée pas)
+- [ ] **Produit / Mobile** : numéro du support livreurs à fournir, puis à passer en configuration : le +228 99 30 99 45 écrit dans `problem_sheet.dart` est le numéro d'envoi des codes WhatsApp et ne doit pas rester dans le code
 
 ### Ivia Driver (033) — suites de la relecture (2026-11-08)
 Points 1 à 5 et mineurs corrigés (retour à la boutique, relectures dépassées, écran de mission
@@ -89,8 +90,8 @@ livreur commités comme pour l'app marchand). Reste :
 - [x] **Backend** (pour Gedeon, vu en 008, fait le 2026-11-02 : `issue_code` et `stock_left`) : ajouter à `CartItem` le stock restant en chiffre (`available_quantity`, `null` si non suivi) ; l'app lit aujourd'hui le nombre dans le texte de `issue` (« Plus que 2 en stock. ») pour proposer « Ajuster à 2 »
 - [x] **Backend** (pour Gedeon, vu en 028, fait le 2026-11-03) : fichiers orphelins du compartiment privé : la suppression du compte efface tout le dossier `merchants/<id>/` et `drivers/<id>/` (rattaché ou non, même sans candidature) ; tâche quotidienne `uploads.purge_orphans` qui supprime les fichiers privés non rattachés de plus de 24 h ; `ObjectStore.List` (local et R2, pages suivies)
 - [x] **Backend** (pour Gedeon, vu en 011, fait le 2026-11-03) : motif de refus limité à 200 caractères (`validation_failed`) ; `GET /v1/seller/orders?group=new|active|done` (mêmes groupes que `tabOf`) ; `Accept` et `Reject` vérifient `seller_deadline_at` : après le délai, 409 `seller_deadline_passed` et la commande est annulée sur-le-champ (acheteur remboursé) sans attendre `SellerTimeout`. À faire côté app : lire `group` au lieu de répartir les 100 dernières commandes, afficher `seller_deadline_passed`
-- [ ] **Backend** (pour Gedeon, vu en 029) : « mot de passe oublié » révèle l'existence d'un compte par sa limite (adresse inconnue : jamais de 429 `otp_rate_limited` ; compte connu : 429 dès la deuxième demande dans la minute) : appliquer la même limite par adresse dans les deux cas ; `POST /v1/me/password` renvoie l'erreur du nouveau mot de passe sur le champ `password` alors que le champ envoyé est `new_password` (l'app lit les deux)
-- [ ] **Backend** (pour Gedeon, vu à la relecture de la 011 et en préparant la 013) : `ListForSeller` charge chaque commande une à une (commande, lignes, historique, prénom : ~400 requêtes SQL pour 100 commandes) ; `cannot_cancel` répond « La boutique a déjà accepté… » même pour une commande expirée
+- [x] **Backend** (pour Gedeon, vu en 029, fait le 2026-11-08) : « mot de passe oublié » : mêmes limites par adresse et par minute et par jour, que le compte existe ou non ; `POST /v1/me/password` renvoie l'erreur sur `new_password`
+- [x] **Backend** (pour Gedeon, vu à la relecture de la 011 et en préparant la 013, fait le 2026-11-08) : `ListForSeller` charge la page en 5 requêtes au lieu d'environ 400 pour 100 commandes ; `cannot_cancel` donne un message selon le vrai statut
 - [ ] **Mobile** (suite de 009 et 011) : lire le filtre `group` du serveur (`GET /v1/orders?group=active|done` côté acheteur, `GET /v1/seller/orders?group=new|active|done` côté marchand) au lieu de répartir les 50 / 100 dernières commandes ; afficher le refus `seller_deadline_passed` (aujourd'hui message du serveur et commande relue)
 - [ ] **Mobile** (vu en 011) : libellé de l'onglet actif « Commandes » coupé (« Comman… ») dans la barre du bas de l'app marchand ; une nouvelle commande dont le délai expire reste « Délai dépassé » jusqu'à 30 s (relecture suivante)
 - [x] **Backend** (pour Gedeon, vu en 007, fait le 2026-11-03) : recherche de produits par début du dernier mot (« pag » trouve « pagne », requête `mot1 & mot2:*` construite côté serveur avec lettres et chiffres seulement) ; `%`, `_` et `\` échappés dans le `LIKE` de `SearchShops`. À faire côté app : le faux serveur `FakeSearch` doit suivre (début de mot)
@@ -122,7 +123,7 @@ livreur commités comme pour l'app marchand). Reste :
 - [ ] 026 — Publication Play Store des 3 apps (fiches, politique de confidentialité, déclarations de localisation)
 
 ### Après le MVP (dès que Meta valide)
-- [ ] OTP par WhatsApp, puis SMS en secours (implémenter `auth.OTPSender`, ouvrir le canal) ; vérification des numéros existants
+- [ ] OTP par WhatsApp, puis SMS en secours : envoi WhatsApp codé (ADR 0012) ; reste la mise en service (identifiants Meta) et le choix puis l'intégration du fournisseur SMS
 
 ### Démarches hors code (porteur du projet)
 À lancer tout de suite : plusieurs ont des délais de plusieurs semaines.

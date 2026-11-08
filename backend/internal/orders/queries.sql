@@ -36,6 +36,25 @@ SELECT o.id, o.number, o.buyer_id, o.shop_id, o.status, o.fulfillment, o.vehicle
 FROM orders o
 WHERE o.id = $1;
 
+-- name: GetOrdersByIDs :many
+SELECT o.id, o.number, o.buyer_id, o.shop_id, o.status, o.fulfillment, o.vehicle_type, o.parcel_size,
+       o.subtotal_xof, o.delivery_fee_xof, o.total_xof, o.commission_rate_bp, o.commission_xof,
+       o.delivery_distance_m, o.delivery_address_text, o.delivery_neighborhood, o.delivery_instructions,
+       (o.delivery_location IS NOT NULL)::boolean AS has_delivery_location,
+       coalesce(ST_Y(o.delivery_location::geometry), 0)::float8 AS delivery_lat,
+       coalesce(ST_X(o.delivery_location::geometry), 0)::float8 AS delivery_lng,
+       o.handover_code, o.handover_attempts, o.stock_released, o.cancel_reason, o.refund_due_xof,
+       o.payment_deadline_at, o.seller_deadline_at, o.paid_at, o.accepted_at, o.ready_at, o.picked_up_at,
+       o.completed_at, o.cancelled_at, o.refunded_at, o.created_at, o.updated_at
+FROM orders o
+WHERE o.id = ANY($1::uuid[]);
+
+-- name: ListItemsForOrders :many
+SELECT * FROM order_items WHERE order_id = ANY($1::uuid[]) ORDER BY order_id, product_name;
+
+-- name: ListEventsForOrders :many
+SELECT * FROM order_status_events WHERE order_id = ANY($1::uuid[]) ORDER BY order_id, id;
+
 -- name: LockOrder :one
 SELECT status FROM orders WHERE id = $1 FOR UPDATE;
 

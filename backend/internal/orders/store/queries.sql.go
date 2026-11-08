@@ -387,6 +387,116 @@ func (q *Queries) GetOrderByClientRequest(ctx context.Context, arg GetOrderByCli
 	return id, err
 }
 
+const getOrdersByIDs = `-- name: GetOrdersByIDs :many
+SELECT o.id, o.number, o.buyer_id, o.shop_id, o.status, o.fulfillment, o.vehicle_type, o.parcel_size,
+       o.subtotal_xof, o.delivery_fee_xof, o.total_xof, o.commission_rate_bp, o.commission_xof,
+       o.delivery_distance_m, o.delivery_address_text, o.delivery_neighborhood, o.delivery_instructions,
+       (o.delivery_location IS NOT NULL)::boolean AS has_delivery_location,
+       coalesce(ST_Y(o.delivery_location::geometry), 0)::float8 AS delivery_lat,
+       coalesce(ST_X(o.delivery_location::geometry), 0)::float8 AS delivery_lng,
+       o.handover_code, o.handover_attempts, o.stock_released, o.cancel_reason, o.refund_due_xof,
+       o.payment_deadline_at, o.seller_deadline_at, o.paid_at, o.accepted_at, o.ready_at, o.picked_up_at,
+       o.completed_at, o.cancelled_at, o.refunded_at, o.created_at, o.updated_at
+FROM orders o
+WHERE o.id = ANY($1::uuid[])
+`
+
+type GetOrdersByIDsRow struct {
+	ID                   uuid.UUID
+	Number               int64
+	BuyerID              uuid.UUID
+	ShopID               uuid.UUID
+	Status               string
+	Fulfillment          string
+	VehicleType          *string
+	ParcelSize           string
+	SubtotalXof          int64
+	DeliveryFeeXof       int64
+	TotalXof             int64
+	CommissionRateBp     int32
+	CommissionXof        int64
+	DeliveryDistanceM    *int32
+	DeliveryAddressText  *string
+	DeliveryNeighborhood *string
+	DeliveryInstructions *string
+	HasDeliveryLocation  bool
+	DeliveryLat          float64
+	DeliveryLng          float64
+	HandoverCode         string
+	HandoverAttempts     int32
+	StockReleased        bool
+	CancelReason         string
+	RefundDueXof         int64
+	PaymentDeadlineAt    time.Time
+	SellerDeadlineAt     *time.Time
+	PaidAt               *time.Time
+	AcceptedAt           *time.Time
+	ReadyAt              *time.Time
+	PickedUpAt           *time.Time
+	CompletedAt          *time.Time
+	CancelledAt          *time.Time
+	RefundedAt           *time.Time
+	CreatedAt            time.Time
+	UpdatedAt            time.Time
+}
+
+func (q *Queries) GetOrdersByIDs(ctx context.Context, dollar_1 []uuid.UUID) ([]GetOrdersByIDsRow, error) {
+	rows, err := q.db.Query(ctx, getOrdersByIDs, dollar_1)
+	if err != nil {
+		return nil, err
+	}
+	defer rows.Close()
+	items := []GetOrdersByIDsRow{}
+	for rows.Next() {
+		var i GetOrdersByIDsRow
+		if err := rows.Scan(
+			&i.ID,
+			&i.Number,
+			&i.BuyerID,
+			&i.ShopID,
+			&i.Status,
+			&i.Fulfillment,
+			&i.VehicleType,
+			&i.ParcelSize,
+			&i.SubtotalXof,
+			&i.DeliveryFeeXof,
+			&i.TotalXof,
+			&i.CommissionRateBp,
+			&i.CommissionXof,
+			&i.DeliveryDistanceM,
+			&i.DeliveryAddressText,
+			&i.DeliveryNeighborhood,
+			&i.DeliveryInstructions,
+			&i.HasDeliveryLocation,
+			&i.DeliveryLat,
+			&i.DeliveryLng,
+			&i.HandoverCode,
+			&i.HandoverAttempts,
+			&i.StockReleased,
+			&i.CancelReason,
+			&i.RefundDueXof,
+			&i.PaymentDeadlineAt,
+			&i.SellerDeadlineAt,
+			&i.PaidAt,
+			&i.AcceptedAt,
+			&i.ReadyAt,
+			&i.PickedUpAt,
+			&i.CompletedAt,
+			&i.CancelledAt,
+			&i.RefundedAt,
+			&i.CreatedAt,
+			&i.UpdatedAt,
+		); err != nil {
+			return nil, err
+		}
+		items = append(items, i)
+	}
+	if err := rows.Err(); err != nil {
+		return nil, err
+	}
+	return items, nil
+}
+
 const incrementHandoverAttempts = `-- name: IncrementHandoverAttempts :one
 UPDATE orders SET handover_attempts = handover_attempts + 1, updated_at = now()
 WHERE id = $1 AND handover_attempts < $2
@@ -535,12 +645,79 @@ func (q *Queries) ListEvents(ctx context.Context, orderID uuid.UUID) ([]OrderSta
 	return items, nil
 }
 
+const listEventsForOrders = `-- name: ListEventsForOrders :many
+SELECT id, order_id, from_status, to_status, actor_type, actor_id, reason, created_at FROM order_status_events WHERE order_id = ANY($1::uuid[]) ORDER BY order_id, id
+`
+
+func (q *Queries) ListEventsForOrders(ctx context.Context, dollar_1 []uuid.UUID) ([]OrderStatusEvent, error) {
+	rows, err := q.db.Query(ctx, listEventsForOrders, dollar_1)
+	if err != nil {
+		return nil, err
+	}
+	defer rows.Close()
+	items := []OrderStatusEvent{}
+	for rows.Next() {
+		var i OrderStatusEvent
+		if err := rows.Scan(
+			&i.ID,
+			&i.OrderID,
+			&i.FromStatus,
+			&i.ToStatus,
+			&i.ActorType,
+			&i.ActorID,
+			&i.Reason,
+			&i.CreatedAt,
+		); err != nil {
+			return nil, err
+		}
+		items = append(items, i)
+	}
+	if err := rows.Err(); err != nil {
+		return nil, err
+	}
+	return items, nil
+}
+
 const listItems = `-- name: ListItems :many
 SELECT id, order_id, product_id, product_name, unit_price_xof, quantity, line_total_xof, parcel_size, stock_mode FROM order_items WHERE order_id = $1 ORDER BY product_name
 `
 
 func (q *Queries) ListItems(ctx context.Context, orderID uuid.UUID) ([]OrderItem, error) {
 	rows, err := q.db.Query(ctx, listItems, orderID)
+	if err != nil {
+		return nil, err
+	}
+	defer rows.Close()
+	items := []OrderItem{}
+	for rows.Next() {
+		var i OrderItem
+		if err := rows.Scan(
+			&i.ID,
+			&i.OrderID,
+			&i.ProductID,
+			&i.ProductName,
+			&i.UnitPriceXof,
+			&i.Quantity,
+			&i.LineTotalXof,
+			&i.ParcelSize,
+			&i.StockMode,
+		); err != nil {
+			return nil, err
+		}
+		items = append(items, i)
+	}
+	if err := rows.Err(); err != nil {
+		return nil, err
+	}
+	return items, nil
+}
+
+const listItemsForOrders = `-- name: ListItemsForOrders :many
+SELECT id, order_id, product_id, product_name, unit_price_xof, quantity, line_total_xof, parcel_size, stock_mode FROM order_items WHERE order_id = ANY($1::uuid[]) ORDER BY order_id, product_name
+`
+
+func (q *Queries) ListItemsForOrders(ctx context.Context, dollar_1 []uuid.UUID) ([]OrderItem, error) {
+	rows, err := q.db.Query(ctx, listItemsForOrders, dollar_1)
 	if err != nil {
 		return nil, err
 	}

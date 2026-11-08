@@ -1,6 +1,9 @@
 -- name: GetUser :one
 SELECT * FROM users WHERE id = $1;
 
+-- name: FirstNamesByIDs :many
+SELECT id, first_name FROM users WHERE id = ANY($1::uuid[]);
+
 -- name: GetUserByEmail :one
 SELECT * FROM users WHERE email = $1 AND deleted_at IS NULL;
 

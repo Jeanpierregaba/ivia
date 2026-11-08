@@ -205,6 +205,16 @@ func (s *Service) effects(ctx context.Context, before, o Order) error {
 
 // --- Actions de l'acheteur ------------------------------------------------------------------
 
+// cannotCancelMessage explique le refus selon l'état réel de la commande.
+func cannotCancelMessage(st Status) string {
+	switch st {
+	case StatusAccepted, StatusPreparing, StatusReadyForPickup, StatusAwaitingDriver, StatusDriverAssigned, StatusPickedUp:
+		return "La boutique a déjà accepté cette commande : contactez le support pour l'annuler."
+	default:
+		return "Cette commande est terminée : elle ne peut plus être annulée."
+	}
+}
+
 // CancelByBuyer annule une commande non payée ou pas encore acceptée par le marchand.
 func (s *Service) CancelByBuyer(ctx context.Context, buyerID, orderID uuid.UUID) (BuyerOrder, error) {
 	o, err := s.get(ctx, orderID)
@@ -215,7 +225,7 @@ func (s *Service) CancelByBuyer(ctx context.Context, buyerID, orderID uuid.UUID)
 		return BuyerOrder{}, errNotFound
 	}
 	if !CanTransition(o.Status, StatusCancelled, ActorBuyer) {
-		return BuyerOrder{}, apperr.Conflict("cannot_cancel", "La boutique a déjà accepté cette commande : contactez le support pour l'annuler.")
+		return BuyerOrder{}, apperr.Conflict("cannot_cancel", cannotCancelMessage(o.Status))
 	}
 	if o, err = s.apply(ctx, orderID, StatusCancelled, As(ActorBuyer, buyerID), "Annulée par l'acheteur."); err != nil {
 		return BuyerOrder{}, err

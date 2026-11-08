@@ -357,7 +357,7 @@ WHERE dr.user_id = sqlc.arg(user_id)
 SELECT payout_operator, payout_phone, payout_holder FROM drivers WHERE user_id = $1;
 
 -- name: ActiveZoneExists :one
-SELECT EXISTS (SELECT 1 FROM zones WHERE id = $1 AND is_active);
+SELECT EXISTS (SELECT 1 FROM zones WHERE id = $1 AND is_active AND type = 'service_area');
 
 -- name: GetDriverSettings :one
 SELECT vtc_mode, delivery_vehicle_check, partner_guide, updated_at FROM driver_settings WHERE id;

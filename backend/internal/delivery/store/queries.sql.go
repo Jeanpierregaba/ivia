@@ -73,7 +73,7 @@ func (q *Queries) ActiveDeliveryForOrder(ctx context.Context, orderID uuid.UUID)
 }
 
 const activeZoneExists = `-- name: ActiveZoneExists :one
-SELECT EXISTS (SELECT 1 FROM zones WHERE id = $1 AND is_active)
+SELECT EXISTS (SELECT 1 FROM zones WHERE id = $1 AND is_active AND type = 'service_area')
 `
 
 func (q *Queries) ActiveZoneExists(ctx context.Context, id uuid.UUID) (bool, error) {

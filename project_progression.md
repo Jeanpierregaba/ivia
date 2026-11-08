@@ -96,6 +96,7 @@ Go 1.27, PostgreSQL 18 + PostGIS, tâches de fond River, 29 migrations, document
 
 **Qualité** : tests sur base réelle pour chaque module et parcours de bout en bout ; `go vet`, `gofmt`, `govulncheck` en CI.
 - **Workflow partenaire livreur / chauffeur VTC (serveur)** (nouveau, BPMN du 2026-11-07, migration 00039) : activités livraison et taxi VTC par partenaire, véhicule (vélo, moto, voiture ; VTC : marque, modèle, plaque, places), zone de travail, pièces selon l'activité et le véhicule, compte de versement Mobile Money, envoi du dossier, contrôle du véhicule sur place (toujours pour le VTC, réglable pour la livraison), décisions valider / compléments / refus avec motif, réglages back-office (VTC masqué, pré-inscription ou ouvert ; guide du partenaire). Ancien parcours conservé. Back-office : fiche partenaire par activité (pièces exigées, contrôle du véhicule, valider / compléments / refus), compte de versement, onglets par statut, page « Réglages partenaires ». Reste : écrans de l'app livreur, tests non lancés.
+- **Corrections de `TASKS.md`** (2026-11-08) : mot de passe oublié sans fuite sur l'existence d'un compte, erreur du nouveau mot de passe sur le bon champ, liste des commandes marchand en 5 requêtes, message d'annulation selon le statut, zones de travail du dossier livreur limitées aux zones desservies. Compilé, tests non lancés.
 
 ## 2. Back-office web (`admin/`) — fait
 

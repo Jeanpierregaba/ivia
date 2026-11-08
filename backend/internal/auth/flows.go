@@ -177,6 +177,13 @@ func (s *Service) RequestPasswordReset(ctx context.Context, rawEmail, ip string)
 			if ok, retry := s.reqByIP.Allow(ip); !ok {
 				return OTPRequested{}, apperr.TooManyRequests("rate_limited", "Trop de demandes depuis votre réseau. Réessayez plus tard.", retry)
 			}
+			// Mêmes limites par adresse qu'un compte existant : la réponse ne révèle rien.
+			if ok, _ := s.unknownMinute.Allow(email); !ok {
+				return OTPRequested{}, errOTPPerMinute()
+			}
+			if ok, _ := s.unknownDay.Allow(email); !ok {
+				return OTPRequested{}, errOTPPerDay()
+			}
 			return OTPRequested{Channel: ChannelEmail, ExpiresInSeconds: int(OTPTTL.Seconds()), ResendAfterSeconds: 60}, nil
 		}
 		return OTPRequested{}, err
@@ -242,7 +249,7 @@ func (s *Service) ChangePassword(ctx context.Context, p identity.Principal, curr
 	if user.Email != nil {
 		email = *user.Email
 	}
-	if err := checkPassword(next, email); err != nil {
+	if err := checkPasswordField("new_password", next, email); err != nil {
 		return err
 	}
 	q := store.New(s.db.Pool)

@@ -448,7 +448,14 @@ func (s *Service) Submit(ctx context.Context, userID uuid.UUID, activity string)
 			problems = append(problems, "compte de versement")
 		}
 		if activity == ActivityDelivery && cur.WorkZoneID == nil {
-			problems = append(problems, "zone de travail")
+			// Sans zone desservie saisie au back-office, il n'y a rien à choisir : pas de blocage.
+			zones, err := s.WorkZones(ctx)
+			if err != nil {
+				return err
+			}
+			if len(zones) > 0 {
+				problems = append(problems, "zone de travail")
+			}
 		}
 		if len(problems) > 0 {
 			return apperr.Conflict("dossier_incomplete", "Dossier incomplet : "+strings.Join(problems, ", ")+" manquant(s).")

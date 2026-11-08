@@ -194,6 +194,19 @@ func (s *Service) get(ctx context.Context, id uuid.UUID) (Order, error) {
 	if err != nil {
 		return Order{}, fmt.Errorf("lecture de la commande : %w", err)
 	}
+	items, err := q.ListItems(ctx, id)
+	if err != nil {
+		return Order{}, fmt.Errorf("lecture des lignes : %w", err)
+	}
+	events, err := q.ListEvents(ctx, id)
+	if err != nil {
+		return Order{}, fmt.Errorf("lecture de l'historique : %w", err)
+	}
+	return buildOrder(r, items, events), nil
+}
+
+// buildOrder assemble une commande à partir de ses lignes et de son historique.
+func buildOrder(r store.GetOrderRow, items []store.OrderItem, events []store.OrderStatusEvent) Order {
 	o := Order{
 		ID: r.ID, Number: r.Number, Reference: Reference(r.Number), Status: Status(r.Status),
 		Fulfillment: Fulfillment(r.Fulfillment), ParcelSize: r.ParcelSize,
@@ -216,20 +229,12 @@ func (s *Service) get(ctx context.Context, id uuid.UUID) (Order, error) {
 			Instructions: deref(r.DeliveryInstructions), Location: geo.Point{Lat: r.DeliveryLat, Lng: r.DeliveryLng},
 		}
 	}
-	items, err := q.ListItems(ctx, id)
-	if err != nil {
-		return Order{}, fmt.Errorf("lecture des lignes : %w", err)
-	}
 	o.Items = make([]Item, len(items))
 	for i, it := range items {
 		o.Items[i] = Item{
 			ProductID: it.ProductID, ProductName: it.ProductName, UnitPriceXOF: it.UnitPriceXof,
 			Quantity: it.Quantity, LineTotalXOF: it.LineTotalXof, ParcelSize: it.ParcelSize, StockMode: it.StockMode,
 		}
-	}
-	events, err := q.ListEvents(ctx, id)
-	if err != nil {
-		return Order{}, fmt.Errorf("lecture de l'historique : %w", err)
 	}
 	o.Events = make([]Event, len(events))
 	for i, e := range events {
@@ -240,7 +245,43 @@ func (s *Service) get(ctx context.Context, id uuid.UUID) (Order, error) {
 		}
 		o.Events[i] = Event{FromStatus: from, ToStatus: Status(e.ToStatus), ActorType: ActorType(e.ActorType), ActorID: e.ActorID, Reason: e.Reason, CreatedAt: e.CreatedAt}
 	}
-	return o, nil
+	return o
+}
+
+// loadOrders charge plusieurs commandes en trois requêtes, dans l'ordre de ids.
+func (s *Service) loadOrders(ctx context.Context, ids []uuid.UUID) ([]Order, error) {
+	q := store.New(s.db.Conn(ctx))
+	rows, err := q.GetOrdersByIDs(ctx, ids)
+	if err != nil {
+		return nil, fmt.Errorf("lecture des commandes : %w", err)
+	}
+	allItems, err := q.ListItemsForOrders(ctx, ids)
+	if err != nil {
+		return nil, fmt.Errorf("lecture des lignes : %w", err)
+	}
+	allEvents, err := q.ListEventsForOrders(ctx, ids)
+	if err != nil {
+		return nil, fmt.Errorf("lecture de l'historique : %w", err)
+	}
+	items := make(map[uuid.UUID][]store.OrderItem, len(ids))
+	for _, it := range allItems {
+		items[it.OrderID] = append(items[it.OrderID], it)
+	}
+	events := make(map[uuid.UUID][]store.OrderStatusEvent, len(ids))
+	for _, e := range allEvents {
+		events[e.OrderID] = append(events[e.OrderID], e)
+	}
+	byID := make(map[uuid.UUID]Order, len(rows))
+	for _, r := range rows {
+		byID[r.ID] = buildOrder(store.GetOrderRow(r), items[r.ID], events[r.ID])
+	}
+	out := make([]Order, 0, len(ids))
+	for _, id := range ids {
+		if o, ok := byID[id]; ok {
+			out = append(out, o)
+		}
+	}
+	return out, nil
 }
 
 // trackedLines retourne les lignes à stock suivi (réservation et libération).
@@ -274,11 +315,16 @@ func (s *Service) sellerView(ctx context.Context, o Order) (SellerOrder, error) 
 	if err != nil {
 		return SellerOrder{}, err
 	}
-	o.DeliveryAddress = nil // jamais l'adresse de l'acheteur au marchand
+	return sellerOrder(o, contact.FirstName), nil
+}
+
+// sellerOrder construit la vue du marchand : jamais l'adresse de l'acheteur.
+func sellerOrder(o Order, buyerFirstName string) SellerOrder {
+	o.DeliveryAddress = nil
 	return SellerOrder{
-		Order: o, ShopID: o.ShopID, BuyerFirstName: contact.FirstName,
+		Order: o, ShopID: o.ShopID, BuyerFirstName: buyerFirstName,
 		CommissionXOF: o.CommissionXOF, NetXOF: o.SubtotalXOF - o.CommissionXOF, HandoverAttempts: o.HandoverAttempts,
-	}, nil
+	}
 }
 
 func adminView(o Order) AdminOrder {
@@ -375,17 +421,21 @@ func (s *Service) ListForSeller(ctx context.Context, sellerID uuid.UUID, shopID 
 	if err != nil {
 		return nil, fmt.Errorf("liste des commandes : %w", err)
 	}
-	out := make([]SellerOrder, 0, len(ids))
-	for _, id := range ids {
-		o, err := s.get(ctx, id)
-		if err != nil {
-			return nil, err
-		}
-		v, err := s.sellerView(ctx, o)
-		if err != nil {
-			return nil, err
-		}
-		out = append(out, v)
+	orders, err := s.loadOrders(ctx, ids)
+	if err != nil {
+		return nil, err
+	}
+	buyerIDs := make([]uuid.UUID, len(orders))
+	for i, o := range orders {
+		buyerIDs[i] = o.BuyerID
+	}
+	names, err := s.users.FirstNames(ctx, buyerIDs)
+	if err != nil {
+		return nil, err
+	}
+	out := make([]SellerOrder, len(orders))
+	for i, o := range orders {
+		out[i] = sellerOrder(o, names[o.BuyerID])
 	}
 	return out, nil
 }

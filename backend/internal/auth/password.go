@@ -99,12 +99,17 @@ var commonPasswords = map[string]bool{
 // de l'e-mail, absent des mots de passe les plus courants. Pas de règle de composition : la
 // longueur protège mieux et se retient plus facilement.
 func checkPassword(password, email string) error {
+	return checkPasswordField("password", password, email)
+}
+
+// checkPasswordField applique ces règles et rapporte l'erreur sur le champ envoyé par l'app.
+func checkPasswordField(field, password, email string) error {
 	n := utf8.RuneCountInString(password)
 	switch {
 	case n < MinPasswordLength:
-		return apperr.Validation(map[string]string{"password": fmt.Sprintf("Le mot de passe doit faire au moins %d caractères.", MinPasswordLength)})
+		return apperr.Validation(map[string]string{field: fmt.Sprintf("Le mot de passe doit faire au moins %d caractères.", MinPasswordLength)})
 	case n > MaxPasswordLength:
-		return apperr.Validation(map[string]string{"password": fmt.Sprintf("Le mot de passe fait %d caractères au plus.", MaxPasswordLength)})
+		return apperr.Validation(map[string]string{field: fmt.Sprintf("Le mot de passe fait %d caractères au plus.", MaxPasswordLength)})
 	}
 	lower := strings.ToLower(password)
 	local, _, _ := strings.Cut(strings.ToLower(email), "@")
@@ -112,7 +117,7 @@ func checkPassword(password, email string) error {
 	bare, bareLocal := lettersAndDigits(lower), lettersAndDigits(local)
 	if commonPasswords[lower] || commonPasswords[bare] || lower == strings.ToLower(email) ||
 		(len(bareLocal) >= 4 && strings.Contains(bare, bareLocal) && n < 16) {
-		return apperr.Validation(map[string]string{"password": "Ce mot de passe est trop facile à deviner. Choisissez-en un autre."})
+		return apperr.Validation(map[string]string{field: "Ce mot de passe est trop facile à deviner. Choisissez-en un autre."})
 	}
 	return nil
 }

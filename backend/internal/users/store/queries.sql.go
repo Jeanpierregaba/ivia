@@ -198,6 +198,35 @@ func (q *Queries) DeleteDeviceTokenByValue(ctx context.Context, token string) er
 	return err
 }
 
+const firstNamesByIDs = `-- name: FirstNamesByIDs :many
+SELECT id, first_name FROM users WHERE id = ANY($1::uuid[])
+`
+
+type FirstNamesByIDsRow struct {
+	ID        uuid.UUID
+	FirstName string
+}
+
+func (q *Queries) FirstNamesByIDs(ctx context.Context, dollar_1 []uuid.UUID) ([]FirstNamesByIDsRow, error) {
+	rows, err := q.db.Query(ctx, firstNamesByIDs, dollar_1)
+	if err != nil {
+		return nil, err
+	}
+	defer rows.Close()
+	items := []FirstNamesByIDsRow{}
+	for rows.Next() {
+		var i FirstNamesByIDsRow
+		if err := rows.Scan(&i.ID, &i.FirstName); err != nil {
+			return nil, err
+		}
+		items = append(items, i)
+	}
+	if err := rows.Err(); err != nil {
+		return nil, err
+	}
+	return items, nil
+}
+
 const getAddress = `-- name: GetAddress :one
 SELECT a.id, a.label, a.address_text, a.neighborhood_id, a.instructions, a.created_at, a.updated_at,
        ST_Y(a.location::geometry)::float8 AS lat,
