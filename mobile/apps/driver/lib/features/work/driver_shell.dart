@@ -24,6 +24,11 @@ class _DriverShellState extends ConsumerState<DriverShell> {
   @override
   Widget build(BuildContext context) {
     final mission = ref.watch(workProvider.select((s) => s.mission));
+    // Commande annulée pendant la mission : l'accueil affiche le message,
+    // annoncé aussi au lecteur d'écran.
+    ref.listen(workProvider.select((s) => s.error), (_, error) {
+      if (error == WorkController.cancelledMessage) announce(context, error!);
+    });
     return Scaffold(
       backgroundColor: D.page,
       body: mission != null && _tab == 0

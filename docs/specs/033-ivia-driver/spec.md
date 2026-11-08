@@ -120,43 +120,43 @@ actif en pastille bleue et son libellé.
 
 ## Critères d'acceptation
 
-- [ ] Le nom affiché de l'app est « Ivia Driver » sur Android et iPhone, et le titre de l'app
+- [x] Le nom affiché de l'app est « Ivia Driver » sur Android et iPhone, et le titre de l'app
       aussi. Plus aucune mention « ivia Livreur » dans l'app, les outils et la doc (hors historique).
-- [ ] Étant donné un premier lancement, alors l'ordre est : splash D00, localisation, présentation
+- [x] Étant donné un premier lancement, alors l'ordre est : splash D00, localisation, présentation
       D01 à D03, connexion par numéro D04. « Passer » mène à la connexion.
-- [ ] La connexion se fait par numéro et code à 6 chiffres. Aucun champ e-mail n'apparaît.
-- [ ] Étant donné un véhicule choisi, alors le dossier demande exactement les pièces exigées par
+- [x] La connexion se fait par numéro et code à 6 chiffres. Aucun champ e-mail n'apparaît.
+- [x] Étant donné un véhicule choisi, alors le dossier demande exactement les pièces exigées par
       le serveur pour ce véhicule (`/v1/driver/options`). « Envoyer » reste inactif tant qu'une
       pièce, la plaque (sauf vélo), la zone de travail ou le compte de versement manque.
-- [ ] Étant donné un dossier envoyé, alors D07 montre les 4 étapes, avec le véhicule et le nombre
+- [x] Étant donné un dossier envoyé, alors D07 montre les 4 étapes, avec le véhicule et le nombre
       de pièces.
-- [ ] Étant donné un livreur validé hors ligne, quand il glisse jusqu'au bout, alors il passe en
+- [x] Étant donné un livreur validé hors ligne, quand il glisse jusqu'au bout, alors il passe en
       ligne (D09). Un glissement incomplet ne fait rien. « Pause » le repasse hors ligne.
-- [ ] Étant donné une mission proposée, alors D10 montre le gain, le compte à rebours, la
+- [x] Étant donné une mission proposée, alors D10 montre le gain, le compte à rebours, la
       distance, la taille du colis, le retrait et la livraison. Le compte à rebours fini retire la
       proposition. « Glisser pour accepter » et « Refuser » appellent le serveur.
-- [ ] Étant donné une course de boutique au retrait, alors « Glisser : colis récupéré » n'est
+- [x] Étant donné une course de boutique au retrait, alors « Glisser : colis récupéré » n'est
       actif qu'une fois toutes les cases du colis cochées.
-- [ ] Étant donné une course pharmacie au retrait :
+- [x] Étant donné une course pharmacie au retrait :
       - le code de retrait est affiché en grand ;
       - il n'y a pas de glissière ;
       - quand la pharmacie valide, l'écran passe seul à l'étape suivante et affiche le montant
         avancé.
-- [ ] Étant donné une preuve de remise, alors « Confirmer » reste inactif sans les 4 chiffres, et
+- [x] Étant donné une preuve de remise, alors « Confirmer » reste inactif sans les 4 chiffres, et
       sans la case ordonnance quand elle est exigée. Un code faux affiche l'erreur du serveur et
       efface le code.
-- [ ] Étant donné une livraison confirmée, alors D15 affiche le gain de la course et les totaux du
+- [x] Étant donné une livraison confirmée, alors D15 affiche le gain de la course et les totaux du
       jour. « Rester en ligne » revient à D09, « Faire une pause » passe hors ligne.
-- [ ] Étant donné « Client injoignable » avant 10 minutes d'attente ou avant 2 appels, alors le
+- [x] Étant donné « Client injoignable » avant 10 minutes d'attente ou avant 2 appels, alors le
       message du serveur est affiché et rien ne change.
-- [ ] Les onglets Missions, Gains et Profil affichent les données du serveur. Les gains sont
+- [x] Les onglets Missions, Gains et Profil affichent les données du serveur. Les gains sont
       calculés par jour de Lomé depuis l'historique. Les éléments « masqués » de la spec
       n'apparaissent pas.
-- [ ] La barre du bas est claire, et l'onglet actif est bleu avec son libellé.
-- [ ] Étant donné « Sonnerie des missions » activée, quand une proposition arrive, alors l'app
+- [x] La barre du bas est claire, et l'onglet actif est bleu avec son libellé.
+- [x] Étant donné « Sonnerie des missions » activée, quand une proposition arrive, alors l'app
       sonne et vibre ; désactivée, elle reste silencieuse. Le choix est gardé sur le téléphone.
-- [ ] Chaque écran tient sans débordement avec une police à 200 % sur un écran de 320 dp.
-- [ ] Vérification visuelle sur le simulateur iPhone, écran par écran, face aux maquettes.
+- [x] Chaque écran tient sans débordement avec une police à 200 % sur un écran de 320 dp.
+- [x] Vérification visuelle sur le simulateur iPhone, écran par écran, face aux maquettes.
 
 ## Cas limites et erreurs
 

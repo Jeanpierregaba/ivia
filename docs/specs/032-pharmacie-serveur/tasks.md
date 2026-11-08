@@ -55,7 +55,7 @@
       - compteurs du serveur (F09).
 - [ ] 18. Pharmacie : sonnerie proposée sur iPhone, `alert_sound` envoyé avec le jeton.
 - [ ] 19. Pharmacie : pièces en PDF (`file_selector`, dépendance vérifiée) ; libellé « PDF ou photo ».
-- [ ] 20. Livreur : code de retrait affiché, plus de « Récupéré » pour la pharmacie, montant avancé
+- [x] 20. (fait dans la [spec 033](../033-ivia-driver/spec.md), tâche 14) Livreur : code de retrait affiché, plus de « Récupéré » pour la pharmacie, montant avancé
       dans la mission et l'historique.
 - [ ] 21. Acheteur : numéro d'alerte dans le suivi.
 

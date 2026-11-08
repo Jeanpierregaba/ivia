@@ -1160,8 +1160,15 @@ void main() {
       WidgetTester tester,
       Map<String, dynamic> offer, {
       FakeResponse Function()? accept,
+      bool ring = true,
     }) async {
       await withDossier(review: 'approved', status: 'offline');
+      if (!ring) {
+        SharedPreferences.setMockInitialValues({
+          'onboarding_seen': true,
+          'driver_mission_ring': false,
+        });
+      }
       approvedHome();
       goOnlineServer();
       Map<String, dynamic>? current = offer;
@@ -1959,12 +1966,87 @@ void main() {
       );
       await tapVisible(tester, find.text('Signaler un problème'));
       expect(find.text('Client injoignable'), findsNothing);
+      server.on('POST', '/v1/driver/missions/mission-1/withdraw', (_) {
+        server.on(
+          'GET',
+          '/v1/driver/missions/current',
+          (_) => FakeResponse.json(200, {'mission': null}),
+        );
+        return FakeResponse.json(204, null);
+      });
       await tapVisible(tester, find.text('Je ne peux pas faire cette course'));
       expect(
         server.calls('POST', '/v1/driver/missions/mission-1/withdraw'),
         hasLength(1),
       );
+      // Fin voulue par le livreur : pas de message « annulée ».
+      for (var i = 0; i < 16; i++) {
+        await tester.pump(const Duration(milliseconds: 300));
+      }
+      expect(find.text('Glisser à l\'arrivée'), findsNothing);
+      expect(find.textContaining('a été annulée'), findsNothing);
     });
+
+    testWidgets('commande annulée pendant le trajet : message, accueil', (
+      tester,
+    ) async {
+      await withMission(tester, driverMissionBody(pickedUp: true));
+      expect(find.text('Glisser à l\'arrivée'), findsOneWidget);
+      server.on(
+        'GET',
+        '/v1/driver/missions/current',
+        (_) => FakeResponse.json(200, {'mission': null}),
+      );
+      for (var i = 0; i < 16; i++) {
+        await tester.pump(const Duration(milliseconds: 300));
+      }
+      expect(find.text('Glisser à l\'arrivée'), findsNothing);
+      final msg = find.text(
+        'La commande a été annulée : la mission est terminée.',
+      );
+      expect(msg, findsOneWidget);
+    });
+
+    testWidgets('course pharmacie non payée : code affiché, attente', (
+      tester,
+    ) async {
+      final body = driverPharmacyMissionBody(pickupCode: '4821')
+        ..['client'] = null;
+      await withMission(tester, body, pharmacy: true);
+      // Arrivée gardée dans l'app : on glisse jusqu'au retrait.
+      await slideToEnd(tester);
+      expect(find.text('VOTRE CODE DE RETRAIT'), findsOneWidget);
+      expect(
+        find.textContaining("Le client n'a pas encore payé"),
+        findsOneWidget,
+      );
+      expect(find.textContaining('paiement en attente'), findsOneWidget);
+      expect(find.byKey(const Key('slide-knob')), findsNothing);
+    });
+
+    for (final ring in [true, false]) {
+      testWidgets(
+        'sonnerie des missions ${ring ? 'activée : son et vibration' : 'coupée : silence'}',
+        (tester) async {
+          final calls = <String>[];
+          tester.binding.defaultBinaryMessenger.setMockMethodCallHandler(
+            SystemChannels.platform,
+            (call) async {
+              calls.add(call.method);
+              return null;
+            },
+          );
+          addTearDown(
+            () => tester.binding.defaultBinaryMessenger
+                .setMockMethodCallHandler(SystemChannels.platform, null),
+          );
+          await onlineWithOffer(tester, driverOfferBody(), ring: ring);
+          expect(find.text('Glisser pour accepter'), findsOneWidget);
+          expect(calls.contains('SystemSound.play'), ring);
+          expect(calls.contains('HapticFeedback.vibrate'), ring);
+        },
+      );
+    }
 
     testWidgets('un problème : police à 220 % sur 320 dp', (tester) async {
       tester.view.physicalSize = const Size(320, 640);

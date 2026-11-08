@@ -8,7 +8,7 @@ docs/specs/NNN-nom/tasks.md. Les petites tâches isolées (bug, retouche) peuven
 
 ## En cours
 
-- [ ] 033 — Ivia Driver (ex-ivia Livreur) : nouveau nom et écrans d'après les maquettes D00 à D19 ([spec](docs/specs/033-ivia-driver/spec.md)) : spec, plan et tâches validés (2026-11-08) ; reprend la tâche 20 de la 032 (code de retrait pharmacie côté livreur) ; zones de travail ajoutées à `GET /v1/driver/options` (à relire par Gedeon)
+- [ ] 033 — Ivia Driver (ex-ivia Livreur) : nouveau nom et écrans d'après les maquettes D00 à D19 ([spec](docs/specs/033-ivia-driver/spec.md)) : 20 écrans faits (tâches 1 à 21), 123 tests, police à 200 % sur 320 dp, vérifiés sur le simulateur iPhone avec l'API locale (2026-11-08) ; reprend la tâche 20 de la 032 (code de retrait pharmacie côté livreur). Reste : relecture (reviewer) ; manques serveur listés plus bas (Gedeon)
 - [ ] 032 — Pharmacie : manques côté serveur et paiement en espèces par le livreur ([spec](docs/specs/032-pharmacie-serveur/spec.md), [ADR 0014](docs/decisions/0014-pharmacie-paiement-especes-livreur.md)) : spec, plan et tâches validés (2026-11-07) ; migration à faire relire par Gedeon
 - [ ] 031 — Écrans de l'app pharmacie d'après les maquettes F00 à F23 ([spec](docs/specs/031-ecrans-pharmacie/spec.md)) : 24 écrans faits, testés (88 tests, police à 200 % sur 320 dp), vérifiés sur le simulateur iPhone, relus (2026-11-07). Reste : sur un vrai Android, alerte plein écran, sonnerie forte ou coupée, capture bloquée sur l'ordonnance ; manques serveur listés plus bas (Gedeon)
 - [ ] **ADR 0011 — connexion par mot de passe** (2026-11-03) : backend fait (création de compte par code puis mot de passe, connexion, verrou après 10 échecs, mot de passe oublié, changement de mot de passe, Google, double vérification des admins, migration 00024, tests). Back-office fait (maquettes B01, B02, B03 : mot de passe puis code, tableau de bord dynamique). Apps mobiles : passées à la connexion par numéro (ADR 0012), la 029 (e-mail, mot de passe, Google) en est retirée (2026-11-06). Reste : suppression côté serveur des routes de connexion par e-mail et par Google des apps (Gedeon) une fois les apps publiées
@@ -47,6 +47,24 @@ Traités par la spec 032 (sauf le dernier point mobile) ; l'app pharmacie fait s
 - [ ] **Backend** : push d'alerte iOS sans son imposé (`aps.sound`), pour que « Sonnerie coupée » s'applique aussi sur iPhone ; le réglage n'est proposé que sur Android
 - [ ] **Backend** : règlement des livreurs, dont le remboursement des espèces avancées aux pharmacies (ADR 0014) ; aujourd'hui visible au back-office, réglé à part
 - [ ] **Mobile** (antérieur à la 031) : si la lecture de la pharmacie échoue au lancement, une pharmacie validée voit le formulaire de création au lieu d'un écran « réessayer »
+
+### Ivia Driver (033) — manques côté serveur
+L'app livreur calcule ou masque en attendant (tableau « calculé ou masqué » de la
+[spec 033](docs/specs/033-ivia-driver/spec.md)) :
+- [ ] **Backend** : notifications push des livreurs (proposition app fermée) ; aujourd'hui les propositions n'arrivent qu'app ouverte, la sonnerie est jouée par l'app
+- [ ] **Backend** : positions du retrait et du client dans la proposition (tracé de D10) ; la carte reste centrée sur le livreur
+- [ ] **Backend** : noms des articles d'une mission de boutique (D12) ; l'app n'a que leur nombre
+- [ ] **Backend** : étapes « arrivé à la pharmacie » et « arrivé chez le client » des courses pharmacie ; l'arrivée est gardée dans l'app
+- [ ] **Backend** : livraison impossible pour une course pharmacie (client injoignable) ; l'app renvoie au support
+- [ ] **Backend** : signalements (colis endommagé, adresse introuvable, code refusé, accident) avec photo et position ; l'app appelle le support
+- [ ] **Backend** : km parcourus, temps en ligne, note du livreur, demande par quartier, objectif du jour (D08, D09, D18, D19) : masqués
+- [ ] **Backend** : date et montant du prochain versement (D18) ; seul le compte de versement est affiché
+- [ ] **Backend** : totaux de gains (jour, semaine, mois) ; l'app les calcule sur 62 jours d'historique
+- [ ] **Backend** : date d'expiration des pièces (« permis jusqu'en 2027 », D19)
+- [ ] **Backend** : modification du véhicule ou de la zone d'un livreur validé (aujourd'hui `application_locked`, l'app renvoie au support) — à décider
+- [ ] **Backend** : messagerie avec la boutique ou le client (D11, D13) : seul l'appel est proposé
+- [ ] **Backend** : zones de travail ajoutées à `GET /v1/driver/options` à relire (seeds, `ActiveZoneExists`)
+- [ ] **Produit** : numéro du support livreurs à confirmer (+228 99 30 99 45, aussi numéro WhatsApp des codes) — `problem_sheet.dart`
 
 ### Phase 1 — Comptes et catalogue
 - [x] 001 — Écrans de connexion par OTP e-mail dans les 3 apps

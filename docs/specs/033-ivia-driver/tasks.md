@@ -76,9 +76,9 @@
 **Finitions**
 - [x] 20. Police à 200 % sur 320 dp pour tous les écrans (220 % sur les lignes à montants) ; ancien
       code supprimé (`work_screens.dart`, écrans remplacés) ; lint et analyse.
-- [ ] 21. Vérification sur le simulateur iPhone, avec l'API locale et `seed-demo`, écran par écran
+- [x] 21. Vérification sur le simulateur iPhone, avec l'API locale et `seed-demo`, écran par écran
       face aux maquettes.
       - `TASKS.md` : 033, tâche 20 de la 032 renvoyée vers la 033, manques serveur pour Gedeon.
       - `docs/DESIGN.md` : charte Ivia Driver.
-- [ ] Vérifier tous les critères d'acceptation de spec.md
+- [x] Vérifier tous les critères d'acceptation de spec.md
 - [ ] Relecture par le sous-agent reviewer

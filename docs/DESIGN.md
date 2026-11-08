@@ -341,20 +341,34 @@ Maquettes : à venir (lien Figma à ajouter ici). Les statuts affichés suivent
   Stock qui ouvrent une feuille ; « Retirer de la vente » en rouge, confirmé par une feuille, puis
   message « Annuler ». Interrupteurs et coches en Cobalt (partie colorée de l'app marchand).
 
-### App livreur (couleur : Cobalt)
-- **Lancement** ([spec 018](specs/018-espace-livreur/spec.md)) : splash de chargement (tuile,
-  « Livreur », « Livrez près de chez vous. ») ; présentation (propositions, étapes guidées, code du
-  client) ; « Espace livreur ».
-- **Dossier** (« Devenez livreur ivia ») : prénom, nom, téléphone et consentement si le profil est
-  incomplet, véhicule (Moto / Voiture), immatriculation, pièce d'identité, permis, carte grise
-  (photo prise ou choisie) ; puis « En cours de vérification » (étapes, « Voir mon dossier »),
-  refus avec motif et correction, suspension.
-- **Accueil** : interrupteur Disponible / Hors ligne bien visible, rappel de la notification permanente.
-- **Proposition de mission** : plein écran, boutique, distance, gain indicatif, compte à rebours de
-  45 s, Accepter / Refuser.
-- **Mission en cours** : étapes (aller en boutique → récupérer → livrer), « Ouvrir l'itinéraire »,
-  « Appeler le client », saisie du code, « Déclarer un échec » (actif après 10 min d'attente).
-- **Historique des missions**.
+### App Ivia Driver (couleur : Cobalt) — [spec 033](specs/033-ivia-driver/spec.md)
+Maquettes D00 à D19 (`specs/033-ivia-driver/maquettes/`). Thème clair : fond `#F3F4F6`, cartes
+blanches arrondies (20), cartes sombres (Berkeley Blue, 24) pour les chiffres, le code de retrait,
+le véhicule et l'en-tête de Missions. Bleu Cobalt pour l'action ; bleu clair `#8DB7EE` sur fond
+sombre (meilleure barre des gains, variation, « Modifier »). Barre du bas claire, 4 onglets
+(Accueil, Missions, Gains, Profil), onglet actif en pilule bleue avec son libellé. Composants
+communs dans `apps/driver/lib/common/ui.dart` (`DCard`, `DButton`, `DSlide`, `DCodeBoxes`,
+`DIconTile`, `DBottomNav`).
+- **Lancement et connexion** ([spec 018](specs/018-espace-livreur/spec.md)) : splash, présentation,
+  « Espace livreur » par numéro (ADR 0012), code à 6 chiffres.
+- **Dossier** : activité livraison (vélo, moto, voiture), zone de travail, pièces selon le véhicule,
+  compte de versement ; « En cours de vérification », refus ou compléments, suspension.
+- **Accueil** : hors ligne (jour calculé, « Glisser pour passer en ligne ») ; en ligne (carte,
+  radar, bandeau « En ligne · depuis… », Pause, chiffres du jour).
+- **Proposition** : volet sur la carte, gain indicatif, anneau du compte à rebours, trajet en
+  deux étapes, « Glisser pour accepter », « Refuser » ; sonnerie et vibration (réglage du Profil).
+- **Mission** : trajet vers le retrait puis vers le client (bandeau de destination, heure
+  d'arrivée estimée, appel, « Ouvrir dans Maps / Waze / Plans »), « Glisser à l'arrivée » ;
+  retrait (cases du colis, ou code de retrait pharmacie en grand) ; preuve de remise (code à 4
+  chiffres, case ordonnance) ; « Livraison terminée » ; « Signaler un problème » sous chaque
+  étape (volet « Un problème ? »).
+- **Missions** : recherche par numéro, onglets « En cours · n », « Terminées », « Annulées ».
+- **Gains** : semaine ou mois, total, variation, barres, livraisons, compte de versement masqué,
+  liste par jour.
+- **Profil** : initiales, courses livrées, véhicule (« Modifier » : support), documents, zone,
+  application de navigation, sonnerie des missions, aide, déconnexion confirmée.
+- Police à 200 % sur 320 dp sans débordement : les éléments côte à côte passent l'un sous
+  l'autre (statut, « Modifier », sélecteur de période).
 
 ### Back-office (bureau)
 Barre latérale Berkeley Blue, contenu sur `#F3F4F6`. Tableau de bord, boutiques et livreurs à

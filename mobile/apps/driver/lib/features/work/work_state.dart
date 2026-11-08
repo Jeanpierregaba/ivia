@@ -112,9 +112,24 @@ class WorkController extends Notifier<WorkState> {
     if (stayOnline != state.online) await setOnline(stayOnline);
   }
 
+  /// Fin de mission demandée par le livreur (désistement, client
+  /// injoignable) : pas de message « annulée » à la relecture suivante.
+  var _endExpected = false;
+
+  /// [on] faux : l'action a échoué, la mission continue.
+  void expectMissionEnd({bool on = true}) => _endExpected = on;
+
+  /// Message quand la mission disparaît sans action du livreur (commande
+  /// annulée pendant le trajet).
+  static const cancelledMessage =
+      'La commande a été annulée : la mission est terminée.';
+
   Future<void> refresh() async {
     try {
       final mission = await _api.currentWorkMission();
+      final cancelled =
+          state.mission != null && mission == null && !_endExpected;
+      if (mission == null) _endExpected = false;
       var offer = mission == null && state.online
           ? await _api.currentWorkOffer()
           : null;
@@ -125,7 +140,11 @@ class WorkController extends Notifier<WorkState> {
         offer: offer,
         clearOffer: offer == null,
         // Un message reste jusqu'à la proposition suivante.
-        error: offer == null ? state.error : null,
+        error: cancelled
+            ? cancelledMessage
+            : offer == null
+            ? state.error
+            : null,
       );
     } on ApiException {
       // Réseau : nouvel essai au prochain tour.
@@ -203,14 +222,21 @@ class WorkController extends Notifier<WorkState> {
     }
   }
 
-  Future<String?> run(Future<void> Function(IviaApiClient api) action) async {
+  /// [ends] : l'action termine la mission (désistement), pas de message
+  /// « annulée » quand elle disparaît.
+  Future<String?> run(
+    Future<void> Function(IviaApiClient api) action, {
+    bool ends = false,
+  }) async {
     state = state.copy(busy: true);
+    if (ends) _endExpected = true;
     try {
       await action(_api);
       state = state.copy(busy: false);
       await refresh();
       return null;
     } on ApiException catch (e) {
+      if (ends) _endExpected = false;
       state = state.copy(busy: false);
       return e.message;
     }

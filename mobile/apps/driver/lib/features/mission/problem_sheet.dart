@@ -138,7 +138,10 @@ class _ProblemSheet extends ConsumerWidget {
     Navigator.of(context).pop();
     final error = await ref
         .read(workProvider.notifier)
-        .run((api) => api.withdrawMission(mission, 'Empêchement du livreur'));
+        .run(
+          (api) => api.withdrawMission(mission, 'Empêchement du livreur'),
+          ends: true,
+        );
     if (error != null) messenger.showSnackBar(SnackBar(content: Text(error)));
   }
 
@@ -248,6 +251,7 @@ class _UnreachableSheetState extends ConsumerState<_UnreachableSheet> {
       _busy = true;
       _error = null;
     });
+    ref.read(workProvider.notifier).expectMissionEnd();
     try {
       await ref
           .read(apiClientProvider)
@@ -256,6 +260,7 @@ class _UnreachableSheetState extends ConsumerState<_UnreachableSheet> {
       Navigator.of(context).pop();
       await ref.read(workProvider.notifier).refresh();
     } on ApiException catch (e) {
+      ref.read(workProvider.notifier).expectMissionEnd(on: false);
       if (!mounted) return;
       final message = e.fields['call_attempts'] ?? e.message;
       setState(() => _error = message);
