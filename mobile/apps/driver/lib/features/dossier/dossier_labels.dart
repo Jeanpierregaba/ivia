@@ -1,11 +1,18 @@
 import 'package:ivia_api_client/ivia_api_client.dart';
 
-/// Documents demandés au livreur, dans l'ordre d'affichage.
-const requiredDocuments = [
+/// Pièces d'un ancien dossier (sans activité), dans l'ordre d'affichage.
+const legacyRequiredDocuments = [
   DriverDocumentKind.idCard,
   DriverDocumentKind.drivingLicense,
   DriverDocumentKind.vehicleRegistration,
 ];
+
+/// Pièces exigées pour ce dossier : celles que le serveur demande pour le
+/// véhicule de l'activité livraison (spec 033).
+List<DriverDocumentKind> requiredDocumentsOf(DriverDossier dossier) {
+  final required = dossier.delivery?.requiredDocuments ?? const [];
+  return required.isEmpty ? legacyRequiredDocuments : required;
+}
 
 String documentLabel(DriverDocumentKind kind) => switch (kind) {
   DriverDocumentKind.idCard => "Pièce d'identité",

@@ -30,7 +30,7 @@
 - [x] 5. Splash D00 et présentation D01 à D03 (illustrations, « Passer », retour, « Commencer »).
 - [x] 6. Connexion D04 et code D05 par numéro (identité de l'app). Tests : aucun champ e-mail,
       parcours jusqu'au dossier.
-- [ ] 7. Dossier D06 :
+- [x] 7. Dossier D06 :
       - véhicule, plaque sauf vélo, marque et modèle, zone, pièces selon le véhicule, compte de
         versement ;
       - envoi bloqué tant qu'il manque quelque chose ;

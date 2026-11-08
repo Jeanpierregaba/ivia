@@ -67,6 +67,17 @@ void main() {
   /// précédentes, sans les remplacer.
   late List<String> serverDocuments;
   late String serverVehicle;
+  late String serverReview;
+  late bool serverPayout;
+
+  /// Dossier du serveur, tel que les routes du dossier partenaire le rendent.
+  Map<String, dynamic> serverDossier({String? status}) => driverBody(
+    review: serverReview,
+    status: status ?? serverReview,
+    vehicleType: serverVehicle,
+    documents: serverDocuments,
+    payout: serverPayout,
+  );
 
   setUp(() {
     SharedPreferences.setMockInitialValues({});
@@ -76,6 +87,8 @@ void main() {
     documentsSent = [];
     serverDocuments = [];
     serverVehicle = 'motorbike';
+    serverReview = 'draft';
+    serverPayout = false;
     var upload = 0;
     server = FakeApiServer()
       ..on(
@@ -111,22 +124,29 @@ void main() {
           },
         });
       })
-      ..on('PUT', '/v1/driver/application', (request) {
+      ..on(
+        'GET',
+        '/v1/driver/options',
+        (_) => FakeResponse.json(200, driverOptionsBody()),
+      )
+      ..on('PUT', '/v1/driver/activities/delivery', (request) {
         serverVehicle =
             (request.body! as Map<String, dynamic>)['vehicle_type'] as String;
-        return FakeResponse.json(
-          200,
-          driverBody(vehicleType: serverVehicle, documents: serverDocuments),
-        );
+        return FakeResponse.json(200, serverDossier());
       })
       ..on('POST', '/v1/driver/application/documents', (request) {
         final body = request.body! as Map<String, dynamic>;
         documentsSent.add(body);
         serverDocuments = [...serverDocuments, body['kind'] as String];
-        return FakeResponse.json(
-          201,
-          driverBody(vehicleType: serverVehicle, documents: serverDocuments),
-        );
+        return FakeResponse.json(201, serverDossier());
+      })
+      ..on('PUT', '/v1/driver/payout', (_) {
+        serverPayout = true;
+        return FakeResponse.json(200, serverDossier());
+      })
+      ..on('POST', '/v1/driver/activities/delivery/submit', (_) {
+        serverReview = 'pending_review';
+        return FakeResponse.json(200, serverDossier());
       });
     for (var i = 1; i <= 6; i++) {
       server.on(
@@ -207,16 +227,36 @@ void main() {
   );
 
   /// Ajoute une photo à chaque document, depuis la galerie.
-  Future<void> addDocuments(WidgetTester tester) async {
-    for (final label in [
-      "Pièce d'identité",
-      'Permis de conduire',
-      'Carte grise',
-    ]) {
+  /// Pièces exigées pour une moto ou une voiture (serveur).
+  const motorDocuments = [
+    "Pièce d'identité",
+    'Permis de conduire',
+    'Carte grise',
+    'Assurance du véhicule',
+  ];
+
+  Future<void> addDocuments(
+    WidgetTester tester, [
+    List<String> labels = motorDocuments,
+  ]) async {
+    for (final label in labels) {
       await tapText(tester, label);
       await tester.tap(find.text('Choisir une photo'));
       await tester.pumpAndSettle();
     }
+  }
+
+  Future<void> chooseZone(WidgetTester tester, [String zone = 'Tokoin']) async {
+    await tapText(tester, 'Choisissez votre quartier');
+    await tester.tap(find.text(zone).last);
+    await tester.pumpAndSettle();
+  }
+
+  Future<void> fillPayout(WidgetTester tester) async {
+    await tester.ensureVisible(field('Numéro Mobile Money'));
+    await tester.enterText(field('Numéro Mobile Money'), '90556677');
+    await tester.enterText(field('Titulaire du compte'), 'Kossi Adjo');
+    await tester.pump();
   }
 
   /// Profil (s'il est demandé), immatriculation et documents.
@@ -230,8 +270,17 @@ void main() {
       await tester.pump();
     }
     await tester.enterText(field("Numéro d'immatriculation"), 'TG 4521 AB');
+    await chooseZone(tester);
     await addDocuments(tester);
+    await fillPayout(tester);
   }
+
+  /// Bouton « Envoyer mon dossier » actif ?
+  bool canSubmit(WidgetTester tester) =>
+      tester
+          .widget<DButton>(find.widgetWithText(DButton, 'Envoyer mon dossier'))
+          .onTap !=
+      null;
 
   group('lancement et présentation', () {
     testWidgets('localisation (030) : écran après le splash, « Plus tard »', (
@@ -408,16 +457,10 @@ void main() {
       expect(find.text('Devenez livreur ivia'), findsOneWidget);
       expect(find.text('Votre dossier'), findsOneWidget);
       // Bouton inactif tant que le dossier n'est pas complet.
-      expect(
-        tester
-            .widget<FilledButton>(
-              find.widgetWithText(FilledButton, 'Envoyer mon dossier'),
-            )
-            .onPressed,
-        isNull,
-      );
+      expect(canSubmit(tester), isFalse);
 
       await fillDossier(tester);
+      expect(canSubmit(tester), isTrue);
       await tapText(tester, 'Voiture');
       await tapText(tester, 'Envoyer mon dossier');
 
@@ -427,34 +470,44 @@ void main() {
         'phone': '+22890123456',
         'accept_privacy_policy': true,
       });
-      expect(server.calls('PUT', '/v1/driver/application').single.body, {
-        'vehicle_type': 'car',
-        'vehicle_plate': 'TG 4521 AB',
-      });
+      expect(
+        server.calls('PUT', '/v1/driver/activities/delivery').single.body,
+        {
+          'vehicle_type': 'car',
+          'plate': 'TG 4521 AB',
+          'brand': '',
+          'model': '',
+          'work_zone_id': workZoneTokoin,
+        },
+      );
       expect(documentsSent.map((d) => d['kind']), [
         'id_card',
         'driving_license',
         'vehicle_registration',
+        'vehicle_insurance',
       ]);
-      // Profil, puis fichiers, puis candidature, puis documents.
+      expect(server.calls('PUT', '/v1/driver/payout').single.body, {
+        'operator': 'flooz',
+        'phone': '+22890556677',
+        'holder': 'Kossi Adjo',
+      });
+      // Profil, fichiers, activité, pièces, compte, puis envoi.
       final paths = server.requests
           .map((r) => '${r.method} ${r.path}')
           .toList();
-      expect(
+      final order = [
         paths.indexOf('PATCH /v1/me'),
-        lessThan(paths.indexOf('POST /v1/uploads')),
-      );
-      expect(
         paths.lastIndexOf('POST /v1/uploads'),
-        lessThan(paths.indexOf('PUT /v1/driver/application')),
-      );
-      expect(
-        paths.indexOf('PUT /v1/driver/application'),
-        lessThan(paths.indexOf('POST /v1/driver/application/documents')),
-      );
+        paths.indexOf('PUT /v1/driver/activities/delivery'),
+        paths.lastIndexOf('POST /v1/driver/application/documents'),
+        paths.indexOf('PUT /v1/driver/payout'),
+        paths.indexOf('POST /v1/driver/activities/delivery/submit'),
+      ];
+      expect(order, [...order]..sort());
+      expect(order.contains(-1), isFalse);
       // Aucun jeton vers le stockage ; documents lisibles (2048 px).
       final stored = server.requests.where((r) => r.host == 'prive.test');
-      expect(stored, hasLength(3));
+      expect(stored, hasLength(4));
       for (final put in stored) {
         expect(put.headers['authorization'], isNull);
       }
@@ -464,7 +517,81 @@ void main() {
         find.text('Votre dossier est en cours de vérification'),
         findsOneWidget,
       );
-      expect(find.text('Voiture · 3 documents'), findsOneWidget);
+      expect(find.text('Voiture · 4 documents'), findsOneWidget);
+    });
+
+    testWidgets('vélo : sans plaque, pièce d\'identité seule', (tester) async {
+      await launchApp(tester);
+      await login(tester);
+      await tapText(tester, 'Vélo');
+      expect(field("Numéro d'immatriculation"), findsNothing);
+      expect(find.text('Permis de conduire'), findsNothing);
+      if (field('Prénom').evaluate().isNotEmpty) {
+        await tester.enterText(field('Prénom'), 'Kossi');
+        await tester.enterText(field('Nom'), 'Adjo');
+        await tester.enterText(field('Téléphone'), '90123456');
+        await tester.ensureVisible(find.byType(Checkbox));
+        await tester.tap(find.byType(Checkbox));
+        await tester.pump();
+      }
+      await chooseZone(tester, 'Bè');
+      await addDocuments(tester, ["Pièce d'identité"]);
+      await fillPayout(tester);
+      await tapText(tester, 'Envoyer mon dossier');
+      final body =
+          server.calls('PUT', '/v1/driver/activities/delivery').single.body
+              as Map;
+      expect(body['vehicle_type'], 'bicycle');
+      expect(body['plate'], '');
+      expect(body['work_zone_id'], '5a1b2c3d-0000-4000-8000-00000000a002');
+      expect(documentsSent.map((d) => d['kind']), ['id_card']);
+    });
+
+    testWidgets('sans zone ou sans compte : envoi impossible', (tester) async {
+      await launchApp(tester);
+      await login(tester);
+      if (field('Prénom').evaluate().isNotEmpty) {
+        await tester.enterText(field('Prénom'), 'Kossi');
+        await tester.enterText(field('Nom'), 'Adjo');
+        await tester.enterText(field('Téléphone'), '90123456');
+      }
+      await tester.enterText(field("Numéro d'immatriculation"), 'TG 4521 AB');
+      await addDocuments(tester);
+      await fillPayout(tester);
+      expect(canSubmit(tester), isFalse, reason: 'zone manquante');
+      await chooseZone(tester);
+      expect(canSubmit(tester), isTrue);
+      await tester.enterText(field('Titulaire du compte'), '');
+      await tester.pump();
+      expect(canSubmit(tester), isFalse, reason: 'titulaire manquant');
+    });
+
+    testWidgets('compte refusé par le serveur : sous son champ', (
+      tester,
+    ) async {
+      server.on(
+        'PUT',
+        '/v1/driver/payout',
+        (_) => FakeResponse.error(
+          400,
+          'validation_failed',
+          'Données invalides.',
+          fields: {'phone': 'Numéro attendu : +228 suivi de 8 chiffres.'},
+        ),
+      );
+      await launchApp(tester);
+      await login(tester);
+      await fillDossier(tester);
+      await tapText(tester, 'Envoyer mon dossier');
+      expect(
+        find.text('Numéro attendu : +228 suivi de 8 chiffres.'),
+        findsOneWidget,
+      );
+      // Pas sous le téléphone du profil, et rien d'envoyé au back-office.
+      expect(
+        server.calls('POST', '/v1/driver/activities/delivery/submit'),
+        isEmpty,
+      );
     });
 
     testWidgets('profil complet : aucun champ de profil', (tester) async {
@@ -505,7 +632,7 @@ void main() {
         }
         documentsSent.add(body);
         serverDocuments = [...serverDocuments, body['kind'] as String];
-        return FakeResponse.json(201, driverBody(documents: serverDocuments));
+        return FakeResponse.json(201, serverDossier());
       });
       await launchApp(tester);
       await login(tester);
@@ -518,12 +645,13 @@ void main() {
         find.text('Votre dossier est en cours de vérification'),
         findsOneWidget,
       );
-      expect(server.calls('POST', '/v1/uploads'), hasLength(3));
+      expect(server.calls('POST', '/v1/uploads'), hasLength(4));
       expect(server.calls('PATCH', '/v1/me'), hasLength(1));
       expect(documentsSent.map((d) => d['kind']), [
         'id_card',
         'driving_license',
         'vehicle_registration',
+        'vehicle_insurance',
       ]);
     });
 
@@ -543,7 +671,7 @@ void main() {
         }
         documentsSent.add(body);
         serverDocuments = [...serverDocuments, body['kind'] as String];
-        return FakeResponse.json(201, driverBody(documents: serverDocuments));
+        return FakeResponse.json(201, serverDossier());
       });
       await launchApp(tester);
       await login(tester);
@@ -560,18 +688,19 @@ void main() {
         findsOneWidget,
       );
       // Seul le permis refusé est renvoyé, avec une nouvelle clé.
-      expect(server.calls('POST', '/v1/uploads'), hasLength(4));
+      expect(server.calls('POST', '/v1/uploads'), hasLength(5));
       expect(documentsSent.map((d) => d['kind']), [
         'id_card',
         'vehicle_registration',
+        'vehicle_insurance',
         'driving_license',
       ]);
-      expect(documentsSent.last['object_key'], 'driver_document/u1/doc4.jpg');
+      expect(documentsSent.last['object_key'], 'driver_document/u1/doc5.jpg');
     });
 
     testWidgets('double appui : une seule candidature', (tester) async {
       final reply = Completer<FakeResponse>();
-      server.on('PUT', '/v1/driver/application', (_) => reply.future);
+      server.on('PUT', '/v1/driver/activities/delivery', (_) => reply.future);
       await launchApp(tester);
       await login(tester);
       await fillDossier(tester);
@@ -581,11 +710,14 @@ void main() {
       await tester.pumpAndSettle();
       await tester.tap(submit);
       await tester.pump();
-      await tester.tap(find.byType(FilledButton), warnIfMissed: false);
-      reply.complete(FakeResponse.json(200, driverBody(documents: [])));
+      await tester.tap(find.byType(DButton), warnIfMissed: false);
+      reply.complete(FakeResponse.json(200, serverDossier()));
       await tester.pumpAndSettle();
-      expect(server.calls('PUT', '/v1/driver/application'), hasLength(1));
-      expect(documentsSent, hasLength(3));
+      expect(
+        server.calls('PUT', '/v1/driver/activities/delivery'),
+        hasLength(1),
+      );
+      expect(documentsSent, hasLength(4));
     });
 
     testWidgets('immatriculation invalide : message, rien n\'est envoyé', (
@@ -664,12 +796,12 @@ void main() {
     ) async {
       server.on(
         'PUT',
-        '/v1/driver/application',
+        '/v1/driver/activities/delivery',
         (_) => FakeResponse.error(
           400,
           'validation_failed',
           'Données invalides.',
-          fields: {'vehicle_plate': 'Immatriculation invalide.'},
+          fields: {'plate': 'Immatriculation invalide.'},
         ),
       );
       await launchApp(tester);
@@ -731,21 +863,17 @@ void main() {
         'id_card',
         'driving_license',
         'vehicle_registration',
+        'vehicle_insurance',
       ],
     }) async {
       await signedInWith(_user());
       serverDocuments = documents;
+      serverReview = review;
+      serverPayout = true;
       server.on(
         'GET',
         '/v1/driver/me',
-        (_) => FakeResponse.json(
-          200,
-          driverBody(
-            review: review,
-            status: status ?? review,
-            documents: serverDocuments,
-          ),
-        ),
+        (_) => FakeResponse.json(200, serverDossier(status: status)),
       );
     }
 
@@ -759,7 +887,10 @@ void main() {
       await tapText(tester, 'Voir mon dossier');
       expect(find.text('TG 4521 AB'), findsOneWidget);
       expect(
-        find.text("Pièce d'identité, Permis de conduire, Carte grise"),
+        find.text(
+          "Pièce d'identité, Permis de conduire, Carte grise, "
+          'Assurance du véhicule',
+        ),
         findsOneWidget,
       );
       await tester.tap(find.byTooltip('Retour'));
@@ -869,7 +1000,10 @@ void main() {
             .text,
         'TG 4521 AB',
       );
-      expect(find.text('Envoyé'), findsNWidgets(3));
+      expect(find.text('Ajouté'), findsNWidgets(4));
+      // Zone et compte déjà enregistrés : rien à ressaisir.
+      expect(find.text('Tokoin'), findsOneWidget);
+      expect(find.text('+228 90 •• •• 77 · Kossi Adjo'), findsOneWidget);
       // Nouvelle photo de la carte grise seulement.
       await tapText(tester, 'Carte grise');
       await tester.tap(find.text('Choisir une photo'));
@@ -880,9 +1014,15 @@ void main() {
         find.text('Votre dossier est en cours de vérification'),
         findsOneWidget,
       );
-      // Le serveur garde l'ancienne carte grise : 4 pièces, 3 types.
-      expect(serverDocuments, hasLength(4));
-      expect(find.text('Moto · 3 documents'), findsOneWidget);
+      // Compte déjà enregistré : pas renvoyé ; dossier renvoyé.
+      expect(server.calls('PUT', '/v1/driver/payout'), isEmpty);
+      expect(
+        server.calls('POST', '/v1/driver/activities/delivery/submit'),
+        hasLength(1),
+      );
+      // Le serveur garde l'ancienne carte grise : 5 pièces, 4 types.
+      expect(serverDocuments, hasLength(5));
+      expect(find.text('Moto · 4 documents'), findsOneWidget);
     });
 
     testWidgets('envoi interrompu : pièces manquantes complétées', (
@@ -890,10 +1030,14 @@ void main() {
     ) async {
       await withDossier(documents: ['id_card']);
       await launchApp(tester);
-      expect(find.text('1 document sur 3 : dossier incomplet'), findsOneWidget);
+      expect(find.text('1 document sur 4 : dossier incomplet'), findsOneWidget);
       await tapText(tester, 'Compléter mon dossier');
-      expect(find.text('Envoyé'), findsOneWidget);
-      for (final label in ['Permis de conduire', 'Carte grise']) {
+      expect(find.text('Ajouté'), findsOneWidget);
+      for (final label in [
+        'Permis de conduire',
+        'Carte grise',
+        'Assurance du véhicule',
+      ]) {
         await tapText(tester, label);
         await tester.tap(find.text('Choisir une photo'));
         await tester.pumpAndSettle();
@@ -902,8 +1046,14 @@ void main() {
       expect(documentsSent.map((d) => d['kind']), [
         'driving_license',
         'vehicle_registration',
+        'vehicle_insurance',
       ]);
-      expect(find.text('Moto · 3 documents'), findsOneWidget);
+      // Déjà en vérification : pas de nouvel envoi.
+      expect(
+        server.calls('POST', '/v1/driver/activities/delivery/submit'),
+        isEmpty,
+      );
+      expect(find.text('Moto · 4 documents'), findsOneWidget);
       expect(find.text('Compléter mon dossier'), findsNothing);
     });
 

@@ -19,7 +19,10 @@ class DossierPendingScreen extends ConsumerWidget {
     final received = dossier == null
         ? const <DriverDocumentKind>[]
         : receivedKinds(dossier);
-    final missing = requiredDocuments.where((k) => !received.contains(k));
+    final required = dossier == null
+        ? legacyRequiredDocuments
+        : requiredDocumentsOf(dossier);
+    final missing = required.where((k) => !received.contains(k));
     return ReviewPendingView(
       progressLabel: 'Vérification en cours',
       title: 'Votre dossier est en cours de vérification',
@@ -37,7 +40,7 @@ class DossierPendingScreen extends ConsumerWidget {
               : missing.isEmpty
               ? dossierLine(dossier)
               : '${received.length} document${received.length > 1 ? 's' : ''} '
-                    'sur ${requiredDocuments.length} : dossier incomplet',
+                    'sur ${required.length} : dossier incomplet',
           state: IviaStepState.done,
         ),
         const IviaStep(

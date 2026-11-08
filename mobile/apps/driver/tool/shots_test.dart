@@ -9,8 +9,11 @@ import 'package:flutter/services.dart';
 import 'package:flutter_riverpod/flutter_riverpod.dart';
 import 'package:flutter_test/flutter_test.dart';
 import 'package:ivia_api_client/ivia_api_client.dart';
+import 'package:ivia_api_client/testing.dart';
 import 'package:ivia_app_core/ivia_app_core.dart';
+import 'package:ivia_driver/app/driver_dossier.dart';
 import 'package:ivia_driver/app/identity.dart';
+import 'package:ivia_driver/features/dossier/dossier_form_screen.dart';
 import 'package:ivia_driver/features/onboarding/onboarding_screen.dart';
 import 'package:ivia_driver/features/splash/loading_screen.dart';
 import 'package:ivia_ui/ivia_ui.dart';
@@ -78,6 +81,44 @@ Future<void> shot(
   );
 }
 
+/// Livreur connecté, profil complet (« Kossi Adjo »).
+class _SignedIn extends AuthController {
+  @override
+  AuthState build() => AuthSignedIn(
+    User.fromJson({
+      ...userBody(complete: true),
+      'first_name': 'Kossi',
+      'last_name': 'Adjo',
+      'phone': '+22890556677',
+    }),
+  );
+}
+
+/// Pas encore de dossier.
+class _NoDossier extends DriverDossierNotifier {
+  @override
+  Future<DriverDossier?> build() async => null;
+}
+
+/// Faux serveur des écrans connectés.
+FakeApiServer fakeServer() => FakeApiServer()
+  ..on(
+    'GET',
+    '/v1/driver/options',
+    (_) => FakeResponse.json(200, driverOptionsBody()),
+  );
+
+List signedIn() => [
+  authControllerProvider.overrideWith(_SignedIn.new),
+  driverDossierProvider.overrideWith(_NoDossier.new),
+  apiClientProvider.overrideWithValue(
+    IviaApiClient(
+      config: ApiConfig(baseUrl: Uri.parse('http://api.test')),
+      adapter: fakeServer(),
+    ),
+  ),
+];
+
 /// Code demandé, pour l'écran du code (D05).
 class _SentCode extends PhoneLoginFlow {
   @override
@@ -92,6 +133,21 @@ class _SentCode extends PhoneLoginFlow {
 
 void main() {
   setUpAll(loadFonts);
+
+  testWidgets(
+    'D06',
+    (t) => shot(
+      t,
+      'D06',
+      const DossierFormScreen(),
+      overrides: signedIn(),
+      before: (t) async {
+        await t.pumpAndSettle();
+        await t.enterText(find.byType(TextField).first, 'TG 4521 AB');
+        await t.pump();
+      },
+    ),
+  );
 
   testWidgets(
     'D04',
