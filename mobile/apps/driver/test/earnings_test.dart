@@ -98,6 +98,27 @@ void periodTests() {
     expect(periodTitle(s, EarningsPeriod.month), 'NOVEMBRE 2026');
   });
 
+  test('semaine en cours un mercredi : comparée au lundi-mercredi de la '
+      'semaine précédente seulement', () {
+    // Mercredi 4 novembre 2026, midi à Lomé.
+    final wednesday = DateTime.utc(2026, 11, 4, 12);
+    final s = summarize(
+      [
+        _mission('a', DateTime.utc(2026, 11, 2, 9), 2000),
+        // Semaine précédente : lundi 26 (compté), samedi 31 (après le
+        // mercredi : hors comparaison).
+        _mission('b', DateTime.utc(2026, 10, 26, 9), 1000),
+        _mission('c', DateTime.utc(2026, 10, 31, 9), 5000),
+      ],
+      EarningsPeriod.week,
+      wednesday,
+    );
+    expect(s.totals.earnedXof, 2000);
+    // 2 000 F contre 1 000 F : +100 % (et non −67 % avec le samedi).
+    expect(s.changePercent, 100);
+    expect(s.bars, [2000, 0, 0, 0, 0, 0, 0]);
+  });
+
   test('semaine à cheval sur deux mois ; rien avant : pas de variation', () {
     final s = summarize(
       [_mission('a', DateTime.utc(2026, 11, 3, 9), 700)],

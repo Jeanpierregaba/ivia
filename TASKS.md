@@ -67,19 +67,14 @@ L'app livreur calcule ou masque en attendant (tableau « calculé ou masqué » 
 - [ ] **Produit** : numéro du support livreurs à confirmer (+228 99 30 99 45, aussi numéro WhatsApp des codes) — `problem_sheet.dart`
 
 ### Ivia Driver (033) — suites de la relecture (2026-11-08)
-Points 1 à 5 corrigés (retour à la boutique, relectures dépassées, écran de mission gardé entre
-onglets, « Position inconnue », boutons de D13 au lecteur d'écran). Reste :
-- [ ] **Mobile** (avant toute version publiée) : clé Google Maps de l'app livreur (Android et iPhone, `GMSServices` absent côté iOS) ; sans clé, `IviaMap` charge les tuiles publiques d'OpenStreetMap au lieu d'un fond neutre — prévoir un fond neutre ou un échec de build release sans `IVIA_GOOGLE_MAPS` / `IVIA_TILES_URL`
-- [ ] **Mobile** : bandeau D11 limité à 150 % de police alors que le volet D11 ne reprend pas distance et durée
-- [ ] **Mobile** : proposition reçue sur un autre onglet (Missions, Gains, Profil) : elle sonne mais reste invisible ; revenir à l'Accueil ou pastille sur l'onglet
-- [ ] **Mobile** : liens `tel:` construits par concaténation (`Uri.parse('tel:$phone')`) : passer par `Uri(scheme: 'tel', path: …)` en gardant chiffres et `+`
-- [ ] **Mobile** : déconnexion pendant une coupure : `setOnline(false)` échoue en silence puis la session est fermée ; prévenir ou réessayer
-- [ ] **Mobile** : confirmation avant « Je ne peux pas faire cette course » (désistement en un toucher)
-- [ ] **Mobile** : couleur d'ombre en dur à trois endroits (`online_home.dart`, `mission_screen.dart`, `common/ui.dart`), deux valeurs : une constante dans `IviaDriverColors`
-- [ ] **Mobile** : rôle bouton pour les situations de D16 (`_Situation`)
-- [ ] **Mobile** : test des gains en milieu de semaine (exclusion des jours de la semaine précédente postérieurs au jour courant)
-- [ ] **Mobile / pharmacie** : paramètre `alertSound` de `registerPushToken` jamais passé (`api_client/pharmacist.dart`) : le brancher dans l'app pharmacie ou le retirer
-- [ ] **Mobile** : `apps/driver/ios/Podfile`, `Podfile.lock`, `apps/buyer/ios/Podfile` et les fichiers Xcode modifiés par la compilation : décider s'ils sont commités comme pour les autres apps
+Points 1 à 5 et mineurs corrigés (retour à la boutique, relectures dépassées, écran de mission
+gardé entre onglets, « Position inconnue », boutons de D13, chiffres du volet D11, proposition sur
+un autre onglet, liens d'appel, déconnexion hors ligne, désistement confirmé, ombre partagée,
+situations de D16 en boutons, test des gains en milieu de semaine, fichiers CocoaPods de l'app
+livreur commités comme pour l'app marchand). Reste :
+- [ ] **Mobile** (avant toute version publiée) : clé Google Maps de l'app livreur (Android et iPhone, `GMSServices` absent côté iOS, `#include? "Maps.xcconfig"` à ajouter comme pour l'app marchand) ; sans clé, `IviaMap` charge les tuiles publiques d'OpenStreetMap au lieu d'un fond neutre — prévoir un fond neutre ou un échec de build release sans `IVIA_GOOGLE_MAPS` / `IVIA_TILES_URL`
+- [ ] **Mobile / pharmacie** : paramètre `alertSound` de `registerPushToken` encore inutilisé : il sera branché par la tâche 18 de la [spec 032](docs/specs/032-pharmacie-serveur/tasks.md)
+- [ ] **Mobile** : `apps/buyer/ios/Podfile` non suivi (créé par une compilation) : à commiter avec l'intégration CocoaPods de l'app acheteur, ou à supprimer
 
 ### Phase 1 — Comptes et catalogue
 - [x] 001 — Écrans de connexion par OTP e-mail dans les 3 apps
