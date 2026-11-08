@@ -1316,6 +1316,20 @@ void main() {
 
     /// Livreur validé avec [mission] en cours ; itinéraire du serveur :
     /// [routeM] mètres en [routeS] secondes.
+    /// Téléphone de 320 dp, police agrandie à [scale].
+    void bigText(WidgetTester tester, double scale) {
+      tester.view.physicalSize = const Size(320, 640);
+      tester.view.devicePixelRatio = 1;
+      tester.platformDispatcher.textScaleFactorTestValue = scale;
+      addTearDown(tester.view.reset);
+      addTearDown(tester.platformDispatcher.clearTextScaleFactorTestValue);
+    }
+
+    void noOverflow(WidgetTester tester, String where) {
+      final error = tester.takeException();
+      expect(error, isNull, reason: '$where : $error');
+    }
+
     Future<void> withMission(
       WidgetTester tester,
       Map<String, dynamic> mission, {
@@ -1928,15 +1942,23 @@ void main() {
       expect(find.text('Preuve de remise'), findsOneWidget);
     });
 
-    testWidgets('client injoignable accepté : retour à l\'accueil', (
-      tester,
-    ) async {
+    testWidgets('client injoignable accepté : retour à la boutique, puis '
+        'accueil à sa confirmation', (tester) async {
       await withMission(tester, atClient());
+      // Comme le serveur : la mission passe « returning » et reste en cours
+      // jusqu'à la confirmation de la boutique.
       server.on('POST', '/v1/driver/missions/mission-1/fail', (_) {
         server.on(
           'GET',
           '/v1/driver/missions/current',
-          (_) => FakeResponse.json(200, {'mission': null}),
+          (_) => FakeResponse.json(200, {
+            'mission': {
+              ...atClient(),
+              'status': 'returning',
+              'failed_at': DateTime.now().toUtc().toIso8601String(),
+              'failure_reason': 'Client injoignable',
+            },
+          }),
         );
         return FakeResponse.json(204, null);
       });
@@ -1945,7 +1967,43 @@ void main() {
       await tapVisible(tester, find.byTooltip('Un appel de plus'));
       await tapVisible(tester, find.byTooltip('Un appel de plus'));
       await tapVisible(tester, find.text('Déclarer le client injoignable'));
+      expect(find.text('Retour à la boutique'), findsOneWidget);
+      expect(find.text('Preuve de remise'), findsNothing);
+      expect(
+        find.textContaining('Rapportez le colis à Chez Afi'),
+        findsOneWidget,
+      );
+      await tapVisible(tester, find.text('Ouvrir dans Maps'));
+      expect(launched.single.queryParameters['destination'], '6.139,1.216');
+      await tapVisible(tester, find.byTooltip('Appeler la boutique'));
+      expect(launched.last.toString(), 'tel:+22890112233');
+
+      // La boutique confirme le retour : fin de mission, sans message
+      // « annulée ».
+      server.on(
+        'GET',
+        '/v1/driver/missions/current',
+        (_) => FakeResponse.json(200, {'mission': null}),
+      );
+      for (var i = 0; i < 16; i++) {
+        await tester.pump(const Duration(milliseconds: 300));
+      }
+      expect(find.text('Retour à la boutique'), findsNothing);
       expect(find.text('Vous êtes hors ligne'), findsOneWidget);
+      expect(find.textContaining('a été annulée'), findsNothing);
+    });
+
+    testWidgets('retour à la boutique : police à 220 % sur 320 dp', (
+      tester,
+    ) async {
+      bigText(tester, 2.2);
+      await withMission(tester, {
+        ...atClient(),
+        'status': 'returning',
+        'failure_reason': 'Client injoignable',
+      });
+      expect(find.text('Retour à la boutique'), findsOneWidget);
+      noOverflow(tester, 'retour à la boutique');
     });
 
     testWidgets('un problème : urgence et support appelés', (tester) async {
@@ -2565,20 +2623,6 @@ void main() {
       );
       expect(tester.takeException(), isNull);
     });
-
-    /// Téléphone de 320 dp, police agrandie à [scale].
-    void bigText(WidgetTester tester, double scale) {
-      tester.view.physicalSize = const Size(320, 640);
-      tester.view.devicePixelRatio = 1;
-      tester.platformDispatcher.textScaleFactorTestValue = scale;
-      addTearDown(tester.view.reset);
-      addTearDown(tester.platformDispatcher.clearTextScaleFactorTestValue);
-    }
-
-    void noOverflow(WidgetTester tester, String where) {
-      final error = tester.takeException();
-      expect(error, isNull, reason: '$where : $error');
-    }
 
     for (final (review, status) in [
       ('pending_review', 'pending_review'),

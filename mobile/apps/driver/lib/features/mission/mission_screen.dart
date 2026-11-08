@@ -18,14 +18,18 @@ import 'navigation.dart';
 import 'pickup_view.dart';
 import 'problem_sheet.dart';
 import 'proof_view.dart';
+import 'return_view.dart';
 
 /// Étape d'une mission en cours.
-enum MissionPhase { toPickup, atPickup, toClient, atClient }
+enum MissionPhase { toPickup, atPickup, toClient, atClient, returning }
 
 /// Étape d'après le serveur ; [arrivedLocally] : arrivées signalées dans
 /// l'app, pour les courses pharmacie qui n'ont pas d'étape « arrivé » côté
 /// serveur.
 MissionPhase missionPhase(WorkMission m, Set<MissionPhase> arrivedLocally) {
+  // Livraison impossible : colis à rapporter, jusqu'à la confirmation de la
+  // boutique.
+  if (m.status == 'returning') return MissionPhase.returning;
   if (m.pharmacy) {
     if (m.pickedUpAt == null) {
       return arrivedLocally.contains(MissionPhase.toPickup)
@@ -73,6 +77,7 @@ class _MissionScreenState extends ConsumerState<MissionScreen> {
       ),
       MissionPhase.atPickup => PickupView(mission: m),
       MissionPhase.atClient => ProofView(mission: m),
+      MissionPhase.returning => ReturnView(mission: m),
     };
   }
 

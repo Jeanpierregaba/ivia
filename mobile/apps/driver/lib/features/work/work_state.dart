@@ -127,8 +127,13 @@ class WorkController extends Notifier<WorkState> {
   Future<void> refresh() async {
     try {
       final mission = await _api.currentWorkMission();
+      // Disparition sans action du livreur ; un retour à la boutique se
+      // termine normalement à la confirmation de la boutique.
       final cancelled =
-          state.mission != null && mission == null && !_endExpected;
+          state.mission != null &&
+          state.mission!.status != 'returning' &&
+          mission == null &&
+          !_endExpected;
       if (mission == null) _endExpected = false;
       var offer = mission == null && state.online
           ? await _api.currentWorkOffer()
