@@ -35,7 +35,7 @@
         versement ;
       - envoi bloqué tant qu'il manque quelque chose ;
       - erreurs du serveur.
-- [ ] 8. En vérification D07 ; dossier refusé ou suspendu et récapitulatif restylés.
+- [x] 8. En vérification D07 ; dossier refusé ou suspendu et récapitulatif restylés.
 
 **Travail**
 - [ ] 9. Barre du bas claire et accueil hors ligne D08 :

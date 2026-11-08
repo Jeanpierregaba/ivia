@@ -1067,6 +1067,30 @@ void main() {
       expect(server.calls('POST', '/v1/auth/logout'), isEmpty);
     });
 
+    testWidgets('compléments demandés : motif, « Compléter mon dossier »', (
+      tester,
+    ) async {
+      await withDossier(review: 'changes_requested');
+      await launchApp(tester);
+      expect(find.text('Votre dossier est à compléter'), findsOneWidget);
+      expect(find.text('Motif : Carte grise illisible.'), findsOneWidget);
+      await tapText(tester, 'Compléter mon dossier');
+      expect(find.text('Corrigez votre dossier'), findsOneWidget);
+    });
+
+    testWidgets('récapitulatif : modèle et compte de versement masqué', (
+      tester,
+    ) async {
+      await withDossier();
+      await launchApp(tester);
+      await tapText(tester, 'Voir mon dossier');
+      expect(find.text('Honda CG 125'), findsOneWidget);
+      expect(
+        find.text('Moov Money (Flooz) · +228 90 •• •• 77'),
+        findsOneWidget,
+      );
+    });
+
     testWidgets('suspendu : motif, pas de correction', (tester) async {
       await withDossier(review: 'approved', status: 'suspended');
       await launchApp(tester);

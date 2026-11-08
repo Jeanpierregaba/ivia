@@ -7,9 +7,11 @@ import 'package:ivia_ui/ivia_ui.dart';
 
 import '../../app/driver_dossier.dart';
 import '../../app/router.dart';
+import '../../common/ui.dart';
 import 'dossier_labels.dart';
 
-/// « Votre dossier est en cours de vérification » : suivi des étapes.
+/// « Votre dossier est en cours de vérification » (maquette D07, spec 033) :
+/// suivi des étapes.
 class DossierPendingScreen extends ConsumerWidget {
   const DossierPendingScreen({super.key});
 
@@ -57,15 +59,17 @@ class DossierPendingScreen extends ConsumerWidget {
         crossAxisAlignment: CrossAxisAlignment.stretch,
         children: [
           if (missing.isNotEmpty) ...[
-            FilledButton(
-              onPressed: () => context.push(Routes.dossierEdit),
-              child: const Text('Compléter mon dossier'),
+            DButton(
+              label: 'Compléter mon dossier',
+              onTap: () => context.push(Routes.dossierEdit),
             ),
             const SizedBox(height: IviaSpacing.sm),
           ],
-          OutlinedButton(
-            onPressed: () => context.push(Routes.dossierSummary),
-            child: const Text('Voir mon dossier'),
+          // Maquette D07 : bouton blanc, texte foncé.
+          DButton(
+            label: 'Voir mon dossier',
+            style: DButtonStyle.outline,
+            onTap: () => context.push(Routes.dossierSummary),
           ),
         ],
       ),

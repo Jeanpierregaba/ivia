@@ -14,6 +14,7 @@ import 'package:ivia_app_core/ivia_app_core.dart';
 import 'package:ivia_driver/app/driver_dossier.dart';
 import 'package:ivia_driver/app/identity.dart';
 import 'package:ivia_driver/features/dossier/dossier_form_screen.dart';
+import 'package:ivia_driver/features/dossier/dossier_pending_screen.dart';
 import 'package:ivia_driver/features/onboarding/onboarding_screen.dart';
 import 'package:ivia_driver/features/splash/loading_screen.dart';
 import 'package:ivia_ui/ivia_ui.dart';
@@ -100,6 +101,14 @@ class _NoDossier extends DriverDossierNotifier {
   Future<DriverDossier?> build() async => null;
 }
 
+/// Dossier envoyé, en vérification (moto, 4 pièces).
+class _PendingDossier extends DriverDossierNotifier {
+  @override
+  Future<DriverDossier?> build() async => DriverDossier.fromJson(
+    driverBody(documents: driverRequiredDocuments('motorbike')),
+  );
+}
+
 /// Faux serveur des écrans connectés.
 FakeApiServer fakeServer() => FakeApiServer()
   ..on(
@@ -108,9 +117,9 @@ FakeApiServer fakeServer() => FakeApiServer()
     (_) => FakeResponse.json(200, driverOptionsBody()),
   );
 
-List signedIn() => [
+List signedIn({DriverDossierNotifier Function() dossier = _NoDossier.new}) => [
   authControllerProvider.overrideWith(_SignedIn.new),
-  driverDossierProvider.overrideWith(_NoDossier.new),
+  driverDossierProvider.overrideWith(dossier),
   apiClientProvider.overrideWithValue(
     IviaApiClient(
       config: ApiConfig(baseUrl: Uri.parse('http://api.test')),
@@ -133,6 +142,17 @@ class _SentCode extends PhoneLoginFlow {
 
 void main() {
   setUpAll(loadFonts);
+
+  testWidgets(
+    'D07',
+    (t) => shot(
+      t,
+      'D07',
+      const DossierPendingScreen(),
+      overrides: signedIn(dossier: _PendingDossier.new),
+      before: (t) => t.pump(const Duration(milliseconds: 300)),
+    ),
+  );
 
   testWidgets(
     'D06',

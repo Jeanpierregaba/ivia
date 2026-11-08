@@ -373,7 +373,9 @@ Map<String, dynamic> driverBody({
   'user_id': '7d5c1d38-3c1b-4b8f-9a77-1f2e3d4c5b6a',
   'status': status,
   'review_status': review,
-  'review_note': review == 'rejected' ? 'Carte grise illisible.' : '',
+  'review_note': review == 'rejected' || review == 'changes_requested'
+      ? 'Carte grise illisible.'
+      : '',
   'reviewed_at': null,
   'suspended_at': null,
   'suspension_reason': status == 'suspended' ? 'Plaintes répétées.' : '',
