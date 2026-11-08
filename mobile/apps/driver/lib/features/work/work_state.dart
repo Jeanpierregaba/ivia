@@ -217,10 +217,6 @@ class WorkController extends Notifier<WorkState> {
   }
 }
 
-final workHistoryProvider = FutureProvider.autoDispose<List<WorkMission>>(
-  (ref) => ref.read(apiClientProvider).workHistory(),
-);
-
 /// Position du téléphone, relue toutes les 10 s tant qu'un écran l'écoute ;
 /// `null` : inconnue (autorisation refusée, GPS lent).
 final herePositionProvider = StreamProvider.autoDispose<GeoPoint?>((

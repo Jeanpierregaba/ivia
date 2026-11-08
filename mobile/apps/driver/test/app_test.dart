@@ -2150,5 +2150,156 @@ void main() {
         findsOneWidget,
       );
     });
+
+    /// Historique des missions (D17) : une livrée aujourd'hui, une
+    /// annulée, un désistement.
+    void missionsHistory() {
+      final now = DateTime.now().toUtc();
+      Map<String, dynamic> shop(
+        String id,
+        String ref,
+        String status, {
+        DateTime? delivered,
+        String reason = '',
+      }) => {
+        'id': id,
+        'order_reference': ref,
+        'status': status,
+        'fee_xof': 700,
+        'items_count': 1,
+        'parcel_size': 'small',
+        'shop': {
+          'name': 'Boutique Kéran',
+          'location': {'lat': 6.1310, 'lng': 1.2200},
+        },
+        'customer': {
+          'name': 'Yao K.',
+          'neighborhood': 'Hédzranawoé',
+          'location': {'lat': 6.1450, 'lng': 1.2300},
+        },
+        'assigned_at': now.toIso8601String(),
+        'picked_up_at': delivered?.toIso8601String(),
+        'delivered_at': delivered?.toIso8601String(),
+        'failure_reason': reason,
+      };
+      server.on(
+        'GET',
+        '/v1/driver/missions',
+        (_) => FakeResponse.json(200, {
+          'items': [
+            shop('m-36', 'IV-001036', 'delivered', delivered: now),
+            shop('m-35', 'IV-001035', 'cancelled'),
+            shop('m-34', 'IV-001034', 'withdrawn', reason: 'Crevaison'),
+          ],
+          'next_offset': null,
+        }),
+      );
+    }
+
+    Future<void> openMissions(WidgetTester tester) async {
+      await tester.tap(find.bySemanticsLabel('Missions'));
+      for (var i = 0; i < 4; i++) {
+        await tester.pump(const Duration(milliseconds: 300));
+      }
+    }
+
+    testWidgets('missions (D17) : onglets, cartes, recherche', (tester) async {
+      await withMission(tester, driverMissionBody(pickedUp: true));
+      missionsHistory();
+      await openMissions(tester);
+      // En cours : la mission de l'état du travail.
+      expect(find.text('En cours · 1'), findsOneWidget);
+      expect(find.text('#1042'), findsOneWidget);
+      expect(
+        find.bySemanticsLabel(RegExp('Chez Afi vers Bè Kpota')),
+        findsOneWidget,
+      );
+      expect(find.text('En route'), findsOneWidget);
+      expect(find.text(formatXof(1200)), findsOneWidget);
+      expect(find.text('Retrait'), findsOneWidget);
+      expect(find.text('#1036'), findsNothing);
+      // Cloche masquée : pas de notifications.
+      expect(find.byIcon(Icons.notifications_rounded), findsNothing);
+
+      await tester.tap(find.text('Terminées'));
+      await tester.pump(const Duration(milliseconds: 300));
+      expect(find.text('#1036'), findsOneWidget);
+      expect(find.text('Livrée'), findsOneWidget);
+      expect(find.text('Livrée à'), findsOneWidget);
+      expect(find.text('Distance'), findsOneWidget);
+      expect(find.text('#1042'), findsNothing);
+
+      await tester.tap(find.text('Annulées'));
+      await tester.pump(const Duration(milliseconds: 300));
+      expect(find.text('Annulée'), findsOneWidget);
+      expect(find.text('Désistement'), findsOneWidget);
+      expect(find.text('Crevaison'), findsOneWidget);
+
+      // Recherche par numéro.
+      await tester.enterText(find.byType(TextField), '1034');
+      await tester.pump();
+      expect(find.text('#1034'), findsOneWidget);
+      expect(find.text('#1035'), findsNothing);
+      await tester.enterText(find.byType(TextField), '9999');
+      await tester.pump();
+      expect(
+        find.text('Aucune commande ne correspond à « 9999 ».'),
+        findsOneWidget,
+      );
+      await tester.tap(find.byTooltip('Effacer la recherche'));
+      await tester.pump();
+      expect(find.text('#1035'), findsOneWidget);
+    });
+
+    testWidgets('missions (D17) : la carte en cours rouvre la mission, '
+        'une carte terminée ouvre son détail', (tester) async {
+      await withMission(tester, driverMissionBody(pickedUp: true));
+      missionsHistory();
+      await openMissions(tester);
+      await tester.tap(find.text('#1042'));
+      await tester.pump(const Duration(milliseconds: 300));
+      expect(find.text('Glisser à l\'arrivée'), findsOneWidget);
+
+      await openMissions(tester);
+      await tester.tap(find.text('Terminées'));
+      await tester.pump(const Duration(milliseconds: 300));
+      await tester.tap(find.text('#1036'));
+      for (var i = 0; i < 3; i++) {
+        await tester.pump(const Duration(milliseconds: 300));
+      }
+      expect(find.text('Commande #1036'), findsOneWidget);
+      expect(find.text('Colis récupéré'), findsOneWidget);
+      expect(find.text('Yao K.'), findsOneWidget);
+    });
+
+    testWidgets('missions (D17) : vides', (tester) async {
+      await withDossier(review: 'approved', status: 'offline');
+      approvedHome();
+      await launchApp(tester);
+      await openMissions(tester);
+      expect(find.text('En cours · 0'), findsOneWidget);
+      expect(find.text('Aucune mission en cours.'), findsOneWidget);
+      await tester.tap(find.text('Annulées'));
+      await tester.pump(const Duration(milliseconds: 300));
+      expect(find.text('Aucune mission annulée.'), findsOneWidget);
+    });
+
+    testWidgets('missions (D17) : police à 220 % sur 320 dp', (tester) async {
+      tester.view.physicalSize = const Size(320, 640);
+      tester.view.devicePixelRatio = 1;
+      tester.platformDispatcher.textScaleFactorTestValue = 2.2;
+      addTearDown(tester.view.reset);
+      addTearDown(tester.platformDispatcher.clearTextScaleFactorTestValue);
+      await withMission(tester, driverMissionBody(pickedUp: true));
+      missionsHistory();
+      await openMissions(tester);
+      expect(tester.takeException(), isNull);
+      for (final tab in ['Terminées', 'Annulées']) {
+        await tester.ensureVisible(find.text(tab));
+        await tester.tap(find.text(tab));
+        await tester.pump(const Duration(milliseconds: 300));
+        expect(tester.takeException(), isNull);
+      }
+    });
   });
 }

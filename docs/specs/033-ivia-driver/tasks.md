@@ -61,7 +61,7 @@
       appel au support pour les autres situations.
 
 **Onglets**
-- [ ] 17. Missions D17 : recherche par numéro, onglets « En cours · n », « Terminées », « Annulées »,
+- [x] 17. Missions D17 : recherche par numéro, onglets « En cours · n », « Terminées », « Annulées »,
       cartes, état vide.
 - [ ] 18. Gains D18 :
       - calcul testé : jours de Lomé, semaine, mois, variation ;

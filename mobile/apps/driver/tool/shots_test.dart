@@ -393,6 +393,26 @@ void main() {
   );
 
   testWidgets(
+    'D17',
+    (t) => shot(
+      t,
+      'D17',
+      const DriverShell(),
+      overrides: missionOverrides(
+        driverMissionBody(arrivedShop: true, pickedUp: true),
+        3400,
+        1020,
+      ),
+      before: (t) async {
+        await t.pump(const Duration(milliseconds: 500));
+        await t.tap(find.bySemanticsLabel('Missions'));
+        await t.pump(const Duration(milliseconds: 500));
+        await t.pump(const Duration(milliseconds: 500));
+      },
+    ),
+  );
+
+  testWidgets(
     'D09',
     (t) => shot(
       t,

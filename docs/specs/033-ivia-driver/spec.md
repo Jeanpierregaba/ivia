@@ -99,7 +99,7 @@ actif en pastille bleue et son libellé.
 |---|---|
 | Gains du jour, de la semaine, du mois, par jour ; nombre de livraisons | **Calculés** depuis l'historique des missions (gains des missions livrées, jours de Lomé). |
 | Variation « +14 % » | **Calculée** : comparaison avec la période précédente, si elle a des missions. |
-| Heure d'arrivée estimée (D13, D17) | **Calculée** : distance et durée de l'itinéraire du serveur (`POST /v1/geo/route`, profil moto ou voiture, durée ralentie pour le vélo) ; repli sur la distance à vol d'oiseau et une vitesse moyenne selon le véhicule. |
+| Heure d'arrivée estimée (D13, D17) | **Calculée** : distance et durée de l'itinéraire du serveur (`POST /v1/geo/route`, profil moto ou voiture, durée ralentie pour le vélo) ; repli sur la distance à vol d'oiseau et une vitesse moyenne selon le véhicule. Sur la carte de D17, calcul à vol d'oiseau seulement (pas d'itinéraire demandé pour une liste). |
 | Application de navigation (D19) | **Réglage du téléphone** : Google Maps, Waze ou Plans (iPhone). |
 | Sonnerie des missions (D19) | **Réglage du téléphone** : activée, une nouvelle proposition fait sonner et vibrer l'app. Ivia Driver n'a pas de notifications push (les propositions arrivent app ouverte) : `alert_sound` ne s'applique pas. Les notifications push des livreurs sont notées pour Gedeon. |
 | Km parcourus, temps en ligne, « 5/8 » objectif, note « 4,9 · 212 courses », demande par quartier (D08), « 4 commandes bientôt prêtes », plusieurs zones préférées | **Masqués**. Le nombre de courses terminées est affiché à la place de la note. |
@@ -111,6 +111,8 @@ actif en pastille bleue et son libellé.
 | Liste des articles d'une commande de boutique (D12) | **Remplacée** : le serveur ne donne que leur nombre. Les cases sont « n articles reçus » et « Colis fermé et en bon état ». « Chez Afi a validé la remise » n'existe que pour la pharmacie. |
 | Photo du colis remis (D14) | **Masquée**. |
 | « Colis endommagé », « Code refusé », « Adresse introuvable » (D16) | **Non proposés seuls**. Ils ouvrent l'appel au support. « Client injoignable » déclenche la livraison impossible existante (10 min d'attente, 2 appels ; course de boutique seulement, le serveur n'a pas d'échec pour la pharmacie : appel au support). « Accident ou urgence » appelle le support. Avant le retrait, « Je ne peux pas faire cette course » garde le désistement existant. « Le support est prévenu » n'est pas affiché : rien n'est envoyé. Numéro du support : celui de l'ancien écran Profil (+228 99 30 99 45), à confirmer. |
+| Cloche de l'en-tête (D17) | **Masquée** : l'app n'a pas de notifications. |
+| Missions anciennes (D17) | **Limitées aux deux derniers mois** (historique lu pour les gains). Toucher une mission passée ouvre son détail (lieux, étapes datées, gain, motif) ; toucher la mission en cours rouvre son écran. « Annulées » regroupe les annulations, les désistements et les livraisons impossibles. |
 | « Chez Afi a validé la remise » pour une boutique | **Masqué** : seules les pharmacies valident la remise. |
 | Carte de fond | Carte Google si la clé est fournie, sinon fond neutre (comme l'app marchand). |
 

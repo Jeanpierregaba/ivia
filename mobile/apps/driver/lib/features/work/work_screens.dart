@@ -1,6 +1,5 @@
 import 'package:flutter/material.dart';
 import 'package:flutter_riverpod/flutter_riverpod.dart';
-import 'package:ivia_api_client/ivia_api_client.dart';
 import 'package:ivia_app_core/ivia_app_core.dart';
 import 'package:ivia_ui/ivia_ui.dart';
 
@@ -9,6 +8,7 @@ import '../../common/ui.dart';
 import '../earnings/earnings_screen.dart';
 import '../home/home_screen.dart';
 import '../mission/mission_screen.dart';
+import '../missions/missions_tab.dart';
 import 'work_state.dart';
 import 'work_ui.dart';
 
@@ -33,121 +33,17 @@ class _DriverShellState extends ConsumerState<DriverShell> {
           ? MissionScreen(mission: mission)
           : IndexedStack(
               index: _tab,
-              children: const [
-                HomeTab(),
-                _HistoryTab(),
-                EarningsTab(),
-                _ProfileTab(),
+              children: [
+                const HomeTab(),
+                MissionsTab(onOpenMission: () => setState(() => _tab = 0)),
+                const EarningsTab(),
+                const _ProfileTab(),
               ],
             ),
       bottomNavigationBar: DBottomNav(
         tabs: DBottomNav.driverTabs,
         index: _tab,
         onSelect: (i) => setState(() => _tab = i),
-      ),
-    );
-  }
-}
-
-class _HistoryTab extends ConsumerWidget {
-  const _HistoryTab();
-
-  @override
-  Widget build(BuildContext context, WidgetRef ref) {
-    final t = Theme.of(context).textTheme;
-    final items = ref.watch(workHistoryProvider).value ?? const <WorkMission>[];
-    final delivered = items.where((m) => m.deliveredAt != null).toList();
-    final total = delivered.fold<int>(0, (s, m) => s + m.feeXof);
-    return SafeArea(
-      child: RefreshIndicator(
-        onRefresh: () async => ref.invalidate(workHistoryProvider),
-        child: ListView(
-          padding: const EdgeInsets.all(IviaSpacing.screen),
-          children: [
-            Text(
-              'Mes gains',
-              style: t.headlineMedium?.copyWith(fontWeight: FontWeight.w800),
-            ),
-            const SizedBox(height: 16),
-            Container(
-              padding: const EdgeInsets.all(22),
-              decoration: BoxDecoration(
-                color: W.navy,
-                borderRadius: BorderRadius.circular(W.radius),
-              ),
-              child: Column(
-                crossAxisAlignment: CrossAxisAlignment.start,
-                children: [
-                  Text(
-                    'Total des courses livrées',
-                    style: t.bodyMedium?.copyWith(color: Colors.white70),
-                  ),
-                  Text(
-                    formatXof(total),
-                    style: t.displaySmall?.copyWith(
-                      color: Colors.white,
-                      fontWeight: FontWeight.w800,
-                    ),
-                  ),
-                  Text(
-                    '${delivered.length} course${delivered.length > 1 ? 's' : ''}',
-                    style: t.bodyMedium?.copyWith(color: Colors.white70),
-                  ),
-                ],
-              ),
-            ),
-            const SizedBox(height: 16),
-            if (items.isEmpty)
-              Text('Aucune course pour l\'instant.', style: t.bodyLarge),
-            for (final m in items)
-              Padding(
-                padding: const EdgeInsets.only(bottom: 10),
-                child: WCard(
-                  child: Row(
-                    children: [
-                      WIcon(
-                        m.pharmacy
-                            ? Icons.local_pharmacy_outlined
-                            : Icons.storefront_outlined,
-                        bg: m.deliveredAt != null ? W.softGreen : W.softRed,
-                        fg: m.deliveredAt != null ? W.green : W.red,
-                      ),
-                      const SizedBox(width: 12),
-                      Expanded(
-                        child: Column(
-                          crossAxisAlignment: CrossAxisAlignment.start,
-                          children: [
-                            Text(
-                              '${m.pickup.name} · ${m.reference}',
-                              style: t.titleSmall?.copyWith(
-                                fontWeight: FontWeight.w800,
-                              ),
-                            ),
-                            Text(
-                              '${DateUtils.dateOnly(m.assignedAt.toLocal()).day}/${m.assignedAt.toLocal().month} à ${hhmm(m.assignedAt)} · '
-                              '${m.deliveredAt != null
-                                  ? 'livrée'
-                                  : m.done
-                                  ? 'non livrée'
-                                  : 'en cours'}',
-                              style: t.bodySmall?.copyWith(color: W.muted),
-                            ),
-                          ],
-                        ),
-                      ),
-                      Text(
-                        m.deliveredAt != null ? '+${formatXof(m.feeXof)}' : '—',
-                        style: t.titleMedium?.copyWith(
-                          fontWeight: FontWeight.w800,
-                          color: W.green,
-                        ),
-                      ),
-                    ],
-                  ),
-                ),
-              ),
-          ],
-        ),
       ),
     );
   }
