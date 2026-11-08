@@ -1619,6 +1619,28 @@ void main() {
       );
     });
 
+    for (final pharmacy in [false, true]) {
+      testWidgets('retrait ${pharmacy ? 'pharmacie' : 'boutique'} : police à '
+          '220 % sur 320 dp', (tester) async {
+        tester.view.physicalSize = const Size(320, 640);
+        tester.view.devicePixelRatio = 1;
+        tester.platformDispatcher.textScaleFactorTestValue = 2.2;
+        addTearDown(tester.view.reset);
+        addTearDown(tester.platformDispatcher.clearTextScaleFactorTestValue);
+        await withMission(
+          tester,
+          pharmacy
+              ? driverPharmacyMissionBody(pickupCode: '7319')
+              : driverMissionBody(arrivedShop: true),
+          pharmacy: pharmacy,
+        );
+        if (pharmacy) await slideToEnd(tester);
+        expect(find.text('Retrait'), findsOneWidget);
+        final error = tester.takeException();
+        expect(error, isNull, reason: '$error');
+      });
+    }
+
     testWidgets('preuve de remise (D14) : 4 chiffres, puis confirmer', (
       tester,
     ) async {

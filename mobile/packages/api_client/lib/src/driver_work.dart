@@ -85,7 +85,9 @@ class WorkMission {
       deliveredAt = _d(j['delivered_at']),
       failedAt = _d(j['failed_at']),
       failureReason = j['failure_reason'] as String? ?? '',
-      preparedAt = null;
+      preparedAt = null,
+      pickupCode = null,
+      cashAdvancedXof = null;
 
   WorkMission.pharmacy(Map<String, dynamic> j)
     : id = j['id'] as String,
@@ -110,7 +112,11 @@ class WorkMission {
       deliveredAt = _d(j['delivered_at']),
       failedAt = null,
       failureReason = '',
-      preparedAt = _d(j['prepared_at']);
+      preparedAt = _d(j['prepared_at']),
+      pickupCode = j['pickup_code'] as String?,
+      cashAdvancedXof = j['cash_advanced_xof'] == null
+          ? null
+          : _i(j['cash_advanced_xof']);
 
   final String id, reference, status, failureReason;
   final bool pharmacy, prescriptionCheck;
@@ -128,6 +134,13 @@ class WorkMission {
       deliveredAt,
       failedAt,
       preparedAt;
+
+  /// Code de retrait à montrer à la pharmacie (032), tant qu'elle n'a pas
+  /// validé la remise ; `null` : boutique, ancienne course ou remise faite.
+  final String? pickupCode;
+
+  /// Espèces payées à la pharmacie par le livreur, remboursées par ivia.
+  final int? cashAdvancedXof;
 
   bool get done =>
       deliveredAt != null ||

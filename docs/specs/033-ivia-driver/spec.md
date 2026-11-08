@@ -108,6 +108,7 @@ actif en pastille bleue et son libellé.
 | Guidage tour par tour dans l'app (« 250 m, tournez à droite ») | **Masqué**. Le bandeau affiche la destination et la distance à vol d'oiseau ; le guidage se fait dans l'application de navigation choisie. |
 | Messagerie avec la boutique ou le client | **Masquée** : seul l'appel est proposé. Sur D13, la place du bouton de messagerie sert à l'itinéraire. |
 | Arrivée à la pharmacie et chez le client (course pharmacie) | **Dans l'app** : le serveur n'a pas ces étapes pour les courses pharmacie ; « Glisser à l'arrivée » passe à l'écran suivant sans appel. |
+| Liste des articles d'une commande de boutique (D12) | **Remplacée** : le serveur ne donne que leur nombre. Les cases sont « n articles reçus » et « Colis fermé et en bon état ». « Chez Afi a validé la remise » n'existe que pour la pharmacie. |
 | Photo du colis remis (D14) | **Masquée**. |
 | « Colis endommagé », « Code refusé », « Adresse introuvable » (D16) | **Non proposés seuls**. Ils ouvrent l'appel au support. « Client injoignable » déclenche la livraison impossible existante (10 min d'attente, 2 appels). « Accident ou urgence » appelle le support. |
 | « Chez Afi a validé la remise » pour une boutique | **Masqué** : seules les pharmacies valident la remise. |

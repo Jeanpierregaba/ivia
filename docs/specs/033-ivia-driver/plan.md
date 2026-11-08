@@ -70,7 +70,8 @@ Les identifiants techniques ne changent pas (`applicationId`, bundle iOS, paquet
 - `work_state.dart` :
   - heure de passage en ligne (« depuis 1 h 12 ») : gardée en mémoire, car l'app redémarre hors
     ligne ;
-  - relecture de la mission pharmacie toutes les 5 s pendant l'attente de la pharmacie (D12) ;
+  - relecture de la mission pharmacie pendant l'attente de la pharmacie (D12) : la relecture
+    existante de la mission en cours (toutes les 4 s) suffit ;
 - `earnings/earnings.dart` (nouveau) : gains par jour, semaine et mois depuis l'historique, jours
   de Lomé ;
 - `profile/settings.dart` (nouveau) : application de navigation et sonnerie (`shared_preferences`) ;

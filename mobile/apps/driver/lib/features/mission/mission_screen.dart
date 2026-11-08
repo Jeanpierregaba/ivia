@@ -14,7 +14,9 @@ import '../profile/settings.dart';
 import '../work/work_screens.dart' show MissionView;
 import '../work/work_state.dart';
 import 'eta.dart';
+import 'mission_ui.dart';
 import 'navigation.dart';
+import 'pickup_view.dart';
 
 /// Étape d'une mission en cours.
 enum MissionPhase { toPickup, atPickup, toClient, atClient }
@@ -68,7 +70,8 @@ class _MissionScreenState extends ConsumerState<MissionScreen> {
         toClient: phase == MissionPhase.toClient,
         onArrived: () => _arrive(m, phase),
       ),
-      _ => MissionView(mission: m),
+      MissionPhase.atPickup => PickupView(mission: m),
+      MissionPhase.atClient => MissionView(mission: m),
     };
   }
 
@@ -481,13 +484,13 @@ class _ToPickup extends StatelessWidget {
             ),
             if (m.reference.isNotEmpty) ...[
               const SizedBox(width: 8),
-              _Tag(_shortRef(m.reference)),
+              MTag(shortRef(m.reference)),
             ],
           ],
         ),
         const SizedBox(height: 4),
         Text(place.name, style: DText.heading.copyWith(fontSize: 26)),
-        if (_address(place) case final address?) ...[
+        if (placeAddress(place) case final address?) ...[
           const SizedBox(height: 4),
           Text(address, style: DText.bodyMuted.copyWith(fontSize: 14)),
         ],
@@ -497,20 +500,20 @@ class _ToPickup extends StatelessWidget {
           runSpacing: 6,
           children: [
             if (m.itemsCount > 0)
-              _Tag(
+              MTag(
                 m.pharmacy
                     ? '${m.itemsCount} ${m.itemsCount > 1 ? 'produits' : 'produit'}'
                     : '${m.itemsCount} ${m.itemsCount > 1 ? 'articles' : 'article'}',
               ),
-            if (m.parcelSize case final size?) _Tag(parcelLabel(size)),
+            if (m.parcelSize case final size?) MTag(parcelLabel(size)),
             if (m.awaitingPayment)
-              const _Tag(
+              const MTag(
                 'Paiement en attente',
                 bg: IviaDriverColors.warningSoft,
                 fg: IviaDriverColors.warning,
               )
             else
-              const _Tag('Payée', bg: D.greenSoft, fg: D.green),
+              const MTag('Payée', bg: D.greenSoft, fg: D.green),
           ],
         ),
         if (m.awaitingPayment) ...[
@@ -599,6 +602,10 @@ class _ToClient extends StatelessWidget {
         ),
         const SizedBox(height: 14),
         _Progress(value: progress, pharmacy: m.pharmacy),
+        if (m.pharmacy && m.pickedUpAt != null) ...[
+          const SizedBox(height: 14),
+          _Validated(mission: m),
+        ],
         const SizedBox(height: 14),
         const Divider(height: 1, color: IviaDriverColors.line),
         const SizedBox(height: 14),
@@ -637,9 +644,9 @@ class _ToClient extends StatelessWidget {
                       (client?.name ?? '').isEmpty ? 'Client' : client!.name,
                       style: DText.cardTitle.copyWith(fontSize: 17),
                     ),
-                    if (client != null && _address(client) != null)
+                    if (client != null && placeAddress(client) != null)
                       Text(
-                        _address(client)!,
+                        placeAddress(client)!,
                         style: DText.bodyMuted.copyWith(fontSize: 14),
                       ),
                   ],
@@ -649,7 +656,7 @@ class _ToClient extends StatelessWidget {
               // l'itinéraire dans l'app de navigation.
               if (onNavigate != null) ...[
                 const SizedBox(width: 8),
-                _Round(
+                RoundButton(
                   icon: Icons.map_rounded,
                   tooltip: 'Ouvrir dans ${navApp.shortLabel}',
                   bg: D.blueSoft,
@@ -659,7 +666,7 @@ class _ToClient extends StatelessWidget {
               ],
               if ((client?.phone ?? '').isNotEmpty) ...[
                 const SizedBox(width: 8),
-                _Round(
+                RoundButton(
                   icon: Icons.call_rounded,
                   tooltip: 'Appeler le client',
                   bg: D.blue,
@@ -702,23 +709,6 @@ class _ToClient extends StatelessWidget {
   }
 }
 
-/// « #1042 » : fin de la référence de commande.
-String _shortRef(String reference) {
-  final digits = RegExp(r'0*(\d+)$').firstMatch(reference)?.group(1);
-  return digits == null ? reference : '#$digits';
-}
-
-/// Adresse et quartier (« Rue 248, Tokoin ») ; `null` : rien de connu.
-String? _address(MissionPlace place) {
-  final parts = [
-    place.addressText,
-    if (place.neighborhood.isNotEmpty &&
-        !place.addressText.contains(place.neighborhood))
-      place.neighborhood,
-  ].where((s) => s.isNotEmpty);
-  return parts.isEmpty ? null : parts.join(' · ');
-}
-
 /// Appel et itinéraire dans l'app de navigation. La messagerie des
 /// maquettes est masquée (pas de serveur).
 class _Actions extends StatelessWidget {
@@ -738,7 +728,7 @@ class _Actions extends StatelessWidget {
   Widget build(BuildContext context) => Row(
     children: [
       if (phone.isNotEmpty) ...[
-        _Round(
+        RoundButton(
           icon: Icons.call_rounded,
           tooltip: callLabel,
           bg: D.page,
@@ -765,56 +755,6 @@ class _Actions extends StatelessWidget {
         ),
       ),
     ],
-  );
-}
-
-/// Bouton rond à icône (appel, itinéraire).
-class _Round extends StatelessWidget {
-  const _Round({
-    required this.icon,
-    required this.tooltip,
-    required this.bg,
-    required this.fg,
-    required this.onTap,
-    this.size = 48,
-  });
-  final IconData icon;
-  final String tooltip;
-  final Color bg, fg;
-  final VoidCallback onTap;
-  final double size;
-
-  @override
-  Widget build(BuildContext context) => Tooltip(
-    message: tooltip,
-    child: Material(
-      color: bg,
-      shape: const CircleBorder(),
-      child: InkWell(
-        customBorder: const CircleBorder(),
-        onTap: onTap,
-        child: SizedBox.square(
-          dimension: size,
-          child: Icon(icon, color: fg, size: 22),
-        ),
-      ),
-    ),
-  );
-}
-
-class _Tag extends StatelessWidget {
-  const _Tag(this.text, {this.bg = D.page, this.fg = D.label});
-  final String text;
-  final Color bg, fg;
-
-  @override
-  Widget build(BuildContext context) => Container(
-    padding: const EdgeInsets.symmetric(horizontal: 12, vertical: 6),
-    decoration: BoxDecoration(
-      color: bg,
-      borderRadius: BorderRadius.circular(IviaRadius.pill),
-    ),
-    child: Text(text, style: DText.pill.copyWith(color: fg, fontSize: 13)),
   );
 }
 
@@ -948,6 +888,53 @@ class _Withdraw extends ConsumerWidget {
       child: Text(
         'Je ne peux pas faire cette course',
         style: DText.button.copyWith(color: D.label, fontSize: 15),
+      ),
+    );
+  }
+}
+
+/// « La pharmacie a validé la remise · hh:mm » et les espèces avancées
+/// (ADR 0014), rappelés pendant le trajet vers le client.
+class _Validated extends StatelessWidget {
+  const _Validated({required this.mission});
+  final WorkMission mission;
+
+  @override
+  Widget build(BuildContext context) {
+    final at = mission.pickedUpAt!;
+    final cash = mission.cashAdvancedXof;
+    return Semantics(
+      liveRegion: true,
+      child: Container(
+        padding: const EdgeInsets.all(12),
+        decoration: BoxDecoration(
+          color: D.greenSoft,
+          borderRadius: BorderRadius.circular(16),
+        ),
+        child: Row(
+          crossAxisAlignment: CrossAxisAlignment.start,
+          children: [
+            const Icon(Icons.verified_rounded, color: D.green, size: 22),
+            const SizedBox(width: 10),
+            Expanded(
+              child: Column(
+                crossAxisAlignment: CrossAxisAlignment.start,
+                children: [
+                  Text(
+                    'La pharmacie a validé la remise · ${hhmm(at)}',
+                    style: DText.label.copyWith(color: D.ink, fontSize: 14),
+                  ),
+                  if (cash != null && cash > 0)
+                    Text(
+                      'Espèces avancées : ${formatXof(cash)} (remboursées '
+                      'par ivia)',
+                      style: DText.bodyMuted.copyWith(fontSize: 13),
+                    ),
+                ],
+              ),
+            ),
+          ],
+        ),
       ),
     );
   }

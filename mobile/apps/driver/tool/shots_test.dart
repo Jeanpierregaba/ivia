@@ -272,6 +272,21 @@ void main() {
   );
 
   testWidgets(
+    'D12',
+    (t) => shot(
+      t,
+      'D12',
+      const DriverShell(),
+      overrides: missionOverrides(driverMissionBody(arrivedShop: true), 0, 0),
+      before: (t) async {
+        await t.pump(const Duration(milliseconds: 500));
+        await t.tap(find.text('3 articles reçus'));
+        await t.pump(const Duration(milliseconds: 300));
+      },
+    ),
+  );
+
+  testWidgets(
     'D13',
     (t) => shot(
       t,
