@@ -67,7 +67,7 @@
       - calcul testé : jours de Lomé, semaine, mois, variation ;
       - barres, liste par jour ;
       - compte de versement masqué.
-- [ ] 19. Profil D19 :
+- [x] 19. Profil D19 :
       - véhicule, documents, zone ;
       - application de navigation, sonnerie des missions (son et vibration à l'arrivée d'une
         proposition, réglage du téléphone) ;

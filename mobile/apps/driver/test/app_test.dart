@@ -15,6 +15,7 @@ import 'package:ivia_driver/common/ui.dart';
 import 'package:ivia_driver/features/earnings/earnings.dart';
 import 'package:ivia_driver/features/mission/navigation.dart';
 import 'package:ivia_driver/features/onboarding/onboarding_screen.dart';
+import 'package:ivia_driver/features/profile/profile_tab.dart';
 import 'package:ivia_driver/main.dart';
 import 'package:ivia_ui/ivia_ui.dart';
 import 'package:shared_preferences/shared_preferences.dart';
@@ -2371,6 +2372,115 @@ void main() {
       expect(tester.takeException(), isNull);
       await tester.tap(find.text('Mois'));
       await tester.pump(const Duration(milliseconds: 300));
+      expect(tester.takeException(), isNull);
+    });
+    Future<void> openProfile(WidgetTester tester) async {
+      await tester.tap(find.bySemanticsLabel('Profil'));
+      for (var i = 0; i < 4; i++) {
+        await tester.pump(const Duration(milliseconds: 300));
+      }
+    }
+
+    testWidgets('profil (D19) : identité, véhicule, documents, zone ; '
+        '« Modifier » renvoie au support', (tester) async {
+      await withDossier(review: 'approved', status: 'offline');
+      approvedHome(delivered: [DateTime.now().toUtc()]);
+      await launchApp(tester);
+      await openProfile(tester);
+      expect(find.text('Awa Mensah'), findsOneWidget);
+      expect(find.text('AM'), findsOneWidget);
+      // Courses livrées à la place de la note (masquée).
+      expect(find.text('1 course'), findsOneWidget);
+      expect(find.textContaining('4,9'), findsNothing);
+      expect(find.text('Validé'), findsOneWidget);
+      expect(find.text('Moto'), findsOneWidget);
+      expect(
+        find.text('TG\u00A04521\u00A0AB · Honda\u00A0CG\u00A0125'),
+        findsOneWidget,
+      );
+      expect(find.text('4 validés'), findsOneWidget);
+      expect(find.text('Zone de travail'), findsOneWidget);
+      expect(find.text('Tokoin'), findsOneWidget);
+      expect(find.text('Google Maps'), findsOneWidget);
+      expect(find.text('+228 99 30 99 45'), findsOneWidget);
+
+      await tester.tap(find.text('Modifier'));
+      await tester.pumpAndSettle();
+      expect(find.text('Modifier mon activité'), findsOneWidget);
+      await tester.tap(find.text('Appeler le support'));
+      await tester.pumpAndSettle();
+      expect(launched.single.toString(), 'tel:+22899309945');
+
+      await tester.tap(find.text('Documents'));
+      await tester.pumpAndSettle();
+      expect(find.text('Carte grise'), findsOneWidget);
+      expect(find.text('Assurance du véhicule'), findsOneWidget);
+    });
+
+    testWidgets('profil (D19) : application de navigation et sonnerie, '
+        'gardées sur le téléphone', (tester) async {
+      await withDossier(review: 'approved', status: 'offline');
+      approvedHome();
+      await launchApp(tester);
+      await openProfile(tester);
+      await tester.tap(find.text('Application de navigation'));
+      await tester.pumpAndSettle();
+      // Android : pas de Plans.
+      expect(find.text('Plans'), findsNothing);
+      await tester.tap(find.text('Waze'));
+      await tester.pumpAndSettle();
+      expect(find.text('Waze'), findsOneWidget);
+      final prefs = await SharedPreferences.getInstance();
+      expect(prefs.getString('driver_nav_app'), 'waze');
+
+      expect(tester.widget<Switch>(find.byType(Switch)).value, isTrue);
+      await tester.tap(find.byType(Switch));
+      await tester.pumpAndSettle();
+      expect(tester.widget<Switch>(find.byType(Switch)).value, isFalse);
+      expect(prefs.getBool('driver_mission_ring'), isFalse);
+    });
+
+    testWidgets('profil (D19) : déconnexion confirmée', (tester) async {
+      tester.view.physicalSize = const Size(800, 1400);
+      tester.view.devicePixelRatio = 1;
+      addTearDown(tester.view.reset);
+      await withDossier(review: 'approved', status: 'offline');
+      approvedHome();
+      await launchApp(tester);
+      await openProfile(tester);
+      await tester.tap(find.text('Se déconnecter'));
+      await tester.pumpAndSettle();
+      expect(find.text('Se déconnecter ?'), findsOneWidget);
+      await tester.tap(find.text('Annuler'));
+      await tester.pumpAndSettle();
+      expect(server.calls('POST', '/v1/auth/logout'), isEmpty);
+
+      await tester.tap(find.text('Se déconnecter'));
+      await tester.pumpAndSettle();
+      await tester.tap(find.text('Se déconnecter').last);
+      await tester.pumpAndSettle();
+      expect(server.calls('POST', '/v1/auth/logout'), hasLength(1));
+    });
+
+    testWidgets('profil (D19) : police à 220 % sur 320 dp', (tester) async {
+      tester.view.physicalSize = const Size(320, 640);
+      tester.view.devicePixelRatio = 1;
+      tester.platformDispatcher.textScaleFactorTestValue = 2.2;
+      addTearDown(tester.view.reset);
+      addTearDown(tester.platformDispatcher.clearTextScaleFactorTestValue);
+      await withDossier(review: 'approved', status: 'offline');
+      approvedHome(delivered: [DateTime.now().toUtc()]);
+      await launchApp(tester);
+      await openProfile(tester);
+      expect(tester.takeException(), isNull);
+      await tester.scrollUntilVisible(
+        find.text('Se déconnecter'),
+        200,
+        scrollable: find.descendant(
+          of: find.byType(ProfileTab),
+          matching: find.byType(Scrollable),
+        ),
+      );
       expect(tester.takeException(), isNull);
     });
   });

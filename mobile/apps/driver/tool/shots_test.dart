@@ -393,6 +393,22 @@ void main() {
   );
 
   testWidgets(
+    'D19',
+    (t) => shot(
+      t,
+      'D19',
+      const DriverShell(),
+      overrides: signedIn(dossier: _ApprovedDossier.new),
+      before: (t) async {
+        await t.pump(const Duration(milliseconds: 500));
+        await t.tap(find.bySemanticsLabel('Profil'));
+        await t.pump(const Duration(milliseconds: 500));
+        await t.pump(const Duration(milliseconds: 500));
+      },
+    ),
+  );
+
+  testWidgets(
     'D18',
     (t) => shot(
       t,
