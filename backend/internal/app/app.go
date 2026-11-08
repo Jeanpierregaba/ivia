@@ -161,6 +161,8 @@ func New(cfg config.Config, logger *slog.Logger, pool *pgxpool.Pool, opts Option
 	}
 	// Arrivée estimée du livreur chez la pharmacie (spec 032).
 	a.Pharmacy.SetRouter(a.Mapping)
+	// Zones de travail proposées au dossier livreur (spec 033).
+	a.Delivery.SetZones(workZones{a.Mapping})
 	a.Business = business.NewService(db, a.Shops, a.Users, a.Uploads, a.Admin, a.Notifications)
 
 	// Suppression de compte : les modules qui bloquent, puis ceux qui effacent leurs données.
@@ -389,6 +391,24 @@ func (d pushDevices) PushDevices(ctx context.Context, userID uuid.UUID, app stri
 	out := make([]notifications.Device, len(ds))
 	for i, x := range ds {
 		out[i] = notifications.Device{Token: x.Token, Sound: x.AlertSound}
+	}
+	return out, nil
+}
+
+// workZones donne au module delivery les zones de travail du module carte : zones desservies
+// actives, sans leur contour.
+type workZones struct{ *mapping.Service }
+
+func (z workZones) WorkZones(ctx context.Context) ([]delivery.WorkZone, error) {
+	all, err := z.Zones(ctx)
+	if err != nil {
+		return nil, err
+	}
+	out := []delivery.WorkZone{}
+	for _, x := range all {
+		if x.IsActive && x.Type == "service_area" {
+			out = append(out, delivery.WorkZone{ID: x.ID, Name: x.Name})
+		}
 	}
 	return out, nil
 }

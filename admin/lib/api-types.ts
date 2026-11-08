@@ -1562,7 +1562,7 @@ export interface paths {
         };
         /**
          * Activités proposées à l'inscription
-         * @description Livraison toujours ; taxi VTC seulement si le back-office ne le masque pas (mode preregistration ou open). Pour chaque véhicule : pièces exigées.
+         * @description Livraison toujours ; taxi VTC seulement si le back-office ne le masque pas (mode preregistration ou open). Pour chaque véhicule : pièces exigées. Zones de travail proposées (zones desservies actives).
          */
         get: operations["getDriverOptions"];
         put?: never;
@@ -6097,7 +6097,7 @@ export interface components {
             holder: string;
         };
         DriverOptions: {
-            activities?: {
+            activities: {
                 activity?: string;
                 label?: string;
                 /** @enum {string} */
@@ -6106,6 +6106,12 @@ export interface components {
                     type?: string;
                     required_documents?: string[];
                 }[];
+            }[];
+            /** @description Zones de travail proposées au dossier livraison (zones desservies actives, par nom). `work_zone_id` de PUT /v1/driver/activities/delivery en vient (spec 033). */
+            zones: {
+                /** Format: uuid */
+                id: string;
+                name: string;
             }[];
         };
         DriverPayoutInput: {

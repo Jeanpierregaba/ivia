@@ -113,7 +113,23 @@ type Service struct {
 	notify   *notifications.Service
 	logger   *slog.Logger
 	locLimit *ratelimit.Limiter
+	// zones : zones de travail proposées au dossier (module carte, voir SetZones).
+	zones ZoneLister
 }
+
+// WorkZone : zone de travail que le livreur choisit dans son dossier.
+type WorkZone struct {
+	ID   uuid.UUID `json:"id"`
+	Name string    `json:"name"`
+}
+
+// ZoneLister lit les zones de travail (zones desservies actives) dans le module qui les possède.
+type ZoneLister interface {
+	WorkZones(ctx context.Context) ([]WorkZone, error)
+}
+
+// SetZones branche la lecture des zones (le module carte dépend de ce module : pas d'import).
+func (s *Service) SetZones(z ZoneLister) { s.zones = z }
 
 // Deps regroupe les dépendances du service.
 type Deps struct {

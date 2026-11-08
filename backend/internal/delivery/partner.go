@@ -263,6 +263,19 @@ func (s *Service) Options(ctx context.Context) ([]ActivityOption, error) {
 	return out, nil
 }
 
+// WorkZones liste les zones de travail proposées au dossier (spec 033) ; vide si le module carte
+// n'est pas branché.
+func (s *Service) WorkZones(ctx context.Context) ([]WorkZone, error) {
+	if s.zones == nil {
+		return []WorkZone{}, nil
+	}
+	z, err := s.zones.WorkZones(ctx)
+	if err != nil {
+		return nil, fmt.Errorf("zones de travail : %w", err)
+	}
+	return z, nil
+}
+
 // Guide retourne le guide du partenaire, rédigé dans le back-office.
 func (s *Service) Guide(ctx context.Context) (string, error) {
 	st, err := s.Settings(ctx)

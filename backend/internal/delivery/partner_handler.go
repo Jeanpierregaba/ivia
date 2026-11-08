@@ -31,7 +31,11 @@ func (h *Handler) options(w http.ResponseWriter, r *http.Request) error {
 	if err != nil {
 		return err
 	}
-	return httpapi.OK(w, map[string]any{"activities": items})
+	zones, err := h.svc.WorkZones(r.Context())
+	if err != nil {
+		return err
+	}
+	return httpapi.OK(w, map[string]any{"activities": items, "zones": zones})
 }
 
 func (h *Handler) saveActivity(w http.ResponseWriter, r *http.Request) error {

@@ -3335,7 +3335,7 @@ paths:
   "/v1/driver/options":
     get:
       summary: "Activités proposées à l'inscription"
-      description: "Livraison toujours ; taxi VTC seulement si le back-office ne le masque pas (mode preregistration ou open). Pour chaque véhicule : pièces exigées."
+      description: "Livraison toujours ; taxi VTC seulement si le back-office ne le masque pas (mode preregistration ou open). Pour chaque véhicule : pièces exigées. Zones de travail proposées (zones desservies actives)."
       tags:
         - Livreur
       operationId: getDriverOptions
@@ -13250,6 +13250,16 @@ components:
                       type: array
                       items:
                         type: string
+        zones:
+          type: array
+          description: "Zones de travail proposées au dossier livraison (zones desservies actives, par nom). `work_zone_id` de PUT /v1/driver/activities/delivery en vient (spec 033)."
+          items:
+            type: object
+            properties:
+              id: {type: string, format: uuid}
+              name: {type: string}
+            required: [id, name]
+      required: [activities, zones]
     DriverPayoutInput:
       type: object
       properties:
