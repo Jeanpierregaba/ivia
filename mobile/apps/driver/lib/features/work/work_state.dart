@@ -16,7 +16,12 @@ class WorkState {
     this.busy = false,
     this.error,
     this.onlineSince,
+    this.delivered,
   });
+
+  /// Mission tout juste livrée (D15), jusqu'à « Rester en ligne » ou
+  /// « Faire une pause » : le serveur ne la renvoie plus comme en cours.
+  final Delivered? delivered;
 
   final bool online, busy;
 
@@ -35,7 +40,10 @@ class WorkState {
     bool clearMission = false,
     bool? busy,
     String? error,
+    Delivered? delivered,
+    bool clearDelivered = false,
   }) => WorkState(
+    delivered: clearDelivered ? null : delivered ?? this.delivered,
     online: online ?? this.online,
     onlineSince: switch (online) {
       true when !this.online => DateTime.now(),
@@ -47,6 +55,13 @@ class WorkState {
     busy: busy ?? this.busy,
     error: error,
   );
+}
+
+/// Livraison confirmée : mission et heure de la remise.
+class Delivered {
+  const Delivered(this.mission, this.at);
+  final WorkMission mission;
+  final DateTime at;
 }
 
 final workProvider = NotifierProvider<WorkController, WorkState>(
@@ -80,6 +95,21 @@ class WorkController extends Notifier<WorkState> {
     if (state.offer?.id == offer.id) {
       state = state.copy(clearOffer: true, error: message);
     }
+  }
+
+  /// Livraison confirmée par le serveur : D15 jusqu'au choix du livreur.
+  void markDelivered(WorkMission mission) {
+    state = state.copy(
+      delivered: Delivered(mission, DateTime.now()),
+      clearMission: true,
+    );
+  }
+
+  /// « Rester en ligne » (en ligne s'il ne l'était plus) ou « Faire une
+  /// pause » après D15.
+  Future<void> afterDelivery({required bool stayOnline}) async {
+    state = state.copy(clearDelivered: true);
+    if (stayOnline != state.online) await setOnline(stayOnline);
   }
 
   Future<void> refresh() async {

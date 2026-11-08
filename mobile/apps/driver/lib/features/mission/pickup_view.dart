@@ -198,14 +198,14 @@ class _PickupViewState extends ConsumerState<PickupView> {
                             ),
                           )
                       else ...[
-                        _Check(
+                        CheckRow(
                           label: m.itemsCount > 1
                               ? '${m.itemsCount} articles reçus'
                               : '${m.itemsCount} article reçu',
                           value: _items,
                           onChanged: (v) => setState(() => _items = v),
                         ),
-                        _Check(
+                        CheckRow(
                           label: 'Colis fermé et en bon état',
                           value: _sealed,
                           onChanged: (v) => setState(() => _sealed = v),
@@ -262,60 +262,6 @@ class _PickupViewState extends ConsumerState<PickupView> {
       ),
     );
   }
-}
-
-/// Case à cocher d'une ligne (toute la ligne est cliquable).
-class _Check extends StatelessWidget {
-  const _Check({
-    required this.label,
-    required this.value,
-    required this.onChanged,
-  });
-  final String label;
-  final bool value;
-  final ValueChanged<bool> onChanged;
-
-  @override
-  Widget build(BuildContext context) => Semantics(
-    checked: value,
-    child: InkWell(
-      onTap: () => onChanged(!value),
-      borderRadius: BorderRadius.circular(12),
-      child: ConstrainedBox(
-        constraints: const BoxConstraints(minHeight: 48),
-        child: Row(
-          children: [
-            Padding(
-              padding: const EdgeInsets.all(4),
-              child: DecoratedBox(
-                decoration: BoxDecoration(
-                  color: value ? D.blue : Colors.white,
-                  borderRadius: BorderRadius.circular(7),
-                  border: value
-                      ? null
-                      : Border.all(color: IviaDriverColors.checkOff, width: 2),
-                ),
-                child: SizedBox.square(
-                  dimension: 24,
-                  child: value
-                      ? const Icon(
-                          Icons.check_rounded,
-                          color: Colors.white,
-                          size: 18,
-                        )
-                      : null,
-                ),
-              ),
-            ),
-            const SizedBox(width: 10),
-            Expanded(
-              child: Text(label, style: DText.body.copyWith(color: D.ink)),
-            ),
-          ],
-        ),
-      ),
-    ),
-  );
 }
 
 class _Notice extends StatelessWidget {

@@ -1768,6 +1768,103 @@ void main() {
       expect(calls.last.body, {'code': '5678', 'prescription_checked': true});
     });
 
+    /// Mission chez le client, remise confirmée (le serveur ne la renvoie
+    /// plus) ; une livraison plus tôt dans la journée (1 200 F).
+    Future<void> deliverMission(WidgetTester tester) async {
+      await withMission(
+        tester,
+        driverMissionBody(
+          arrivedShop: true,
+          pickedUp: true,
+          arrivedCustomer: true,
+        ),
+      );
+      approvedHome(delivered: [DateTime.now().toUtc()]);
+      goOnlineServer();
+      server.on('POST', '/v1/driver/missions/mission-1/deliver', (_) {
+        server.on(
+          'GET',
+          '/v1/driver/missions/current',
+          (_) => FakeResponse.json(200, {'mission': null}),
+        );
+        return FakeResponse.json(204, null);
+      });
+      await tester.enterText(find.byType(TextField), '4827');
+      await tester.pump();
+      await tapVisible(tester, find.text('Confirmer la livraison'));
+      for (var i = 0; i < 5; i++) {
+        await tester.pump(const Duration(milliseconds: 300));
+      }
+    }
+
+    testWidgets('livraison terminée (D15) : gain, totaux, rester en ligne', (
+      tester,
+    ) async {
+      await deliverMission(tester);
+      expect(find.text('Livraison terminée'), findsOneWidget);
+      expect(
+        find.textContaining('Commande #1042 remise à Awa M. à'),
+        findsOneWidget,
+      );
+      expect(find.text('+${formatXof(1200)}'), findsOneWidget);
+      // Avec la livraison de ce matin : 2 400 F, 2 livraisons.
+      expect(find.text(formatXof(2400)), findsOneWidget);
+      expect(find.text('Livraisons'), findsOneWidget);
+      // Km parcourus masqués.
+      expect(find.textContaining('km'), findsNothing);
+
+      await tapVisible(tester, find.text('Rester en ligne'));
+      for (var i = 0; i < 5; i++) {
+        await tester.pump(const Duration(milliseconds: 300));
+      }
+      expect(server.calls('PUT', '/v1/driver/availability').last.body, {
+        'online': true,
+      });
+      expect(find.text('Recherche de missions…'), findsOneWidget);
+      await tester.tap(find.text('Pause'));
+      for (var i = 0; i < 5; i++) {
+        await tester.pump(const Duration(milliseconds: 300));
+      }
+    });
+
+    testWidgets('livraison terminée : faire une pause', (tester) async {
+      await deliverMission(tester);
+      await tapVisible(tester, find.text('Faire une pause'));
+      expect(find.text('Vous êtes hors ligne'), findsOneWidget);
+    });
+
+    testWidgets('livraison terminée : police à 220 % sur 320 dp', (
+      tester,
+    ) async {
+      tester.view.physicalSize = const Size(320, 640);
+      tester.view.devicePixelRatio = 1;
+      addTearDown(tester.view.reset);
+      await deliverMission(tester);
+      tester.platformDispatcher.textScaleFactorTestValue = 2.2;
+      addTearDown(tester.platformDispatcher.clearTextScaleFactorTestValue);
+      await tester.pump();
+      expect(find.text('Livraison terminée'), findsOneWidget);
+      final error = tester.takeException();
+      expect(error, isNull, reason: '$error');
+    });
+
+    testWidgets('preuve de remise : police à 220 % sur 320 dp', (tester) async {
+      tester.view.physicalSize = const Size(320, 640);
+      tester.view.devicePixelRatio = 1;
+      tester.platformDispatcher.textScaleFactorTestValue = 2.2;
+      addTearDown(tester.view.reset);
+      addTearDown(tester.platformDispatcher.clearTextScaleFactorTestValue);
+      await withMission(
+        tester,
+        driverPharmacyMissionBody(pickedUp: true, prescription: true),
+        pharmacy: true,
+      );
+      await slideToEnd(tester);
+      expect(find.text('Preuve de remise'), findsOneWidget);
+      final error = tester.takeException();
+      expect(error, isNull, reason: '$error');
+    });
+
     testWidgets('accueil en ligne (D09) : bandeau, jour calculé, Pause', (
       tester,
     ) async {

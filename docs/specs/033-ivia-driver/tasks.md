@@ -56,7 +56,7 @@
         avancé ; ancienne course sans code ;
       - preuve : 4 chiffres, case ordonnance, code faux effacé.
 - [x] 14. Retrait D12 (boutique et pharmacie, relecture toutes les 5 s pendant l'attente).
-- [ ] 15. Preuve de remise D14 et livraison terminée D15 (rester en ligne, faire une pause).
+- [x] 15. Preuve de remise D14 et livraison terminée D15 (rester en ligne, faire une pause).
 - [ ] 16. Un problème ? D16 : client injoignable (attente et appels, refus du serveur affiché),
       appel au support pour les autres situations.
 

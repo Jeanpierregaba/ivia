@@ -248,6 +248,24 @@ List missionOverrides(Map<String, dynamic> body, int m, int s) => [
   ),
 ];
 
+/// Livraison terminée (D15).
+class _Delivered extends WorkController {
+  @override
+  WorkState build() => WorkState(
+    online: true,
+    delivered: Delivered(
+      WorkMission.shop(
+        driverMissionBody(
+          arrivedShop: true,
+          pickedUp: true,
+          arrivedCustomer: true,
+        ),
+      ),
+      DateTime.utc(2026, 11, 8, 23, 58),
+    ),
+  );
+}
+
 void main() {
   setUpAll(() async {
     TestWidgetsFlutterBinding.ensureInitialized();
@@ -283,6 +301,45 @@ void main() {
         await t.tap(find.text('3 articles reçus'));
         await t.pump(const Duration(milliseconds: 300));
       },
+    ),
+  );
+
+  testWidgets(
+    'D14',
+    (t) => shot(
+      t,
+      'D14',
+      const DriverShell(),
+      overrides: missionOverrides(
+        driverMissionBody(
+          arrivedShop: true,
+          pickedUp: true,
+          arrivedCustomer: true,
+        ),
+        0,
+        0,
+      ),
+      before: (t) async {
+        await t.pump(const Duration(milliseconds: 500));
+        await t.enterText(find.byType(TextField), '4827');
+        await t.pump();
+        FocusManager.instance.primaryFocus?.unfocus();
+        await t.pump(const Duration(milliseconds: 300));
+      },
+    ),
+  );
+
+  testWidgets(
+    'D15',
+    (t) => shot(
+      t,
+      'D15',
+      const DriverShell(),
+      overrides: [
+        ...signedIn(dossier: _ApprovedDossier.new),
+        workProvider.overrideWith(_Delivered.new),
+      ],
+      before: (t) => t.pump(const Duration(milliseconds: 500)),
     ),
   );
 

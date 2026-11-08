@@ -10,6 +10,7 @@ import '../../common/formats.dart';
 import '../../common/ui.dart';
 import '../earnings/earnings.dart';
 import '../work/work_state.dart';
+import '../mission/delivered_view.dart';
 import 'online_home.dart';
 
 /// Onglet Accueil : hors ligne (maquette D08) ou en ligne (proposition,
@@ -20,6 +21,9 @@ class HomeTab extends ConsumerWidget {
   @override
   Widget build(BuildContext context, WidgetRef ref) {
     final work = ref.watch(workProvider);
+    if (work.delivered case final delivered?) {
+      return DeliveredView(delivered: delivered);
+    }
     if (work.online || work.offer != null) return const OnlineHome();
     return const _OfflineHome();
   }

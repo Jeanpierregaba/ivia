@@ -11,12 +11,12 @@ import '../../common/formats.dart';
 import '../../common/ui.dart';
 import '../offer/offer_card.dart' show parcelLabel;
 import '../profile/settings.dart';
-import '../work/work_screens.dart' show MissionView;
 import '../work/work_state.dart';
 import 'eta.dart';
 import 'mission_ui.dart';
 import 'navigation.dart';
 import 'pickup_view.dart';
+import 'proof_view.dart';
 
 /// Étape d'une mission en cours.
 enum MissionPhase { toPickup, atPickup, toClient, atClient }
@@ -71,7 +71,7 @@ class _MissionScreenState extends ConsumerState<MissionScreen> {
         onArrived: () => _arrive(m, phase),
       ),
       MissionPhase.atPickup => PickupView(mission: m),
-      MissionPhase.atClient => MissionView(mission: m),
+      MissionPhase.atClient => ProofView(mission: m),
     };
   }
 

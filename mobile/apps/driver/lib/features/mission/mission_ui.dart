@@ -94,7 +94,7 @@ class StepHeader extends StatelessWidget {
               textAlign: TextAlign.center,
               maxLines: 1,
               overflow: TextOverflow.ellipsis,
-              style: DText.cardTitle.copyWith(fontSize: 20),
+              style: DText.cardTitle.copyWith(fontSize: 18),
             ),
           ),
         ),
@@ -116,6 +116,61 @@ class StepHeader extends StatelessWidget {
           ),
         ),
       ],
+    ),
+  );
+}
+
+/// Case à cocher d'une ligne (toute la ligne est cliquable).
+class CheckRow extends StatelessWidget {
+  const CheckRow({
+    super.key,
+    required this.label,
+    required this.value,
+    required this.onChanged,
+  });
+  final String label;
+  final bool value;
+  final ValueChanged<bool> onChanged;
+
+  @override
+  Widget build(BuildContext context) => Semantics(
+    checked: value,
+    child: InkWell(
+      onTap: () => onChanged(!value),
+      borderRadius: BorderRadius.circular(12),
+      child: ConstrainedBox(
+        constraints: const BoxConstraints(minHeight: 48),
+        child: Row(
+          children: [
+            Padding(
+              padding: const EdgeInsets.all(4),
+              child: DecoratedBox(
+                decoration: BoxDecoration(
+                  color: value ? D.blue : Colors.white,
+                  borderRadius: BorderRadius.circular(7),
+                  border: value
+                      ? null
+                      : Border.all(color: IviaDriverColors.checkOff, width: 2),
+                ),
+                child: SizedBox.square(
+                  dimension: 24,
+                  child: value
+                      ? const Icon(
+                          Icons.check_rounded,
+                          color: Colors.white,
+                          size: 18,
+                        )
+                      : null,
+                ),
+              ),
+            ),
+            const SizedBox(width: 10),
+            Expanded(
+              child: Text(label, style: DText.body.copyWith(color: D.ink)),
+            ),
+          ],
+        ),
+      ),
     ),
   );
 }
