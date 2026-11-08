@@ -264,6 +264,7 @@ class _RouteViewState extends ConsumerState<_RouteView> {
                         else
                           _ToPickup(
                             mission: m,
+                            leg: leg,
                             onCall: _call,
                             onNavigate: to == null
                                 ? null
@@ -378,7 +379,8 @@ class _DestinationBanner extends StatelessWidget {
     final leg = this.leg;
     final where = toClient ? 'Vers le client' : 'Vers $name';
     // Bandeau posé sur la carte : texte agrandi jusqu'à 150 %, au-delà il
-    // cacherait la carte (le volet reprend les mêmes chiffres en grand).
+    // cacherait la carte ; les volets D11 et D13 reprennent alors les mêmes
+    // chiffres en grand.
     return MediaQuery.withClampedTextScaling(
       maxScaleFactor: 1.5,
       child: MergeSemantics(
@@ -463,11 +465,13 @@ class _DestinationBanner extends StatelessWidget {
 class _ToPickup extends StatelessWidget {
   const _ToPickup({
     required this.mission,
+    required this.leg,
     required this.onCall,
     required this.onNavigate,
     required this.navApp,
   });
   final WorkMission mission;
+  final Leg? leg;
   final void Function(String phone) onCall;
   final VoidCallback? onNavigate;
   final NavApp navApp;
@@ -501,6 +505,12 @@ class _ToPickup extends StatelessWidget {
         ),
         const SizedBox(height: 4),
         Text(place.name, style: DText.heading.copyWith(fontSize: 26)),
+        // Police au-delà de 150 % : le bandeau sur la carte est plafonné, ses
+        // chiffres sont repris ici en grand.
+        if (MediaQuery.textScalerOf(context).scale(10) > 15) ...[
+          const SizedBox(height: 10),
+          _LegFigures(leg: leg),
+        ],
         if (placeAddress(place) case final address?) ...[
           const SizedBox(height: 4),
           Text(address, style: DText.bodyMuted.copyWith(fontSize: 14)),
@@ -588,29 +598,7 @@ class _ToClient extends StatelessWidget {
           ),
         ),
         const SizedBox(height: 10),
-        Row(
-          crossAxisAlignment: CrossAxisAlignment.start,
-          children: [
-            Expanded(
-              child: _Figure(
-                leg == null ? '—' : distance(leg.meters),
-                'Distance',
-              ),
-            ),
-            Expanded(
-              child: _Figure(
-                leg == null ? '—' : duration(leg.duration),
-                'Restant',
-              ),
-            ),
-            Expanded(
-              child: _Figure(
-                leg == null ? '—' : hhmm(DateTime.now().add(leg.duration)),
-                'Arrivée',
-              ),
-            ),
-          ],
-        ),
+        _LegFigures(leg: leg),
         const SizedBox(height: 14),
         _Progress(value: progress, pharmacy: m.pharmacy),
         if (m.pharmacy && m.pickedUpAt != null) ...[
@@ -769,6 +757,34 @@ class _Actions extends StatelessWidget {
       ),
     ],
   );
+}
+
+/// Distance, temps restant et heure d'arrivée du trajet en cours.
+class _LegFigures extends StatelessWidget {
+  const _LegFigures({required this.leg});
+  final Leg? leg;
+
+  @override
+  Widget build(BuildContext context) {
+    final leg = this.leg;
+    return Row(
+      crossAxisAlignment: CrossAxisAlignment.start,
+      children: [
+        Expanded(
+          child: _Figure(leg == null ? '—' : distance(leg.meters), 'Distance'),
+        ),
+        Expanded(
+          child: _Figure(leg == null ? '—' : duration(leg.duration), 'Restant'),
+        ),
+        Expanded(
+          child: _Figure(
+            leg == null ? '—' : hhmm(DateTime.now().add(leg.duration)),
+            'Arrivée',
+          ),
+        ),
+      ],
+    );
+  }
 }
 
 class _Figure extends StatelessWidget {

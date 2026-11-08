@@ -1446,6 +1446,8 @@ void main() {
       expect(find.text('4 min'), findsOneWidget);
       // Messagerie masquée (pas de serveur).
       expect(find.byIcon(Icons.chat_bubble_outline), findsNothing);
+      // Taille normale : chiffres dans le bandeau seulement (maquette D11).
+      expect(find.text('Restant'), findsNothing);
 
       await tester.ensureVisible(find.text('Ouvrir dans Maps'));
       await tester.tap(find.text('Ouvrir dans Maps'));
@@ -2853,6 +2855,9 @@ void main() {
             driverMissionBody(arrivedShop: picked, pickedUp: picked),
           );
           noOverflow(tester, 'trajet');
+          // Bandeau plafonné à 150 % : distance et durée reprises dans le volet.
+          expect(find.text('Distance'), findsOneWidget);
+          expect(find.text('Restant'), findsOneWidget);
           await tester.drag(
             find.byType(Scrollable).last,
             const Offset(0, -600),
