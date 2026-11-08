@@ -54,6 +54,7 @@ class _ProofViewState extends ConsumerState<ProofView> {
       _busy = true;
       _error = null;
     });
+    ref.read(workProvider.notifier).beginAction();
     try {
       await ref
           .read(apiClientProvider)

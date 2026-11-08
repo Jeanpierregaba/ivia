@@ -85,9 +85,11 @@ class _OfferCardState extends ConsumerState<OfferCard> {
 
   Future<void> _accept() async {
     setState(() => _error = null);
+    final work = ref.read(workProvider.notifier)..beginAction();
     try {
       await ref.read(apiClientProvider).acceptWorkOffer(widget.offer);
-      await ref.read(workProvider.notifier).refresh();
+      work.beginAction();
+      await work.refresh();
     } on ApiException catch (e) {
       if (!mounted) return;
       if (_gone(e)) {

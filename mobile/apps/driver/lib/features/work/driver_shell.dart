@@ -23,7 +23,10 @@ class _DriverShellState extends ConsumerState<DriverShell> {
 
   @override
   Widget build(BuildContext context) {
-    final mission = ref.watch(workProvider.select((s) => s.mission));
+    // « Livraison terminée » (D15) passe avant une mission encore présente.
+    final mission = ref.watch(
+      workProvider.select((s) => s.delivered == null ? s.mission : null),
+    );
     // Commande annulée pendant la mission : l'accueil affiche le message,
     // annoncé aussi au lecteur d'écran.
     ref.listen(workProvider.select((s) => s.error), (_, error) {

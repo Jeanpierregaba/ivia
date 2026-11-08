@@ -88,9 +88,19 @@ class WorkController extends Notifier<WorkState> {
   /// les renvoie encore.
   final _gone = <String>{};
 
+  /// Génération de l'état : incrémentée à chaque action du livreur. Une
+  /// relecture partie avant (ou pendant) une action est ignorée : sa réponse
+  /// décrirait un état dépassé (mission déjà livrée, proposition acceptée).
+  var _generation = 0;
+
+  /// À appeler avant et après une action faite hors de [run] (accepter une
+  /// proposition, confirmer la livraison, déclarer un échec).
+  void beginAction() => _generation++;
+
   /// Retire la proposition (compte à rebours fini, prise par un autre) ;
   /// [message] s'affiche dans la recherche.
   void dropOffer(WorkOffer offer, {String? message}) {
+    _generation++;
     _gone.add(offer.id);
     if (state.offer?.id == offer.id) {
       state = state.copy(clearOffer: true, error: message);
@@ -99,6 +109,9 @@ class WorkController extends Notifier<WorkState> {
 
   /// Livraison confirmée par le serveur : D15 jusqu'au choix du livreur.
   void markDelivered(WorkMission mission) {
+    _generation++;
+    // La mission qui disparaît est la nôtre : pas de message « annulée ».
+    _endExpected = true;
     state = state.copy(
       delivered: Delivered(mission, DateTime.now()),
       clearMission: true,
@@ -117,7 +130,10 @@ class WorkController extends Notifier<WorkState> {
   var _endExpected = false;
 
   /// [on] faux : l'action a échoué, la mission continue.
-  void expectMissionEnd({bool on = true}) => _endExpected = on;
+  void expectMissionEnd({bool on = true}) {
+    _generation++;
+    _endExpected = on;
+  }
 
   /// Message quand la mission disparaît sans action du livreur (commande
   /// annulée pendant le trajet).
@@ -125,8 +141,10 @@ class WorkController extends Notifier<WorkState> {
       'La commande a été annulée : la mission est terminée.';
 
   Future<void> refresh() async {
+    final generation = _generation;
     try {
       final mission = await _api.currentWorkMission();
+      if (generation != _generation) return;
       // Disparition sans action du livreur ; un retour à la boutique se
       // termine normalement à la confirmation de la boutique.
       final cancelled =
@@ -138,6 +156,8 @@ class WorkController extends Notifier<WorkState> {
       var offer = mission == null && state.online
           ? await _api.currentWorkOffer()
           : null;
+      // Action faite pendant la lecture de la proposition : état dépassé.
+      if (generation != _generation) return;
       if (offer != null && _gone.contains(offer.id)) offer = null;
       state = state.copy(
         mission: mission,
@@ -207,10 +227,12 @@ class WorkController extends Notifier<WorkState> {
   }
 
   Future<void> setOnline(bool online) async {
+    _generation++;
     state = state.copy(busy: true);
     try {
       if (online) await _sendLocation();
       await _api.setAvailability(online);
+      _generation++;
       _gps?.cancel();
       if (online) {
         _gps = Timer.periodic(
@@ -235,8 +257,10 @@ class WorkController extends Notifier<WorkState> {
   }) async {
     state = state.copy(busy: true);
     if (ends) _endExpected = true;
+    _generation++;
     try {
       await action(_api);
+      _generation++;
       state = state.copy(busy: false);
       await refresh();
       return null;

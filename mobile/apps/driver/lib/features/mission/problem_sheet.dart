@@ -251,16 +251,16 @@ class _UnreachableSheetState extends ConsumerState<_UnreachableSheet> {
       _busy = true;
       _error = null;
     });
-    ref.read(workProvider.notifier).expectMissionEnd();
+    final work = ref.read(workProvider.notifier)..expectMissionEnd();
     try {
       await ref
           .read(apiClientProvider)
           .failMission(widget.mission, 'Client injoignable', _calls);
-      if (!mounted) return;
-      Navigator.of(context).pop();
-      await ref.read(workProvider.notifier).refresh();
+      work.beginAction();
+      if (mounted) Navigator.of(context).pop();
+      await work.refresh();
     } on ApiException catch (e) {
-      ref.read(workProvider.notifier).expectMissionEnd(on: false);
+      work.expectMissionEnd(on: false);
       if (!mounted) return;
       final message = e.fields['call_attempts'] ?? e.message;
       setState(() => _error = message);

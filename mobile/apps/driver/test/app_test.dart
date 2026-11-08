@@ -2045,6 +2045,56 @@ void main() {
       expect(find.textContaining('a été annulée'), findsNothing);
     });
 
+    testWidgets('relecture lente pendant la remise : D15 reste affiché, '
+        'pas de faux message « annulée »', (tester) async {
+      final mission = driverMissionBody(
+        arrivedShop: true,
+        pickedUp: true,
+        arrivedCustomer: true,
+      );
+      await withMission(tester, mission);
+      goOnlineServer();
+      // Relecture lente : la mission encore en cours arrive après la remise.
+      server.on('GET', '/v1/driver/missions/current', (_) async {
+        await Future<void>.delayed(const Duration(seconds: 3));
+        return FakeResponse.json(200, {'mission': mission});
+      });
+      server.on('POST', '/v1/driver/missions/mission-1/deliver', (_) {
+        server.on(
+          'GET',
+          '/v1/driver/missions/current',
+          (_) => FakeResponse.json(200, {'mission': null}),
+        );
+        return FakeResponse.json(204, null);
+      });
+      final before = server.calls('GET', '/v1/driver/missions/current').length;
+      while (server.calls('GET', '/v1/driver/missions/current').length ==
+          before) {
+        await tester.pump(const Duration(milliseconds: 200));
+      }
+      // Relecture en vol : le livreur confirme la remise.
+      await tester.enterText(find.byType(TextField), '4827');
+      await tester.pump();
+      await tester.ensureVisible(find.text('Confirmer la livraison'));
+      await tester.tap(find.text('Confirmer la livraison'));
+      // Une fois la remise faite, la preuve ne réapparaît jamais.
+      var delivered = false;
+      for (var i = 0; i < 60; i++) {
+        await tester.pump(const Duration(milliseconds: 100));
+        delivered |= find.text('Livraison terminée').evaluate().isNotEmpty;
+        if (delivered) {
+          expect(find.text('Preuve de remise'), findsNothing, reason: 'à $i');
+        }
+      }
+      expect(find.text('Livraison terminée'), findsOneWidget);
+      expect(find.text('Preuve de remise'), findsNothing);
+      await tapVisible(tester, find.text('Rester en ligne'));
+      for (var i = 0; i < 16; i++) {
+        await tester.pump(const Duration(milliseconds: 300));
+      }
+      expect(find.textContaining('a été annulée'), findsNothing);
+    });
+
     testWidgets('commande annulée pendant le trajet : message, accueil', (
       tester,
     ) async {
