@@ -34,6 +34,10 @@ String duration(Duration d) {
   return m == 0 ? '$h h' : '$h h ${m.toString().padLeft(2, '0')}';
 }
 
+/// Temps en ligne (D09) : « À l'instant », « Depuis 12 min », « Depuis 1 h 12 ».
+String onlineFor(Duration d) =>
+    d.inMinutes < 1 ? "À l'instant" : 'Depuis ${duration(d)}';
+
 /// Salutation selon l'heure de Lomé : « Bonjour » avant 18 h, « Bonsoir »
 /// ensuite (et avant 4 h).
 String greeting(DateTime now) {

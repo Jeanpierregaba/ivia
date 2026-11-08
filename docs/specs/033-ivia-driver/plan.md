@@ -68,7 +68,8 @@ Les identifiants techniques ne changent pas (`applicationId`, bundle iOS, paquet
 
 **Logique**
 - `work_state.dart` :
-  - heure de passage en ligne (« depuis 1 h 12 », gardée sur le téléphone) ;
+  - heure de passage en ligne (« depuis 1 h 12 ») : gardée en mémoire, car l'app redémarre hors
+    ligne ;
   - relecture de la mission pharmacie toutes les 5 s pendant l'attente de la pharmacie (D12) ;
 - `earnings/earnings.dart` (nouveau) : gains par jour, semaine et mois depuis l'historique, jours
   de Lomé ;
@@ -114,8 +115,7 @@ Les identifiants techniques ne changent pas (`applicationId`, bundle iOS, paquet
 
 Aucune migration. Réglages du téléphone dans `shared_preferences` :
 - application de navigation ;
-- sonnerie ;
-- heure de passage en ligne.
+- sonnerie.
 
 ## API / interfaces
 

@@ -41,7 +41,7 @@
 - [x] 9. Barre du bas claire et accueil hors ligne D08 :
       - salutation, carte du jour (calculée) ;
       - glisser pour passer en ligne.
-- [ ] 10. Accueil en ligne D09 : bandeau « En ligne · depuis », « Pause », carte ou fond neutre,
+- [x] 10. Accueil en ligne D09 : bandeau « En ligne · depuis », « Pause », carte ou fond neutre,
       volet « Recherche de missions… ».
 - [ ] 11. Mission proposée D10 : gain, compte à rebours, trajet, glisser pour accepter, refuser,
       proposition expirée ou prise.

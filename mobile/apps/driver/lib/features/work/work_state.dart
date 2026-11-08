@@ -15,9 +15,14 @@ class WorkState {
     this.mission,
     this.busy = false,
     this.error,
+    this.onlineSince,
   });
 
   final bool online, busy;
+
+  /// Passage en ligne (« Depuis 1 h 12 », D09) ; `null` hors ligne. Gardé
+  /// tant que l'app tourne : elle redémarre hors ligne.
+  final DateTime? onlineSince;
   final WorkOffer? offer;
   final WorkMission? mission;
   final String? error;
@@ -32,6 +37,11 @@ class WorkState {
     String? error,
   }) => WorkState(
     online: online ?? this.online,
+    onlineSince: switch (online) {
+      true when !this.online => DateTime.now(),
+      false => null,
+      _ => onlineSince,
+    },
     offer: clearOffer ? null : offer ?? this.offer,
     mission: clearMission ? null : mission ?? this.mission,
     busy: busy ?? this.busy,

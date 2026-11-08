@@ -9,8 +9,8 @@ import 'package:ivia_ui/ivia_ui.dart';
 import '../../common/formats.dart';
 import '../../common/ui.dart';
 import '../earnings/earnings.dart';
-import '../work/work_screens.dart';
 import '../work/work_state.dart';
+import 'online_home.dart';
 
 /// Onglet Accueil : hors ligne (maquette D08) ou en ligne (proposition,
 /// recherche).

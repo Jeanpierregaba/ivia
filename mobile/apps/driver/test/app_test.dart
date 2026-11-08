@@ -1087,12 +1087,103 @@ void main() {
           expect(server.calls('POST', '/v1/driver/location'), isEmpty);
         }
         // Hors ligne : plus d'envoi périodique en attente.
-        await tester.tap(find.byType(Switch));
+        await tester.tap(find.text('Pause'));
         for (var i = 0; i < 5; i++) {
           await tester.pump(const Duration(milliseconds: 300));
         }
       });
     }
+
+    /// Réponses du passage en ligne : propositions vides, position.
+    void goOnlineServer() => server
+      ..on(
+        'GET',
+        '/v1/driver/offers/current',
+        (_) => FakeResponse.json(200, {'offer': null}),
+      )
+      ..on(
+        'GET',
+        '/v1/driver/pharmacy-offers/current',
+        (_) => FakeResponse.json(200, {'offer': null}),
+      )
+      ..on(
+        'PUT',
+        '/v1/driver/availability',
+        (_) => FakeResponse.json(204, null),
+      )
+      ..on('POST', '/v1/driver/location', (_) => FakeResponse.json(204, null));
+
+    testWidgets('accueil en ligne : police à 200 % sur 320 dp', (tester) async {
+      tester.view.physicalSize = const Size(320, 640);
+      tester.view.devicePixelRatio = 1;
+      tester.platformDispatcher.textScaleFactorTestValue = 2;
+      addTearDown(tester.view.reset);
+      addTearDown(tester.platformDispatcher.clearTextScaleFactorTestValue);
+      await withDossier(review: 'approved', status: 'offline');
+      approvedHome(delivered: [DateTime.now().toUtc()]);
+      goOnlineServer();
+      await launchApp(tester);
+      await tester.scrollUntilVisible(
+        find.text('Glisser pour passer en ligne'),
+        200,
+        scrollable: find.byType(Scrollable).first,
+      );
+      await tester.ensureVisible(find.byKey(const Key('slide-knob')));
+      await tester.pumpAndSettle();
+      await tester.drag(
+        find.byKey(const Key('slide-knob')),
+        const Offset(2000, 0),
+      );
+      for (var i = 0; i < 5; i++) {
+        await tester.pump(const Duration(milliseconds: 300));
+      }
+      expect(find.text('Pause'), findsOneWidget);
+      final error = tester.takeException();
+      expect(error, isNull, reason: '$error');
+      await tester.tap(find.text('Pause'));
+      for (var i = 0; i < 5; i++) {
+        await tester.pump(const Duration(milliseconds: 300));
+      }
+    });
+
+    testWidgets('accueil en ligne (D09) : bandeau, jour calculé, Pause', (
+      tester,
+    ) async {
+      await withDossier(review: 'approved', status: 'offline');
+      approvedHome(delivered: [DateTime.now().toUtc()]);
+      goOnlineServer();
+      server.on(
+        'GET',
+        '/v1/driver/options',
+        (_) => FakeResponse.json(200, driverOptionsBody()),
+      );
+      await launchApp(tester);
+      await tester.drag(
+        find.byKey(const Key('slide-knob')),
+        const Offset(2000, 0),
+      );
+      for (var i = 0; i < 5; i++) {
+        await tester.pump(const Duration(milliseconds: 300));
+      }
+      expect(find.text('En ligne'), findsOneWidget);
+      expect(find.text("À l'instant · Tokoin"), findsOneWidget);
+      expect(find.text('Recherche de missions…'), findsOneWidget);
+      // Une livraison aujourd'hui : 1 200 F.
+      expect(find.text('1'), findsOneWidget);
+      expect(find.text(formatXof(1200)), findsOneWidget);
+      // Masqués : km parcourus, commandes bientôt prêtes.
+      expect(find.textContaining('km'), findsNothing);
+      expect(find.textContaining('bientôt prêtes'), findsNothing);
+
+      await tester.tap(find.text('Pause'));
+      for (var i = 0; i < 5; i++) {
+        await tester.pump(const Duration(milliseconds: 300));
+      }
+      final calls = server.calls('PUT', '/v1/driver/availability');
+      expect(calls, hasLength(2));
+      expect(calls.last.body, {'online': false});
+      expect(find.text('Vous êtes hors ligne'), findsOneWidget);
+    });
 
     testWidgets('refusé : motif, correction préremplie, renvoi', (
       tester,

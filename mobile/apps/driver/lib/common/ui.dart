@@ -294,10 +294,14 @@ class DIconTile extends StatelessWidget {
     this.bg = D.blueSoft,
     this.fg = D.blue,
     this.size = 48,
+    this.circle = false,
   });
   final IconData icon;
   final Color bg, fg;
   final double size;
+
+  /// Pastille ronde (D09) au lieu du carré arrondi.
+  final bool circle;
 
   @override
   Widget build(BuildContext context) => ExcludeSemantics(
@@ -306,7 +310,7 @@ class DIconTile extends StatelessWidget {
       height: size,
       decoration: BoxDecoration(
         color: bg,
-        borderRadius: BorderRadius.circular(size * .3),
+        borderRadius: BorderRadius.circular(circle ? size / 2 : size * .3),
       ),
       child: Icon(icon, color: fg, size: size * .5),
     ),

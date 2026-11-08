@@ -40,3 +40,12 @@ class DriverDossierNotifier extends AsyncNotifier<DriverDossier?> {
     }
   }
 }
+
+/// Nom de la zone de travail du livreur (« Tokoin ») ; `null` : aucune ou
+/// inconnue du serveur.
+final workZoneNameProvider = FutureProvider.autoDispose<String?>((ref) async {
+  final id = ref.watch(driverDossierProvider).value?.delivery?.workZoneId;
+  if (id == null || id.isEmpty) return null;
+  final options = await ref.read(apiClientProvider).driverOptions();
+  return options.zones.where((z) => z.id == id).firstOrNull?.name;
+});

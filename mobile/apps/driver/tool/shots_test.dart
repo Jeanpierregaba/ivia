@@ -16,6 +16,7 @@ import 'package:ivia_driver/app/identity.dart';
 import 'package:ivia_driver/features/dossier/dossier_form_screen.dart';
 import 'package:ivia_driver/features/dossier/dossier_pending_screen.dart';
 import 'package:ivia_driver/features/work/work_screens.dart';
+import 'package:ivia_driver/features/work/work_state.dart';
 import 'package:ivia_driver/features/onboarding/onboarding_screen.dart';
 import 'package:ivia_driver/features/splash/loading_screen.dart';
 import 'package:ivia_ui/ivia_ui.dart';
@@ -190,8 +191,43 @@ class _SentCode extends PhoneLoginFlow {
   );
 }
 
+/// En ligne depuis 1 h 12 (D09).
+class _Online extends WorkController {
+  @override
+  WorkState build() => WorkState(
+    online: true,
+    onlineSince: DateTime.now().subtract(const Duration(minutes: 72)),
+  );
+}
+
 void main() {
-  setUpAll(loadFonts);
+  setUpAll(() async {
+    TestWidgetsFlutterBinding.ensureInitialized();
+    // Cache des tuiles de la carte (D09) : dossier temporaire.
+    TestDefaultBinaryMessengerBinding.instance.defaultBinaryMessenger
+        .setMockMethodCallHandler(
+          const MethodChannel('plugins.flutter.io/path_provider'),
+          (_) async => Directory.systemTemp.path,
+        );
+    await loadFonts();
+  });
+
+  testWidgets(
+    'D09',
+    (t) => shot(
+      t,
+      'D09',
+      const DriverShell(),
+      overrides: [
+        ...signedIn(dossier: _ApprovedDossier.new),
+        workProvider.overrideWith(_Online.new),
+      ],
+      before: (t) async {
+        await t.pump(const Duration(milliseconds: 500));
+        await t.pump(const Duration(milliseconds: 500));
+      },
+    ),
+  );
 
   testWidgets(
     'D08',
