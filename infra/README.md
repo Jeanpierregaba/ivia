@@ -36,6 +36,11 @@ cd /opt/ivia && git pull
 cd infra && ./deploy.sh <sha>     # SHA fusionné sur main (production) ou develop (staging)
 ```
 
+La CI ne publie une image que si son code a changé (`backend/` pour l'API ; `admin/` ou le contrat
+pour le back-office). Si le commit ne touche qu'un côté, donner les deux SHA :
+`./deploy.sh <sha-api> <sha-admin>`, chacun étant le dernier commit dont l'image a été publiée
+(jobs `api-image` et `admin-image` réussis dans l'onglet Actions).
+
 `deploy.sh` télécharge les images publiées par la CI, démarre, vérifie `/ready` et `/login`, et
 remet la version précédente tout seul si la nouvelle ne répond pas (`deploy-history.log`).
 

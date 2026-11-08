@@ -136,7 +136,8 @@ disque, le DNS et les sauvegardes, sans jamais afficher un secret. **Tout doit �
 ## 9. Premier déploiement
 
 1. Fusionner sur `develop` (staging) ou `main` (production) : la CI publie les images
-   `ivia-api:<sha>` et `ivia-admin:<sha>` (jobs `api-image` et `admin-image`).
+   `ivia-api:<sha>` et `ivia-admin:<sha>` (jobs `api-image` et `admin-image`), chacune seulement
+   si son code a changé (voir infra/README.md, « Déployer une version »).
 2. Sur le serveur :
 
 ```sh

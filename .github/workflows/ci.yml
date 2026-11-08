@@ -8,10 +8,51 @@ on:
 permissions:
   contents: read
 
+# Économie de minutes :
+# - une pull request ouverte annule son run précédent (son diff est cumulé depuis la base, rien
+#   n'est perdu) ; un push n'annule jamais : chaque push n'est comparé qu'au précédent ;
+# - chaque job ne tourne que si son dossier a changé (job « changes ») ;
+# - la PR develop → main ne relance pas ce que le push sur develop vient de vérifier (même commit).
+concurrency:
+  group: ci-${{ github.ref }}
+  cancel-in-progress: ${{ github.event_name == 'pull_request' }}
+
 jobs:
+  # Dossiers modifiés depuis le dernier push (ou depuis la base de la PR). Un changement de la CI,
+  # un premier push ou un historique introuvable relancent tout.
+  changes:
+    if: github.event_name == 'push' || github.head_ref != 'develop'
+    runs-on: ubuntu-latest
+    outputs:
+      backend: ${{ steps.diff.outputs.backend }}
+      contract: ${{ steps.diff.outputs.contract }}
+      admin: ${{ steps.diff.outputs.admin }}
+      mobile: ${{ steps.diff.outputs.mobile }}
+    steps:
+      - uses: actions/checkout@v7
+        with:
+          fetch-depth: 0
+      - id: diff
+        env:
+          BASE: ${{ github.event_name == 'pull_request' && github.event.pull_request.base.sha || github.event.before }}
+        run: |
+          all() { for k in backend contract admin mobile; do echo "$k=true" >> "$GITHUB_OUTPUT"; done; exit 0; }
+          case "$BASE" in ''|0000000000000000000000000000000000000000) all ;; esac
+          files=$(git diff --name-only "$BASE" HEAD) || all
+          echo "$files" | grep -q '^\.github/' && all
+          has() { echo "$files" | grep -qE "$1" && echo true || echo false; }
+          {
+            echo "backend=$(has '^backend/')"
+            echo "contract=$(has '^backend/api/openapi\.yaml$')"
+            echo "admin=$(has '^admin/|^backend/api/openapi\.yaml$')"
+            echo "mobile=$(has '^mobile/')"
+          } >> "$GITHUB_OUTPUT"
+          echo "$files" | sed 's/^/  /'
+
   # Aucun secret dans le dépôt, historique compris (règles et exceptions : .gitleaks.toml). Un
   # secret détecté est considéré comme compromis : le changer (infra/README.md), puis le retirer.
   secrets:
+    needs: changes
     runs-on: ubuntu-latest
     steps:
       - uses: actions/checkout@v7
@@ -23,6 +64,8 @@ jobs:
           git /repo --config /repo/.gitleaks.toml --redact --no-banner
 
   backend:
+    needs: changes
+    if: needs.changes.outputs.backend == 'true'
     runs-on: ubuntu-latest
     defaults:
       run:
@@ -61,6 +104,8 @@ jobs:
         run: go run golang.org/x/vuln/cmd/govulncheck@v1.9.0 ./...
 
   contract:
+    needs: changes
+    if: needs.changes.outputs.contract == 'true'
     runs-on: ubuntu-latest
     steps:
       - uses: actions/checkout@v7
@@ -68,6 +113,8 @@ jobs:
         run: npx --yes @redocly/cli@2 lint backend/api/openapi.yaml
 
   admin:
+    needs: changes
+    if: needs.changes.outputs.admin == 'true'
     runs-on: ubuntu-latest
     defaults:
       run:
@@ -89,6 +136,8 @@ jobs:
       - run: pnpm audit --prod --audit-level high
 
   mobile:
+    needs: changes
+    if: needs.changes.outputs.mobile == 'true'
     runs-on: ubuntu-latest
     defaults:
       run:
@@ -110,9 +159,14 @@ jobs:
   # Image de l'API publiée sur GitHub Container Registry après chaque fusion sur main (ADR 0008).
   # Étiquette = SHA du commit : c'est l'API_TAG déployé (voir infra/README.md).
   api-image:
-    # main : production ; develop : staging (deploy.sh <sha> sur le serveur concerné).
-    if: github.event_name == 'push' && (github.ref == 'refs/heads/main' || github.ref == 'refs/heads/develop')
-    needs: [backend, contract]
+    # main : production ; develop : staging. Publiée seulement si backend/ a changé : déployer avec
+    # ./deploy.sh <sha-api> <sha-admin> (dernier commit publié de chacune, voir infra/README.md).
+    needs: [changes, backend, contract]
+    if: >-
+      always() && github.event_name == 'push'
+      && (github.ref == 'refs/heads/main' || github.ref == 'refs/heads/develop')
+      && needs.backend.result == 'success'
+      && (needs.contract.result == 'success' || needs.contract.result == 'skipped')
     runs-on: ubuntu-latest
     permissions:
       contents: read
@@ -132,9 +186,11 @@ jobs:
 
   # Image du back-office, publiée comme celle de l'API (ADMIN_TAG = SHA du commit).
   admin-image:
-    # main : production ; develop : staging (deploy.sh <sha> sur le serveur concerné).
-    if: github.event_name == 'push' && (github.ref == 'refs/heads/main' || github.ref == 'refs/heads/develop')
-    needs: [admin]
+    # main : production ; develop : staging. Publiée seulement si admin/ (ou le contrat) a changé.
+    needs: [changes, admin]
+    if: >-
+      github.event_name == 'push'
+      && (github.ref == 'refs/heads/main' || github.ref == 'refs/heads/develop')
     runs-on: ubuntu-latest
     permissions:
       contents: read
