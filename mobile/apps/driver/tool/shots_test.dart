@@ -15,7 +15,7 @@ import 'package:ivia_driver/app/driver_dossier.dart';
 import 'package:ivia_driver/app/identity.dart';
 import 'package:ivia_driver/features/dossier/dossier_form_screen.dart';
 import 'package:ivia_driver/features/dossier/dossier_pending_screen.dart';
-import 'package:ivia_driver/features/work/work_screens.dart';
+import 'package:ivia_driver/features/work/driver_shell.dart';
 import 'package:ivia_driver/features/work/work_state.dart';
 import 'package:ivia_driver/features/onboarding/onboarding_screen.dart';
 import 'package:ivia_driver/features/splash/loading_screen.dart';

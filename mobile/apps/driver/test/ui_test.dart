@@ -2,6 +2,7 @@ import 'package:flutter/material.dart';
 import 'package:flutter_test/flutter_test.dart';
 import 'package:ivia_driver/common/formats.dart';
 import 'package:ivia_driver/common/ui.dart';
+import 'package:ivia_driver/features/splash/loading_screen.dart';
 import 'package:ivia_ui/ivia_ui.dart';
 
 // Spec 033, tâche 3 : composants d'Ivia Driver.
@@ -223,5 +224,16 @@ void main() {
       expect(initials('Kossi Adjo'), 'KA');
       expect(initials('  awa  '), 'A');
     });
+  });
+
+  testWidgets('lancement (D00) : police à 200 % sur 320 dp', (tester) async {
+    tester.view.physicalSize = const Size(320, 640);
+    tester.view.devicePixelRatio = 1;
+    tester.platformDispatcher.textScaleFactorTestValue = 2;
+    addTearDown(tester.view.reset);
+    addTearDown(tester.platformDispatcher.clearTextScaleFactorTestValue);
+    await tester.pumpWidget(const MaterialApp(home: LoadingScreen()));
+    await tester.pump(const Duration(milliseconds: 500));
+    expect(tester.takeException(), isNull);
   });
 }

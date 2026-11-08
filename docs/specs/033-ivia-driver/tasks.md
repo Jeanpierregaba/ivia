@@ -74,7 +74,7 @@
       - aide, déconnexion.
 
 **Finitions**
-- [ ] 20. Police à 200 % sur 320 dp pour tous les écrans (220 % sur les lignes à montants) ; ancien
+- [x] 20. Police à 200 % sur 320 dp pour tous les écrans (220 % sur les lignes à montants) ; ancien
       code supprimé (`work_screens.dart`, écrans remplacés) ; lint et analyse.
 - [ ] 21. Vérification sur le simulateur iPhone, avec l'API locale et `seed-demo`, écran par écran
       face aux maquettes.

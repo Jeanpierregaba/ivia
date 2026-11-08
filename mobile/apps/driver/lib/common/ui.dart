@@ -251,41 +251,6 @@ class DTitle extends StatelessWidget {
   }
 }
 
-/// Pastille de texte (« Payée », « En route », « 4,2 km »).
-class DPill extends StatelessWidget {
-  const DPill(
-    this.text, {
-    super.key,
-    this.bg = D.page,
-    this.fg = D.label,
-    this.icon,
-  });
-  final String text;
-  final Color bg, fg;
-  final IconData? icon;
-
-  @override
-  Widget build(BuildContext context) => Container(
-    padding: const EdgeInsets.symmetric(horizontal: 12, vertical: 6),
-    decoration: BoxDecoration(
-      color: bg,
-      borderRadius: BorderRadius.circular(IviaRadius.pill),
-    ),
-    child: Row(
-      mainAxisSize: MainAxisSize.min,
-      children: [
-        if (icon != null) ...[
-          Icon(icon, size: 16, color: fg),
-          const SizedBox(width: 6),
-        ],
-        Flexible(
-          child: Text(text, style: DText.pill.copyWith(color: fg)),
-        ),
-      ],
-    ),
-  );
-}
-
 /// Icône sur un carré arrondi pâle (lignes de liste, en-têtes de carte).
 class DIconTile extends StatelessWidget {
   const DIconTile(

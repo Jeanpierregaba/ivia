@@ -2483,5 +2483,131 @@ void main() {
       );
       expect(tester.takeException(), isNull);
     });
+
+    /// Téléphone de 320 dp, police agrandie à [scale].
+    void bigText(WidgetTester tester, double scale) {
+      tester.view.physicalSize = const Size(320, 640);
+      tester.view.devicePixelRatio = 1;
+      tester.platformDispatcher.textScaleFactorTestValue = scale;
+      addTearDown(tester.view.reset);
+      addTearDown(tester.platformDispatcher.clearTextScaleFactorTestValue);
+    }
+
+    void noOverflow(WidgetTester tester, String where) {
+      final error = tester.takeException();
+      expect(error, isNull, reason: '$where : $error');
+    }
+
+    for (final (review, status) in [
+      ('pending_review', 'pending_review'),
+      ('rejected', 'rejected'),
+      ('changes_requested', 'changes_requested'),
+      ('approved', 'suspended'),
+    ]) {
+      testWidgets('dossier $status : police à 200 % sur 320 dp', (
+        tester,
+      ) async {
+        bigText(tester, 2);
+        await withDossier(review: review, status: status);
+        await launchApp(tester);
+        noOverflow(tester, status);
+        if (review == 'pending_review') {
+          await tapText(tester, 'Voir mon dossier');
+          noOverflow(tester, 'récapitulatif');
+        }
+      });
+    }
+
+    for (final picked in [false, true]) {
+      testWidgets(
+        'trajet ${picked ? 'vers le client (D13)' : 'vers le retrait '
+                  '(D11)'} : police à 220 % sur 320 dp',
+        (tester) async {
+          bigText(tester, 2.2);
+          await withMission(
+            tester,
+            driverMissionBody(arrivedShop: picked, pickedUp: picked),
+          );
+          noOverflow(tester, 'trajet');
+          await tester.drag(
+            find.byType(Scrollable).last,
+            const Offset(0, -600),
+          );
+          await tester.pump(const Duration(milliseconds: 300));
+          noOverflow(tester, 'trajet, bas du volet');
+        },
+      );
+    }
+
+    testWidgets('volets (D16, D17, D19) : police à 220 % sur 320 dp', (
+      tester,
+    ) async {
+      bigText(tester, 2.2);
+      await withMission(tester, atClient());
+      missionsHistory();
+      // Client injoignable.
+      await tapVisible(tester, find.text('Signaler un problème'));
+      await tapVisible(tester, find.text('Client injoignable'));
+      expect(find.text('Déclarer le client injoignable'), findsOneWidget);
+      noOverflow(tester, 'client injoignable');
+      Navigator.of(tester.element(find.text('Déclarer le client injoignable')))
+          .pop();
+      await tester.pumpAndSettle();
+
+      // Détail d'une mission passée.
+      await openMissions(tester);
+      await tapVisible(tester, find.text('Terminées'));
+      await tapVisible(tester, find.text('#1036'));
+      expect(find.text('Commande #1036'), findsOneWidget);
+      noOverflow(tester, 'détail de mission');
+      Navigator.of(tester.element(find.text('Commande #1036'))).pop();
+      await tester.pumpAndSettle();
+
+      // Profil : application de navigation, véhicule, documents.
+      await openProfile(tester);
+      for (final (row, title) in [
+        ('Modifier', 'Modifier mon activité'),
+        ('Documents', 'Carte grise'),
+        ('Application de navigation', 'Waze'),
+      ]) {
+        await tester.dragUntilVisible(
+          find.text(row),
+          find.byType(ProfileTab),
+          const Offset(0, -100),
+        );
+        await tapVisible(tester, find.text(row));
+        await tester.pumpAndSettle();
+        expect(find.text(title), findsWidgets);
+        noOverflow(tester, row);
+        Navigator.of(tester.element(find.text(title).last)).pop();
+        await tester.pumpAndSettle();
+      }
+    });
+    testWidgets('position au lancement (030) : police à 200 % sur 320 dp', (
+      tester,
+    ) async {
+      bigText(tester, 2);
+      await withDossier(review: 'approved', status: 'offline');
+      approvedHome();
+      SharedPreferences.setMockInitialValues({'onboarding_seen': true});
+      location.state = LocationAccess.askable;
+      await launchApp(tester, settle: false);
+      for (var i = 0; i < 5; i++) {
+        await tester.pump(const Duration(milliseconds: 300));
+      }
+      expect(find.text('Autoriser la localisation'), findsOneWidget);
+      noOverflow(tester, 'position au lancement');
+    });
+
+    testWidgets('serveur injoignable : police à 200 % sur 320 dp', (
+      tester,
+    ) async {
+      bigText(tester, 2);
+      await withDossier();
+      server.on('GET', '/v1/driver/me', (_) => FakeResponse.networkError());
+      await launchApp(tester);
+      expect(find.text('Pas de connexion'), findsOneWidget);
+      noOverflow(tester, 'hors connexion');
+    });
   });
 }

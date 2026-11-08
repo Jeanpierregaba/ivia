@@ -8,7 +8,7 @@ import '../features/dossier/dossier_blocked_screen.dart';
 import '../features/dossier/dossier_form_screen.dart';
 import '../features/dossier/dossier_pending_screen.dart';
 import '../features/dossier/dossier_summary_screen.dart';
-import '../features/work/work_screens.dart';
+import '../features/work/driver_shell.dart';
 import '../features/onboarding/onboarding_screen.dart';
 import '../features/splash/loading_screen.dart';
 import 'driver_dossier.dart';

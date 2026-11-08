@@ -608,9 +608,12 @@ class _MissionDetails extends StatelessWidget {
                     ),
                   ),
                 ),
-                const SizedBox(width: 8),
-                MTag(tag, bg: tagBg, fg: tagFg),
               ],
+            ),
+            const SizedBox(height: 6),
+            Align(
+              alignment: AlignmentDirectional.centerStart,
+              child: MTag(tag, bg: tagBg, fg: tagFg),
             ),
             const SizedBox(height: 8),
             Text(
@@ -636,14 +639,12 @@ class _MissionDetails extends StatelessWidget {
               Padding(
                 padding: const EdgeInsets.symmetric(vertical: 6),
                 child: MergeSemantics(
-                  child: Row(
+                  // Grande police : la date passe sous l'étape.
+                  child: Wrap(
+                    alignment: WrapAlignment.spaceBetween,
+                    spacing: 12,
                     children: [
-                      Expanded(
-                        child: Text(
-                          label,
-                          style: DText.body.copyWith(fontSize: 15),
-                        ),
-                      ),
+                      Text(label, style: DText.body.copyWith(fontSize: 15)),
                       Text(
                         '${_day(at)} · ${hhmm(at)}',
                         style: DText.cardTitle.copyWith(fontSize: 15),
