@@ -8,7 +8,9 @@ import 'package:ivia_ui/ivia_ui.dart';
 import '../../common/ui.dart';
 import '../earnings/earnings.dart';
 import '../work/work_state.dart';
+import 'mission_screen.dart' show MissionPhase;
 import 'mission_ui.dart';
+import 'problem_sheet.dart';
 
 /// Preuve de remise (D14) : code à 4 chiffres du client, case « J'ai vu
 /// l'original de l'ordonnance » si elle est exigée, « Confirmer la
@@ -66,66 +68,6 @@ class _ProofViewState extends ConsumerState<ProofView> {
       announce(context, message);
     } finally {
       if (mounted) setState(() => _busy = false);
-    }
-  }
-
-  /// Livraison impossible (dialogue existant, remplacé par D16 à la
-  /// tâche 16).
-  Future<void> _fail(WorkMission m) async {
-    final reason = TextEditingController();
-    var calls = 2;
-    final ok = await showDialog<bool>(
-      context: context,
-      builder: (c) => StatefulBuilder(
-        builder: (c, set) => AlertDialog(
-          title: const Text('Livraison impossible'),
-          content: Column(
-            mainAxisSize: MainAxisSize.min,
-            children: [
-              TextField(
-                controller: reason,
-                decoration: const InputDecoration(
-                  labelText: 'Motif (client absent, adresse introuvable…)',
-                ),
-              ),
-              const SizedBox(height: 12),
-              Row(
-                children: [
-                  const Expanded(child: Text('Appels au client')),
-                  IconButton(
-                    onPressed: calls > 0 ? () => set(() => calls--) : null,
-                    icon: const Icon(Icons.remove),
-                  ),
-                  Text('$calls'),
-                  IconButton(
-                    onPressed: () => set(() => calls++),
-                    icon: const Icon(Icons.add),
-                  ),
-                ],
-              ),
-            ],
-          ),
-          actions: [
-            TextButton(
-              onPressed: () => Navigator.pop(c, false),
-              child: const Text('Annuler'),
-            ),
-            FilledButton(
-              onPressed: () => Navigator.pop(c, true),
-              child: const Text('Confirmer'),
-            ),
-          ],
-        ),
-      ),
-    );
-    if (ok == true) {
-      final error = await ref
-          .read(workProvider.notifier)
-          .run((api) => api.failMission(m, reason.text.trim(), calls));
-      if (error != null && mounted) {
-        ScaffoldMessenger.of(context)
-            .showSnackBar(SnackBar(content: Text(error)));
-      }
     }
   }
 
@@ -267,20 +209,7 @@ class _ProofViewState extends ConsumerState<ProofView> {
                   busy: _busy,
                   onTap: _ready ? _confirm : null,
                 ),
-                if (!m.pharmacy)
-                  TextButton(
-                    onPressed: _busy ? null : () => _fail(m),
-                    style: TextButton.styleFrom(
-                      minimumSize: const Size.fromHeight(48),
-                    ),
-                    child: Text(
-                      'Livraison impossible',
-                      style: DText.button.copyWith(
-                        color: D.label,
-                        fontSize: 15,
-                      ),
-                    ),
-                  ),
+                ProblemButton(mission: m, phase: MissionPhase.atClient),
               ],
             ),
           ),

@@ -330,6 +330,26 @@ void main() {
   );
 
   testWidgets(
+    'D16',
+    (t) => shot(
+      t,
+      'D16',
+      const DriverShell(),
+      overrides: missionOverrides(
+        driverMissionBody(arrivedShop: true, pickedUp: true),
+        3400,
+        720,
+      ),
+      before: (t) async {
+        await t.pump(const Duration(milliseconds: 500));
+        await t.ensureVisible(find.text('Signaler un problème'));
+        await t.tap(find.text('Signaler un problème'));
+        await t.pumpAndSettle();
+      },
+    ),
+  );
+
+  testWidgets(
     'D15',
     (t) => shot(
       t,

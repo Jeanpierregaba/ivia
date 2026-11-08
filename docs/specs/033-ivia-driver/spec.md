@@ -110,7 +110,7 @@ actif en pastille bleue et son libellé.
 | Arrivée à la pharmacie et chez le client (course pharmacie) | **Dans l'app** : le serveur n'a pas ces étapes pour les courses pharmacie ; « Glisser à l'arrivée » passe à l'écran suivant sans appel. |
 | Liste des articles d'une commande de boutique (D12) | **Remplacée** : le serveur ne donne que leur nombre. Les cases sont « n articles reçus » et « Colis fermé et en bon état ». « Chez Afi a validé la remise » n'existe que pour la pharmacie. |
 | Photo du colis remis (D14) | **Masquée**. |
-| « Colis endommagé », « Code refusé », « Adresse introuvable » (D16) | **Non proposés seuls**. Ils ouvrent l'appel au support. « Client injoignable » déclenche la livraison impossible existante (10 min d'attente, 2 appels). « Accident ou urgence » appelle le support. |
+| « Colis endommagé », « Code refusé », « Adresse introuvable » (D16) | **Non proposés seuls**. Ils ouvrent l'appel au support. « Client injoignable » déclenche la livraison impossible existante (10 min d'attente, 2 appels ; course de boutique seulement, le serveur n'a pas d'échec pour la pharmacie : appel au support). « Accident ou urgence » appelle le support. Avant le retrait, « Je ne peux pas faire cette course » garde le désistement existant. « Le support est prévenu » n'est pas affiché : rien n'est envoyé. Numéro du support : celui de l'ancien écran Profil (+228 99 30 99 45), à confirmer. |
 | « Chez Afi a validé la remise » pour une boutique | **Masqué** : seules les pharmacies valident la remise. |
 | Carte de fond | Carte Google si la clé est fournie, sinon fond neutre (comme l'app marchand). |
 

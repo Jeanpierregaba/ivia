@@ -1865,6 +1865,118 @@ void main() {
       expect(error, isNull, reason: '$error');
     });
 
+    Map<String, dynamic> atClient() => driverMissionBody(
+      arrivedShop: true,
+      pickedUp: true,
+      arrivedCustomer: true,
+    );
+
+    testWidgets('un problème (D16) : client injoignable trop tôt, refus '
+        'affiché, rien ne change', (tester) async {
+      await withMission(tester, atClient());
+      server.on(
+        'POST',
+        '/v1/driver/missions/mission-1/fail',
+        (_) => FakeResponse.json(409, {
+          'error': {
+            'code': 'wait_required',
+            'message': "Attendez encore 7 minute(s) avant de déclarer l'échec.",
+          },
+        }),
+      );
+      await tapVisible(tester, find.text('Signaler un problème'));
+      expect(find.text('Un problème ?'), findsOneWidget);
+      for (final situation in [
+        'Client injoignable',
+        'Adresse introuvable',
+        'Code refusé',
+        'Accident ou urgence',
+        'Appeler le support',
+      ]) {
+        expect(find.text(situation), findsOneWidget);
+      }
+      // Avant le retrait seulement.
+      expect(find.text('Je ne peux pas faire cette course'), findsNothing);
+
+      await tapVisible(tester, find.text('Client injoignable'));
+      await tapVisible(tester, find.byTooltip('Un appel de plus'));
+      await tapVisible(tester, find.byTooltip('Un appel de plus'));
+      await tapVisible(tester, find.text('Déclarer le client injoignable'));
+      final calls = server.calls('POST', '/v1/driver/missions/mission-1/fail');
+      expect(calls.single.body, {
+        'reason': 'Client injoignable',
+        'call_attempts': 2,
+      });
+      expect(
+        find.text("Attendez encore 7 minute(s) avant de déclarer l'échec."),
+        findsOneWidget,
+      );
+      // La mission continue.
+      await tester.tapAt(const Offset(10, 10));
+      for (var i = 0; i < 3; i++) {
+        await tester.pump(const Duration(milliseconds: 300));
+      }
+      expect(find.text('Preuve de remise'), findsOneWidget);
+    });
+
+    testWidgets('client injoignable accepté : retour à l\'accueil', (
+      tester,
+    ) async {
+      await withMission(tester, atClient());
+      server.on('POST', '/v1/driver/missions/mission-1/fail', (_) {
+        server.on(
+          'GET',
+          '/v1/driver/missions/current',
+          (_) => FakeResponse.json(200, {'mission': null}),
+        );
+        return FakeResponse.json(204, null);
+      });
+      await tapVisible(tester, find.text('Signaler un problème'));
+      await tapVisible(tester, find.text('Client injoignable'));
+      await tapVisible(tester, find.byTooltip('Un appel de plus'));
+      await tapVisible(tester, find.byTooltip('Un appel de plus'));
+      await tapVisible(tester, find.text('Déclarer le client injoignable'));
+      expect(find.text('Vous êtes hors ligne'), findsOneWidget);
+    });
+
+    testWidgets('un problème : urgence et support appelés', (tester) async {
+      await withMission(tester, atClient());
+      await tapVisible(tester, find.text('Signaler un problème'));
+      await tapVisible(tester, find.text('Accident ou urgence'));
+      expect(launched.single.toString(), 'tel:+22899309945');
+      await tapVisible(tester, find.text('Appeler le support'));
+      expect(launched, hasLength(2));
+    });
+
+    testWidgets('un problème avant le retrait : désistement', (tester) async {
+      await withMission(tester, driverMissionBody());
+      server.on(
+        'POST',
+        '/v1/driver/missions/mission-1/withdraw',
+        (_) => FakeResponse.json(204, null),
+      );
+      await tapVisible(tester, find.text('Signaler un problème'));
+      expect(find.text('Client injoignable'), findsNothing);
+      await tapVisible(tester, find.text('Je ne peux pas faire cette course'));
+      expect(
+        server.calls('POST', '/v1/driver/missions/mission-1/withdraw'),
+        hasLength(1),
+      );
+    });
+
+    testWidgets('un problème : police à 220 % sur 320 dp', (tester) async {
+      tester.view.physicalSize = const Size(320, 640);
+      tester.view.devicePixelRatio = 1;
+      tester.platformDispatcher.textScaleFactorTestValue = 2.2;
+      addTearDown(tester.view.reset);
+      addTearDown(tester.platformDispatcher.clearTextScaleFactorTestValue);
+      await withMission(tester, atClient());
+      await tapVisible(tester, find.text('Signaler un problème'));
+      expect(find.text('Un problème ?'), findsOneWidget);
+      final error = tester.takeException();
+      expect(error, isNull, reason: '$error');
+    });
+
     testWidgets('accueil en ligne (D09) : bandeau, jour calculé, Pause', (
       tester,
     ) async {

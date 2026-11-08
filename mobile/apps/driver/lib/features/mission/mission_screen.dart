@@ -16,6 +16,7 @@ import 'eta.dart';
 import 'mission_ui.dart';
 import 'navigation.dart';
 import 'pickup_view.dart';
+import 'problem_sheet.dart';
 import 'proof_view.dart';
 
 /// Étape d'une mission en cours.
@@ -270,7 +271,12 @@ class _RouteViewState extends ConsumerState<_RouteView> {
                           dark: true,
                           onConfirmed: widget.onArrived,
                         ),
-                        if (!widget.toClient) _Withdraw(mission: m),
+                        ProblemButton(
+                          mission: m,
+                          phase: widget.toClient
+                              ? MissionPhase.toClient
+                              : MissionPhase.toPickup,
+                        ),
                       ],
                     ),
                   ),
@@ -859,38 +865,6 @@ class _Dot extends StatelessWidget {
       child: Icon(icon, color: fg, size: 15),
     ),
   );
-}
-
-/// « Je ne peux pas faire cette course » (avant le retrait).
-class _Withdraw extends ConsumerWidget {
-  const _Withdraw({required this.mission});
-  final WorkMission mission;
-
-  @override
-  Widget build(BuildContext context, WidgetRef ref) {
-    final busy = ref.watch(workProvider.select((s) => s.busy));
-    return TextButton(
-      onPressed: busy
-          ? null
-          : () async {
-              final error = await ref
-                  .read(workProvider.notifier)
-                  .run(
-                    (api) =>
-                        api.withdrawMission(mission, 'Empêchement du livreur'),
-                  );
-              if (error != null && context.mounted) {
-                ScaffoldMessenger.of(context)
-                    .showSnackBar(SnackBar(content: Text(error)));
-              }
-            },
-      style: TextButton.styleFrom(minimumSize: const Size.fromHeight(48)),
-      child: Text(
-        'Je ne peux pas faire cette course',
-        style: DText.button.copyWith(color: D.label, fontSize: 15),
-      ),
-    );
-  }
 }
 
 /// « La pharmacie a validé la remise · hh:mm » et les espèces avancées

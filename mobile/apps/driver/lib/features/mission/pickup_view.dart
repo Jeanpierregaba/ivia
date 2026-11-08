@@ -5,8 +5,10 @@ import 'package:ivia_ui/ivia_ui.dart';
 
 import '../../common/ui.dart';
 import '../work/work_state.dart';
+import 'mission_screen.dart' show MissionPhase;
 import 'mission_ui.dart';
 import 'navigation.dart';
+import 'problem_sheet.dart';
 
 /// Retrait (D12).
 ///
@@ -46,19 +48,6 @@ class _PickupViewState extends ConsumerState<PickupView> {
       ScaffoldMessenger.of(context).showSnackBar(
         const SnackBar(content: Text("Impossible de lancer l'appel.")),
       );
-    }
-  }
-
-  Future<void> _withdraw() async {
-    final error = await ref
-        .read(workProvider.notifier)
-        .run(
-          (api) =>
-              api.withdrawMission(widget.mission, 'Empêchement du livreur'),
-        );
-    if (error != null && mounted) {
-      ScaffoldMessenger.of(context)
-          .showSnackBar(SnackBar(content: Text(error)));
     }
   }
 
@@ -245,16 +234,7 @@ class _PickupViewState extends ConsumerState<PickupView> {
                     dark: true,
                     onConfirmed: ready && !busy ? _pickedUp : null,
                   ),
-                TextButton(
-                  onPressed: busy ? null : _withdraw,
-                  style: TextButton.styleFrom(
-                    minimumSize: const Size.fromHeight(48),
-                  ),
-                  child: Text(
-                    'Je ne peux pas faire cette course',
-                    style: DText.button.copyWith(color: D.label, fontSize: 15),
-                  ),
-                ),
+                ProblemButton(mission: m, phase: MissionPhase.atPickup),
               ],
             ),
           ),
