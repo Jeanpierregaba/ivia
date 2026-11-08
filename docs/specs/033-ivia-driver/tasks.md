@@ -27,7 +27,7 @@
       - faux serveur et tests.
 
 **Lancement et inscription**
-- [ ] 5. Splash D00 et présentation D01 à D03 (illustrations, « Passer », retour, « Commencer »).
+- [x] 5. Splash D00 et présentation D01 à D03 (illustrations, « Passer », retour, « Commencer »).
 - [ ] 6. Connexion D04 et code D05 par numéro (identité de l'app). Tests : aucun champ e-mail,
       parcours jusqu'au dossier.
 - [ ] 7. Dossier D06 :

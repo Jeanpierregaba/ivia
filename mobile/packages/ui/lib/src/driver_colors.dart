@@ -17,8 +17,10 @@ abstract final class IviaDriverColors {
   /// jour choisi (D08, D15, D18).
   static const blueOnDark = Color(0xFF8DB7EE);
 
-  /// Anneau du compte à rebours, partie écoulée (D01).
+  /// Anneau du compte à rebours, partie écoulée (D01), et slogan du
+  /// splash sur fond bleu (D00).
   static const blueRing = Color(0xFFD1E1F5);
+  static const onBlueMuted = blueRing;
 
   /// Carte de la deuxième page de présentation (D02).
   static const navy = IviaColors.berkeleyBlue;

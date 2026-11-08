@@ -35,8 +35,8 @@ abstract final class D {
 abstract final class DText {
   /// Grand titre de page (« Des missions près de vous. »).
   static final hero = IviaTextStyles.title1.copyWith(
-    fontSize: 30,
-    height: 1.12,
+    fontSize: 28,
+    height: 1.16,
     fontWeight: FontWeight.w800,
     color: D.ink,
   );

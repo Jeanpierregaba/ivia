@@ -1,7 +1,8 @@
 import 'package:flutter/material.dart';
 import 'package:ivia_ui/ivia_ui.dart';
 
-/// Splash de chargement, affiché pendant le démarrage (spec 018).
+/// Splash de chargement (maquette D00, spec 033) : le splash natif est bleu
+/// uni, puis ce groupe (tuile, nom, slogan) apparaît, centré.
 class LoadingScreen extends StatelessWidget {
   const LoadingScreen({super.key});
 
@@ -12,6 +13,18 @@ class LoadingScreen extends StatelessWidget {
       tile: true,
       title: 'Driver',
       tagline: 'Livrez près de chez vous.',
+      // Maquette D00 : tuile de 132 dp, logotype cobalt.
+      tileStyle: IviaSplashTile(
+        size: 132,
+        radiusRatio: 0.242,
+        logoRatio: 0.595,
+      ),
+      titleStyle: TextStyle(fontSize: 24),
+      taglineStyle: TextStyle(
+        fontSize: 16,
+        color: IviaDriverColors.onBlueMuted,
+      ),
+      centerGroup: true,
     );
   }
 }

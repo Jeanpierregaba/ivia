@@ -11,6 +11,7 @@ import 'package:ivia_api_client/testing.dart';
 import 'package:ivia_app_core/ivia_app_core.dart';
 import 'package:ivia_app_core/testing.dart';
 import 'package:ivia_driver/app/identity.dart';
+import 'package:ivia_driver/common/ui.dart';
 import 'package:ivia_driver/features/onboarding/onboarding_screen.dart';
 import 'package:ivia_driver/main.dart';
 import 'package:ivia_ui/ivia_ui.dart';
@@ -243,9 +244,9 @@ void main() {
         find.text('Des missions près de vous', findRichText: true),
         findsOneWidget,
       );
-      expect(find.byType(IviaOnboarding), findsNothing);
+      expect(find.byType(OnboardingScreen), findsNothing);
       await tapText(tester, 'Plus tard');
-      expect(find.byType(IviaOnboarding), findsOneWidget);
+      expect(find.byType(OnboardingScreen), findsOneWidget);
       expect(location.requests, 0);
     });
 
@@ -268,16 +269,59 @@ void main() {
 
     testWidgets('présentation, puis « Espace livreur »', (tester) async {
       await launchApp(tester);
-      final onboarding = tester.widget<IviaOnboarding>(
-        find.byType(IviaOnboarding),
-      );
-      expect(onboarding.appName, 'Driver');
+      expect(find.byType(OnboardingScreen), findsOneWidget);
+      expect(find.text('Driver'), findsOneWidget);
       await tapText(tester, 'Passer');
       expect(find.text('Espace livreur'), findsOneWidget);
       expect(
         find.textContaining('validation de votre dossier'),
         findsOneWidget,
       );
+    });
+
+    testWidgets('présentation : pages, retour, « Commencer » (D01 à D03)', (
+      tester,
+    ) async {
+      await launchApp(tester);
+      expect(
+        find.text('Des missions près de vous.', findRichText: true),
+        findsOneWidget,
+      );
+      await tapText(tester, 'Suivant');
+      expect(
+        find.text('Guidé à chaque étape.', findRichText: true),
+        findsOneWidget,
+      );
+      // Retour : page précédente, logo et « Driver » revenus.
+      await tester.tap(find.bySemanticsLabel('Retour'));
+      await tester.pumpAndSettle();
+      expect(find.text('Driver'), findsOneWidget);
+      await tapText(tester, 'Suivant');
+      await tapText(tester, 'Suivant');
+      expect(
+        find.text('Le code du client valide la livraison.', findRichText: true),
+        findsOneWidget,
+      );
+      // Dernière page : plus de « Passer ».
+      expect(find.text('Passer').hitTestable(), findsNothing);
+      await tapText(tester, 'Commencer');
+      expect(find.text('Espace livreur'), findsOneWidget);
+    });
+
+    testWidgets('présentation : police à 200 % sur 320 dp, sans débordement', (
+      tester,
+    ) async {
+      tester.view.physicalSize = const Size(320, 640);
+      tester.view.devicePixelRatio = 1;
+      tester.platformDispatcher.textScaleFactorTestValue = 2;
+      addTearDown(tester.view.reset);
+      addTearDown(tester.platformDispatcher.clearTextScaleFactorTestValue);
+      await launchApp(tester);
+      for (var i = 0; i < 3; i++) {
+        expect(tester.takeException(), isNull);
+        if (i < 2) await tapText(tester, 'Suivant');
+      }
+      expect(find.text('Commencer'), findsOneWidget);
     });
 
     testWidgets('titres : aucun mot coupé sur 320 dp, police agrandie', (
@@ -287,15 +331,15 @@ void main() {
         'packages/ivia_ui/Parkinsans',
       )..addFont(rootBundle.load('packages/ivia_ui/fonts/Parkinsans-Bold.ttf'));
       await loader.load();
-      const width = 320 - 2 * IviaSpacing.screen;
-      final style = IviaTheme.light().textTheme.headlineMedium!;
+      const width = 320 - 2 * D.gutter;
+      final style = DText.hero;
       for (final slide in onboardingSlides) {
         for (final word in slide.title.split(' ')) {
           final painter = TextPainter(
             text: TextSpan(text: word, style: style),
             textDirection: TextDirection.ltr,
             textScaler: const TextScaler.linear(
-              IviaOnboarding.titleMaxTextScale,
+              OnboardingScreen.titleMaxTextScale,
             ),
           )..layout();
           expect(painter.width, lessThanOrEqualTo(width), reason: word);
