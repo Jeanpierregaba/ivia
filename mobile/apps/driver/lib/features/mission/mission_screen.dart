@@ -168,7 +168,7 @@ class _RouteViewState extends ConsumerState<_RouteView> {
   }
 
   Future<void> _call(String phone) async {
-    final ok = await ref.read(linkLauncherProvider)(Uri.parse('tel:$phone'));
+    final ok = await ref.read(linkLauncherProvider)(telUri(phone));
     if (!ok && mounted) {
       ScaffoldMessenger.of(context).showSnackBar(
         const SnackBar(content: Text("Impossible de lancer l'appel.")),
@@ -238,7 +238,7 @@ class _RouteViewState extends ConsumerState<_RouteView> {
                 borderRadius: BorderRadius.vertical(top: Radius.circular(32)),
                 boxShadow: [
                   BoxShadow(
-                    color: Color(0x1A0B1A33),
+                    color: IviaDriverColors.shadow,
                     blurRadius: 24,
                     offset: Offset(0, -4),
                   ),

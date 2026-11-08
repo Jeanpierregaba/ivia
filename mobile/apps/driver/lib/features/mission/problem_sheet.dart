@@ -161,9 +161,7 @@ class _ProblemSheet extends ConsumerWidget {
 
 Future<void> _callSupport(BuildContext context, WidgetRef ref) async {
   final messenger = ScaffoldMessenger.of(context);
-  final ok = await ref.read(linkLauncherProvider)(
-    Uri.parse('tel:$driverSupportPhone'),
-  );
+  final ok = await ref.read(linkLauncherProvider)(telUri(driverSupportPhone));
   if (!ok) {
     messenger.showSnackBar(
       const SnackBar(content: Text("Impossible de lancer l'appel.")),
@@ -192,39 +190,45 @@ class _Situation extends StatelessWidget {
           ? null
           : const Border(bottom: BorderSide(color: IviaDriverColors.line)),
     ),
-    child: InkWell(
-      onTap: onTap,
-      child: Padding(
-        padding: const EdgeInsets.symmetric(vertical: 12),
-        child: Row(
-          children: [
-            DIconTile(
-              icon,
-              bg: danger ? D.redSoft : D.blueSoft,
-              fg: danger ? D.red : D.blue,
-              size: 40,
-            ),
-            const SizedBox(width: 14),
-            Expanded(
-              child: Column(
-                crossAxisAlignment: CrossAxisAlignment.start,
-                children: [
-                  Text(
-                    title,
-                    style: DText.cardTitle.copyWith(
-                      fontSize: 16,
-                      color: danger ? D.red : D.ink,
-                    ),
-                  ),
-                  Text(subtitle, style: DText.bodyMuted.copyWith(fontSize: 13)),
-                ],
+    child: Semantics(
+      button: true,
+      child: InkWell(
+        onTap: onTap,
+        child: Padding(
+          padding: const EdgeInsets.symmetric(vertical: 12),
+          child: Row(
+            children: [
+              DIconTile(
+                icon,
+                bg: danger ? D.redSoft : D.blueSoft,
+                fg: danger ? D.red : D.blue,
+                size: 40,
               ),
-            ),
-            const SizedBox(width: 8),
-            const ExcludeSemantics(
-              child: Icon(Icons.chevron_right_rounded, color: D.label),
-            ),
-          ],
+              const SizedBox(width: 14),
+              Expanded(
+                child: Column(
+                  crossAxisAlignment: CrossAxisAlignment.start,
+                  children: [
+                    Text(
+                      title,
+                      style: DText.cardTitle.copyWith(
+                        fontSize: 16,
+                        color: danger ? D.red : D.ink,
+                      ),
+                    ),
+                    Text(
+                      subtitle,
+                      style: DText.bodyMuted.copyWith(fontSize: 13),
+                    ),
+                  ],
+                ),
+              ),
+              const SizedBox(width: 8),
+              const ExcludeSemantics(
+                child: Icon(Icons.chevron_right_rounded, color: D.label),
+              ),
+            ],
+          ),
         ),
       ),
     ),

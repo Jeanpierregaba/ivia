@@ -241,9 +241,7 @@ String _phone(String e164) {
 
 Future<void> _callSupport(BuildContext context, WidgetRef ref) async {
   final messenger = ScaffoldMessenger.of(context);
-  final ok = await ref.read(linkLauncherProvider)(
-    Uri.parse('tel:$driverSupportPhone'),
-  );
+  final ok = await ref.read(linkLauncherProvider)(telUri(driverSupportPhone));
   if (!ok) {
     messenger.showSnackBar(
       const SnackBar(content: Text("Impossible de lancer l'appel.")),

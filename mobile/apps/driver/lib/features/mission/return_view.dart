@@ -125,11 +125,8 @@ class ReturnView extends ConsumerWidget {
                           tooltip: 'Appeler la boutique',
                           bg: D.page,
                           fg: D.ink,
-                          onTap: () => _launch(
-                            context,
-                            ref,
-                            Uri.parse('tel:${shop.phone}'),
-                          ),
+                          onTap: () =>
+                              _launch(context, ref, telUri(shop.phone)),
                         ),
                       ],
                     ],
@@ -157,11 +154,8 @@ class ReturnView extends ConsumerWidget {
                       : () => _launch(context, ref, nav.route(to)),
                 ),
                 TextButton(
-                  onPressed: () => _launch(
-                    context,
-                    ref,
-                    Uri.parse('tel:$driverSupportPhone'),
-                  ),
+                  onPressed: () =>
+                      _launch(context, ref, telUri(driverSupportPhone)),
                   style: TextButton.styleFrom(
                     minimumSize: const Size.fromHeight(48),
                   ),

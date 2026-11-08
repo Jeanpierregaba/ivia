@@ -43,7 +43,7 @@ class _PickupViewState extends ConsumerState<PickupView> {
   }
 
   Future<void> _call(String phone) async {
-    final ok = await ref.read(linkLauncherProvider)(Uri.parse('tel:$phone'));
+    final ok = await ref.read(linkLauncherProvider)(telUri(phone));
     if (!ok && mounted) {
       ScaffoldMessenger.of(context).showSnackBar(
         const SnackBar(content: Text("Impossible de lancer l'appel.")),

@@ -2,6 +2,7 @@ import 'package:flutter/material.dart';
 import 'package:flutter_test/flutter_test.dart';
 import 'package:ivia_driver/common/formats.dart';
 import 'package:ivia_driver/common/ui.dart';
+import 'package:ivia_driver/features/mission/navigation.dart';
 import 'package:ivia_driver/features/splash/loading_screen.dart';
 import 'package:ivia_ui/ivia_ui.dart';
 
@@ -235,5 +236,10 @@ void main() {
     await tester.pumpWidget(const MaterialApp(home: LoadingScreen()));
     await tester.pump(const Duration(milliseconds: 500));
     expect(tester.takeException(), isNull);
+  });
+
+  test('lien d\'appel : chiffres et « + » seulement', () {
+    expect(telUri('+228 90 11-22-33').toString(), 'tel:+22890112233');
+    expect(telUri('+22899309945').toString(), 'tel:+22899309945');
   });
 }

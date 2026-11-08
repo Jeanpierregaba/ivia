@@ -2,6 +2,11 @@ import 'package:flutter_riverpod/flutter_riverpod.dart';
 import 'package:ivia_api_client/ivia_api_client.dart';
 import 'package:url_launcher/url_launcher.dart';
 
+/// Lien d'appel : chiffres et « + » seulement (un numéro avec espaces ou
+/// tirets donnerait un lien encodé que le téléphone ne compose pas).
+Uri telUri(String phone) =>
+    Uri(scheme: 'tel', path: phone.replaceAll(RegExp(r'[^\d+]'), ''));
+
 /// Itinéraire dans l'application de navigation choisie (Profil). Liens
 /// universels : l'app s'ouvre si elle est installée, sinon le navigateur.
 /// Le lien ne contient que les coordonnées de la destination.

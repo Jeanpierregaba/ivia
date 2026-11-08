@@ -506,7 +506,7 @@ class DBottomNav extends StatelessWidget {
           borderRadius: BorderRadius.circular(IviaRadius.pill),
           boxShadow: const [
             BoxShadow(
-              color: Color(0x1A0A1A30),
+              color: IviaDriverColors.shadow,
               blurRadius: 24,
               offset: Offset(0, 8),
             ),

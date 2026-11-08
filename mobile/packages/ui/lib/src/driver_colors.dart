@@ -68,4 +68,7 @@ abstract final class IviaDriverColors {
 
   /// Voile derrière une feuille (D16) : encre à 50 %.
   static const scrim = IviaPharmacyColors.scrim;
+
+  /// Ombre des volets et de la barre du bas (Berkeley Blue à 10 %).
+  static const shadow = Color(0x1A0B1A33);
 }

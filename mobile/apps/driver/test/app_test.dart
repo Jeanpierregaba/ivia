@@ -1970,6 +1970,17 @@ void main() {
       );
       await tapVisible(tester, find.text('Signaler un problème'));
       expect(find.text('Un problème ?'), findsOneWidget);
+      // Chaque situation est un bouton pour le lecteur d'écran.
+      final semantics = tester.ensureSemantics();
+      expect(
+        tester
+            .getSemantics(find.text('Adresse introuvable'))
+            .getSemanticsData()
+            .flagsCollection
+            .isButton,
+        isTrue,
+      );
+      semantics.dispose();
       for (final situation in [
         'Client injoignable',
         'Adresse introuvable',

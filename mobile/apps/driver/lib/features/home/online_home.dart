@@ -63,7 +63,7 @@ class OnlineHome extends ConsumerWidget {
                 borderRadius: BorderRadius.vertical(top: Radius.circular(32)),
                 boxShadow: [
                   BoxShadow(
-                    color: Color(0x1A0B1A33),
+                    color: IviaDriverColors.shadow,
                     blurRadius: 24,
                     offset: Offset(0, -4),
                   ),
