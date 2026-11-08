@@ -156,7 +156,10 @@ void main() {
           find.text(sms ? 'Vérifiez vos SMS' : 'Vérifiez WhatsApp'),
           findsOneWidget,
         );
-        expect(find.text('Modifier'), findsOneWidget);
+        expect(
+          find.textContaining('Modifier', findRichText: true),
+          findsOneWidget,
+        );
         expect(find.textContaining('Le code est valable'), findsNothing);
         await tester.enterText(find.byType(TextField), '6204');
         await tester.pump();

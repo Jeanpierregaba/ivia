@@ -190,7 +190,7 @@ void main() {
 
   Future<void> login(WidgetTester tester) async {
     await tester.enterText(find.byType(TextField), '90 12 34 56');
-    await tapText(tester, 'Recevoir le code sur WhatsApp');
+    await tapText(tester, 'Recevoir le code');
     await tester.enterText(find.byType(TextField), '481902');
     await tester.pumpAndSettle();
   }
@@ -346,6 +346,54 @@ void main() {
           painter.dispose();
         }
       }
+    });
+  });
+
+  group('connexion (D04, D05)', () {
+    setUp(onboardingSeen);
+
+    testWidgets('par numéro, sans e-mail ; « Modifier » dans la phrase', (
+      tester,
+    ) async {
+      await launchApp(tester);
+      expect(find.text('Espace livreur'), findsOneWidget);
+      expect(find.text('Driver'), findsOneWidget);
+      expect(find.textContaining('e-mail'), findsNothing);
+      expect(find.byType(TextField), findsOneWidget);
+      await tester.enterText(find.byType(TextField), '90 12 34 56');
+      await tapText(tester, 'Recevoir le code');
+      expect(find.text('Vérifiez WhatsApp'), findsOneWidget);
+      // Numéro jamais coupé en fin de ligne.
+      expect(
+        find.textContaining(
+          '+228\u00A090\u00A012\u00A034\u00A056',
+          findRichText: true,
+        ),
+        findsOneWidget,
+      );
+      expect(
+        find.textContaining('Même compte sur toutes les apps ivia'),
+        findsOneWidget,
+      );
+      await tester.tapOnText(find.textRange.ofSubstring('Modifier'));
+      await tester.pumpAndSettle();
+      expect(find.text('Espace livreur'), findsOneWidget);
+    });
+
+    testWidgets('police à 200 % sur 320 dp : connexion et code tiennent', (
+      tester,
+    ) async {
+      tester.view.physicalSize = const Size(320, 640);
+      tester.view.devicePixelRatio = 1;
+      tester.platformDispatcher.textScaleFactorTestValue = 2;
+      addTearDown(tester.view.reset);
+      addTearDown(tester.platformDispatcher.clearTextScaleFactorTestValue);
+      await launchApp(tester);
+      expect(tester.takeException(), isNull);
+      await tester.enterText(find.byType(TextField), '90 12 34 56');
+      await tapText(tester, 'Recevoir le code');
+      expect(tester.takeException(), isNull);
+      expect(find.text('Vérifiez WhatsApp'), findsOneWidget);
     });
   });
 

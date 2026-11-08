@@ -345,7 +345,11 @@ void main() {
       await enterPhone(tester, '+228 90 12 34 56');
       expect(find.text('Saisissez le code'), findsOneWidget);
       expect(
-        find.textContaining('WhatsApp au +228 90 12 34 56', findRichText: true),
+        // Numéro en espaces insécables : jamais coupé en fin de ligne.
+        find.textContaining(
+          'WhatsApp au +228\u00A090\u00A012\u00A034\u00A056',
+          findRichText: true,
+        ),
         findsOneWidget,
       );
       final sent =

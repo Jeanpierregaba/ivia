@@ -19,6 +19,8 @@ class AppIdentity {
     this.termsLabel = "Conditions d'utilisation",
     this.authTips = true,
     this.codeTitleByChannel = false,
+    this.codeHintCard = false,
+    this.whatsappLabel = 'Recevoir le code sur WhatsApp',
   });
 
   /// Pastille pleine (fond de la marque, texte blanc) ; pâle sinon.
@@ -52,6 +54,14 @@ class AppIdentity {
 
   /// Encart de l'écran du code, selon la validité du code.
   final String Function(Duration expiresIn) codeHint;
+
+  /// Affiche [codeHint] en encart sous le compte à rebours de l'écran du
+  /// code (maquette D05 d'Ivia Driver, spec 033).
+  final bool codeHintCard;
+
+  /// Bouton principal de l'écran du numéro (code par WhatsApp). Ivia Driver :
+  /// « Recevoir le code », tient sur une ligne à 360 dp (maquette D04).
+  final String whatsappLabel;
 
   /// Écran d'autorisation de la localisation (spec 030).
   final LocationPromptCopy locationPrompt;

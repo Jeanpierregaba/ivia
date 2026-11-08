@@ -1,5 +1,6 @@
 import 'dart:async';
 
+import 'package:flutter/gestures.dart';
 import 'package:flutter/material.dart';
 import 'package:flutter_riverpod/flutter_riverpod.dart';
 import 'package:go_router/go_router.dart';
@@ -193,7 +194,7 @@ class _PhoneScreenState extends ConsumerState<PhoneScreen> {
               : const Icon(Icons.chat_outlined),
           label: _sending == OtpChannel.whatsapp
               ? const ButtonProgress()
-              : const Text('Recevoir le code sur WhatsApp'),
+              : Text(identity.whatsappLabel),
         ),
         const SizedBox(height: IviaSpacing.md),
         OutlinedButton(
@@ -239,6 +240,9 @@ class PhoneCodeScreen extends ConsumerStatefulWidget {
 class _PhoneCodeScreenState extends ConsumerState<PhoneCodeScreen> {
   final _code = TextEditingController();
   final _codeFocus = FocusNode();
+
+  /// « Modifier » dans la phrase du numéro (maquettes F05 et D05).
+  final _modify = TapGestureRecognizer();
   Timer? _timer;
   var _remaining = Duration.zero;
   var _attempt = 0;
@@ -259,6 +263,7 @@ class _PhoneCodeScreenState extends ConsumerState<PhoneCodeScreen> {
     _timer?.cancel();
     _code.dispose();
     _codeFocus.dispose();
+    _modify.dispose();
     super.dispose();
   }
 
@@ -385,29 +390,43 @@ class _PhoneCodeScreenState extends ConsumerState<PhoneCodeScreen> {
                     ? 'Code à 6 chiffres envoyé par SMS au '
                     : 'Code à 6 chiffres envoyé sur WhatsApp au ',
               ),
+              // Espaces insécables : le numéro ne se coupe jamais en deux.
               TextSpan(
-                text: '+228 ${formatTogoPhone(flow.phone)}',
+                text: '+228 ${formatTogoPhone(flow.phone)}'.replaceAll(
+                  ' ',
+                  '\u00A0',
+                ),
                 style: strong,
               ),
               const TextSpan(text: '.'),
+              if (byChannel) ...[
+                const TextSpan(text: ' '),
+                TextSpan(
+                  text: 'Modifier',
+                  semanticsLabel: 'Modifier le numéro',
+                  recognizer: _modify..onTap = _busy ? null : _changePhone,
+                  style: TextStyle(
+                    color: identity.brand.link,
+                    fontWeight: FontWeight.w700,
+                  ),
+                ),
+              ],
             ],
           ),
           style: textTheme.bodyLarge?.copyWith(color: IviaColors.textSecondary),
         ),
-        Align(
-          alignment: Alignment.centerLeft,
-          child: TextButton(
-            onPressed: _busy ? null : _changePhone,
-            style: TextButton.styleFrom(
-              padding: EdgeInsets.zero,
-              minimumSize: const Size(48, 40),
-            ),
-            child: Text(
-              byChannel ? 'Modifier' : 'Modifier le numéro',
-              semanticsLabel: 'Modifier le numéro',
+        if (!byChannel)
+          Align(
+            alignment: Alignment.centerLeft,
+            child: TextButton(
+              onPressed: _busy ? null : _changePhone,
+              style: TextButton.styleFrom(
+                padding: EdgeInsets.zero,
+                minimumSize: const Size(48, 40),
+              ),
+              child: const Text('Modifier le numéro'),
             ),
           ),
-        ),
         const SizedBox(height: IviaSpacing.lg),
         IviaCodeInput(
           controller: _code,
@@ -455,6 +474,10 @@ class _PhoneCodeScreenState extends ConsumerState<PhoneCodeScreen> {
                 ),
             ],
           ),
+        if (identity.codeHintCard) ...[
+          const SizedBox(height: IviaSpacing.xxl),
+          IviaInfoCard(text: identity.codeHint(flow.expiresIn)),
+        ],
         if (identity.authTips) ...[
           const SizedBox(height: IviaSpacing.lg),
           IviaInfoCard(

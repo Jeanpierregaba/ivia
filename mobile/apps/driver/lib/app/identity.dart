@@ -7,9 +7,16 @@ const driverIdentity = AppIdentity(
   brand: IviaAppBrand.driver,
   loginTitle: 'Espace livreur',
   loginBody:
-      "Connectez-vous avec votre numéro de téléphone. Les courses s'ouvrent "
+      "Connectez-vous avec votre numéro de téléphone. Les missions s'ouvrent "
       'après la validation de votre dossier par ivia.',
   loginBadge: 'Driver',
+  // Maquettes D04 et D05 (spec 033), connexion par numéro (ADR 0012) : badge
+  // plein, titre du code selon le canal, encart « Même compte ».
+  loginBadgeFilled: true,
+  authTips: false,
+  codeTitleByChannel: true,
+  codeHintCard: true,
+  whatsappLabel: 'Recevoir le code',
   codeHint: _codeHint,
   appCode: 'driver',
   locationPrompt: LocationPromptCopy(

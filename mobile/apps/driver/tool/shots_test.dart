@@ -8,6 +8,9 @@ import 'package:flutter/material.dart';
 import 'package:flutter/services.dart';
 import 'package:flutter_riverpod/flutter_riverpod.dart';
 import 'package:flutter_test/flutter_test.dart';
+import 'package:ivia_api_client/ivia_api_client.dart';
+import 'package:ivia_app_core/ivia_app_core.dart';
+import 'package:ivia_driver/app/identity.dart';
 import 'package:ivia_driver/features/onboarding/onboarding_screen.dart';
 import 'package:ivia_driver/features/splash/loading_screen.dart';
 import 'package:ivia_ui/ivia_ui.dart';
@@ -39,6 +42,7 @@ Future<void> shot(
   String name,
   Widget screen, {
   Future<void> Function(WidgetTester)? before,
+  List overrides = const [],
 }) async {
   tester.view.physicalSize = const Size(720, 1560);
   tester.view.devicePixelRatio = 2;
@@ -48,6 +52,10 @@ Future<void> shot(
   addTearDown(tester.view.reset);
   await tester.pumpWidget(
     ProviderScope(
+      overrides: [
+        appIdentityProvider.overrideWithValue(driverIdentity),
+        ...overrides,
+      ],
       child: MaterialApp(
         debugShowCheckedModeBanner: false,
         theme: IviaTheme.light(IviaAppBrand.driver),
@@ -70,8 +78,46 @@ Future<void> shot(
   );
 }
 
+/// Code demandé, pour l'écran du code (D05).
+class _SentCode extends PhoneLoginFlow {
+  @override
+  PhoneLoginState? build() => const PhoneLoginState(
+    phone: '+22890000102',
+    channel: OtpChannel.whatsapp,
+    resendAfter: Duration(seconds: 42),
+    expiresIn: Duration(minutes: 10),
+    attempt: 1,
+  );
+}
+
 void main() {
   setUpAll(loadFonts);
+
+  testWidgets(
+    'D04',
+    (t) => shot(
+      t,
+      'D04',
+      const PhoneScreen(),
+      before: (t) async {
+        await t.enterText(find.byType(TextField), '90000102');
+        await t.pump();
+      },
+    ),
+  );
+  testWidgets(
+    'D05',
+    (t) => shot(
+      t,
+      'D05',
+      const PhoneCodeScreen(),
+      overrides: [phoneLoginFlowProvider.overrideWith(_SentCode.new)],
+      before: (t) async {
+        await t.enterText(find.byType(TextField), '2905');
+        await t.pump();
+      },
+    ),
+  );
 
   testWidgets('D00', (t) => shot(t, 'D00', const LoadingScreen()));
   for (final page in [0, 1, 2]) {
