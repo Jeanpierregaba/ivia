@@ -98,7 +98,8 @@ actif en pastille bleue et son libellé.
 | Élément de maquette | Décision |
 |---|---|
 | Gains du jour, de la semaine, du mois, par jour ; nombre de livraisons | **Calculés** depuis l'historique des missions (gains des missions livrées, jours de Lomé). |
-| Variation « +14 % » | **Calculée** : comparaison avec la période précédente, si elle a des missions. |
+| Variation « +14 % » | **Calculée** : comparaison avec le même nombre de jours de la période précédente (lundi à aujourd'hui contre lundi au même jour de la semaine dernière ; du 1er à aujourd'hui contre la même plage du mois dernier), si elle a des livraisons. |
+| Barres de D18 | **Semaine** : une barre par jour, du lundi au dimanche. **Mois** : une barre par tranche de 7 jours (« 1-7 », « 8-14 »…). La barre la plus haute est en bleu clair. |
 | Heure d'arrivée estimée (D13, D17) | **Calculée** : distance et durée de l'itinéraire du serveur (`POST /v1/geo/route`, profil moto ou voiture, durée ralentie pour le vélo) ; repli sur la distance à vol d'oiseau et une vitesse moyenne selon le véhicule. Sur la carte de D17, calcul à vol d'oiseau seulement (pas d'itinéraire demandé pour une liste). |
 | Application de navigation (D19) | **Réglage du téléphone** : Google Maps, Waze ou Plans (iPhone). |
 | Sonnerie des missions (D19) | **Réglage du téléphone** : activée, une nouvelle proposition fait sonner et vibrer l'app. Ivia Driver n'a pas de notifications push (les propositions arrivent app ouverte) : `alert_sound` ne s'applique pas. Les notifications push des livreurs sont notées pour Gedeon. |

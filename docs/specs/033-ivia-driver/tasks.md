@@ -63,7 +63,7 @@
 **Onglets**
 - [x] 17. Missions D17 : recherche par numéro, onglets « En cours · n », « Terminées », « Annulées »,
       cartes, état vide.
-- [ ] 18. Gains D18 :
+- [x] 18. Gains D18 :
       - calcul testé : jours de Lomé, semaine, mois, variation ;
       - barres, liste par jour ;
       - compte de versement masqué.

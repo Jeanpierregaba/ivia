@@ -12,6 +12,7 @@ import 'package:ivia_app_core/ivia_app_core.dart';
 import 'package:ivia_app_core/testing.dart';
 import 'package:ivia_driver/app/identity.dart';
 import 'package:ivia_driver/common/ui.dart';
+import 'package:ivia_driver/features/earnings/earnings.dart';
 import 'package:ivia_driver/features/mission/navigation.dart';
 import 'package:ivia_driver/features/onboarding/onboarding_screen.dart';
 import 'package:ivia_driver/main.dart';
@@ -997,7 +998,7 @@ void main() {
       await launchApp(tester);
       await tester.tap(find.bySemanticsLabel('Gains'));
       await tester.pumpAndSettle();
-      expect(find.text('CETTE SEMAINE'), findsOneWidget);
+      expect(find.text('Compte de versement'), findsOneWidget);
       await tester.tap(find.bySemanticsLabel('Accueil'));
       await tester.pumpAndSettle();
       expect(find.text('Vous êtes hors ligne'), findsOneWidget);
@@ -2300,6 +2301,77 @@ void main() {
         await tester.pump(const Duration(milliseconds: 300));
         expect(tester.takeException(), isNull);
       }
+    });
+    testWidgets('gains (D18) : semaine et mois calculés, versement masqué', (
+      tester,
+    ) async {
+      await withDossier(review: 'approved', status: 'offline');
+      final now = DateTime.now().toUtc();
+      approvedHome(delivered: [now, now]);
+      await launchApp(tester);
+      await tester.tap(find.bySemanticsLabel('Gains'));
+      for (var i = 0; i < 3; i++) {
+        await tester.pump(const Duration(milliseconds: 300));
+      }
+      final week = summarize(const [], EarningsPeriod.week, now);
+      expect(find.text(periodTitle(week, EarningsPeriod.week)), findsOneWidget);
+      // Total de la semaine et jour du jour : 2 400 F.
+      expect(find.text(formatXof(2400)), findsNWidgets(2));
+      expect(find.text('2 livraisons'), findsNWidgets(2));
+      expect(
+        find.text(dayTitle(DateTime.utc(now.year, now.month, now.day))),
+        findsOneWidget,
+      );
+      // Compte de versement : opérateur et numéro masqué, sans montant.
+      expect(find.text('Compte de versement'), findsOneWidget);
+      expect(find.text('Flooz · +228 90 •• •• 77'), findsOneWidget);
+      expect(find.textContaining('Versement'), findsNothing);
+      // Rien la semaine précédente : pas de variation. Km, en ligne : masqués.
+      expect(find.textContaining('%'), findsNothing);
+      expect(find.textContaining('km'), findsNothing);
+      expect(find.textContaining('en ligne'), findsNothing);
+
+      await tester.tap(find.text('Mois'));
+      await tester.pump(const Duration(milliseconds: 300));
+      final month = summarize(const [], EarningsPeriod.month, now);
+      expect(
+        find.text(periodTitle(month, EarningsPeriod.month)),
+        findsOneWidget,
+      );
+      expect(find.text('1-7'), findsOneWidget);
+    });
+
+    testWidgets('gains (D18) : aucune livraison', (tester) async {
+      await withDossier(review: 'approved', status: 'offline');
+      approvedHome();
+      await launchApp(tester);
+      await tester.tap(find.bySemanticsLabel('Gains'));
+      for (var i = 0; i < 3; i++) {
+        await tester.pump(const Duration(milliseconds: 300));
+      }
+      expect(find.text(formatXof(0)), findsOneWidget);
+      expect(find.text('0 livraison'), findsOneWidget);
+      expect(find.text('Aucune livraison sur cette période.'), findsOneWidget);
+    });
+
+    testWidgets('gains (D18) : police à 220 % sur 320 dp', (tester) async {
+      tester.view.physicalSize = const Size(320, 640);
+      tester.view.devicePixelRatio = 1;
+      tester.platformDispatcher.textScaleFactorTestValue = 2.2;
+      addTearDown(tester.view.reset);
+      addTearDown(tester.platformDispatcher.clearTextScaleFactorTestValue);
+      await withDossier(review: 'approved', status: 'offline');
+      final now = DateTime.now().toUtc();
+      approvedHome(delivered: [now, now.subtract(const Duration(days: 7))]);
+      await launchApp(tester);
+      await tester.tap(find.bySemanticsLabel('Gains'));
+      for (var i = 0; i < 3; i++) {
+        await tester.pump(const Duration(milliseconds: 300));
+      }
+      expect(tester.takeException(), isNull);
+      await tester.tap(find.text('Mois'));
+      await tester.pump(const Duration(milliseconds: 300));
+      expect(tester.takeException(), isNull);
     });
   });
 }
