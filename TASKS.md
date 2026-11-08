@@ -64,7 +64,7 @@ L'app livreur calcule ou masque en attendant (tableau « calculé ou masqué » 
 - [ ] **Backend** : modification du véhicule ou de la zone d'un livreur validé (aujourd'hui `application_locked`, l'app renvoie au support) — à décider
 - [ ] **Backend** : messagerie avec la boutique ou le client (D11, D13) : seul l'appel est proposé
 - [x] **Backend** : zones de travail de `GET /v1/driver/options` relues (Gedeon, 2026-11-08) : seules les zones desservies actives sont acceptées ; sans zone saisie au back-office, le dossier n'est plus bloqué (`seed-demo` n'en crée pas)
-- [ ] **Produit / Mobile** : numéro du support livreurs à fournir, puis à passer en configuration : le +228 99 30 99 45 écrit dans `problem_sheet.dart` est le numéro d'envoi des codes WhatsApp et ne doit pas rester dans le code
+- [ ] **Produit** : numéro du support livreurs à fournir (retiré du code le 2026-11-08) ; à donner à la compilation : `--dart-define=IVIA_DRIVER_SUPPORT_PHONE=...`. D'ici là, les appels au support, dont « Accident ou urgence », affichent « bientôt disponible »
 
 ### Ivia Driver (033) — suites de la relecture (2026-11-08)
 Points 1 à 5 et mineurs corrigés (retour à la boutique, relectures dépassées, écran de mission

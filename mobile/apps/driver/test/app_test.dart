@@ -2112,13 +2112,17 @@ void main() {
       noOverflow(tester, 'retour à la boutique');
     });
 
-    testWidgets('un problème : urgence et support appelés', (tester) async {
+    testWidgets('un problème : sans numéro de support, aucun appel', (
+      tester,
+    ) async {
       await withMission(tester, atClient());
       await tapVisible(tester, find.text('Signaler un problème'));
       await tapVisible(tester, find.text('Accident ou urgence'));
-      expect(launched.single.toString(), 'tel:+22899309945');
-      await tapVisible(tester, find.text('Appeler le support'));
-      expect(launched, hasLength(2));
+      expect(launched, isEmpty);
+      expect(
+        find.text('Le numéro du support sera bientôt disponible.'),
+        findsOneWidget,
+      );
     });
 
     testWidgets('un problème avant le retrait : désistement', (tester) async {
@@ -2783,14 +2787,14 @@ void main() {
       expect(find.text('Zone de travail'), findsOneWidget);
       expect(find.text('Tokoin'), findsOneWidget);
       expect(find.text('Google Maps'), findsOneWidget);
-      expect(find.text('+228 99 30 99 45'), findsOneWidget);
+      expect(find.text('Bientôt disponible'), findsOneWidget);
 
       await tester.tap(find.text('Modifier'));
       await tester.pumpAndSettle();
       expect(find.text('Modifier mon activité'), findsOneWidget);
       await tester.tap(find.text('Appeler le support'));
       await tester.pumpAndSettle();
-      expect(launched.single.toString(), 'tel:+22899309945');
+      expect(launched, isEmpty);
 
       await tester.tap(find.text('Documents'));
       await tester.pumpAndSettle();

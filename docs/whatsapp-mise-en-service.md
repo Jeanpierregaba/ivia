@@ -4,9 +4,9 @@ Le code est prêt (ADR 0012). Il reste 3 valeurs à mettre en configuration, jam
 
 ## Numéro expéditeur
 
-**+228 99 30 99 45** (compte WhatsApp Business « docteur_godway »).
+Le numéro du compte WhatsApp Business d'ivia, communiqué par l'équipe et jamais écrit dans le dépôt.
 
-> Le nom d'utilisateur `@docteur_godway` ne suffit pas à l'API. Elle demande l'**identifiant
+> Le nom d'utilisateur du compte ne suffit pas à l'API. Elle demande l'**identifiant
 > du numéro** (phone number ID), un nombre d'environ 15 chiffres.
 
 ## Ce qu'il faut récupérer (15 minutes, dans Meta)
@@ -14,7 +14,7 @@ Le code est prêt (ADR 0012). Il reste 3 valeurs à mettre en configuration, jam
 1. **Créer l'app** : sur https://developers.facebook.com, menu « Mes apps », puis « Créer une app ».
    Choisir le type « Business » et ajouter le produit **WhatsApp**.
 2. **Ajouter le numéro** : dans « WhatsApp › Configuration de l'API », ajouter le numéro
-   +228 99 30 99 45.
+   numéro expéditeur.
    - Meta envoie un code de vérification à ce numéro.
    - Le numéro ne doit plus être utilisé dans l'application WhatsApp Business du téléphone : il
      passe sur l'API.

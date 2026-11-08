@@ -9,8 +9,29 @@ import '../work/work_state.dart';
 import 'mission_screen.dart' show MissionPhase;
 import 'navigation.dart';
 
-/// Assistance livreurs (numéro unique de l'app, à confirmer : TASKS.md).
-const driverSupportPhone = '+22899309945';
+/// Assistance livreurs : numéro donné à la compilation
+/// (`--dart-define=IVIA_DRIVER_SUPPORT_PHONE=...`), jamais écrit dans le code.
+/// Vide tant que le numéro du support n'est pas attribué.
+const driverSupportPhone = String.fromEnvironment('IVIA_DRIVER_SUPPORT_PHONE');
+
+/// Appelle le support, ou prévient que son numéro n'est pas encore disponible.
+Future<void> callDriverSupport(BuildContext context, WidgetRef ref) async {
+  final messenger = ScaffoldMessenger.of(context);
+  if (driverSupportPhone.isEmpty) {
+    messenger.showSnackBar(
+      const SnackBar(
+        content: Text('Le numéro du support sera bientôt disponible.'),
+      ),
+    );
+    return;
+  }
+  final ok = await ref.read(linkLauncherProvider)(telUri(driverSupportPhone));
+  if (!ok) {
+    messenger.showSnackBar(
+      const SnackBar(content: Text("Impossible de lancer l'appel.")),
+    );
+  }
+}
 
 /// « Signaler un problème » : ouvre D16.
 class ProblemButton extends ConsumerWidget {
@@ -56,7 +77,7 @@ class _ProblemSheet extends ConsumerWidget {
   Widget build(BuildContext context, WidgetRef ref) {
     final beforePickup =
         phase == MissionPhase.toPickup || phase == MissionPhase.atPickup;
-    Future<void> support() => _callSupport(context, ref);
+    Future<void> support() => callDriverSupport(context, ref);
     return SafeArea(
       child: SingleChildScrollView(
         padding: const EdgeInsets.fromLTRB(D.gutter, 0, D.gutter, 16),
@@ -176,16 +197,6 @@ class _ProblemSheet extends ConsumerWidget {
         borderRadius: BorderRadius.vertical(top: Radius.circular(32)),
       ),
       builder: (_) => _UnreachableSheet(mission: m),
-    );
-  }
-}
-
-Future<void> _callSupport(BuildContext context, WidgetRef ref) async {
-  final messenger = ScaffoldMessenger.of(context);
-  final ok = await ref.read(linkLauncherProvider)(telUri(driverSupportPhone));
-  if (!ok) {
-    messenger.showSnackBar(
-      const SnackBar(content: Text("Impossible de lancer l'appel.")),
     );
   }
 }

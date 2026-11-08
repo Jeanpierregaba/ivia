@@ -7,7 +7,7 @@ import '../../common/ui.dart';
 import '../profile/settings.dart';
 import 'mission_ui.dart';
 import 'navigation.dart';
-import 'problem_sheet.dart' show driverSupportPhone;
+import 'problem_sheet.dart' show callDriverSupport;
 
 /// Retour à la boutique : livraison impossible déclarée (client
 /// injoignable), le serveur garde la mission « returning » jusqu'à ce que la
@@ -154,8 +154,7 @@ class ReturnView extends ConsumerWidget {
                       : () => _launch(context, ref, nav.route(to)),
                 ),
                 TextButton(
-                  onPressed: () =>
-                      _launch(context, ref, telUri(driverSupportPhone)),
+                  onPressed: () => callDriverSupport(context, ref),
                   style: TextButton.styleFrom(
                     minimumSize: const Size.fromHeight(48),
                   ),

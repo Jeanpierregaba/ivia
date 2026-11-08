@@ -240,6 +240,6 @@ void main() {
 
   test('lien d\'appel : chiffres et « + » seulement', () {
     expect(telUri('+228 90 11-22-33').toString(), 'tel:+22890112233');
-    expect(telUri('+22899309945').toString(), 'tel:+22899309945');
+    expect(telUri('+22890000000').toString(), 'tel:+22890000000');
   });
 }

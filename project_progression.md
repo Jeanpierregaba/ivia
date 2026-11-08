@@ -13,7 +13,7 @@
 | Infrastructure / mise en ligne | **~60 %** | Images Docker, Compose, Caddy, sauvegardes, CI prêts ; serveurs à louer |
 | Publicité IVI / marketing   |  **~90 %** | API, back-office, jeu de démo et app acheteur faits ; reste à saisir les prix IVI |
 | Module pharmacie (029)      |  **~70 %** | Backend fait ; app acheteur P01–P14 faite (alerte, réponses, déblocage, retrait ou livreur ivia, paiement) ; app pharmacie, app livreur et écrans du back-office faits |
-| Connexion v2 (001, ADR 0012) | **~95 %** | Tout est codé (changement de numéro compris) ; reste la mise en service WhatsApp (+228 99 30 99 45, voir docs/whatsapp-mise-en-service.md) et le fournisseur SMS |
+| Connexion v2 (001, ADR 0012) | **~95 %** | Tout est codé (changement de numéro compris) ; reste la mise en service WhatsApp (voir docs/whatsapp-mise-en-service.md) et le fournisseur SMS |
 | Démarches hors code         |  **~10 %** | Société, agrégateur de paiement, Play Store, Meta, domaine                 |
 
 ---

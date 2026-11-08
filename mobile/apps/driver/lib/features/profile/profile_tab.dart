@@ -10,7 +10,8 @@ import '../../common/formats.dart';
 import '../../common/ui.dart';
 import '../dossier/dossier_labels.dart';
 import '../mission/navigation.dart';
-import '../mission/problem_sheet.dart' show driverSupportPhone;
+import '../mission/problem_sheet.dart'
+    show callDriverSupport, driverSupportPhone;
 import '../work/work_state.dart';
 import 'settings.dart';
 
@@ -175,8 +176,10 @@ class ProfileTab extends ConsumerWidget {
             _Row(
               icon: Icons.support_agent_rounded,
               title: 'Aide et support',
-              subtitle: _phone(driverSupportPhone),
-              onTap: () => _callSupport(context, ref),
+              subtitle: driverSupportPhone.isEmpty
+                  ? 'Bientôt disponible'
+                  : _phone(driverSupportPhone),
+              onTap: () => callDriverSupport(context, ref),
             ),
             _Row(
               icon: Icons.devices_outlined,
@@ -247,23 +250,13 @@ class ProfileTab extends ConsumerWidget {
   }
 }
 
-/// « +228 99 30 99 45 ».
+/// « +228 90 00 00 00 ».
 String _phone(String e164) {
   final d = e164.replaceAll(RegExp(r'\D'), '');
   if (d.length != 11 || !d.startsWith('228')) return e164;
   final n = d.substring(3);
   return '+228 ${n.substring(0, 2)} ${n.substring(2, 4)} '
       '${n.substring(4, 6)} ${n.substring(6)}';
-}
-
-Future<void> _callSupport(BuildContext context, WidgetRef ref) async {
-  final messenger = ScaffoldMessenger.of(context);
-  final ok = await ref.read(linkLauncherProvider)(telUri(driverSupportPhone));
-  if (!ok) {
-    messenger.showSnackBar(
-      const SnackBar(content: Text("Impossible de lancer l'appel.")),
-    );
-  }
 }
 
 Future<void> _sheet(BuildContext context, Widget child) =>
@@ -510,7 +503,7 @@ class _LockedSheet extends ConsumerWidget {
         icon: Icons.support_agent_rounded,
         onTap: () {
           Navigator.of(context).pop();
-          _callSupport(context, ref);
+          callDriverSupport(context, ref);
         },
       ),
     ],
