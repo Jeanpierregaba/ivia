@@ -11,11 +11,15 @@ String documentLabel(DriverDocumentKind kind) => switch (kind) {
   DriverDocumentKind.idCard => "Pièce d'identité",
   DriverDocumentKind.drivingLicense => 'Permis de conduire',
   DriverDocumentKind.vehicleRegistration => 'Carte grise',
+  DriverDocumentKind.vehicleInsurance => "Assurance du véhicule",
+  DriverDocumentKind.vehiclePhoto => 'Photo du véhicule',
+  DriverDocumentKind.criminalRecord => 'Casier judiciaire',
   DriverDocumentKind.photo => 'Photo',
   DriverDocumentKind.other => 'Autre document',
 };
 
 String vehicleLabel(VehicleType type) => switch (type) {
+  VehicleType.bicycle => 'Vélo',
   VehicleType.motorbike => 'Moto',
   VehicleType.car => 'Voiture',
 };

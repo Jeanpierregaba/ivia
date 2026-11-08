@@ -526,6 +526,165 @@ void main() {
       server.on('GET', '/v1/driver/me', (_) => FakeResponse.networkError());
       await expectLater(client.driverMe(), throwsA(isA<ApiException>()));
     });
+    // Spec 033 : dossier sur les routes du serveur de Gedeon.
+    test('options : pièces par véhicule et zones de travail', () async {
+      server.on(
+        'GET',
+        '/v1/driver/options',
+        (_) => FakeResponse.json(200, driverOptionsBody()),
+      );
+      final o = await client.driverOptions();
+      expect(o.vehicles.keys, [
+        VehicleType.motorbike,
+        VehicleType.bicycle,
+        VehicleType.car,
+      ]);
+      expect(o.vehicles[VehicleType.bicycle], [DriverDocumentKind.idCard]);
+      expect(
+        o.vehicles[VehicleType.car],
+        contains(DriverDocumentKind.vehicleInsurance),
+      );
+      expect(o.zones.first, (id: workZoneTokoin, name: 'Tokoin'));
+    });
+
+    test('dossier : activité livraison, véhicule, zone, compte', () async {
+      server.on(
+        'GET',
+        '/v1/driver/me',
+        (_) => FakeResponse.json(
+          200,
+          driverBody(review: 'changes_requested', documents: ['id_card']),
+        ),
+      );
+      final d = (await client.driverMe())!;
+      expect(d.review, DriverReview.changesRequested);
+      expect(d.delivery?.status, DriverReview.changesRequested);
+      expect(d.delivery?.reviewNote, isNotEmpty);
+      expect(d.delivery?.model, 'CG 125');
+      expect(d.delivery?.workZoneId, workZoneTokoin);
+      expect(
+        d.delivery?.missingDocuments,
+        contains(DriverDocumentKind.vehicleInsurance),
+      );
+      expect(d.payout?.operator, PayoutOperator.flooz);
+      expect(d.payout?.phoneMasked, '+228 90 •• •• 77');
+    });
+
+    test('brouillon sans compte : null partout, statut draft', () async {
+      server.on(
+        'GET',
+        '/v1/driver/me',
+        (_) => FakeResponse.json(
+          200,
+          driverBody(review: 'draft', payout: false, workZoneId: null),
+        ),
+      );
+      final d = (await client.driverMe())!;
+      expect(d.review, DriverReview.draft);
+      expect(d.payout, isNull);
+      expect(d.delivery?.workZoneId, isNull);
+    });
+
+    test('activité, compte de versement, envoi', () async {
+      server
+        ..on(
+          'PUT',
+          '/v1/driver/activities/delivery',
+          (_) => FakeResponse.json(200, driverBody(review: 'draft')),
+        )
+        ..on(
+          'PUT',
+          '/v1/driver/payout',
+          (_) => FakeResponse.json(200, driverBody(review: 'draft')),
+        )
+        ..on(
+          'POST',
+          '/v1/driver/activities/delivery/submit',
+          (_) => FakeResponse.json(200, driverBody()),
+        );
+      await client.saveDriverDelivery(
+        vehicleType: VehicleType.motorbike,
+        plate: 'TG 4521 AB',
+        brand: 'Honda',
+        model: 'CG 125',
+        workZoneId: workZoneTokoin,
+      );
+      expect(server.last.body, {
+        'vehicle_type': 'motorbike',
+        'plate': 'TG 4521 AB',
+        'brand': 'Honda',
+        'model': 'CG 125',
+        'work_zone_id': workZoneTokoin,
+      });
+      // Vélo : jamais de plaque.
+      await client.saveDriverDelivery(
+        vehicleType: VehicleType.bicycle,
+        plate: 'TG 4521 AB',
+        workZoneId: workZoneTokoin,
+      );
+      expect((server.last.body as Map)['plate'], '');
+      await client.setDriverPayout(
+        operator: PayoutOperator.tmoney,
+        phone: '+22890556677',
+        holder: 'Kossi Adjo',
+      );
+      expect(server.last.body, {
+        'operator': 'tmoney',
+        'phone': '+22890556677',
+        'holder': 'Kossi Adjo',
+      });
+      final sent = await client.submitDriverDelivery();
+      expect(sent.review, DriverReview.pending);
+    });
+
+    test('historique : pages de 100 jusqu\'à la date demandée', () async {
+      Map<String, dynamic> mission(int i, DateTime at) => {
+        'id': 'm$i',
+        'order_reference': '#$i',
+        'status': 'delivered',
+        'fee_xof': 1000,
+        'items_count': 1,
+        'parcel_size': 'small',
+        'shop': {'name': 'Chez Afi'},
+        'customer': null,
+        'assigned_at': at.toIso8601String(),
+      };
+      final since = DateTime.utc(2026, 9, 7);
+      server
+        ..on('GET', '/v1/driver/missions', (r) {
+          final offset = int.parse(r.query['offset']!);
+          expect(r.query['limit'], '100');
+          // Page 0 : récentes ; page 1 : passe sous [since] ; page 2 : jamais lue.
+          final at = offset == 0
+              ? DateTime.utc(2026, 11, 7)
+              : DateTime.utc(2026, 9, 1);
+          return FakeResponse.json(200, {
+            'items': [mission(offset, at)],
+            'next_offset': offset + 1,
+          });
+        })
+        ..on(
+          'GET',
+          '/v1/driver/pharmacy-missions',
+          (_) => FakeResponse.json(200, {'items': [], 'next_offset': null}),
+        );
+      final history = await client.workHistory(since: since);
+      expect(server.calls('GET', '/v1/driver/missions'), hasLength(2));
+      expect(history.map((m) => m.id), ['m0']);
+    });
+
+    test('jeton push : sonnerie envoyée seulement si donnée', () async {
+      server.on('PUT', '/v1/me/devices', (_) => FakeResponse.json(204, null));
+      await client.registerPushToken('t', platform: 'ios', app: 'pharmacy');
+      expect((server.last.body as Map).containsKey('alert_sound'), isFalse);
+      await client.registerPushToken(
+        't',
+        platform: 'ios',
+        app: 'pharmacy',
+        alertSound: false,
+      );
+      expect((server.last.body as Map)['alert_sound'], isFalse);
+    });
   });
 
   group('catalogue', () {

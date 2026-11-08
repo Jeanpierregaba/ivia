@@ -200,15 +200,23 @@ class PharmacyEarnings {
 }
 
 extension PharmacistApi on IviaApiClient {
-  /// Jeton push de l'appareil, pour le compte connecté.
+  /// Jeton push de l'appareil, pour le compte connecté. [alertSound] : faux,
+  /// les alertes urgentes partent sans son sur ce téléphone (spec 032) ;
+  /// absent, le serveur garde la sonnerie active.
   Future<void> registerPushToken(
     String token, {
     required String platform,
     required String app,
+    bool? alertSound,
   }) => _send(
     'PUT',
     '/v1/me/devices',
-    data: {'token': token, 'platform': platform, 'app': app},
+    data: {
+      'token': token,
+      'platform': platform,
+      'app': app,
+      'alert_sound': ?alertSound,
+    },
   );
 
   Future<void> unregisterPushToken(String token) =>

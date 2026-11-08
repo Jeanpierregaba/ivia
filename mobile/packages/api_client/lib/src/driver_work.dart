@@ -212,20 +212,43 @@ extension DriverWorkApi on IviaApiClient {
   );
 
   /// Courses passées (boutique et pharmacie), les plus récentes d'abord.
-  Future<List<WorkMission>> workHistory() async {
-    final shop = await _send(
-      'GET',
-      '/v1/driver/missions',
-      query: {'limit': '50'},
-    );
-    final ph = await _send(
-      'GET',
-      '/v1/driver/pharmacy-missions',
-      query: {'limit': '50'},
-    );
-    return [
-      for (final m in _list(shop['items'])) WorkMission.shop(m),
-      for (final m in _list(ph['items'])) WorkMission.pharmacy(m),
-    ]..sort((a, b) => b.assignedAt.compareTo(a.assignedAt));
+  /// Missions (boutique et pharmacie) attribuées depuis [since], de la plus
+  /// récente à la plus ancienne : pages de 100, jusqu'à dépasser [since] ou
+  /// [maxPages] pages par type (spec 033 : gains sur 62 jours).
+  Future<List<WorkMission>> workHistory({
+    DateTime? since,
+    int maxPages = 10,
+  }) async {
+    Future<List<WorkMission>> read(
+      String path,
+      WorkMission Function(Map<String, dynamic>) parse,
+    ) async {
+      final out = <WorkMission>[];
+      int? offset = 0;
+      for (var page = 0; page < maxPages && offset != null; page++) {
+        final json = await _send(
+          'GET',
+          path,
+          query: {'limit': '100', 'offset': '$offset'},
+        );
+        final items = [for (final m in _list(json['items'])) parse(m)];
+        out.addAll(items);
+        offset = (json['next_offset'] as num?)?.toInt();
+        if (since != null &&
+            items.isNotEmpty &&
+            items.last.assignedAt.isBefore(since)) {
+          break;
+        }
+      }
+      return [
+        for (final m in out)
+          if (since == null || !m.assignedAt.isBefore(since)) m,
+      ];
+    }
+
+    final shop = await read('/v1/driver/missions', WorkMission.shop);
+    final ph = await read('/v1/driver/pharmacy-missions', WorkMission.pharmacy);
+    return [...shop, ...ph]
+      ..sort((a, b) => b.assignedAt.compareTo(a.assignedAt));
   }
 }

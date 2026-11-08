@@ -69,6 +69,14 @@ List<String> _dossierScreens(AsyncValue<DriverDossier?> dossier) {
       Routes.dossierEdit,
     ],
     DriverReview.rejected => const [Routes.dossierBlocked, Routes.dossierEdit],
+    // Brouillon (activité déclarée, pas encore envoyée) : on reprend le
+    // formulaire (spec 033).
+    DriverReview.draft => const [Routes.dossierEdit],
+    // Compléments demandés : motif du back-office, puis correction.
+    DriverReview.changesRequested => const [
+      Routes.dossierBlocked,
+      Routes.dossierEdit,
+    ],
     DriverReview.approved => const [Routes.home],
   };
 }

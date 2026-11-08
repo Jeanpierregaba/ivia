@@ -88,9 +88,12 @@ Les identifiants techniques ne changent pas (`applicationId`, bundle iOS, paquet
   - les modèles et routes existants restent pour la compatibilité (`/v1/driver/application`).
 - `packages/api_client/lib/testing.dart` : faux serveur complété.
 
-**Sonnerie**
-- `alert_sound` envoyé avec le jeton (`PUT /v1/me/devices`), sur Android et iPhone. Le registre
-  des jetons de `app_core` reçoit le choix (paramètre facultatif) ; les autres apps ne changent pas.
+**Sonnerie** (corrigé pendant la tâche 4)
+- Ivia Driver n'enregistre aucun jeton push : les propositions arrivent app ouverte (relecture et
+  connexion directe au serveur). « Sonnerie des missions » est donc un réglage du téléphone : son
+  et vibration du système (`SystemSound`, `HapticFeedback`, sans dépendance) à l'arrivée d'une
+  proposition.
+- `registerPushToken` accepte `alertSound` (facultatif) pour l'app pharmacie (spec 032).
 
 **Serveur (seul ajout)**
 - `backend/internal/delivery/partner.go` : `Options` renvoie aussi `zones` (id, nom, actives
@@ -129,7 +132,7 @@ Aucune migration. Réglages du téléphone dans `shared_preferences` :
 | Étapes de mission, `deliver`, `fail`, `withdraw` | D11 à D16 (existe). |
 | `GET /v1/driver/pharmacy-missions/current` | Code de retrait, montant avancé (032). |
 | `GET /v1/driver/missions`, `GET /v1/driver/pharmacy-missions` | D17, D18 : pages de 100 jusqu'à 62 jours en arrière. |
-| `PUT /v1/me/devices` | Jeton et `alert_sound` (032). |
+| `PUT /v1/me/devices` | Non utilisé par Ivia Driver (pas de push) ; `alertSound` ajouté au client pour la pharmacie. |
 
 ## Dépendances
 

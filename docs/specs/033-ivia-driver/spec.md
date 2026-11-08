@@ -101,7 +101,7 @@ actif en pastille bleue et son libellé.
 | Variation « +14 % » | **Calculée** : comparaison avec la période précédente, si elle a des missions. |
 | Heure d'arrivée estimée (D13, D17) | **Calculée** sur la distance restante et une vitesse moyenne selon le véhicule. |
 | Application de navigation (D19) | **Réglage du téléphone** : Google Maps, Waze ou Plans (iPhone). |
-| Sonnerie des missions (D19) | **Branchée** sur `alert_sound` (spec 032), sur Android et iPhone. |
+| Sonnerie des missions (D19) | **Réglage du téléphone** : activée, une nouvelle proposition fait sonner et vibrer l'app. Ivia Driver n'a pas de notifications push (les propositions arrivent app ouverte) : `alert_sound` ne s'applique pas. Les notifications push des livreurs sont notées pour Gedeon. |
 | Km parcourus, temps en ligne, « 5/8 » objectif, note « 4,9 · 212 courses », demande par quartier (D08), « 4 commandes bientôt prêtes », plusieurs zones préférées | **Masqués**. Le nombre de courses terminées est affiché à la place de la note. |
 | Versement prévu (« Versement vendredi 54 200 F ») | **Masqué** : seul le compte de versement est affiché. |
 | Guidage tour par tour dans l'app (« 250 m, tournez à droite ») | **Masqué**. Le bandeau affiche la destination et la distance à vol d'oiseau ; le guidage se fait dans l'application de navigation choisie. |
@@ -146,8 +146,8 @@ actif en pastille bleue et son libellé.
       calculés par jour de Lomé depuis l'historique. Les éléments « masqués » de la spec
       n'apparaissent pas.
 - [ ] La barre du bas est claire, et l'onglet actif est bleu avec son libellé.
-- [ ] Le réglage « Sonnerie des missions » est envoyé avec le jeton de notification
-      (`alert_sound`).
+- [ ] Étant donné « Sonnerie des missions » activée, quand une proposition arrive, alors l'app
+      sonne et vibre ; désactivée, elle reste silencieuse. Le choix est gardé sur le téléphone.
 - [ ] Chaque écran tient sans débordement avec une police à 200 % sur un écran de 320 dp.
 - [ ] Vérification visuelle sur le simulateur iPhone, écran par écran, face aux maquettes.
 

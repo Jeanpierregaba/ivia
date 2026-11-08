@@ -646,6 +646,49 @@ class IviaApiClient {
     ),
   );
 
+  /// Véhicules, pièces exigées par véhicule et zones de travail (spec 033).
+  Future<DriverOptions> driverOptions() async =>
+      DriverOptions.fromJson(await _send('GET', '/v1/driver/options'));
+
+  /// Déclare ou corrige l'activité livraison et son véhicule (brouillon).
+  Future<DriverDossier> saveDriverDelivery({
+    required VehicleType vehicleType,
+    required String plate,
+    required String workZoneId,
+    String brand = '',
+    String model = '',
+  }) async => DriverDossier.fromJson(
+    await _send(
+      'PUT',
+      '/v1/driver/activities/delivery',
+      data: {
+        'vehicle_type': vehicleType.code,
+        'plate': vehicleType == VehicleType.bicycle ? '' : plate,
+        'brand': brand,
+        'model': model,
+        'work_zone_id': workZoneId,
+      },
+    ),
+  );
+
+  /// Compte de versement Mobile Money ([phone] : +228 et 8 chiffres).
+  Future<DriverDossier> setDriverPayout({
+    required PayoutOperator operator,
+    required String phone,
+    required String holder,
+  }) async => DriverDossier.fromJson(
+    await _send(
+      'PUT',
+      '/v1/driver/payout',
+      data: {'operator': operator.code, 'phone': phone, 'holder': holder},
+    ),
+  );
+
+  /// Envoie le dossier livraison au back-office.
+  Future<DriverDossier> submitDriverDelivery() async => DriverDossier.fromJson(
+    await _send('POST', '/v1/driver/activities/delivery/submit'),
+  );
+
   /// Ajoute au dossier un document déjà envoyé (`driver_document`).
   Future<DriverDossier> addDriverDocument(
     DriverDocumentKind kind,

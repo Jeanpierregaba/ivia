@@ -367,6 +367,8 @@ Map<String, dynamic> driverBody({
     'driving_license',
     'vehicle_registration',
   ],
+  String? workZoneId = workZoneTokoin,
+  bool payout = true,
 }) => {
   'user_id': '7d5c1d38-3c1b-4b8f-9a77-1f2e3d4c5b6a',
   'status': status,
@@ -384,7 +386,74 @@ Map<String, dynamic> driverBody({
     for (final (i, kind) in documents.indexed)
       {'id': 'doc-$i', 'kind': kind, 'created_at': '2026-10-31T10:00:00Z'},
   ],
+  'activities': [
+    {
+      'activity': 'delivery',
+      'status': review,
+      'review_note': review == 'rejected' || review == 'changes_requested'
+          ? 'Carte grise illisible.'
+          : '',
+      'reviewed_at': null,
+      'submitted_at': review == 'draft' ? null : '2026-10-31T10:00:00Z',
+      'vehicle': {
+        'type': vehicleType,
+        'brand': vehicleType == 'bicycle' ? '' : 'Honda',
+        'model': vehicleType == 'bicycle' ? '' : 'CG 125',
+        'color': '',
+        'plate': vehicleType == 'bicycle' ? '' : 'TG 4521 AB',
+        'seats': null,
+      },
+      'work_zone_id': workZoneId,
+      'vehicle_check': null,
+      'required_documents': driverRequiredDocuments(vehicleType),
+      'missing_documents': [
+        for (final k in driverRequiredDocuments(vehicleType))
+          if (!documents.contains(k)) k,
+      ],
+    },
+  ],
+  'payout': payout
+      ? {
+          'operator': 'flooz',
+          'phone_masked': '+228 90 •• •• 77',
+          'holder': 'Kossi Adjo',
+        }
+      : null,
   'created_at': '2026-10-31T10:00:00Z',
+};
+
+/// Zone de travail type ([driverOptionsBody]).
+const workZoneTokoin = '5a1b2c3d-0000-4000-8000-00000000a001';
+
+/// Pièces exigées pour la livraison selon le véhicule (comme
+/// `delivery.DocumentsFor` côté serveur).
+List<String> driverRequiredDocuments(String vehicleType) =>
+    vehicleType == 'bicycle'
+    ? const ['id_card']
+    : const [
+        'id_card',
+        'driving_license',
+        'vehicle_registration',
+        'vehicle_insurance',
+      ];
+
+/// Options du dossier (`GET /v1/driver/options`).
+Map<String, dynamic> driverOptionsBody() => {
+  'activities': [
+    {
+      'activity': 'delivery',
+      'label': 'Livraison',
+      'mode': 'open',
+      'vehicles': [
+        for (final v in ['motorbike', 'bicycle', 'car'])
+          {'type': v, 'required_documents': driverRequiredDocuments(v)},
+      ],
+    },
+  ],
+  'zones': [
+    {'id': workZoneTokoin, 'name': 'Tokoin'},
+    {'id': '5a1b2c3d-0000-4000-8000-00000000a002', 'name': 'Bè'},
+  ],
 };
 
 /// Identifiant de la boutique de [shopBody].

@@ -400,6 +400,7 @@ class PreparedUpload {
 
 /// Catégorie de véhicule d'un livreur.
 enum VehicleType {
+  bicycle('bicycle'),
   motorbike('motorbike'),
   car('car');
 
@@ -416,6 +417,9 @@ enum DriverDocumentKind {
   idCard('id_card'),
   drivingLicense('driving_license'),
   vehicleRegistration('vehicle_registration'),
+  vehicleInsurance('vehicle_insurance'),
+  vehiclePhoto('vehicle_photo'),
+  criminalRecord('criminal_record'),
   photo('photo'),
   other('other');
 
@@ -429,7 +433,12 @@ enum DriverDocumentKind {
 
 /// Décision de l'admin sur un dossier livreur.
 enum DriverReview {
+  /// Brouillon : activité déclarée, dossier pas encore envoyé (spec 033).
+  draft('draft'),
   pending('pending_review'),
+
+  /// Compléments demandés par le back-office (motif dans `reviewNote`).
+  changesRequested('changes_requested'),
   approved('approved'),
   rejected('rejected');
 
@@ -452,6 +461,8 @@ class DriverDossier {
     required this.vehicleType,
     required this.vehiclePlate,
     required this.documents,
+    this.delivery,
+    this.payout,
   });
 
   factory DriverDossier.fromJson(Map<String, dynamic> json) => DriverDossier(
@@ -465,6 +476,14 @@ class DriverDossier {
       for (final doc in json['documents'] as List? ?? const [])
         DriverDocumentKind.parse((doc as Map)['kind'] as String),
     ],
+    delivery: [
+      for (final a in json['activities'] as List? ?? const [])
+        if ((a as Map)['activity'] == 'delivery')
+          DriverActivity.fromJson(a.cast<String, dynamic>()),
+    ].firstOrNull,
+    payout: json['payout'] == null
+        ? null
+        : DriverPayout.fromJson(json['payout'] as Map<String, dynamic>),
   );
 
   final DriverReview review;
@@ -476,6 +495,113 @@ class DriverDossier {
   final VehicleType vehicleType;
   final String vehiclePlate;
   final List<DriverDocumentKind> documents;
+
+  /// Activité livraison (spec 033) ; `null` : ancien dossier ou aucune.
+  final DriverActivity? delivery;
+
+  /// Compte de versement Mobile Money, numéro masqué.
+  final DriverPayout? payout;
+}
+
+/// Activité partenaire et état de son dossier (schéma `DriverActivity`).
+class DriverActivity {
+  const DriverActivity({
+    required this.status,
+    required this.reviewNote,
+    required this.vehicleType,
+    required this.brand,
+    required this.model,
+    required this.plate,
+    required this.workZoneId,
+    required this.requiredDocuments,
+    required this.missingDocuments,
+  });
+
+  factory DriverActivity.fromJson(Map<String, dynamic> json) {
+    final vehicle = json['vehicle'] as Map<String, dynamic>? ?? const {};
+    List<DriverDocumentKind> kinds(Object? v) => [
+      for (final k in v as List? ?? const [])
+        DriverDocumentKind.parse(k as String),
+    ];
+    return DriverActivity(
+      status: DriverReview.parse(json['status'] as String? ?? 'draft'),
+      reviewNote: json['review_note'] as String? ?? '',
+      vehicleType: VehicleType.parse(vehicle['type'] as String? ?? ''),
+      brand: vehicle['brand'] as String? ?? '',
+      model: vehicle['model'] as String? ?? '',
+      plate: vehicle['plate'] as String? ?? '',
+      workZoneId: json['work_zone_id'] as String?,
+      requiredDocuments: kinds(json['required_documents']),
+      missingDocuments: kinds(json['missing_documents']),
+    );
+  }
+
+  final DriverReview status;
+  final String reviewNote;
+  final VehicleType vehicleType;
+  final String brand, model, plate;
+  final String? workZoneId;
+  final List<DriverDocumentKind> requiredDocuments, missingDocuments;
+}
+
+/// Opérateur Mobile Money du compte de versement.
+enum PayoutOperator {
+  flooz('flooz', 'Moov Money (Flooz)'),
+  tmoney('tmoney', 'Yas (T-Money)');
+
+  const PayoutOperator(this.code, this.label);
+  final String code, label;
+
+  static PayoutOperator parse(String code) =>
+      values.firstWhere((o) => o.code == code, orElse: () => flooz);
+}
+
+/// Compte de versement du livreur ; le numéro complet n'est jamais renvoyé.
+class DriverPayout {
+  const DriverPayout({
+    required this.operator,
+    required this.phoneMasked,
+    required this.holder,
+  });
+
+  factory DriverPayout.fromJson(Map<String, dynamic> json) => DriverPayout(
+    operator: PayoutOperator.parse(json['operator'] as String? ?? ''),
+    phoneMasked: json['phone_masked'] as String? ?? '',
+    holder: json['holder'] as String? ?? '',
+  );
+
+  final PayoutOperator operator;
+  final String phoneMasked, holder;
+}
+
+/// Choix du dossier livraison (`GET /v1/driver/options`) : pièces exigées
+/// par véhicule et zones de travail.
+class DriverOptions {
+  const DriverOptions({required this.vehicles, required this.zones});
+
+  factory DriverOptions.fromJson(Map<String, dynamic> json) {
+    final delivery = [
+      for (final a in json['activities'] as List? ?? const [])
+        if ((a as Map)['activity'] == 'delivery') a,
+    ].firstOrNull;
+    return DriverOptions(
+      vehicles: {
+        for (final v in delivery?['vehicles'] as List? ?? const [])
+          VehicleType.parse((v as Map)['type'] as String): [
+            for (final k in v['required_documents'] as List? ?? const [])
+              DriverDocumentKind.parse(k as String),
+          ],
+      },
+      zones: [
+        for (final z in json['zones'] as List? ?? const [])
+          (id: (z as Map)['id'] as String, name: z['name'] as String),
+      ],
+    );
+  }
+
+  /// Véhicules proposés, dans l'ordre du serveur, et leurs pièces exigées.
+  final Map<VehicleType, List<DriverDocumentKind>> vehicles;
+  final List<({String id, String name})> zones;
 }
 
 /// Page d'une liste paginée (`items`, `next_offset`).

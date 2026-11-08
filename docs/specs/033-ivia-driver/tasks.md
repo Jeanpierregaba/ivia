@@ -19,11 +19,11 @@
       - glissière : agit au bout, revient au départ sinon ;
       - barre du bas claire, onglet actif ;
       - cases de code.
-- [ ] 4. `api_client` :
+- [x] 4. `api_client` :
       - options (véhicules, pièces, zones), activité, compte de versement, envoi ;
       - `DriverDossier` complété ;
       - historique paginé sur 62 jours ;
-      - `alert_sound` dans le registre des jetons ;
+      - `alertSound` facultatif dans `registerPushToken` (pharmacie ; Ivia Driver n'a pas de push) ;
       - faux serveur et tests.
 
 **Lancement et inscription**
@@ -69,7 +69,8 @@
       - compte de versement masqué.
 - [ ] 19. Profil D19 :
       - véhicule, documents, zone ;
-      - application de navigation, sonnerie envoyée avec le jeton ;
+      - application de navigation, sonnerie des missions (son et vibration à l'arrivée d'une
+        proposition, réglage du téléphone) ;
       - aide, déconnexion.
 
 **Finitions**
