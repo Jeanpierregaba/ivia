@@ -9,6 +9,7 @@ export 'src/catalog_views.dart';
 export 'src/code_input.dart';
 export 'src/components.dart';
 export 'src/countdown.dart';
+export 'src/driver_colors.dart';
 export 'src/form_controls.dart';
 export 'src/illustration.dart';
 export 'src/loading_splash.dart';

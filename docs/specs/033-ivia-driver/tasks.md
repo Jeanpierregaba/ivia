@@ -14,7 +14,7 @@
       - splash natif régénéré ;
       - `mobile/README.md`, outil d'aperçu ;
       - tests mis à jour.
-- [ ] 3. Charte : `driver_colors.dart` dans `packages/ui`, `common/ui.dart` et `common/formats.dart`.
+- [x] 3. Charte : `driver_colors.dart` dans `packages/ui`, `common/ui.dart` et `common/formats.dart`.
       Tests des composants :
       - glissière : agit au bout, revient au départ sinon ;
       - barre du bas claire, onglet actif ;
