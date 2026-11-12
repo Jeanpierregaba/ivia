@@ -52,3 +52,11 @@ admin/public/communications strategy/
 # Données de carte, préparées par tools/geo/
 geo-data/
 places.csv
+# Clé Google du fond de carte de l'aperçu web (locale)
+tools/preview/maps-web-key.txt
+
+# Firebase (push) : fichiers de configuration locaux, jamais commités
+**/android/app/google-services.json
+**/ios/Runner/GoogleService-Info.plist
+backend/secrets/
+tools/preview/firebase-web.txt

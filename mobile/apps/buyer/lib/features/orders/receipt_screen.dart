@@ -1,8 +1,12 @@
+import 'dart:ui' as ui;
+
 import 'package:flutter/foundation.dart';
 import 'package:flutter/material.dart';
+import 'package:flutter/rendering.dart';
+import 'package:gal/gal.dart';
 import 'package:ivia_app_core/ivia_app_core.dart';
 import 'package:ivia_ui/ivia_ui.dart';
-import 'package:printing/printing.dart';
+import 'package:share_plus/share_plus.dart';
 
 import 'invoice.dart';
 
@@ -13,7 +17,8 @@ Future<void> showReceipt(BuildContext context, Invoice invoice) =>
     );
 
 /// Reçu d'une commande ou d'une réservation : ticket aux bords en dents de
-/// scie, puis « Partager » et « Télécharger » (PDF).
+/// scie, puis « Partager » et « Télécharger » : une image du ticket, tel
+/// qu'il est affiché.
 class ReceiptScreen extends StatefulWidget {
   const ReceiptScreen({super.key, required this.invoice});
 
@@ -25,8 +30,19 @@ class ReceiptScreen extends StatefulWidget {
 
 class _ReceiptScreenState extends State<ReceiptScreen> {
   var _busy = false;
+  final _capture = GlobalKey();
 
-  String get _file => 'recu-${widget.invoice.number}.pdf';
+  String get _file => 'recu-${widget.invoice.number}.png';
+
+  /// Image PNG du ticket affiché, en haute définition.
+  Future<Uint8List> _png() async {
+    final boundary =
+        _capture.currentContext!.findRenderObject()! as RenderRepaintBoundary;
+    final image = await boundary.toImage(pixelRatio: 3);
+    final data = await image.toByteData(format: ui.ImageByteFormat.png);
+    image.dispose();
+    return data!.buffer.asUint8List();
+  }
 
   Future<void> _run(Future<void> Function() action) async {
     if (_busy) return;
@@ -41,21 +57,48 @@ class _ReceiptScreenState extends State<ReceiptScreen> {
     }
   }
 
-  /// Partager : le téléphone propose WhatsApp, e-mail… (téléchargement sur le
-  /// web, qui n'a pas de partage de fichiers).
-  Future<void> _share() => _run(
-    () async =>
-        Printing.sharePdf(bytes: await widget.invoice.pdf(), filename: _file),
-  );
+  /// Partager : le téléphone propose WhatsApp, e-mail…
+  Future<void> _share() => _run(() async {
+    final file = XFile.fromData(
+      await _png(),
+      name: _file,
+      mimeType: 'image/png',
+    );
+    await SharePlus.instance.share(
+      ShareParams(files: [file], fileNameOverrides: [_file]),
+    );
+  });
 
-  /// Télécharger : enregistrement du PDF (fenêtre d'impression du téléphone,
-  /// « Enregistrer en PDF » ; fichier téléchargé sur le web).
+  /// Télécharger : l'image va dans la galerie du téléphone (fichier
+  /// téléchargé dans le navigateur).
   Future<void> _download() => _run(() async {
-    final bytes = await widget.invoice.pdf();
+    final bytes = await _png();
     if (kIsWeb) {
-      await Printing.sharePdf(bytes: bytes, filename: _file);
-    } else {
-      await Printing.layoutPdf(onLayout: (_) async => bytes, name: _file);
+      await XFile.fromData(
+        bytes,
+        name: _file,
+        mimeType: 'image/png',
+      ).saveTo(_file);
+      return;
+    }
+    if (!await Gal.hasPermission() && !await Gal.requestPermission()) {
+      if (mounted) {
+        showMessage(
+          ScaffoldMessenger.of(context),
+          'Autorisez l’accès aux photos pour enregistrer le reçu.',
+        );
+      }
+      return;
+    }
+    await Gal.putImageBytes(bytes, name: _file.replaceAll('.png', ''));
+    if (mounted) {
+      showIviaNotification(
+        context,
+        title: 'Reçu enregistré',
+        body: 'Retrouvez-le dans vos photos.',
+        icon: Icons.check_rounded,
+        color: IviaColors.success,
+      );
     }
   });
 
@@ -85,7 +128,19 @@ class _ReceiptScreenState extends State<ReceiptScreen> {
                 ),
                 child: IviaMaxWidth(
                   maxWidth: 480,
-                  child: IviaReveal(child: _Ticket(invoice: widget.invoice)),
+                  child: IviaReveal(
+                    // Capturé tel quel pour l'image : ticket sur fond bleu.
+                    child: RepaintBoundary(
+                      key: _capture,
+                      child: ColoredBox(
+                        color: IviaColors.berkeleyBlue,
+                        child: Padding(
+                          padding: const EdgeInsets.all(IviaSpacing.lg),
+                          child: _Ticket(invoice: widget.invoice),
+                        ),
+                      ),
+                    ),
+                  ),
                 ),
               ),
             ),

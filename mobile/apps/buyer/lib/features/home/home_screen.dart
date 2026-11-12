@@ -9,6 +9,7 @@ import '../../app/buyer_area.dart';
 import '../../app/catalog_data.dart';
 import '../../app/router.dart';
 import '../cart/cart_button.dart';
+import '../notifications/notification_bell.dart';
 import '../promo/promo_state.dart';
 import '../promo/promo_widgets.dart';
 import '../search/product_grid.dart';
@@ -119,6 +120,8 @@ class _HomeScreenState extends ConsumerState<HomeScreen> {
               Row(
                 children: [
                   Expanded(child: _AreaButton(area: area)),
+                  const SizedBox(width: IviaSpacing.sm),
+                  const NotificationBell(),
                   const SizedBox(width: IviaSpacing.sm),
                   const CartButton(),
                 ],

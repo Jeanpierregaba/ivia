@@ -51,19 +51,29 @@ $env:DATABASE_URL = 'postgres://ivia@127.0.0.1:5434/ivia?sslmode=disable'
 $env:PORT = '8080'
 $env:LOCAL_STORAGE_DIR = './var/uploads'
 $backend = Join-Path $root 'backend'
-# Recherche d'adresses Google : clé lue dans backend/.env (jamais affichée ni commitée). Sans clé,
-# recherche dans les lieux enregistrés seulement.
-$envFile = Join-Path $backend '.env'
-if (Test-Path $envFile) {
-  $line = Get-Content $envFile | Where-Object { $_ -match '^\s*GOOGLE_PLACES_API_KEY\s*=\s*\S' } | Select-Object -First 1
-  if ($line) {
-    $env:GOOGLE_PLACES_API_KEY = ($line -split '=', 2)[1].Trim().Trim('"')
-    $env:GEO_PLACES_PROVIDER = 'composite'
-  }
+# Notifications push réelles (Firebase) si la clé du serveur est en place (backend\secretscm.json,
+# jamais commitée) ; sinon, push écrits dans le journal.
+if (Test-Path (Join-Path $backend 'secretscm.json')) {
+  $env:PUSH_SENDER = 'fcm'
+  $env:FCM_CREDENTIALS_FILE = 'secretscm.json'
 }
 $api =Start-Process -FilePath (Join-Path $backend 'bin\api.exe') -WorkingDirectory $backend -WindowStyle Hidden `
   -RedirectStandardOutput (Join-Path $backend 'var\api.log') -RedirectStandardError (Join-Path $backend 'var\api.err.log') -PassThru
 $started += $api.Id
+
+# Fond de carte Google dans le navigateur : clé « navigateur » (Maps JavaScript API seulement,
+# limitée à http://localhost:300x) dans tools\preview\maps-web-key.txt, non commité. Les calculs
+# (itinéraires, adresses) restent sur OpenStreetMap côté serveur (ADR 0013).
+# Sans ce fichier : clé GOOGLE_PLACES_API_KEY de backend\.env (lue ici, jamais affichée), qui ne sert
+# alors qu'au fond de carte ; la recherche d'adresses reste sur OpenStreetMap.
+$mapsKey = Join-Path $here 'maps-web-key.txt'
+$backendEnv = Join-Path $root 'backend\.env'
+if (Test-Path $mapsKey) {
+  $env:IVIA_MAPS_WEB_KEY = (Get-Content $mapsKey -Raw).Trim()
+} elseif (Test-Path $backendEnv) {
+  $line = Get-Content $backendEnv | Where-Object { $_ -match '^\s*GOOGLE_PLACES_API_KEY\s*=\s*\S' } | Select-Object -First 1
+  if ($line) { $env:IVIA_MAPS_WEB_KEY = ($line -split '=', 2)[1].Trim().Trim('"') }
+}
 
 # Apps Flutter (build web), avec relais vers l'API.
 foreach ($app in @(@('buyer', 3001, 'ivia'), @('seller', 3002, 'Ivia Business'), @('driver', 3003, 'Ivia Driver'), @('pharmacy', 3004, 'ivia Pharmacie'))) {

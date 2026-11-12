@@ -2,6 +2,7 @@ import 'dart:async';
 
 import 'package:flutter/material.dart';
 import 'package:flutter_riverpod/flutter_riverpod.dart';
+import 'package:ivia_app_core/ivia_app_core.dart';
 import 'package:go_router/go_router.dart';
 import 'package:ivia_api_client/ivia_api_client.dart';
 import 'package:ivia_ui/ivia_ui.dart';
@@ -47,6 +48,10 @@ class _SellerShellState extends ConsumerState<SellerShell> {
   void initState() {
     super.initState();
     _start();
+    // Push réels (Firebase) : nouvelles commandes, retraits… même app fermée.
+    unawaited(
+      ref.read(iviaPushProvider('seller')).start(onOpen: (_) => _reload()),
+    );
     _lifecycle = AppLifecycleListener(
       onHide: _stop,
       onShow: () {

@@ -1,12 +1,19 @@
 # Progression du projet ivia
 
-> Fichier tenu à jour à chaque étape. Dernière mise à jour : **2026-11-07**.
+> Fichier tenu à jour à chaque étape. Dernière mise à jour : **2026-11-12**.
 > Détail des tâches : [`TASKS.md`](TASKS.md) · journal des sessions : [`docs/SESSION-LOG.md`](docs/SESSION-LOG.md).
 
 ## En un coup d'œil
 
 | Partie                      | Avancement | État                                                                       |
-| --------------------------- | :--------: | -------------------------------------------------------------------------- |
+| ## Dernières avancées (2026-11-12)
+
+- **Apps plus fluides** : chaque page s'ouvre avec une transition douce (avant, beaucoup apparaissaient d'un coup) ; changement d'onglet en fondu.
+- **Notifications** : cloche avec compteur sur l'accueil d'ivia, écran Notifications (glisser pour lire, ouverture de la commande) ; vraies notifications push prêtes, en attente des clés Firebase.
+- **Reçu** : image partageable (WhatsApp…) ou enregistrée dans la galerie ; une commande annulée affiche un récapitulatif, plus un reçu.
+- **Carte** : fond Google Maps dans les apps, calculs toujours sur OpenStreetMap (gratuit).
+
+--------------------------- | :--------: | -------------------------------------------------------------------------- |
 | Backend (API Go)            |  **~95 %** | Complet pour le MVP ; manque le vrai prestataire de paiement (016)         |
 | Back-office web (Next.js)   |  **~95 %** | Tous les écrans du MVP faits ; restent les tests navigateur (Playwright)   |
 | Apps mobiles (Flutter)      |  **~50 %** | Acheteur jusqu'à la commande en retrait, catalogue marchand, dossier livreur ; paiement et livraison à faire |

@@ -263,6 +263,7 @@ class _CheckoutScreenState extends ConsumerState<CheckoutScreen> {
         MediaQuery.textScalerOf(context).scale(1) > 1.3;
     final modes = [
       _ModeCard(
+        icon: Icons.delivery_dining_rounded,
         title: 'Livraison',
         body: _address == null
             ? 'Un livreur ivia vous apporte la commande'
@@ -271,6 +272,7 @@ class _CheckoutScreenState extends ConsumerState<CheckoutScreen> {
         onTap: _placing ? null : _chooseAddress,
       ),
       _ModeCard(
+        icon: Icons.storefront_rounded,
         title: 'Retrait',
         body: 'Gratuit, $place',
         selected: _address == null,
@@ -392,6 +394,7 @@ class _CheckoutScreenState extends ConsumerState<CheckoutScreen> {
 /// pour un mode pas encore ouvert.
 class _ModeCard extends StatelessWidget {
   const _ModeCard({
+    required this.icon,
     required this.title,
     required this.body,
     required this.selected,
@@ -400,6 +403,7 @@ class _ModeCard extends StatelessWidget {
     this.onTap,
   });
 
+  final IconData icon;
   final String title;
   final String body;
   final bool selected;
@@ -419,7 +423,9 @@ class _ModeCard extends StatelessWidget {
         enabled: !soon,
         label: [title, body, if (soon) 'bientôt disponible'].join(', '),
         excludeSemantics: true,
-        child: Container(
+        child: AnimatedContainer(
+          duration: IviaMotion.medium,
+          curve: IviaMotion.standard,
           padding: const EdgeInsets.all(IviaSpacing.lg),
           decoration: BoxDecoration(
             color: IviaColors.surface,
@@ -428,12 +434,38 @@ class _ModeCard extends StatelessWidget {
               color: selected ? brand.action : IviaColors.surface,
               width: 2,
             ),
+            boxShadow: [
+              if (selected)
+                BoxShadow(
+                  color: brand.action.withValues(alpha: 0.12),
+                  blurRadius: 18,
+                  offset: const Offset(0, 6),
+                ),
+            ],
           ),
           child: Column(
             crossAxisAlignment: CrossAxisAlignment.start,
             children: [
               Row(
                 children: [
+                  AnimatedContainer(
+                    duration: IviaMotion.medium,
+                    curve: IviaMotion.standard,
+                    width: 40,
+                    height: 40,
+                    decoration: BoxDecoration(
+                      color: selected
+                          ? brand.action
+                          : brand.action.withValues(alpha: 0.1),
+                      borderRadius: BorderRadius.circular(12),
+                    ),
+                    child: Icon(
+                      icon,
+                      size: 22,
+                      color: selected ? Colors.white : brand.action,
+                    ),
+                  ),
+                  const SizedBox(width: IviaSpacing.md),
                   Expanded(
                     child: Text(
                       title,

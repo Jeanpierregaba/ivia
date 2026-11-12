@@ -1,5 +1,7 @@
+import 'package:flutter/material.dart' show MaterialPage;
 import 'package:flutter/widgets.dart';
 import 'package:flutter_riverpod/flutter_riverpod.dart';
+import 'package:ivia_ui/ivia_ui.dart';
 import 'package:go_router/go_router.dart';
 import 'package:ivia_api_client/ivia_api_client.dart';
 import 'package:ivia_app_core/ivia_app_core.dart';
@@ -161,81 +163,93 @@ final routerProvider = Provider<GoRouter>((ref) {
     routes: [
       GoRoute(
         path: Routes.splash,
-        builder: (context, state) => const LoadingScreen(),
+        pageBuilder: (context, state) => _page(state, const LoadingScreen()),
       ),
       GoRoute(
         path: Routes.location,
-        builder: (context, state) => const LaunchLocationPromptScreen(),
+        pageBuilder: (context, state) =>
+            _page(state, const LaunchLocationPromptScreen()),
       ),
       GoRoute(
         path: Routes.onboarding,
-        builder: (context, state) => const OnboardingScreen(),
+        pageBuilder: (context, state) => _page(state, const OnboardingScreen()),
       ),
       GoRoute(
         path: Routes.login,
-        builder: (context, state) => const PhoneScreen(),
+        pageBuilder: (context, state) => _page(state, const PhoneScreen()),
         routes: [
           GoRoute(
             path: 'code',
-            builder: (context, state) => const PhoneCodeScreen(),
+            pageBuilder: (context, state) =>
+                _page(state, const PhoneCodeScreen()),
           ),
           GoRoute(
             path: 'signup',
-            builder: (context, state) => const PhoneSignupScreen(),
+            pageBuilder: (context, state) =>
+                _page(state, const PhoneSignupScreen()),
           ),
         ],
       ),
       GoRoute(
         path: Routes.offline,
-        builder: (context, state) => const OfflineScreen(),
+        pageBuilder: (context, state) => _page(state, const OfflineScreen()),
       ),
-      GoRoute(path: Routes.welcome, builder: (_, _) => const ProfileScreen()),
+      GoRoute(
+        path: Routes.welcome,
+        pageBuilder: (_, state) => _page(state, const ProfileScreen()),
+      ),
       GoRoute(
         path: Routes.businessNew,
-        builder: (_, _) => const SectorScreen(),
+        pageBuilder: (_, state) => _page(state, const SectorScreen()),
       ),
       GoRoute(
         path: Routes.businessChoose,
-        builder: (_, _) => const ChooseSpaceScreen(),
+        pageBuilder: (_, state) => _page(state, const ChooseSpaceScreen()),
       ),
       GoRoute(
         path: Routes.businessDossier,
-        builder: (_, _) => const DossierScreen(),
+        pageBuilder: (_, state) => _page(state, const DossierScreen()),
       ),
       GoRoute(
         path: Routes.businessStatus,
-        builder: (_, _) => const BusinessStatusScreen(),
+        pageBuilder: (_, state) => _page(state, const BusinessStatusScreen()),
       ),
       GoRoute(
         path: Routes.businessModule,
-        builder: (_, _) => const BusinessModuleScreen(),
+        pageBuilder: (_, state) => _page(state, const BusinessModuleScreen()),
       ),
       GoRoute(
         path: Routes.shopNew,
-        builder: (context, state) => const ShopFormScreen(),
+        pageBuilder: (context, state) => _page(state, const ShopFormScreen()),
       ),
       GoRoute(
         path: Routes.shopPending,
-        builder: (context, state) => const ShopPendingScreen(),
+        pageBuilder: (context, state) =>
+            _page(state, const ShopPendingScreen()),
         routes: [
           GoRoute(
             path: 'documents',
-            builder: (context, state) => const ShopDocumentsScreen(),
+            pageBuilder: (context, state) =>
+                _page(state, const ShopDocumentsScreen()),
           ),
         ],
       ),
       GoRoute(
         path: Routes.shopBlocked,
-        builder: (context, state) => const ShopBlockedScreen(),
+        pageBuilder: (context, state) =>
+            _page(state, const ShopBlockedScreen()),
       ),
-      StatefulShellRoute.indexedStack(
+      StatefulShellRoute(
+        navigatorContainerBuilder: (context, shell, children) =>
+            IviaTabSwitcher(index: shell.currentIndex, children: children),
         builder: (context, state, shell) => SellerShell(shell: shell),
         branches: [
           StatefulShellBranch(
             routes: [
               GoRoute(
                 path: Routes.home,
-                builder: (context, state) => const HomeScreen(),
+                pageBuilder: (context, state) =>
+                    _page(state, const HomeScreen()),
               ),
             ],
           ),
@@ -243,21 +257,27 @@ final routerProvider = Provider<GoRouter>((ref) {
             routes: [
               GoRoute(
                 path: Routes.orders,
-                builder: (context, state) => OrdersScreen(
-                  tab: OrderTab.parse(state.uri.queryParameters['tab']),
+                pageBuilder: (context, state) => _page(
+                  state,
+                  OrdersScreen(
+                    tab: OrderTab.parse(state.uri.queryParameters['tab']),
+                  ),
                 ),
                 routes: [
                   GoRoute(
                     path: ':id',
                     parentNavigatorKey: rootKey,
-                    builder: (context, state) =>
-                        OrderScreen(orderId: state.pathParameters['id']!),
+                    pageBuilder: (context, state) => _page(
+                      state,
+                      OrderScreen(orderId: state.pathParameters['id']!),
+                    ),
                     routes: [
                       GoRoute(
                         path: 'handover',
                         parentNavigatorKey: rootKey,
-                        builder: (context, state) => HandoverScreen(
-                          orderId: state.pathParameters['id']!,
+                        pageBuilder: (context, state) => _page(
+                          state,
+                          HandoverScreen(orderId: state.pathParameters['id']!),
                         ),
                       ),
                     ],
@@ -270,12 +290,14 @@ final routerProvider = Provider<GoRouter>((ref) {
             routes: [
               GoRoute(
                 path: Routes.catalog,
-                builder: (context, state) => const CatalogScreen(),
+                pageBuilder: (context, state) =>
+                    _page(state, const CatalogScreen()),
                 routes: [
                   GoRoute(
                     path: 'new',
                     parentNavigatorKey: rootKey,
-                    builder: (context, state) => const ProductEditorScreen(),
+                    pageBuilder: (context, state) =>
+                        _page(state, const ProductEditorScreen()),
                   ),
                   GoRoute(
                     path: 'published',
@@ -284,22 +306,27 @@ final routerProvider = Provider<GoRouter>((ref) {
                     // retour au catalogue, dans ses onglets.
                     redirect: (context, state) =>
                         state.extra is Product ? null : Routes.catalog,
-                    builder: (context, state) => ProductPublishedScreen(
-                      product: state.extra! as Product,
+                    pageBuilder: (context, state) => _page(
+                      state,
+                      ProductPublishedScreen(product: state.extra! as Product),
                     ),
                   ),
                   GoRoute(
                     path: 'draft/:id',
                     parentNavigatorKey: rootKey,
-                    builder: (context, state) => ProductEditorScreen(
-                      productId: state.pathParameters['id'],
+                    pageBuilder: (context, state) => _page(
+                      state,
+                      ProductEditorScreen(
+                        productId: state.pathParameters['id'],
+                      ),
                     ),
                   ),
                   GoRoute(
                     path: ':id/edit',
                     parentNavigatorKey: rootKey,
-                    builder: (context, state) => ProductEditScreen(
-                      productId: state.pathParameters['id']!,
+                    pageBuilder: (context, state) => _page(
+                      state,
+                      ProductEditScreen(productId: state.pathParameters['id']!),
                     ),
                   ),
                 ],
@@ -310,7 +337,8 @@ final routerProvider = Provider<GoRouter>((ref) {
             routes: [
               GoRoute(
                 path: Routes.account,
-                builder: (context, state) => const AccountScreen(),
+                pageBuilder: (context, state) =>
+                    _page(state, const AccountScreen()),
               ),
             ],
           ),
@@ -324,3 +352,12 @@ final routerProvider = Provider<GoRouter>((ref) {
   });
   return router;
 });
+
+/// Page avec la transition d'écran ivia : sans elle, go_router peut créer des
+/// pages sans aucune animation (elles apparaissent d'un coup).
+MaterialPage<void> _page(GoRouterState state, Widget child) =>
+    MaterialPage<void>(
+      key: state.pageKey,
+      name: state.name ?? state.path,
+      child: child,
+    );

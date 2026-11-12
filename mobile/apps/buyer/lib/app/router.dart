@@ -1,5 +1,7 @@
+import 'package:flutter/material.dart' show MaterialPage;
 import 'package:flutter/widgets.dart';
 import 'package:flutter_riverpod/flutter_riverpod.dart';
+import 'package:ivia_ui/ivia_ui.dart';
 import 'package:go_router/go_router.dart';
 import 'package:ivia_api_client/ivia_api_client.dart';
 import 'package:ivia_app_core/ivia_app_core.dart';
@@ -9,6 +11,7 @@ import '../features/checkout/checkout_screen.dart';
 import '../features/home/home_screen.dart';
 import '../features/onboarding/onboarding_screen.dart';
 import '../features/orders/order_screen.dart';
+import '../features/notifications/notifications_screen.dart';
 import '../features/pharmacy/alert_screen.dart';
 import '../features/pharmacy/new_alert_screen.dart';
 import '../features/pharmacy/pharmacy_hub_screen.dart';
@@ -50,6 +53,7 @@ abstract final class Routes {
   static String shop(String id) => '$shops/$id';
   static String product(String id) => '$products/$id';
   static const cart = '/cart';
+  static const notifications = '/notifications';
 
   // Alerte médicament (P01 à P14).
   static const pharmacy = '/pharmacy';
@@ -106,6 +110,7 @@ String? redirectFor(
       Routes.shops,
       Routes.products,
       Routes.cart,
+      Routes.notifications,
       Routes.checkout,
       Routes.pharmacy,
       Routes.restaurants,
@@ -139,38 +144,43 @@ final routerProvider = Provider<GoRouter>((ref) {
     routes: [
       GoRoute(
         path: Routes.splash,
-        builder: (context, state) => const LoadingScreen(),
+        pageBuilder: (context, state) => _page(state, const LoadingScreen()),
       ),
       GoRoute(
         path: Routes.location,
-        builder: (context, state) => const LaunchLocationPromptScreen(),
+        pageBuilder: (context, state) =>
+            _page(state, const LaunchLocationPromptScreen()),
       ),
       GoRoute(
         path: Routes.onboarding,
-        builder: (context, state) => const OnboardingScreen(),
+        pageBuilder: (context, state) => _page(state, const OnboardingScreen()),
       ),
       GoRoute(
         path: Routes.login,
         // Connexion par numéro : numéro, code (WhatsApp ou SMS), puis
         // « Faisons connaissance » pour un numéro nouveau.
-        builder: (context, state) => const PhoneScreen(),
+        pageBuilder: (context, state) => _page(state, const PhoneScreen()),
         routes: [
           // Sous /login : le retour depuis le code revient au numéro.
           GoRoute(
             path: 'code',
-            builder: (context, state) => const PhoneCodeScreen(),
+            pageBuilder: (context, state) =>
+                _page(state, const PhoneCodeScreen()),
           ),
           GoRoute(
             path: 'signup',
-            builder: (context, state) => const PhoneSignupScreen(),
+            pageBuilder: (context, state) =>
+                _page(state, const PhoneSignupScreen()),
           ),
         ],
       ),
       GoRoute(
         path: Routes.welcome,
-        builder: (context, state) => const ProfileScreen(),
+        pageBuilder: (context, state) => _page(state, const ProfileScreen()),
       ),
-      StatefulShellRoute.indexedStack(
+      StatefulShellRoute(
+        navigatorContainerBuilder: (context, shell, children) =>
+            IviaTabSwitcher(index: shell.currentIndex, children: children),
         builder: (context, state, shell) => BuyerShell(shell: shell),
         branches: [
           for (final (path, screen) in [
@@ -183,7 +193,7 @@ final routerProvider = Provider<GoRouter>((ref) {
               routes: [
                 GoRoute(
                   path: path,
-                  builder: (context, state) => screen,
+                  pageBuilder: (context, state) => _page(state, screen),
                   routes: [
                     // Suivi au-dessus de la barre du bas ; « retour » revient
                     // à l'onglet Commandes.
@@ -191,25 +201,33 @@ final routerProvider = Provider<GoRouter>((ref) {
                       GoRoute(
                         path: ':id',
                         parentNavigatorKey: rootKey,
-                        builder: (context, state) =>
-                            OrderScreen(orderId: state.pathParameters['id']!),
+                        pageBuilder: (context, state) => _page(
+                          state,
+                          OrderScreen(orderId: state.pathParameters['id']!),
+                        ),
                         routes: [
                           GoRoute(
                             path: 'pay',
                             parentNavigatorKey: rootKey,
-                            builder: (context, state) => PaymentScreen(
-                              orderId: state.pathParameters['id']!,
-                              operator: PaymentOperator.parse(
-                                state.uri.queryParameters['operator'] ?? '',
+                            pageBuilder: (context, state) => _page(
+                              state,
+                              PaymentScreen(
+                                orderId: state.pathParameters['id']!,
+                                operator: PaymentOperator.parse(
+                                  state.uri.queryParameters['operator'] ?? '',
+                                ),
                               ),
                             ),
                           ),
                           GoRoute(
                             path: 'payments/:paymentId',
                             parentNavigatorKey: rootKey,
-                            builder: (context, state) => PaymentWaitScreen(
-                              orderId: state.pathParameters['id']!,
-                              paymentId: state.pathParameters['paymentId']!,
+                            pageBuilder: (context, state) => _page(
+                              state,
+                              PaymentWaitScreen(
+                                orderId: state.pathParameters['id']!,
+                                paymentId: state.pathParameters['paymentId']!,
+                              ),
                             ),
                           ),
                         ],
@@ -223,76 +241,89 @@ final routerProvider = Provider<GoRouter>((ref) {
       GoRoute(
         path: '${Routes.shops}/:id',
         parentNavigatorKey: rootKey,
-        builder: (context, state) =>
-            ShopScreen(shopId: state.pathParameters['id']!),
+        pageBuilder: (context, state) =>
+            _page(state, ShopScreen(shopId: state.pathParameters['id']!)),
       ),
       GoRoute(
         path: '${Routes.products}/:id',
         parentNavigatorKey: rootKey,
-        builder: (context, state) =>
-            ProductScreen(productId: state.pathParameters['id']!),
+        pageBuilder: (context, state) =>
+            _page(state, ProductScreen(productId: state.pathParameters['id']!)),
       ),
       GoRoute(
         path: Routes.checkout,
         parentNavigatorKey: rootKey,
-        builder: (context, state) => const CheckoutScreen(),
+        pageBuilder: (context, state) => _page(state, const CheckoutScreen()),
       ),
       GoRoute(
         path: Routes.pharmacy,
         parentNavigatorKey: rootKey,
-        builder: (context, state) => const PharmacyHubScreen(),
+        pageBuilder: (context, state) =>
+            _page(state, const PharmacyHubScreen()),
         routes: [
           GoRoute(
             path: 'map',
             parentNavigatorKey: rootKey,
-            builder: (context, state) => const OnDutyMapScreen(),
+            pageBuilder: (context, state) =>
+                _page(state, const OnDutyMapScreen()),
           ),
           GoRoute(
             path: 'new',
             parentNavigatorKey: rootKey,
-            builder: (context, state) => const NewAlertScreen(),
+            pageBuilder: (context, state) =>
+                _page(state, const NewAlertScreen()),
             routes: [
               GoRoute(
                 path: 'items',
                 parentNavigatorKey: rootKey,
-                builder: (context, state) => const AlertItemsScreen(),
+                pageBuilder: (context, state) =>
+                    _page(state, const AlertItemsScreen()),
               ),
               GoRoute(
                 path: 'capture/:kind',
                 parentNavigatorKey: rootKey,
-                builder: (context, state) =>
-                    AlertCaptureScreen(kind: state.pathParameters['kind']!),
+                pageBuilder: (context, state) => _page(
+                  state,
+                  AlertCaptureScreen(kind: state.pathParameters['kind']!),
+                ),
               ),
               GoRoute(
                 path: 'review',
                 parentNavigatorKey: rootKey,
-                builder: (context, state) => const AlertReviewScreen(),
+                pageBuilder: (context, state) =>
+                    _page(state, const AlertReviewScreen()),
               ),
               GoRoute(
                 path: 'launch',
                 parentNavigatorKey: rootKey,
-                builder: (context, state) => const AlertLaunchScreen(),
+                pageBuilder: (context, state) =>
+                    _page(state, const AlertLaunchScreen()),
               ),
             ],
           ),
           GoRoute(
             path: 'alerts/:id',
             parentNavigatorKey: rootKey,
-            builder: (context, state) =>
-                AlertScreen(alertId: state.pathParameters['id']!),
+            pageBuilder: (context, state) =>
+                _page(state, AlertScreen(alertId: state.pathParameters['id']!)),
             routes: [
               GoRoute(
                 path: 'responses',
                 parentNavigatorKey: rootKey,
-                builder: (context, state) =>
-                    ResponsesScreen(alertId: state.pathParameters['id']!),
+                pageBuilder: (context, state) => _page(
+                  state,
+                  ResponsesScreen(alertId: state.pathParameters['id']!),
+                ),
               ),
               GoRoute(
                 path: 'unlock/:responseId',
                 parentNavigatorKey: rootKey,
-                builder: (context, state) => UnlockScreen(
-                  alertId: state.pathParameters['id']!,
-                  responseId: state.pathParameters['responseId']!,
+                pageBuilder: (context, state) => _page(
+                  state,
+                  UnlockScreen(
+                    alertId: state.pathParameters['id']!,
+                    responseId: state.pathParameters['responseId']!,
+                  ),
                 ),
               ),
             ],
@@ -300,14 +331,18 @@ final routerProvider = Provider<GoRouter>((ref) {
           GoRoute(
             path: 'reservations/:id',
             parentNavigatorKey: rootKey,
-            builder: (context, state) =>
-                ReservationScreen(reservationId: state.pathParameters['id']!),
+            pageBuilder: (context, state) => _page(
+              state,
+              ReservationScreen(reservationId: state.pathParameters['id']!),
+            ),
             routes: [
               GoRoute(
                 path: 'pickup',
                 parentNavigatorKey: rootKey,
-                builder: (context, state) =>
-                    PickupScreen(reservationId: state.pathParameters['id']!),
+                pageBuilder: (context, state) => _page(
+                  state,
+                  PickupScreen(reservationId: state.pathParameters['id']!),
+                ),
               ),
             ],
           ),
@@ -316,29 +351,38 @@ final routerProvider = Provider<GoRouter>((ref) {
       GoRoute(
         path: Routes.restaurants,
         parentNavigatorKey: rootKey,
-        builder: (context, state) => const RestaurantsScreen(),
+        pageBuilder: (context, state) =>
+            _page(state, const RestaurantsScreen()),
       ),
       GoRoute(
         path: Routes.properties,
         parentNavigatorKey: rootKey,
-        builder: (context, state) => const PropertiesScreen(),
+        pageBuilder: (context, state) => _page(state, const PropertiesScreen()),
         routes: [
           GoRoute(
             path: ':id',
             parentNavigatorKey: rootKey,
-            builder: (context, state) =>
-                PropertyScreen(propertyId: state.pathParameters['id']!),
+            pageBuilder: (context, state) => _page(
+              state,
+              PropertyScreen(propertyId: state.pathParameters['id']!),
+            ),
           ),
         ],
       ),
       GoRoute(
+        path: Routes.notifications,
+        parentNavigatorKey: rootKey,
+        pageBuilder: (context, state) =>
+            _page(state, const NotificationsScreen()),
+      ),
+      GoRoute(
         path: Routes.cart,
         parentNavigatorKey: rootKey,
-        builder: (context, state) => const CartScreen(),
+        pageBuilder: (context, state) => _page(state, const CartScreen()),
       ),
       GoRoute(
         path: Routes.offline,
-        builder: (context, state) => const OfflineScreen(),
+        pageBuilder: (context, state) => _page(state, const OfflineScreen()),
       ),
     ],
   );
@@ -348,3 +392,12 @@ final routerProvider = Provider<GoRouter>((ref) {
   });
   return router;
 });
+
+/// Page avec la transition d'écran ivia : sans elle, go_router peut créer des
+/// pages sans aucune animation (elles apparaissent d'un coup).
+MaterialPage<void> _page(GoRouterState state, Widget child) =>
+    MaterialPage<void>(
+      key: state.pageKey,
+      name: state.name ?? state.path,
+      child: child,
+    );

@@ -1,5 +1,9 @@
+import 'dart:async';
+
 import 'package:flutter/material.dart';
 import 'package:flutter_riverpod/flutter_riverpod.dart';
+import 'package:ivia_app_core/ivia_app_core.dart';
+import 'package:ivia_ui/ivia_ui.dart';
 
 import '../../common/ui.dart';
 import '../earnings/earnings.dart';
@@ -21,6 +25,22 @@ class DriverShell extends ConsumerStatefulWidget {
 
 class _DriverShellState extends ConsumerState<DriverShell> {
   var _tab = 0;
+
+  @override
+  void initState() {
+    super.initState();
+    // Push réels (Firebase) : touchés, ils ramènent à l'accueil (proposition
+    // ou mission en cours).
+    unawaited(
+      ref
+          .read(iviaPushProvider('driver'))
+          .start(
+            onOpen: (_) {
+              if (mounted) setState(() => _tab = 0);
+            },
+          ),
+    );
+  }
 
   @override
   Widget build(BuildContext context) {
@@ -45,7 +65,7 @@ class _DriverShellState extends ConsumerState<DriverShell> {
       // L'écran de mission reste monté sur les autres onglets : arrivée
       // gardée dans l'app (pharmacie), cases cochées et code saisi survivent
       // au changement d'onglet.
-      body: IndexedStack(
+      body: IviaTabSwitcher(
         index: _tab,
         children: [
           if (mission != null)

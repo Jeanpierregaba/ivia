@@ -10,6 +10,8 @@ import 'package:ivia_api_client/ivia_api_client.dart';
 import 'package:ivia_ui/ivia_ui.dart';
 import 'package:latlong2/latlong.dart' as ll;
 
+import 'google_maps_ready.dart'
+    if (dart.library.js_interop) 'google_maps_ready_web.dart';
 import 'location.dart';
 import 'location_prompt.dart';
 import 'providers.dart';
@@ -17,7 +19,11 @@ import 'providers.dart';
 /// Google Maps dès que la clé de l'app est configurée (`--dart-define=IVIA_GOOGLE_MAPS=true`).
 /// Sinon, tuiles OpenStreetMap : développement seulement, leur serveur public est interdit en
 /// production. `IVIA_TILES_URL` permet de pointer vers un fournisseur.
-const _useGoogle = bool.fromEnvironment('IVIA_GOOGLE_MAPS');
+const _googleBuild = bool.fromEnvironment('IVIA_GOOGLE_MAPS');
+
+/// Google Maps demandé au build et réellement chargé (dans le navigateur, le
+/// script peut ne pas arriver : la carte reste alors utilisable).
+final _useGoogle = _googleBuild && googleMapsLoaded();
 const _tilesUrl = String.fromEnvironment(
   'IVIA_TILES_URL',
   defaultValue: 'https://tile.openstreetmap.org/{z}/{x}/{y}.png',

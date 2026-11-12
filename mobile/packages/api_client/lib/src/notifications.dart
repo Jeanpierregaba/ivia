@@ -13,10 +13,25 @@ class AppNotification {
       },
       read = j['read_at'] != null,
       createdAt = DateTime.parse(j['created_at'] as String);
+
+  AppNotification._(
+    this.id,
+    this.kind,
+    this.title,
+    this.body,
+    this.data,
+    this.read,
+    this.createdAt,
+  );
+
   final String id, kind, title, body;
   final Map<String, String> data;
   final bool read;
   final DateTime createdAt;
+
+  /// La même notification, lue.
+  AppNotification markedRead() =>
+      AppNotification._(id, kind, title, body, data, true, createdAt);
 }
 
 extension NotificationsApi on IviaApiClient {
@@ -36,4 +51,8 @@ extension NotificationsApi on IviaApiClient {
   /// Marque une notification comme lue.
   Future<void> markNotificationRead(String id) =>
       _send('POST', '/v1/notifications/${Uri.encodeComponent(id)}/read');
+
+  /// Marque toutes les notifications du compte comme lues.
+  Future<void> markAllNotificationsRead() =>
+      _send('POST', '/v1/notifications/read-all');
 }

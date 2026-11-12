@@ -1,6 +1,8 @@
 <manifest xmlns:android="http://schemas.android.com/apk/res/android">
     <!-- Appels à l'API ivia. -->
     <uses-permission android:name="android.permission.INTERNET"/>
+    <!-- Reçu enregistré dans la galerie (Android 10 et moins) -->
+    <uses-permission android:name="android.permission.WRITE_EXTERNAL_STORAGE" android:maxSdkVersion="29"/>
     <!-- « Autour de moi » : position approximative seulement (précision d'un quartier). -->
     <uses-permission android:name="android.permission.ACCESS_COARSE_LOCATION"/>
     <application

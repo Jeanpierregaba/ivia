@@ -3,7 +3,7 @@
 <!-- Ordonnées. Chaque tâche est petite, testable et committable seule. Cochée dès qu'elle est faite et commitée. -->
 
 **Serveur**
-- [ ] 1. Migration 00043 (`promo_codes`, `promo_redemptions`, `coupon_settings`, colonnes de
+- [ ] 1. Migration 00044 (`promo_codes`, `promo_redemptions`, `coupon_settings`, colonnes de
       `orders`, contrainte du total), `sqlc generate`.
 - [ ] 2. Tests du calcul de la réduction (pourcentage, plafond, fixe, minimum, 100 F à payer),
       écrits avant le code.

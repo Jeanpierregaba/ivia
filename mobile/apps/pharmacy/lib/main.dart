@@ -109,65 +109,85 @@ final routerProvider = Provider<GoRouter>((ref) {
     routes: [
       GoRoute(
         path: Routes.splash,
-        builder: (_, _) => IviaLoadingSplash(
-          brand: IviaAppBrand.pharmacy,
-          tile: true,
-          title: 'Pharmacie',
-          tagline: 'Répondez aux urgences de votre quartier.',
-          // Maquette F00 : tuile de 132 dp, logotype vert.
-          tileStyle: const IviaSplashTile(
-            size: 132,
-            radiusRatio: 0.242,
-            logoRatio: 0.595,
-            logoTint: IviaPharmacyColors.green,
+        pageBuilder: (_, state) => _page(
+          state,
+          IviaLoadingSplash(
+            brand: IviaAppBrand.pharmacy,
+            tile: true,
+            title: 'Pharmacie',
+            tagline: 'Répondez aux urgences de votre quartier.',
+            // Maquette F00 : tuile de 132 dp, logotype vert.
+            tileStyle: const IviaSplashTile(
+              size: 132,
+              radiusRatio: 0.242,
+              logoRatio: 0.595,
+              logoTint: IviaPharmacyColors.green,
+            ),
+            titleStyle: const TextStyle(fontSize: 24),
+            taglineStyle: const TextStyle(
+              fontSize: 16,
+              color: IviaPharmacyColors.onGreenMuted,
+            ),
+            centerGroup: true,
           ),
-          titleStyle: const TextStyle(fontSize: 24),
-          taglineStyle: const TextStyle(
-            fontSize: 16,
-            color: IviaPharmacyColors.onGreenMuted,
-          ),
-          centerGroup: true,
         ),
       ),
       GoRoute(
         path: Routes.location,
-        builder: (_, _) => const LaunchLocationPromptScreen(),
+        pageBuilder: (_, state) =>
+            _page(state, const LaunchLocationPromptScreen()),
       ),
       GoRoute(
         path: Routes.onboarding,
-        builder: (_, _) => const OnboardingScreen(),
+        pageBuilder: (_, state) => _page(state, const OnboardingScreen()),
       ),
       GoRoute(
         path: Routes.login,
-        builder: (_, _) => const PhoneScreen(),
+        pageBuilder: (_, state) => _page(state, const PhoneScreen()),
         routes: [
-          GoRoute(path: 'code', builder: (_, _) => const PhoneCodeScreen()),
-          GoRoute(path: 'signup', builder: (_, _) => const PhoneSignupScreen()),
+          GoRoute(
+            path: 'code',
+            pageBuilder: (_, state) => _page(state, const PhoneCodeScreen()),
+          ),
+          GoRoute(
+            path: 'signup',
+            pageBuilder: (_, state) => _page(state, const PhoneSignupScreen()),
+          ),
         ],
       ),
-      GoRoute(path: Routes.welcome, builder: (_, _) => const ProfileScreen()),
-      GoRoute(path: Routes.offline, builder: (_, _) => const OfflineScreen()),
+      GoRoute(
+        path: Routes.welcome,
+        pageBuilder: (_, state) => _page(state, const ProfileScreen()),
+      ),
+      GoRoute(
+        path: Routes.offline,
+        pageBuilder: (_, state) => _page(state, const OfflineScreen()),
+      ),
       GoRoute(
         path: Routes.application,
-        builder: (_, _) => const ApplicationScreen(),
+        pageBuilder: (_, state) => _page(state, const ApplicationScreen()),
       ),
       GoRoute(
         path: Routes.permissions,
-        builder: (_, _) => const AlertsPermissionScreen(),
+        pageBuilder: (_, state) => _page(state, const AlertsPermissionScreen()),
       ),
       GoRoute(
         path: Routes.home,
-        builder: (_, _) => const PharmacyShell(),
+        pageBuilder: (_, state) => _page(state, const PharmacyShell()),
         routes: [
           GoRoute(
             path: 'incoming/:id',
-            builder: (_, state) =>
-                IncomingAlertScreen(alertId: state.pathParameters['id']!),
+            pageBuilder: (_, state) => _page(
+              state,
+              IncomingAlertScreen(alertId: state.pathParameters['id']!),
+            ),
           ),
           GoRoute(
             path: 'alert/:id',
-            builder: (_, state) =>
-                AlertDetailScreen(alertId: state.pathParameters['id']!),
+            pageBuilder: (_, state) => _page(
+              state,
+              AlertDetailScreen(alertId: state.pathParameters['id']!),
+            ),
           ),
         ],
       ),
@@ -244,3 +264,12 @@ class _PharmacyAppState extends ConsumerState<PharmacyApp> {
     ),
   );
 }
+
+/// Page avec la transition d'écran ivia : sans elle, go_router peut créer des
+/// pages sans aucune animation (elles apparaissent d'un coup).
+MaterialPage<void> _page(GoRouterState state, Widget child) =>
+    MaterialPage<void>(
+      key: state.pageKey,
+      name: state.name ?? state.path,
+      child: child,
+    );

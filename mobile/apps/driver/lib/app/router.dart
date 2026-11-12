@@ -1,4 +1,4 @@
-import 'package:flutter/foundation.dart';
+import 'package:flutter/material.dart';
 import 'package:flutter_riverpod/flutter_riverpod.dart';
 import 'package:go_router/go_router.dart';
 import 'package:ivia_api_client/ivia_api_client.dart';
@@ -103,57 +103,65 @@ final routerProvider = Provider<GoRouter>((ref) {
     routes: [
       GoRoute(
         path: Routes.splash,
-        builder: (context, state) => const LoadingScreen(),
+        pageBuilder: (context, state) => _page(state, const LoadingScreen()),
       ),
       GoRoute(
         path: Routes.location,
-        builder: (context, state) => const LaunchLocationPromptScreen(),
+        pageBuilder: (context, state) =>
+            _page(state, const LaunchLocationPromptScreen()),
       ),
       GoRoute(
         path: Routes.onboarding,
-        builder: (context, state) => const OnboardingScreen(),
+        pageBuilder: (context, state) => _page(state, const OnboardingScreen()),
       ),
       GoRoute(
         path: Routes.login,
-        builder: (context, state) => const PhoneScreen(),
+        pageBuilder: (context, state) => _page(state, const PhoneScreen()),
         routes: [
           GoRoute(
             path: 'code',
-            builder: (context, state) => const PhoneCodeScreen(),
+            pageBuilder: (context, state) =>
+                _page(state, const PhoneCodeScreen()),
           ),
           GoRoute(
             path: 'signup',
-            builder: (context, state) => const PhoneSignupScreen(),
+            pageBuilder: (context, state) =>
+                _page(state, const PhoneSignupScreen()),
           ),
         ],
       ),
       GoRoute(
         path: Routes.offline,
-        builder: (context, state) => const OfflineScreen(),
+        pageBuilder: (context, state) => _page(state, const OfflineScreen()),
       ),
       GoRoute(
         path: Routes.dossierNew,
-        builder: (context, state) => const DossierFormScreen(),
+        pageBuilder: (context, state) =>
+            _page(state, const DossierFormScreen()),
       ),
       GoRoute(
         path: Routes.dossierEdit,
-        builder: (context, state) => const DossierFormScreen(correction: true),
+        pageBuilder: (context, state) =>
+            _page(state, const DossierFormScreen(correction: true)),
       ),
       GoRoute(
         path: Routes.dossierPending,
-        builder: (context, state) => const DossierPendingScreen(),
+        pageBuilder: (context, state) =>
+            _page(state, const DossierPendingScreen()),
       ),
       GoRoute(
         path: Routes.dossierSummary,
-        builder: (context, state) => const DossierSummaryScreen(),
+        pageBuilder: (context, state) =>
+            _page(state, const DossierSummaryScreen()),
       ),
       GoRoute(
         path: Routes.dossierBlocked,
-        builder: (context, state) => const DossierBlockedScreen(),
+        pageBuilder: (context, state) =>
+            _page(state, const DossierBlockedScreen()),
       ),
       GoRoute(
         path: Routes.home,
-        builder: (context, state) => const DriverShell(),
+        pageBuilder: (context, state) => _page(state, const DriverShell()),
       ),
     ],
   );
@@ -163,3 +171,12 @@ final routerProvider = Provider<GoRouter>((ref) {
   });
   return router;
 });
+
+/// Page avec la transition d'écran ivia : sans elle, go_router peut créer des
+/// pages sans aucune animation (elles apparaissent d'un coup).
+MaterialPage<void> _page(GoRouterState state, Widget child) =>
+    MaterialPage<void>(
+      key: state.pageKey,
+      name: state.name ?? state.path,
+      child: child,
+    );

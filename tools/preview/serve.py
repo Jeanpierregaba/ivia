@@ -4,7 +4,9 @@ Sert le build web (cadre iPhone facultatif sur /iphone) et relaie /v1/ et /dev/ 
 (http://localhost:8080) : même origine, donc pas de CORS. Usage local uniquement.
 """
 import http.server
+import json
 import os
+import re
 import sys
 import urllib.error
 import urllib.request
@@ -14,6 +16,37 @@ PORT = int(sys.argv[2]) if len(sys.argv) > 2 else 3001
 TITLE = sys.argv[3] if len(sys.argv) > 3 else "ivia"
 FRAME = os.path.join(os.path.dirname(os.path.abspath(__file__)), "iphone17.html")
 API = "http://localhost:8080"
+# Clé Google « navigateur » du fond de carte (voir demarrer.ps1) ; absente : tuiles OpenStreetMap.
+MAPS_KEY = os.environ.get("IVIA_MAPS_WEB_KEY", "").strip()
+# Push dans le navigateur : bloc firebaseConfig de la console Firebase et clé Web Push (dernière ligne)
+# dans tools/preview/firebase-web.txt, non commité. Absent : pas de push dans l'aperçu.
+FIREBASE_FILE = os.path.join(os.path.dirname(os.path.abspath(__file__)), "firebase-web.txt")
+
+
+def firebase_config():
+    if not os.path.exists(FIREBASE_FILE):
+        return None
+    text = open(FIREBASE_FILE, encoding="utf-8").read()
+    cfg = dict(re.findall(r"""(\w+)\s*:\s*["']([^"']+)["']""", text))
+    for line in reversed(text.splitlines()):
+        key = line.strip().strip("\"';,")
+        if re.fullmatch(r"[A-Za-z0-9_-]{60,}", key):
+            cfg["vapidKey"] = key
+            break
+    return cfg if cfg.get("apiKey") and cfg.get("appId") else None
+
+
+def firebase_worker(cfg):
+    return ("""importScripts('https://www.gstatic.com/firebasejs/10.14.1/firebase-app-compat.js');
+importScripts('https://www.gstatic.com/firebasejs/10.14.1/firebase-messaging-compat.js');
+self.addEventListener('notificationclick', (event) => {
+  event.notification.close();
+  event.waitUntil(clients.matchAll({ type: 'window', includeUncontrolled: true }).then((pages) =>
+    pages.length > 0 ? pages[0].focus() : clients.openWindow('/')));
+});
+firebase.initializeApp(%s);
+firebase.messaging();
+""" % json.dumps({k: v for k, v in cfg.items() if k != "vapidKey"})).encode()
 
 # Service worker de remplacement : Flutter en installe un qui garde les anciens builds en cache, et
 # l'aperçu doit toujours montrer le dernier. Celui-ci vide le cache puis se retire. La page ne se
@@ -90,6 +123,17 @@ class Handler(http.server.SimpleHTTPRequestHandler):
             self.end_headers()
             self.wfile.write(data)
             return
+        if self.path.split("?")[0] == "/firebase-messaging-sw.js":
+            cfg = firebase_config()
+            if cfg is None:
+                return self.send_error(404)
+            data = firebase_worker(cfg)
+            self.send_response(200)
+            self.send_header("Content-Type", "text/javascript")
+            self.send_header("Content-Length", str(len(data)))
+            self.end_headers()
+            self.wfile.write(data)
+            return
         if self.path.split("?")[0] == "/flutter_service_worker.js":
             self.send_response(200)
             self.send_header("Content-Type", "text/javascript")
@@ -100,10 +144,25 @@ class Handler(http.server.SimpleHTTPRequestHandler):
         if self.command == "GET":
             # Routes de l'app (go_router) : index.html.
             path = self.translate_path(self.path.split("?")[0])
-            if not os.path.exists(path):
-                self.path = "/index.html"
+            if not os.path.exists(path) or self.path.split("?")[0] in ("/", "/index.html"):
+                return self._index()
             return super().do_GET()
         self.send_error(405)
+
+    def _index(self):
+        data = open(os.path.join(WEB, "index.html"), "rb").read()
+        if MAPS_KEY:
+            tag = '<script src="https://maps.googleapis.com/maps/api/js?key=%s"></script>' % MAPS_KEY
+            data = data.replace(b"</head>", tag.encode() + b"</head>", 1)
+        cfg = firebase_config()
+        if cfg:
+            tag = "<script>window.iviaFirebase = %s;</script>" % json.dumps(cfg)
+            data = data.replace(b"</head>", tag.encode() + b"</head>", 1)
+        self.send_response(200)
+        self.send_header("Content-Type", "text/html; charset=utf-8")
+        self.send_header("Content-Length", str(len(data)))
+        self.end_headers()
+        self.wfile.write(data)
 
     do_GET = do_POST = do_PUT = do_PATCH = do_DELETE = _route
 

@@ -29,5 +29,6 @@ export 'src/phone_screens.dart';
 export 'src/photo_picker.dart';
 export 'src/profile_screen.dart';
 export 'src/providers.dart';
+export 'src/push.dart';
 export 'src/review_screens.dart';
 export 'src/route_screen.dart';

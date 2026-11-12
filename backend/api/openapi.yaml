@@ -1123,6 +1123,7 @@ paths:
                   enum:
                     - android
                     - ios
+                    - web
                 app:
                   type: string
                   enum:

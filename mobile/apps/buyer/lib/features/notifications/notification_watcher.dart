@@ -2,9 +2,13 @@ import 'dart:async';
 
 import 'package:flutter/material.dart';
 import 'package:flutter_riverpod/flutter_riverpod.dart';
-import 'package:ivia_api_client/ivia_api_client.dart';
+import 'package:go_router/go_router.dart';
 import 'package:ivia_app_core/ivia_app_core.dart';
 import 'package:ivia_ui/ivia_ui.dart';
+
+import '../../app/router.dart';
+import 'notification_look.dart';
+import 'notifications_state.dart';
 
 /// Relève des notifications activée (désactivée par les tests d'écran).
 final notificationWatchEnabledProvider = Provider<bool>((ref) => true);
@@ -37,7 +41,24 @@ class _NotificationWatcherState extends ConsumerState<NotificationWatcher>
     if (ref.read(notificationWatchEnabledProvider)) {
       _timer = Timer.periodic(NotificationWatcher.interval, (_) => _poll());
       unawaited(_poll());
+      // Push réels (Firebase) : reçus app ouverte, la cloche se met à jour
+      // tout de suite ; touchés, ils ouvrent la commande ou l'alerte.
+      unawaited(
+        ref
+            .read(iviaPushProvider('buyer'))
+            .start(onOpen: _openTarget, onReceived: (_) => _poll()),
+      );
     }
+  }
+
+  void _openTarget(Map<String, String> d) {
+    final target = switch (d) {
+      {'order_id': final id} => Routes.order(id),
+      {'reservation_id': final id} => Routes.medReservation(id),
+      {'alert_id': final id} => Routes.medAlert(id),
+      _ => Routes.notifications,
+    };
+    if (mounted) GoRouter.of(context).push(target);
   }
 
   @override
@@ -59,14 +80,14 @@ class _NotificationWatcherState extends ConsumerState<NotificationWatcher>
     if (_busy || ref.read(authControllerProvider) is! AuthSignedIn) return;
     _busy = true;
     try {
-      final items = await ref.read(apiClientProvider).notifications();
+      final items = await ref.read(notificationsProvider.notifier).refresh();
       if (!mounted) return;
       final known = _known;
       // Premier relevé : rien n'est annoncé, ces notifications existaient déjà.
       if (known != null) {
         for (final n in items.reversed) {
           if (!n.read && !known.contains(n.id)) {
-            final (icon, color) = _look(n.kind);
+            final (icon, color) = notificationLook(n.kind);
             showIviaNotification(
               context,
               title: n.title,
@@ -84,28 +105,6 @@ class _NotificationWatcherState extends ConsumerState<NotificationWatcher>
       _busy = false;
     }
   }
-
-  /// Icône et couleur selon le type de notification.
-  (IconData, Color) _look(String kind) => switch (kind) {
-    _ when kind.contains('cancel') || kind.contains('fail') => (
-      Icons.cancel_outlined,
-      IviaColors.error,
-    ),
-    _
-        when kind.contains('paid') ||
-            kind.contains('payment') ||
-            kind.contains('refund') =>
-      (Icons.payments_outlined, IviaColors.success),
-    _ when kind.contains('ready') || kind.contains('delivered') => (
-      Icons.check_circle_outline,
-      IviaColors.success,
-    ),
-    _ when kind.contains('pharmacy') => (
-      Icons.local_pharmacy_outlined,
-      IviaColors.secondary,
-    ),
-    _ => (Icons.notifications_rounded, IviaColors.secondary),
-  };
 
   @override
   Widget build(BuildContext context) => widget.child;

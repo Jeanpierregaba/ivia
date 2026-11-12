@@ -1,6 +1,6 @@
 # 034 — Plan technique
 
-## Modèle de données (migration 00043)
+## Modèle de données (migration 00044)
 - `promo_codes` (module `coupons`) : `id`, `code` (majuscules, unique), `shop_id` (NULL : coupon
   de bienvenue de la plateforme), `funded_by` (`shop` | `ivia`), `kind` (`percent` | `fixed`),
   `value`, `max_discount_xof`, `min_order_xof`, `starts_at`, `ends_at`, `max_uses`,

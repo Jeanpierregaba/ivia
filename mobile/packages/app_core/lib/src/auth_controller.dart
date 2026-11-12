@@ -4,6 +4,7 @@ import 'package:flutter_riverpod/flutter_riverpod.dart';
 import 'package:ivia_api_client/ivia_api_client.dart';
 
 import 'providers.dart';
+import 'push.dart';
 
 /// État de la session : il décide de l'écran affiché (voir router.dart).
 sealed class AuthState {
@@ -95,6 +96,10 @@ class AuthController extends Notifier<AuthState> {
   /// Révoque la session côté serveur si possible, puis l'efface du téléphone
   /// dans tous les cas.
   Future<void> signOut() async {
+    // D'abord : ce téléphone cesse de recevoir les notifications du compte.
+    for (final push in [...ref.read(activePushesProvider)]) {
+      await push.stop();
+    }
     try {
       await _client.logout();
     } on ApiException {

@@ -131,11 +131,15 @@ class NewAlertScreen extends ConsumerWidget {
           ),
         ],
       ),
+      // Grisé tant qu'aucune façon d'indiquer les produits n'est choisie.
       bottom: MedBottomButton(
         label: 'Continuer',
-        onTap: () => context.push(
-          method == 'name' ? Routes.medItems : Routes.medCapture(method),
-        ),
+        onTap: switch (method) {
+          'name' => () => context.push(Routes.medItems),
+          'prescription' ||
+          'box_photo' => () => context.push(Routes.medCapture(method)),
+          _ => null,
+        },
       ),
     );
   }

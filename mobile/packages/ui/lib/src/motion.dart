@@ -1,6 +1,7 @@
 import 'dart:async';
 
 import 'package:flutter/cupertino.dart';
+import 'package:flutter/foundation.dart';
 import 'package:flutter/material.dart';
 import 'package:flutter/services.dart';
 
@@ -15,6 +16,12 @@ abstract final class IviaMotion {
 
   /// Courbe d'entrée : départ vif, arrivée douce.
   static const emphasized = Cubic(0.2, 0, 0, 1);
+
+  /// Courbe des changements d'écran : longue décélération, très douce à l'arrivée.
+  static const soft = Cubic(0.16, 1, 0.3, 1);
+
+  /// Durée d'un changement d'écran.
+  static const page = Duration(milliseconds: 520);
   static const standard = Curves.easeOutCubic;
 
   /// Le téléphone demande de réduire les animations.
@@ -32,6 +39,9 @@ class IviaPageTransitionsBuilder extends PageTransitionsBuilder {
   const IviaPageTransitionsBuilder();
 
   @override
+  Duration get transitionDuration => IviaMotion.page;
+
+  @override
   Widget buildTransitions<T>(
     PageRoute<T> route,
     BuildContext context,
@@ -42,30 +52,31 @@ class IviaPageTransitionsBuilder extends PageTransitionsBuilder {
     if (IviaMotion.reduced(context)) return child;
     final enter = CurvedAnimation(
       parent: animation,
-      curve: IviaMotion.emphasized,
-      reverseCurve: Curves.easeInCubic,
+      curve: IviaMotion.soft,
+      reverseCurve: Curves.easeInOutCubic,
     );
     final leave = CurvedAnimation(
       parent: secondaryAnimation,
-      curve: IviaMotion.standard,
+      curve: IviaMotion.soft,
+      reverseCurve: Curves.easeInOutCubic,
     );
     return SlideTransition(
       // L'écran quitté recule un peu vers la gauche en s'estompant.
       position: Tween(
         begin: Offset.zero,
-        end: const Offset(-0.12, 0),
+        end: const Offset(-0.08, 0),
       ).animate(leave),
       child: FadeTransition(
-        opacity: Tween(begin: 1.0, end: 0.55).animate(leave),
+        opacity: Tween(begin: 1.0, end: 0.7).animate(leave),
         child: FadeTransition(
           opacity: enter,
           child: SlideTransition(
             position: Tween(
-              begin: const Offset(0.18, 0),
+              begin: const Offset(0.22, 0),
               end: Offset.zero,
             ).animate(enter),
             child: ScaleTransition(
-              scale: Tween(begin: 0.98, end: 1.0).animate(enter),
+              scale: Tween(begin: 0.96, end: 1.0).animate(enter),
               child: child,
             ),
           ),
@@ -75,17 +86,120 @@ class IviaPageTransitionsBuilder extends PageTransitionsBuilder {
   }
 }
 
-/// Transitions d'écran du thème ivia.
-const iviaPageTransitionsTheme = PageTransitionsTheme(
+/// Transitions d'écran du thème ivia. Sur iPhone (app installée), la transition native reste pour
+/// son retour par glissement ; dans le navigateur, celle d'ivia partout.
+final iviaPageTransitionsTheme = PageTransitionsTheme(
   builders: {
-    TargetPlatform.android: IviaPageTransitionsBuilder(),
-    TargetPlatform.fuchsia: IviaPageTransitionsBuilder(),
-    TargetPlatform.linux: IviaPageTransitionsBuilder(),
-    TargetPlatform.windows: IviaPageTransitionsBuilder(),
-    TargetPlatform.iOS: CupertinoPageTransitionsBuilder(),
-    TargetPlatform.macOS: CupertinoPageTransitionsBuilder(),
+    TargetPlatform.android: const IviaPageTransitionsBuilder(),
+    TargetPlatform.fuchsia: const IviaPageTransitionsBuilder(),
+    TargetPlatform.linux: const IviaPageTransitionsBuilder(),
+    TargetPlatform.windows: const IviaPageTransitionsBuilder(),
+    TargetPlatform.iOS: kIsWeb
+        ? const IviaPageTransitionsBuilder()
+        : const CupertinoPageTransitionsBuilder(),
+    TargetPlatform.macOS: kIsWeb
+        ? const IviaPageTransitionsBuilder()
+        : const CupertinoPageTransitionsBuilder(),
   },
 );
+
+/// Onglets de la barre du bas : chaque onglet garde son état, et le passage de l'un à l'autre se
+/// fait en fondu avec une légère montée (au lieu d'un changement sec).
+class IviaTabSwitcher extends StatefulWidget {
+  const IviaTabSwitcher({
+    super.key,
+    required this.index,
+    required this.children,
+  });
+
+  final int index;
+  final List<Widget> children;
+
+  @override
+  State<IviaTabSwitcher> createState() => _IviaTabSwitcherState();
+}
+
+class _IviaTabSwitcherState extends State<IviaTabSwitcher>
+    with SingleTickerProviderStateMixin {
+  late final _c = AnimationController(
+    vsync: this,
+    duration: const Duration(milliseconds: 380),
+    value: 1,
+  );
+  late int _previous = widget.index;
+
+  @override
+  void didUpdateWidget(IviaTabSwitcher old) {
+    super.didUpdateWidget(old);
+    if (old.index != widget.index) {
+      _previous = old.index;
+      if (IviaMotion.reduced(context)) {
+        _c.value = 1;
+      } else {
+        _c.forward(from: 0);
+      }
+    }
+  }
+
+  @override
+  void dispose() {
+    _c.dispose();
+    super.dispose();
+  }
+
+  @override
+  Widget build(BuildContext context) {
+    final enter = CurvedAnimation(parent: _c, curve: IviaMotion.soft);
+    final leave = CurvedAnimation(parent: _c, curve: Curves.easeOutCubic);
+    return AnimatedBuilder(
+      animation: _c,
+      builder: (context, _) {
+        final animating = _c.isAnimating;
+        return Stack(
+          fit: StackFit.expand,
+          children: [
+            for (var i = 0; i < widget.children.length; i++)
+              _tab(i, animating, enter, leave),
+          ],
+        );
+      },
+    );
+  }
+
+  Widget _tab(
+    int i,
+    bool animating,
+    Animation<double> enter,
+    Animation<double> leave,
+  ) {
+    final current = i == widget.index;
+    final outgoing = animating && i == _previous && !current;
+    final visible = current || outgoing;
+    // Même arbre de widgets à chaque image : l'onglet garde son état (cases
+    // cochées, saisie, défilement) pendant et après l'animation.
+    final e = current && animating ? enter.value : 1.0;
+    final opacity = outgoing ? 1 - leave.value : e;
+    return Offstage(
+      offstage: !visible,
+      child: TickerMode(
+        enabled: visible,
+        child: IgnorePointer(
+          ignoring: outgoing,
+          child: Opacity(
+            opacity: opacity.clamp(0.0, 1.0),
+            child: Transform.translate(
+              offset: Offset(0, 18 * (1 - e)),
+              child: Transform.scale(
+                scale: 0.985 + 0.015 * e,
+                child: widget.children[i],
+              ),
+            ),
+          ),
+        ),
+      ),
+    );
+  }
+}
 
 /// Apparition en cascade d'une section ou d'un élément de liste : fondu et montée de quelques
 /// pixels, décalés selon [index] (au plus 8 crans). Une seule fois, à la première construction.

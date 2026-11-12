@@ -59,3 +59,8 @@ kotlin {
 flutter {
     source = "../.."
 }
+
+// Notifications push : actif dès que le fichier du projet Firebase est posé (non commité).
+if (file("google-services.json").exists()) {
+    apply(plugin = "com.google.gms.google-services")
+}
