@@ -702,3 +702,9 @@ FROM pharmacy_alert_targets t
 LEFT JOIN pharmacy_responses resp ON resp.alert_id = t.alert_id AND resp.pharmacy_id = t.pharmacy_id
 WHERE t.pharmacy_id = sqlc.arg(pharmacy_id)
   AND t.notified_at >= (date_trunc('day', now() AT TIME ZONE 'Africa/Lome') AT TIME ZONE 'Africa/Lome');
+
+-- name: DriverPharmacyTotals :one
+-- Courses livrées et espèces avancées par un livreur sur une période (tableau de bord du livreur).
+SELECT coalesce(sum(fee_xof) FILTER (WHERE status = 'delivered' AND delivered_at >= sqlc.arg(since) AND delivered_at < sqlc.arg(until)), 0)::bigint AS fees_xof,
+       coalesce(sum(cash_paid_xof) FILTER (WHERE cash_paid_at >= sqlc.arg(since) AND cash_paid_at < sqlc.arg(until)), 0)::bigint AS cash_xof
+FROM pharmacy_deliveries WHERE driver_id = sqlc.arg(driver_id);

@@ -1761,6 +1761,26 @@ export interface paths {
         patch?: never;
         trace?: never;
     };
+    "/v1/driver/summary": {
+        parameters: {
+            query?: never;
+            header?: never;
+            path?: never;
+            cookie?: never;
+        };
+        /**
+         * Tableau de bord du livreur
+         * @description Gains (courses de boutique et de pharmacie livrées), temps en ligne et distance parcourue du jour, de la semaine (depuis lundi) et du mois, heure de Lomé ; prochain versement estimé (chaque lundi pour la semaine écoulée, espèces avancées aux pharmacies comprises).
+         */
+        get: operations["getDriverSummary"];
+        put?: never;
+        post?: never;
+        delete?: never;
+        options?: never;
+        head?: never;
+        patch?: never;
+        trace?: never;
+    };
     "/v1/driver/missions": {
         parameters: {
             query?: never;
@@ -6299,6 +6319,47 @@ export interface components {
             neighborhood: string;
             instructions?: string;
             location: components["schemas"]["Point"];
+        };
+        DriverSummary: {
+            today: {
+                /** Format: int64 */
+                earnings_xof: number;
+                /** Format: int64 */
+                online_seconds: number;
+                /** Format: int64 */
+                distance_m: number;
+            };
+            week: {
+                /** Format: int64 */
+                earnings_xof: number;
+                /** Format: int64 */
+                online_seconds: number;
+                /** Format: int64 */
+                distance_m: number;
+            };
+            month: {
+                /** Format: int64 */
+                earnings_xof: number;
+                /** Format: int64 */
+                online_seconds: number;
+                /** Format: int64 */
+                distance_m: number;
+            };
+            /** @description Estimation : le versement réel est fait par l'équipe ivia. */
+            next_payout: {
+                /** Format: date */
+                date: string;
+                /** Format: date */
+                period_start: string;
+                /** Format: date */
+                period_end: string;
+                /** Format: int64 */
+                earnings_xof: number;
+                /** Format: int64 */
+                cash_advanced_xof: number;
+                /** Format: int64 */
+                amount_xof: number;
+            };
         };
         Mission: {
             /** Format: uuid */
@@ -11112,6 +11173,35 @@ export interface operations {
                     "application/json": {
                         mission: components["schemas"]["Mission"] | null;
                     };
+                };
+            };
+            /** @description Erreur (voir `code`) */
+            default: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["Error"];
+                };
+            };
+        };
+    };
+    getDriverSummary: {
+        parameters: {
+            query?: never;
+            header?: never;
+            path?: never;
+            cookie?: never;
+        };
+        requestBody?: never;
+        responses: {
+            /** @description Succès */
+            200: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["DriverSummary"];
                 };
             };
             /** @description Erreur (voir `code`) */

@@ -3656,6 +3656,28 @@ paths:
             application/json:
               schema:
                 "$ref": "#/components/schemas/Error"
+  "/v1/driver/summary":
+    get:
+      summary: "Tableau de bord du livreur"
+      description: "Gains (courses de boutique et de pharmacie livrées), temps en ligne et distance parcourue du jour, de la semaine (depuis lundi) et du mois, heure de Lomé ; prochain versement estimé (chaque lundi pour la semaine écoulée, espèces avancées aux pharmacies comprises)."
+      tags:
+        - Livreur
+      operationId: getDriverSummary
+      x-roles:
+        - driver
+      responses:
+        "200":
+          description: "Succès"
+          content:
+            application/json:
+              schema:
+                "$ref": "#/components/schemas/DriverSummary"
+        default:
+          description: "Erreur (voir `code`)"
+          content:
+            application/json:
+              schema:
+                "$ref": "#/components/schemas/Error"
   "/v1/driver/missions":
     get:
       summary: "Historique de mes missions"
@@ -13695,6 +13717,91 @@ components:
         - address_text
         - neighborhood
         - location
+    DriverSummary:
+      type: object
+      properties:
+        today:
+          type: object
+          properties:
+            earnings_xof:
+              type: integer
+              format: int64
+            online_seconds:
+              type: integer
+              format: int64
+            distance_m:
+              type: integer
+              format: int64
+          required:
+            - earnings_xof
+            - online_seconds
+            - distance_m
+        week:
+          type: object
+          properties:
+            earnings_xof:
+              type: integer
+              format: int64
+            online_seconds:
+              type: integer
+              format: int64
+            distance_m:
+              type: integer
+              format: int64
+          required:
+            - earnings_xof
+            - online_seconds
+            - distance_m
+        month:
+          type: object
+          properties:
+            earnings_xof:
+              type: integer
+              format: int64
+            online_seconds:
+              type: integer
+              format: int64
+            distance_m:
+              type: integer
+              format: int64
+          required:
+            - earnings_xof
+            - online_seconds
+            - distance_m
+        next_payout:
+          type: object
+          description: "Estimation : le versement réel est fait par l'équipe ivia."
+          properties:
+            date:
+              type: string
+              format: date
+            period_start:
+              type: string
+              format: date
+            period_end:
+              type: string
+              format: date
+            earnings_xof:
+              type: integer
+              format: int64
+            cash_advanced_xof:
+              type: integer
+              format: int64
+            amount_xof:
+              type: integer
+              format: int64
+          required:
+            - date
+            - period_start
+            - period_end
+            - earnings_xof
+            - cash_advanced_xof
+            - amount_xof
+      required:
+        - today
+        - week
+        - month
+        - next_payout
     Mission:
       type: object
       properties:

@@ -49,6 +49,7 @@ func (h *Handler) Register(rt *httpapi.Router) {
 	rt.Roles("POST /v1/driver/offers/{id}/decline", h.declineOffer, identity.RoleDriver)
 	rt.Roles("GET /v1/driver/missions/current", h.currentMission, identity.RoleDriver)
 	rt.Roles("GET /v1/driver/missions", h.history, identity.RoleDriver)
+	rt.Roles("GET /v1/driver/summary", h.summary, identity.RoleDriver)
 	rt.Roles("POST /v1/driver/missions/{id}/arrived-at-shop", h.step(h.svc.ArrivedAtShop), identity.RoleDriver)
 	rt.Roles("POST /v1/driver/missions/{id}/picked-up", h.step(h.svc.PickedUp), identity.RoleDriver)
 	rt.Roles("POST /v1/driver/missions/{id}/arrived-at-customer", h.step(h.svc.ArrivedAtCustomer), identity.RoleDriver)
@@ -70,6 +71,14 @@ func (h *Handler) Register(rt *httpapi.Router) {
 }
 
 func me(r *http.Request) identity.Principal { return identity.MustFromContext(r.Context()) }
+
+func (h *Handler) summary(w http.ResponseWriter, r *http.Request) error {
+	v, err := h.svc.Summary(r.Context(), me(r).UserID)
+	if err != nil {
+		return err
+	}
+	return httpapi.OK(w, v)
+}
 
 func (h *Handler) me(w http.ResponseWriter, r *http.Request) error {
 	d, err := h.svc.Me(r.Context(), me(r).UserID)

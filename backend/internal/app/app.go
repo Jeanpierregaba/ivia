@@ -163,6 +163,7 @@ func New(cfg config.Config, logger *slog.Logger, pool *pgxpool.Pool, opts Option
 	a.Pharmacy.SetRouter(a.Mapping)
 	// Zones de travail proposées au dossier livreur (spec 033).
 	a.Delivery.SetZones(workZones{a.Mapping})
+	a.Delivery.SetPharmacyEarnings(a.Pharmacy)
 	a.Business = business.NewService(db, a.Shops, a.Users, a.Uploads, a.Admin, a.Notifications)
 
 	// Suppression de compte : les modules qui bloquent, puis ceux qui effacent leurs données.

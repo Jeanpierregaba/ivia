@@ -891,6 +891,31 @@ func (q *Queries) DocumentKeysIn(ctx context.Context, keys []string) ([]string, 
 	return items, nil
 }
 
+const driverPharmacyTotals = `-- name: DriverPharmacyTotals :one
+SELECT coalesce(sum(fee_xof) FILTER (WHERE status = 'delivered' AND delivered_at >= $1 AND delivered_at < $2), 0)::bigint AS fees_xof,
+       coalesce(sum(cash_paid_xof) FILTER (WHERE cash_paid_at >= $1 AND cash_paid_at < $2), 0)::bigint AS cash_xof
+FROM pharmacy_deliveries WHERE driver_id = $3
+`
+
+type DriverPharmacyTotalsParams struct {
+	Since    *time.Time
+	Until    *time.Time
+	DriverID uuid.UUID
+}
+
+type DriverPharmacyTotalsRow struct {
+	FeesXof int64
+	CashXof int64
+}
+
+// Courses livrées et espèces avancées par un livreur sur une période (tableau de bord du livreur).
+func (q *Queries) DriverPharmacyTotals(ctx context.Context, arg DriverPharmacyTotalsParams) (DriverPharmacyTotalsRow, error) {
+	row := q.db.QueryRow(ctx, driverPharmacyTotals, arg.Since, arg.Until, arg.DriverID)
+	var i DriverPharmacyTotalsRow
+	err := row.Scan(&i.FeesXof, &i.CashXof)
+	return i, err
+}
+
 const expireCourierOffer = `-- name: ExpireCourierOffer :execrows
 UPDATE pharmacy_courier_offers SET status = 'expired', responded_at = now()
 WHERE id = $1 AND status = 'pending' AND expires_at <= now()

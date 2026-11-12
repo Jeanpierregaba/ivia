@@ -115,6 +115,8 @@ type Service struct {
 	locLimit *ratelimit.Limiter
 	// zones : zones de travail proposées au dossier (module carte, voir SetZones).
 	zones ZoneLister
+	// pharmacy : courses pharmacie du livreur (tableau de bord, voir SetPharmacyEarnings).
+	pharmacy PharmacyEarnings
 }
 
 // WorkZone : zone de travail que le livreur choisit dans son dossier.

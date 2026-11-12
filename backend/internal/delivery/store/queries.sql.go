@@ -290,6 +290,32 @@ func (q *Queries) DeletePositionsOf(ctx context.Context, driverID uuid.UUID) err
 	return err
 }
 
+const driverDistanceBetween = `-- name: DriverDistanceBetween :one
+WITH p AS (
+  SELECT ST_Distance(location, lag(location) OVER w) AS step,
+         recorded_at - lag(recorded_at) OVER w AS gap
+  FROM driver_positions
+  WHERE driver_id = $1 AND recorded_at >= $2 AND recorded_at < $3
+  WINDOW w AS (ORDER BY recorded_at)
+)
+SELECT coalesce(sum(step) FILTER (WHERE gap < interval '5 minutes' AND step < 2000), 0)::float8 FROM p
+`
+
+type DriverDistanceBetweenParams struct {
+	DriverID uuid.UUID
+	Since    time.Time
+	Until    time.Time
+}
+
+// Somme des écarts entre positions successives ; un trou de plus de 5 minutes ou un saut de plus
+// de 2 km (position imprécise) n'est pas compté.
+func (q *Queries) DriverDistanceBetween(ctx context.Context, arg DriverDistanceBetweenParams) (float64, error) {
+	row := q.db.QueryRow(ctx, driverDistanceBetween, arg.DriverID, arg.Since, arg.Until)
+	var column_1 float64
+	err := row.Scan(&column_1)
+	return column_1, err
+}
+
 const driverDocumentKeysIn = `-- name: DriverDocumentKeysIn :many
 SELECT object_key FROM driver_documents WHERE object_key = ANY($1::text[])
 `
@@ -313,6 +339,27 @@ func (q *Queries) DriverDocumentKeysIn(ctx context.Context, keys []string) ([]st
 		return nil, err
 	}
 	return items, nil
+}
+
+const driverFeesBetween = `-- name: DriverFeesBetween :one
+
+SELECT coalesce(sum(fee_xof), 0)::bigint FROM deliveries
+WHERE driver_id = $1 AND status = 'delivered'
+  AND delivered_at >= $2 AND delivered_at < $3
+`
+
+type DriverFeesBetweenParams struct {
+	DriverID uuid.UUID
+	Since    *time.Time
+	Until    *time.Time
+}
+
+// ---------------------------------------------------------------- tableau de bord du livreur
+func (q *Queries) DriverFeesBetween(ctx context.Context, arg DriverFeesBetweenParams) (int64, error) {
+	row := q.db.QueryRow(ctx, driverFeesBetween, arg.DriverID, arg.Since, arg.Until)
+	var column_1 int64
+	err := row.Scan(&column_1)
+	return column_1, err
 }
 
 const driverLastLocation = `-- name: DriverLastLocation :one
@@ -340,6 +387,27 @@ func (q *Queries) DriverLastLocation(ctx context.Context, userID uuid.UUID) (Dri
 		&i.VehicleType,
 	)
 	return i, err
+}
+
+const driverOnlineSecondsBetween = `-- name: DriverOnlineSecondsBetween :one
+SELECT coalesce(sum(extract(epoch FROM
+         least(coalesce(ended_at, now()), $1::timestamptz) - greatest(started_at, $2::timestamptz))), 0)::bigint
+FROM driver_online_sessions
+WHERE driver_id = $3 AND started_at < $1::timestamptz
+  AND coalesce(ended_at, now()) > $2::timestamptz
+`
+
+type DriverOnlineSecondsBetweenParams struct {
+	Until    time.Time
+	Since    time.Time
+	DriverID uuid.UUID
+}
+
+func (q *Queries) DriverOnlineSecondsBetween(ctx context.Context, arg DriverOnlineSecondsBetweenParams) (int64, error) {
+	row := q.db.QueryRow(ctx, driverOnlineSecondsBetween, arg.Until, arg.Since, arg.DriverID)
+	var column_1 int64
+	err := row.Scan(&column_1)
+	return column_1, err
 }
 
 const driverOverview = `-- name: DriverOverview :one

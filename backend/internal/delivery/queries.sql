@@ -368,3 +368,29 @@ SET vtc_mode = sqlc.arg(vtc_mode), delivery_vehicle_check = sqlc.arg(delivery_ve
     partner_guide = sqlc.arg(partner_guide), updated_by = sqlc.arg(updated_by), updated_at = now()
 WHERE id
 RETURNING vtc_mode, delivery_vehicle_check, partner_guide, updated_at;
+
+-- ---------------------------------------------------------------- tableau de bord du livreur
+
+-- name: DriverFeesBetween :one
+SELECT coalesce(sum(fee_xof), 0)::bigint FROM deliveries
+WHERE driver_id = sqlc.arg(driver_id) AND status = 'delivered'
+  AND delivered_at >= sqlc.arg(since) AND delivered_at < sqlc.arg(until);
+
+-- name: DriverOnlineSecondsBetween :one
+SELECT coalesce(sum(extract(epoch FROM
+         least(coalesce(ended_at, now()), sqlc.arg(until)::timestamptz) - greatest(started_at, sqlc.arg(since)::timestamptz))), 0)::bigint
+FROM driver_online_sessions
+WHERE driver_id = sqlc.arg(driver_id) AND started_at < sqlc.arg(until)::timestamptz
+  AND coalesce(ended_at, now()) > sqlc.arg(since)::timestamptz;
+
+-- name: DriverDistanceBetween :one
+-- Somme des écarts entre positions successives ; un trou de plus de 5 minutes ou un saut de plus
+-- de 2 km (position imprécise) n'est pas compté.
+WITH p AS (
+  SELECT ST_Distance(location, lag(location) OVER w) AS step,
+         recorded_at - lag(recorded_at) OVER w AS gap
+  FROM driver_positions
+  WHERE driver_id = sqlc.arg(driver_id) AND recorded_at >= sqlc.arg(since) AND recorded_at < sqlc.arg(until)
+  WINDOW w AS (ORDER BY recorded_at)
+)
+SELECT coalesce(sum(step) FILTER (WHERE gap < interval '5 minutes' AND step < 2000), 0)::float8 FROM p;
