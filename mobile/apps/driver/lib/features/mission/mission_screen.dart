@@ -157,14 +157,18 @@ class _RouteViewState extends ConsumerState<_RouteView> {
     }
   }
 
+  /// Navigation guidée dans l'app (jamais d'app de cartes externe).
   Future<void> _openNavigation(GeoPoint to) async {
-    final app = await ref.read(navAppProvider.future);
-    final ok = await ref.read(linkLauncherProvider)(app.route(to));
-    if (!ok && mounted) {
-      ScaffoldMessenger.of(context).showSnackBar(
-        SnackBar(content: Text("Impossible d'ouvrir ${app.label}.")),
-      );
-    }
+    final vehicle =
+        ref.read(driverDossierProvider).value?.vehicleType ??
+        VehicleType.motorbike;
+    final target = _target;
+    await openInAppNavigation(
+      context,
+      to: to,
+      label: widget.toClient ? 'le client' : (target?.name ?? 'la boutique'),
+      profile: routeProfile(vehicle),
+    );
   }
 
   Future<void> _call(String phone) async {
@@ -660,7 +664,7 @@ class _ToClient extends StatelessWidget {
               const SizedBox(width: 8),
               RoundButton(
                 icon: Icons.map_rounded,
-                tooltip: 'Ouvrir dans ${navApp.shortLabel}',
+                tooltip: 'Naviguer',
                 bg: D.blueSoft,
                 fg: D.blue,
                 onTap: onNavigate!,
@@ -748,9 +752,9 @@ class _Actions extends StatelessWidget {
             side: const BorderSide(color: D.outline, width: 1.5),
             foregroundColor: D.ink,
           ),
-          icon: const Icon(Icons.map_outlined, size: 20),
+          icon: const Icon(Icons.navigation_rounded, size: 20),
           label: Text(
-            'Ouvrir dans ${navApp.shortLabel}',
+            'Naviguer',
             style: DText.button.copyWith(color: D.ink, fontSize: 16),
           ),
         ),

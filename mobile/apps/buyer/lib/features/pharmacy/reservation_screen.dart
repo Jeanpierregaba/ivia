@@ -306,7 +306,13 @@ class _PharmacyViewState extends ConsumerState<_PharmacyView> {
                       child: _GreyButton(
                         icon: Icons.directions_outlined,
                         label: 'Itinéraire',
-                        onTap: loc == null ? null : () => openDirections(loc),
+                        onTap: loc == null
+                            ? null
+                            : () => openInAppNavigation(
+                                context,
+                                to: loc,
+                                label: 'la pharmacie',
+                              ),
                       ),
                     ),
                   ],
@@ -1214,7 +1220,10 @@ class _PickupScreenState extends ConsumerState<PickupScreen> with LivePolling {
       bottomNavigationBar: MedBottomButton(
         label: 'Ouvrir l\'itinéraire',
         icon: Icons.directions_outlined,
-        onTap: loc == null ? null : () => openDirections(loc),
+        onTap: loc == null
+            ? null
+            : () =>
+                  openInAppNavigation(context, to: loc, label: 'la pharmacie'),
       ),
     );
   }

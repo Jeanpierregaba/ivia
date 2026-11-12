@@ -43,6 +43,30 @@ class NotificationsController extends Notifier<List<AppNotification>?> {
     }
   }
 
+  /// Supprime une notification (tout de suite à l'écran) ; renvoie sa
+  /// position pour pouvoir l'annuler.
+  Future<void> delete(String id) async {
+    final items = state;
+    if (items == null) return;
+    state = [
+      for (final n in items)
+        if (n.id != id) n,
+    ];
+    try {
+      await ref.read(apiClientProvider).deleteNotification(id);
+    } catch (_) {
+      // Revient à la prochaine relecture si le serveur ne l'a pas supprimée.
+    }
+  }
+
+  /// Supprime toutes les notifications.
+  Future<void> deleteAll() async {
+    state = const [];
+    try {
+      await ref.read(apiClientProvider).deleteAllNotifications();
+    } catch (_) {}
+  }
+
   /// Tout marquer comme lu.
   Future<void> markAllRead() async {
     final items = state;

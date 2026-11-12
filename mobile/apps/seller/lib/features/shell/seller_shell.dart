@@ -47,13 +47,18 @@ class _SellerShellState extends ConsumerState<SellerShell> {
   @override
   void initState() {
     super.initState();
+    _ringer = ref.read(ringerProvider);
     _start();
     // Push réels (Firebase) : nouvelles commandes, retraits… même app fermée.
     unawaited(
       ref.read(iviaPushProvider('seller')).start(onOpen: (_) => _reload()),
     );
     _lifecycle = AppLifecycleListener(
-      onHide: _stop,
+      onHide: () {
+        _stop();
+        // App cachée : la notification push prend le relais.
+        unawaited(_ringer.stop());
+      },
       onShow: () {
         _reload();
         _start();
@@ -61,9 +66,12 @@ class _SellerShellState extends ConsumerState<SellerShell> {
     );
   }
 
+  late final IviaRinger _ringer;
+
   @override
   void dispose() {
     _stop();
+    unawaited(_ringer.stop());
     _lifecycle.dispose();
     super.dispose();
   }
@@ -123,6 +131,12 @@ class _SellerShellState extends ConsumerState<SellerShell> {
             ),
           )
         : 0;
+    // Sonnerie en boucle tant qu'une nouvelle commande attend d'être
+    // acceptée ou refusée.
+    WidgetsBinding.instance.addPostFrameCallback((_) {
+      if (!mounted) return;
+      unawaited(fresh > 0 ? _ringer.ring() : _ringer.stop());
+    });
     final sector = ref.watch(
       businessGateProvider.select((g) => g.value?.opened?.sector),
     );

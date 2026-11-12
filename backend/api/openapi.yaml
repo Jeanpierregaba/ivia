@@ -1260,6 +1260,34 @@ paths:
               schema:
                 "$ref": "#/components/schemas/Error"
   "/v1/notifications":
+    delete:
+      summary: "Supprimer toutes les notifications d'une app"
+      tags:
+        - Notifications
+      operationId: deleteNotifications
+      parameters:
+        - name: app
+          in: query
+          required: false
+          schema:
+            type: string
+            enum:
+              - buyer
+              - seller
+              - driver
+              - admin
+              - pharmacy
+      x-roles:
+        - any
+      responses:
+        "204":
+          description: "Supprimées"
+        default:
+          description: "Erreur (voir `code`)"
+          content:
+            application/json:
+              schema:
+                "$ref": "#/components/schemas/Error"
     get:
       summary: "Mes notifications"
       tags:
@@ -1318,6 +1346,30 @@ paths:
                   - items
                   - next_offset
                   - unread_count
+        default:
+          description: "Erreur (voir `code`)"
+          content:
+            application/json:
+              schema:
+                "$ref": "#/components/schemas/Error"
+  "/v1/notifications/{id}":
+    delete:
+      summary: "Supprimer une notification"
+      tags:
+        - Notifications
+      operationId: deleteNotificationsById
+      parameters:
+        - name: id
+          in: path
+          required: true
+          schema:
+            type: string
+            format: uuid
+      x-roles:
+        - any
+      responses:
+        "204":
+          description: "Supprimée"
         default:
           description: "Erreur (voir `code`)"
           content:

@@ -1,3 +1,5 @@
+import 'dart:async';
+
 import 'package:flutter/material.dart';
 import 'package:flutter/services.dart';
 import 'package:flutter_riverpod/flutter_riverpod.dart';
@@ -8,6 +10,7 @@ import 'package:ivia_ui/ivia_ui.dart';
 
 import '../../common/providers.dart';
 import '../../common/ui.dart';
+import '../profile/alert_sound.dart';
 import '../push/push.dart';
 import 'alert_logic.dart';
 
@@ -53,14 +56,25 @@ class _IncomingAlertScreenState extends ConsumerState<IncomingAlertScreen> {
   /// peut-être pas encore dans la liste.
   var _refreshing = true;
 
+  late final IviaRinger _ringer;
+
+  @override
+  void dispose() {
+    unawaited(_ringer.stop());
+    super.dispose();
+  }
+
   @override
   void initState() {
     super.initState();
+    _ringer = ref.read(ringerProvider);
     WidgetsBinding.instance.addPostFrameCallback((_) async {
       if (!mounted) return;
       ref.read(incomingShownProvider.notifier).markShown(widget.alertId);
-      // L'alerte est à l'écran : la sonnerie s'arrête.
+      // L'alerte est à l'écran : la notification s'efface et la sonnerie de
+      // l'app prend le relais, en boucle jusqu'à la réponse (si activée).
       ref.read(pushProvider).dismiss(widget.alertId);
+      if (await readAlertSound() && mounted) unawaited(_ringer.ring());
       ref.invalidate(inboxProvider);
       try {
         await ref.read(inboxProvider.future);
@@ -71,9 +85,13 @@ class _IncomingAlertScreenState extends ConsumerState<IncomingAlertScreen> {
     });
   }
 
-  void _close() => context.canPop() ? context.pop() : context.go('/home');
+  void _close() {
+    unawaited(_ringer.stop());
+    context.canPop() ? context.pop() : context.go('/home');
+  }
 
   Future<void> _ignore() async {
+    unawaited(_ringer.stop());
     setState(() => _busy = true);
     try {
       await ref.read(apiClientProvider).pharmacyDecline(widget.alertId);
@@ -105,8 +123,14 @@ class _IncomingAlertScreenState extends ConsumerState<IncomingAlertScreen> {
         alert: alert,
         live: live,
         busy: _busy,
-        onExpired: () => setState(() => _expired = true),
-        onView: () => context.pushReplacement(alertDetailPath(widget.alertId)),
+        onExpired: () {
+          unawaited(_ringer.stop());
+          setState(() => _expired = true);
+        },
+        onView: () {
+          unawaited(_ringer.stop());
+          context.pushReplacement(alertDetailPath(widget.alertId));
+        },
         onIgnore: _ignore,
         onClose: _close,
       );

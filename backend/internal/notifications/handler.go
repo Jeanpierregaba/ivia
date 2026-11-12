@@ -21,6 +21,8 @@ func (h *Handler) Register(rt *httpapi.Router) {
 	rt.Auth("GET /v1/notifications", h.list)
 	rt.Auth("POST /v1/notifications/{id}/read", h.markRead)
 	rt.Auth("POST /v1/notifications/read-all", h.markAllRead)
+	rt.Auth("DELETE /v1/notifications/{id}", h.delete)
+	rt.Auth("DELETE /v1/notifications", h.deleteAll)
 }
 
 // appParam lit l'app concernée et vérifie que l'utilisateur a le rôle correspondant.
@@ -61,6 +63,28 @@ func (h *Handler) markRead(w http.ResponseWriter, r *http.Request) error {
 		return err
 	}
 	if err := h.svc.MarkRead(r.Context(), identity.MustFromContext(r.Context()).UserID, id); err != nil {
+		return err
+	}
+	return httpapi.NoContent(w)
+}
+
+func (h *Handler) delete(w http.ResponseWriter, r *http.Request) error {
+	id, err := httpapi.PathUUID(r, "id")
+	if err != nil {
+		return err
+	}
+	if err := h.svc.Delete(r.Context(), identity.MustFromContext(r.Context()).UserID, id); err != nil {
+		return err
+	}
+	return httpapi.NoContent(w)
+}
+
+func (h *Handler) deleteAll(w http.ResponseWriter, r *http.Request) error {
+	app, err := appParam(r, httpapi.NewQuery(r))
+	if err != nil {
+		return err
+	}
+	if err := h.svc.DeleteAll(r.Context(), identity.MustFromContext(r.Context()).UserID, app); err != nil {
 		return err
 	}
 	return httpapi.NoContent(w)

@@ -56,6 +56,37 @@ func (q *Queries) CreateNotification(ctx context.Context, arg CreateNotification
 	return id, err
 }
 
+const deleteAppNotifications = `-- name: DeleteAppNotifications :exec
+DELETE FROM notifications WHERE user_id = $1 AND app = $2
+`
+
+type DeleteAppNotificationsParams struct {
+	UserID uuid.UUID
+	App    string
+}
+
+func (q *Queries) DeleteAppNotifications(ctx context.Context, arg DeleteAppNotificationsParams) error {
+	_, err := q.db.Exec(ctx, deleteAppNotifications, arg.UserID, arg.App)
+	return err
+}
+
+const deleteNotification = `-- name: DeleteNotification :execrows
+DELETE FROM notifications WHERE id = $1 AND user_id = $2
+`
+
+type DeleteNotificationParams struct {
+	ID     uuid.UUID
+	UserID uuid.UUID
+}
+
+func (q *Queries) DeleteNotification(ctx context.Context, arg DeleteNotificationParams) (int64, error) {
+	result, err := q.db.Exec(ctx, deleteNotification, arg.ID, arg.UserID)
+	if err != nil {
+		return 0, err
+	}
+	return result.RowsAffected(), nil
+}
+
 const deleteUserNotifications = `-- name: DeleteUserNotifications :exec
 DELETE FROM notifications WHERE user_id = $1
 `

@@ -88,6 +88,7 @@ class _NotificationWatcherState extends ConsumerState<NotificationWatcher>
         for (final n in items.reversed) {
           if (!n.read && !known.contains(n.id)) {
             final (icon, color) = notificationLook(n.kind);
+            unawaited(ref.read(ringerProvider).chime());
             showIviaNotification(
               context,
               title: n.title,

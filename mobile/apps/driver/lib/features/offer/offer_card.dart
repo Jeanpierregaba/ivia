@@ -2,7 +2,6 @@ import 'dart:async';
 import 'dart:math' as math;
 
 import 'package:flutter/material.dart';
-import 'package:flutter/services.dart';
 import 'package:flutter_riverpod/flutter_riverpod.dart';
 import 'package:ivia_api_client/ivia_api_client.dart';
 import 'package:ivia_app_core/ivia_app_core.dart';
@@ -55,26 +54,33 @@ class _OfferCardState extends ConsumerState<OfferCard> {
         setState(() {});
       }
     });
+    _ringer = ref.read(ringerProvider);
     unawaited(_ring());
   }
 
+  late final IviaRinger _ringer;
+
+  /// Sonnerie forte en boucle jusqu'à la réponse (ou l'expiration), si elle
+  /// est activée (Profil).
   Future<void> _ring() async {
     final on = await ref.read(missionRingProvider.future).catchError((_) {
       return true;
     });
     if (!on || !mounted) return;
-    await SystemSound.play(SystemSoundType.alert);
-    await HapticFeedback.heavyImpact();
+    await _ringer.ring();
+    if (!mounted) await _ringer.stop();
   }
 
   @override
   void dispose() {
     _tick?.cancel();
+    unawaited(_ringer.stop());
     super.dispose();
   }
 
   void _drop(String? message) {
     _tick?.cancel();
+    unawaited(_ringer.stop());
     if (message != null) announce(context, message);
     ref.read(workProvider.notifier).dropOffer(widget.offer, message: message);
   }

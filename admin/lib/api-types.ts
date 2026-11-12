@@ -718,7 +718,25 @@ export interface paths {
         get: operations["getNotifications"];
         put?: never;
         post?: never;
-        delete?: never;
+        /** Supprimer toutes les notifications d'une app */
+        delete: operations["deleteNotifications"];
+        options?: never;
+        head?: never;
+        patch?: never;
+        trace?: never;
+    };
+    "/v1/notifications/{id}": {
+        parameters: {
+            query?: never;
+            header?: never;
+            path?: never;
+            cookie?: never;
+        };
+        get?: never;
+        put?: never;
+        post?: never;
+        /** Supprimer une notification */
+        delete: operations["deleteNotificationsById"];
         options?: never;
         head?: never;
         patch?: never;
@@ -8994,7 +9012,7 @@ export interface operations {
                 "application/json": {
                     token: string;
                     /** @enum {string} */
-                    platform: "android" | "ios";
+                    platform: "android" | "ios" | "web";
                     /** @enum {string} */
                     app: "buyer" | "seller" | "driver" | "pharmacy";
                     /**
@@ -9153,6 +9171,64 @@ export interface operations {
                         unread_count: number;
                     };
                 };
+            };
+            /** @description Erreur (voir `code`) */
+            default: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["Error"];
+                };
+            };
+        };
+    };
+    deleteNotifications: {
+        parameters: {
+            query?: {
+                app?: "buyer" | "seller" | "driver" | "admin" | "pharmacy";
+            };
+            header?: never;
+            path?: never;
+            cookie?: never;
+        };
+        requestBody?: never;
+        responses: {
+            /** @description Supprimées */
+            204: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content?: never;
+            };
+            /** @description Erreur (voir `code`) */
+            default: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["Error"];
+                };
+            };
+        };
+    };
+    deleteNotificationsById: {
+        parameters: {
+            query?: never;
+            header?: never;
+            path: {
+                id: string;
+            };
+            cookie?: never;
+        };
+        requestBody?: never;
+        responses: {
+            /** @description Supprimée */
+            204: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content?: never;
             };
             /** @description Erreur (voir `code`) */
             default: {

@@ -4,7 +4,8 @@ import 'package:flutter/material.dart';
 import 'package:flutter_riverpod/flutter_riverpod.dart';
 import 'package:ivia_api_client/ivia_api_client.dart';
 import 'package:ivia_ui/ivia_ui.dart';
-import 'package:url_launcher/url_launcher.dart';
+
+import 'navigation_screen.dart';
 
 import 'formats.dart';
 import 'ivia_map.dart';
@@ -127,15 +128,12 @@ class _RouteScreenState extends ConsumerState<RouteScreen> {
   Future<void> _start() async {
     final from = _from?.point, to = _to?.point;
     if (to == null) return;
-    await launchUrl(
-      Uri.https('www.google.com', '/maps/dir/', {
-        'api': '1',
-        if (from != null) 'origin': '${from.lat},${from.lng}',
-        'destination': '${to.lat},${to.lng}',
-        'travelmode': _profile == 'moto' ? 'two-wheeler' : 'driving',
-        'dir_action': 'navigate',
-      }),
-      mode: LaunchMode.externalApplication,
+    if (from == null && !mounted) return;
+    await openInAppNavigation(
+      context,
+      to: to,
+      label: _to?.label ?? 'votre destination',
+      profile: _profile,
     );
   }
 

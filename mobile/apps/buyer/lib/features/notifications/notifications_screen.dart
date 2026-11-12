@@ -71,7 +71,13 @@ class _NotificationsScreenState extends ConsumerState<NotificationsScreen> {
                     child: const Text('Tout lire'),
                   ),
           ),
-          const SizedBox(width: IviaSpacing.sm),
+          if (items != null && items.isNotEmpty)
+            IconButton(
+              tooltip: 'Tout effacer',
+              icon: const Icon(Icons.delete_sweep_outlined),
+              onPressed: _clearAll,
+            ),
+          const SizedBox(width: IviaSpacing.xs),
         ],
       ),
       body: IviaStateSwitcher(
@@ -129,6 +135,9 @@ class _NotificationsScreenState extends ConsumerState<NotificationsScreen> {
                           onRead: () => ref
                               .read(notificationsProvider.notifier)
                               .markRead(n.id),
+                          onDelete: () => ref
+                              .read(notificationsProvider.notifier)
+                              .delete(n.id),
                         ),
                       ),
                       _ => const SizedBox.shrink(),
@@ -140,6 +149,60 @@ class _NotificationsScreenState extends ConsumerState<NotificationsScreen> {
         },
       ),
     );
+  }
+
+  Future<void> _clearAll() async {
+    final ok = await showModalBottomSheet<bool>(
+      context: context,
+      showDragHandle: true,
+      backgroundColor: IviaColors.surface,
+      shape: const RoundedRectangleBorder(
+        borderRadius: BorderRadius.vertical(top: Radius.circular(28)),
+      ),
+      builder: (context) => SafeArea(
+        child: Padding(
+          padding: const EdgeInsets.fromLTRB(
+            IviaSpacing.screen,
+            0,
+            IviaSpacing.screen,
+            IviaSpacing.lg,
+          ),
+          child: Column(
+            mainAxisSize: MainAxisSize.min,
+            children: [
+              const Icon(
+                Icons.delete_sweep_outlined,
+                size: 44,
+                color: IviaColors.error,
+              ),
+              const SizedBox(height: IviaSpacing.md),
+              Text(
+                'Effacer toutes les notifications ?',
+                textAlign: TextAlign.center,
+                style: Theme.of(context).textTheme.titleLarge
+                    ?.copyWith(fontWeight: FontWeight.w800),
+              ),
+              const SizedBox(height: IviaSpacing.xl),
+              SizedBox(
+                width: double.infinity,
+                child: FilledButton(
+                  style: FilledButton.styleFrom(
+                    backgroundColor: IviaColors.error,
+                  ),
+                  onPressed: () => Navigator.pop(context, true),
+                  child: const Text('Tout effacer'),
+                ),
+              ),
+              TextButton(
+                onPressed: () => Navigator.pop(context, false),
+                child: const Text('Annuler'),
+              ),
+            ],
+          ),
+        ),
+      ),
+    );
+    if (ok == true) await ref.read(notificationsProvider.notifier).deleteAll();
   }
 
   /// Titres de jour suivis de leurs notifications.
@@ -174,10 +237,11 @@ class _Tile extends StatelessWidget {
     required this.notification,
     required this.onTap,
     required this.onRead,
+    required this.onDelete,
   });
 
   final AppNotification notification;
-  final VoidCallback onTap, onRead;
+  final VoidCallback onTap, onRead, onDelete;
 
   @override
   Widget build(BuildContext context) {
@@ -277,16 +341,43 @@ class _Tile extends StatelessWidget {
         ),
       ),
     );
-    if (n.read) return card;
-    // Glisser vers la gauche : marquée comme lue (la carte reste).
+    // Glisser vers la droite : supprimée ; vers la gauche : lue (la carte
+    // reste).
     return Dismissible(
-      key: ValueKey('lire-${n.id}'),
-      direction: DismissDirection.endToStart,
-      confirmDismiss: (_) async {
+      key: ValueKey('notif-${n.id}'),
+      direction: n.read
+          ? DismissDirection.startToEnd
+          : DismissDirection.horizontal,
+      confirmDismiss: (direction) async {
+        if (direction == DismissDirection.startToEnd) return true;
         onRead();
         return false;
       },
+      onDismissed: (_) => onDelete(),
       background: Container(
+        margin: const EdgeInsets.only(bottom: IviaSpacing.sm),
+        alignment: Alignment.centerLeft,
+        padding: const EdgeInsets.symmetric(horizontal: IviaSpacing.xl),
+        decoration: BoxDecoration(
+          color: IviaColors.error,
+          borderRadius: BorderRadius.circular(IviaRadius.large),
+        ),
+        child: const Row(
+          mainAxisSize: MainAxisSize.min,
+          children: [
+            Icon(Icons.delete_outline_rounded, color: Colors.white),
+            SizedBox(width: IviaSpacing.sm),
+            Text(
+              'Supprimer',
+              style: TextStyle(
+                color: Colors.white,
+                fontWeight: FontWeight.w700,
+              ),
+            ),
+          ],
+        ),
+      ),
+      secondaryBackground: Container(
         margin: const EdgeInsets.only(bottom: IviaSpacing.sm),
         alignment: Alignment.centerRight,
         padding: const EdgeInsets.symmetric(horizontal: IviaSpacing.xl),

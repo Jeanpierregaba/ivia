@@ -26,5 +26,11 @@ WHERE user_id = $1 AND app = $2 AND read_at IS NULL;
 -- name: MarkPushSent :exec
 UPDATE notifications SET push_sent_at = now() WHERE id = $1;
 
+-- name: DeleteNotification :execrows
+DELETE FROM notifications WHERE id = sqlc.arg(id) AND user_id = sqlc.arg(user_id);
+
+-- name: DeleteAppNotifications :exec
+DELETE FROM notifications WHERE user_id = $1 AND app = $2;
+
 -- name: DeleteUserNotifications :exec
 DELETE FROM notifications WHERE user_id = $1;

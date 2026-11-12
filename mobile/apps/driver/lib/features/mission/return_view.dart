@@ -1,10 +1,10 @@
 import 'package:flutter/material.dart';
 import 'package:flutter_riverpod/flutter_riverpod.dart';
+import 'package:ivia_app_core/ivia_app_core.dart';
 import 'package:ivia_api_client/ivia_api_client.dart';
 import 'package:ivia_ui/ivia_ui.dart';
 
 import '../../common/ui.dart';
-import '../profile/settings.dart';
 import 'mission_ui.dart';
 import 'navigation.dart';
 import 'problem_sheet.dart' show callDriverSupport;
@@ -31,7 +31,6 @@ class ReturnView extends ConsumerWidget {
   Widget build(BuildContext context, WidgetRef ref) {
     final m = mission;
     final shop = m.pickup;
-    final nav = ref.watch(navAppProvider).value ?? NavApp.google;
     final to = shop.location;
     return SafeArea(
       bottom: false,
@@ -147,11 +146,15 @@ class ReturnView extends ConsumerWidget {
               crossAxisAlignment: CrossAxisAlignment.stretch,
               children: [
                 DButton(
-                  label: 'Ouvrir dans ${nav.shortLabel}',
-                  icon: Icons.map_outlined,
+                  label: 'Naviguer',
+                  icon: Icons.navigation_rounded,
                   onTap: to == null
                       ? null
-                      : () => _launch(context, ref, nav.route(to)),
+                      : () => openInAppNavigation(
+                          context,
+                          to: to,
+                          label: shop.name,
+                        ),
                 ),
                 TextButton(
                   onPressed: () => callDriverSupport(context, ref),

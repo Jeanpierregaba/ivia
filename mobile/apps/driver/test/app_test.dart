@@ -66,6 +66,7 @@ void main() {
   late _FakePicker picker;
   late FakeLocationService location;
   late List<Uri> launched;
+  late _RecordingRinger ringer;
   late List<Map<String, dynamic>> documentsSent;
 
   /// Dossier côté serveur : comme le backend, une pièce envoyée s'ajoute aux
@@ -90,6 +91,7 @@ void main() {
     picker = _FakePicker();
     location = FakeLocationService();
     launched = [];
+    ringer = _RecordingRinger();
     documentsSent = [];
     serverDocuments = [];
     serverVehicle = 'motorbike';
@@ -197,6 +199,11 @@ void main() {
             launched.add(uri);
             return true;
           }),
+          ringerProvider.overrideWithValue(ringer),
+          // Navigation dans l'app : pas de GPS en continu dans les tests.
+          navigationFixesProvider.overrideWithValue(
+            () => const Stream<NavFix>.empty(),
+          ),
         ],
         child: const DriverApp(),
       ),
@@ -315,7 +322,9 @@ void main() {
         minSplash: const Duration(milliseconds: 800),
         settle: false,
       );
-      await tester.pump(const Duration(milliseconds: 700));
+      for (var i = 0; i < 4; i++) {
+        await tester.pump(const Duration(milliseconds: 250));
+      }
       expect(find.text('Driver'), findsOneWidget);
       expect(find.text('Livrez près de chez vous.'), findsOneWidget);
       final app = tester.widget<MaterialApp>(find.byType(MaterialApp));
@@ -1481,14 +1490,21 @@ void main() {
       // Taille normale : chiffres dans le bandeau seulement (maquette D11).
       expect(find.text('Restant'), findsNothing);
 
-      await tester.ensureVisible(find.text('Ouvrir dans Maps'));
-      await tester.tap(find.text('Ouvrir dans Maps'));
-      await tester.pump(const Duration(milliseconds: 300));
-      expect(launched.single.host, 'www.google.com');
-      expect(launched.single.queryParameters['destination'], '6.139,1.216');
+      await tester.ensureVisible(find.text('Naviguer'));
+      await tester.tap(find.text('Naviguer'));
+      for (var i = 0; i < 4; i++) {
+        await tester.pump(const Duration(milliseconds: 250));
+      }
+      // Guidage dans l'app, jamais d'app de cartes externe.
+      expect(find.byType(NavigationScreen), findsOneWidget);
+      expect(launched, isEmpty);
+      await tester.tap(find.byTooltip('Quitter la navigation'));
+      for (var i = 0; i < 4; i++) {
+        await tester.pump(const Duration(milliseconds: 250));
+      }
       await tester.tap(find.byTooltip('Appeler la boutique'));
       await tester.pump(const Duration(milliseconds: 300));
-      expect(launched.last.toString(), 'tel:+22890112233');
+      expect(launched.single.toString(), 'tel:+22890112233');
 
       await tester.ensureVisible(find.byKey(const Key('slide-knob')));
       await tester.drag(
@@ -1532,12 +1548,19 @@ void main() {
       );
       // Pas de retrait possible après le retrait du colis.
       expect(find.text('Je ne peux pas faire cette course'), findsNothing);
-      await tester.tap(find.byTooltip('Ouvrir dans Maps'));
-      await tester.pump(const Duration(milliseconds: 300));
-      expect(launched.single.queryParameters['destination'], '6.16,1.24');
+      await tester.tap(find.byTooltip('Naviguer'));
+      for (var i = 0; i < 4; i++) {
+        await tester.pump(const Duration(milliseconds: 250));
+      }
+      expect(find.byType(NavigationScreen), findsOneWidget);
+      expect(find.text('Vers le client'), findsWidgets);
+      await tester.tap(find.byTooltip('Quitter la navigation'));
+      for (var i = 0; i < 4; i++) {
+        await tester.pump(const Duration(milliseconds: 250));
+      }
       await tester.tap(find.byTooltip('Appeler le client'));
       await tester.pump(const Duration(milliseconds: 300));
-      expect(launched.last.toString(), 'tel:+22890445566');
+      expect(launched.single.toString(), 'tel:+22890445566');
 
       await tester.ensureVisible(find.byKey(const Key('slide-knob')));
       await tester.drag(
@@ -2079,10 +2102,11 @@ void main() {
         find.textContaining('Rapportez le colis à Chez Afi'),
         findsOneWidget,
       );
-      await tapVisible(tester, find.text('Ouvrir dans Maps'));
-      expect(launched.single.queryParameters['destination'], '6.139,1.216');
+      await tapVisible(tester, find.text('Naviguer'));
+      expect(find.byType(NavigationScreen), findsOneWidget);
+      await tapVisible(tester, find.byTooltip('Quitter la navigation'));
       await tapVisible(tester, find.byTooltip('Appeler la boutique'));
-      expect(launched.last.toString(), 'tel:+22890112233');
+      expect(launched.single.toString(), 'tel:+22890112233');
 
       // La boutique confirme le retour : fin de mission, sans message
       // « annulée ».
@@ -2225,7 +2249,7 @@ void main() {
         tester,
         driverMissionBody(arrivedShop: true, pickedUp: true),
       );
-      for (final label in ['Ouvrir dans Maps', 'Appeler le client']) {
+      for (final label in ['Naviguer', 'Appeler le client']) {
         final node = tester.getSemantics(find.byTooltip(label).first);
         expect(
           node.getSemanticsData().hasAction(SemanticsAction.tap),
@@ -2329,24 +2353,11 @@ void main() {
 
     for (final ring in [true, false]) {
       testWidgets(
-        'sonnerie des missions ${ring ? 'activée : son et vibration' : 'coupée : silence'}',
+        'sonnerie des missions ${ring ? 'activée : sonnerie en boucle' : 'coupée : silence'}',
         (tester) async {
-          final calls = <String>[];
-          tester.binding.defaultBinaryMessenger.setMockMethodCallHandler(
-            SystemChannels.platform,
-            (call) async {
-              calls.add(call.method);
-              return null;
-            },
-          );
-          addTearDown(
-            () => tester.binding.defaultBinaryMessenger
-                .setMockMethodCallHandler(SystemChannels.platform, null),
-          );
           await onlineWithOffer(tester, driverOfferBody(), ring: ring);
           expect(find.text('Glisser pour accepter'), findsOneWidget);
-          expect(calls.contains('SystemSound.play'), ring);
-          expect(calls.contains('HapticFeedback.vibrate'), ring);
+          expect(ringer.rings, ring ? 1 : 0);
         },
       );
     }
@@ -3020,4 +3031,16 @@ void main() {
       noOverflow(tester, 'hors connexion');
     });
   });
+}
+
+/// Sonnerie des tests : compte les démarrages et arrêts, sans son.
+class _RecordingRinger extends IviaRinger {
+  var rings = 0;
+  var stops = 0;
+
+  @override
+  Future<void> ring() async => rings++;
+
+  @override
+  Future<void> stop() async => stops++;
 }

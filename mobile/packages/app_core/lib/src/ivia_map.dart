@@ -77,10 +77,17 @@ class IviaMap extends StatefulWidget {
     this.route = const [],
     this.interactive = true,
     this.onCameraIdle,
+    this.bearing,
+    this.tilt = 0,
   });
 
   final GeoPoint center;
   final double zoom;
+
+  /// Navigation : la carte suit le centre en tournant vers [bearing] (degrés),
+  /// inclinée de [tilt].
+  final double? bearing;
+  final double tilt;
   final List<IviaMapMarker> markers;
   final List<GeoPoint> route;
   final bool interactive;
@@ -105,12 +112,24 @@ class _IviaMapState extends State<IviaMap> {
     final c = widget.center;
     if (c.lat == old.center.lat && c.lng == old.center.lng) return;
     _last = c;
+    final bearing = widget.bearing;
     if (_useGoogle) {
       _google?.animateCamera(
-        gm.CameraUpdate.newLatLng(gm.LatLng(c.lat, c.lng)),
+        bearing == null
+            ? gm.CameraUpdate.newLatLng(gm.LatLng(c.lat, c.lng))
+            : gm.CameraUpdate.newCameraPosition(
+                gm.CameraPosition(
+                  target: gm.LatLng(c.lat, c.lng),
+                  zoom: widget.zoom,
+                  bearing: bearing,
+                  tilt: widget.tilt,
+                ),
+              ),
       );
-    } else {
+    } else if (bearing == null) {
       _osm.move(ll.LatLng(c.lat, c.lng), _osm.camera.zoom);
+    } else {
+      _osm.moveAndRotate(ll.LatLng(c.lat, c.lng), widget.zoom, -bearing);
     }
   }
 
@@ -132,6 +151,8 @@ class _IviaMapState extends State<IviaMap> {
         initialCameraPosition: gm.CameraPosition(
           target: gm.LatLng(w.center.lat, w.center.lng),
           zoom: w.zoom,
+          bearing: w.bearing ?? 0,
+          tilt: w.tilt,
         ),
         onMapCreated: (c) => _google = c,
         zoomControlsEnabled: false,
@@ -153,13 +174,29 @@ class _IviaMapState extends State<IviaMap> {
             ),
         },
         polylines: {
-          if (w.route.isNotEmpty)
+          if (w.route.isNotEmpty) ...[
+            // Liseré blanc sous le trajet : lisible sur toutes les routes.
+            gm.Polyline(
+              polylineId: const gm.PolylineId('route-casing'),
+              color: Colors.white,
+              width: 9,
+              zIndex: 1,
+              startCap: gm.Cap.roundCap,
+              endCap: gm.Cap.roundCap,
+              jointType: gm.JointType.round,
+              points: [for (final p in w.route) gm.LatLng(p.lat, p.lng)],
+            ),
             gm.Polyline(
               polylineId: const gm.PolylineId('route'),
               color: IviaColors.cobaltBlue,
-              width: 5,
+              width: 6,
+              zIndex: 2,
+              startCap: gm.Cap.roundCap,
+              endCap: gm.Cap.roundCap,
+              jointType: gm.JointType.round,
               points: [for (final p in w.route) gm.LatLng(p.lat, p.lng)],
             ),
+          ],
         },
       );
     }
@@ -168,6 +205,7 @@ class _IviaMapState extends State<IviaMap> {
       options: osm.MapOptions(
         initialCenter: ll.LatLng(w.center.lat, w.center.lng),
         initialZoom: w.zoom,
+        initialRotation: -(w.bearing ?? 0),
         interactionOptions: osm.InteractionOptions(
           flags: w.interactive
               ? osm.InteractiveFlag.drag |
@@ -194,8 +232,10 @@ class _IviaMapState extends State<IviaMap> {
             polylines: [
               osm.Polyline(
                 points: [for (final p in w.route) ll.LatLng(p.lat, p.lng)],
-                strokeWidth: 5,
+                strokeWidth: 6,
                 color: IviaColors.cobaltBlue,
+                borderStrokeWidth: 3,
+                borderColor: Colors.white,
               ),
             ],
           ),

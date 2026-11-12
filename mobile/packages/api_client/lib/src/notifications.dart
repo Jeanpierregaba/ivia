@@ -52,6 +52,14 @@ extension NotificationsApi on IviaApiClient {
   Future<void> markNotificationRead(String id) =>
       _send('POST', '/v1/notifications/${Uri.encodeComponent(id)}/read');
 
+  /// Supprime une notification du compte.
+  Future<void> deleteNotification(String id) =>
+      _send('DELETE', '/v1/notifications/${Uri.encodeComponent(id)}');
+
+  /// Supprime toutes les notifications d'une app.
+  Future<void> deleteAllNotifications({String app = 'buyer'}) =>
+      _send('DELETE', '/v1/notifications', query: {'app': app});
+
   /// Marque toutes les notifications du compte comme lues.
   Future<void> markAllNotificationsRead() =>
       _send('POST', '/v1/notifications/read-all');

@@ -383,14 +383,6 @@ class MedMap extends StatelessWidget {
   );
 }
 
-/// Itinéraire dans l'application de cartes du téléphone.
-Future<void> openDirections(GeoPoint to) => launchUrl(
-  Uri.parse(
-    'https://www.google.com/maps/dir/?api=1&destination=${to.lat},${to.lng}',
-  ),
-  mode: LaunchMode.externalApplication,
-);
-
 Future<void> callNumber(String phone) => launchUrl(Uri.parse('tel:$phone'));
 
 String hhmm(DateTime d) {

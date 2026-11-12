@@ -170,6 +170,26 @@ func (s *Service) MarkAllRead(ctx context.Context, userID uuid.UUID, app App) er
 	return nil
 }
 
+// Delete supprime une notification du compte ; celle d'un autre compte est introuvable.
+func (s *Service) Delete(ctx context.Context, userID, id uuid.UUID) error {
+	n, err := store.New(s.db.Conn(ctx)).DeleteNotification(ctx, store.DeleteNotificationParams{ID: id, UserID: userID})
+	if err != nil {
+		return fmt.Errorf("suppression de la notification : %w", err)
+	}
+	if n == 0 {
+		return apperr.NotFound("notification_not_found", "Notification introuvable.")
+	}
+	return nil
+}
+
+// DeleteAll supprime toutes les notifications d'une app du compte.
+func (s *Service) DeleteAll(ctx context.Context, userID uuid.UUID, app App) error {
+	if err := store.New(s.db.Conn(ctx)).DeleteAppNotifications(ctx, store.DeleteAppNotificationsParams{UserID: userID, App: string(app)}); err != nil {
+		return fmt.Errorf("suppression des notifications : %w", err)
+	}
+	return nil
+}
+
 // OnAccountDeleted supprime les notifications du compte (users.DeletionHook) : elles peuvent
 // contenir des informations personnelles.
 func (s *Service) OnAccountDeleted(ctx context.Context, userID uuid.UUID) error {
