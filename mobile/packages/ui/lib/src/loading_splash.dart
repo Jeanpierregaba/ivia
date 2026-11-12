@@ -1,5 +1,3 @@
-import 'dart:math' as math;
-
 import 'package:flutter/material.dart';
 import 'package:flutter/services.dart';
 
@@ -172,7 +170,8 @@ class _IviaLoadingSplashState extends State<IviaLoadingSplash>
     );
   }
 
-  /// Visuel qui respire une fois, avec deux ondes blanches qui s'éloignent.
+  /// Visuel à sa place exacte (celle du splash natif), entouré de deux ondes blanches qui
+  /// s'éloignent une fois.
   Widget _animatedVisual(double height) {
     final visual = widget.tile ? _tile() : _wordmark();
     final width = widget.tile
@@ -183,8 +182,6 @@ class _IviaLoadingSplashState extends State<IviaLoadingSplash>
       child: visual,
       builder: (context, child) {
         final t = _intro.value;
-        final breath = Curves.easeInOut.transform((t / 0.55).clamp(0.0, 1.0));
-        final scale = 1 + 0.07 * math.sin(math.pi * breath);
         Widget ring(double start) {
           final r = ((t - start) / 0.6).clamp(0.0, 1.0);
           return IgnorePointer(
@@ -217,7 +214,7 @@ class _IviaLoadingSplashState extends State<IviaLoadingSplash>
                   children: [ring(0.15), ring(0.35)],
                 ),
               ),
-              Transform.scale(scale: scale, child: child),
+              child!,
             ],
           ),
         );
@@ -225,7 +222,7 @@ class _IviaLoadingSplashState extends State<IviaLoadingSplash>
     );
   }
 
-  /// Textes qui montent en fondu après le visuel.
+  /// Textes qui apparaissent en fondu après le visuel.
   Widget _enter(Widget child) => AnimatedBuilder(
     animation: _intro,
     child: child,
@@ -233,13 +230,7 @@ class _IviaLoadingSplashState extends State<IviaLoadingSplash>
       final v = Curves.easeOutCubic.transform(
         ((_intro.value - 0.3) / 0.5).clamp(0.0, 1.0),
       );
-      return Opacity(
-        opacity: v,
-        child: Transform.translate(
-          offset: Offset(0, 14 * (1 - v)),
-          child: child,
-        ),
-      );
+      return Opacity(opacity: v, child: child);
     },
   );
 

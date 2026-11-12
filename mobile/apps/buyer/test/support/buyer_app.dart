@@ -9,6 +9,7 @@ import 'package:ivia_app_core/ivia_app_core.dart';
 import 'package:ivia_app_core/testing.dart';
 import 'package:ivia_buyer/app/buyer_area.dart';
 import 'package:ivia_buyer/app/identity.dart';
+import 'package:ivia_buyer/features/notifications/notification_watcher.dart';
 import 'package:ivia_buyer/features/payment/payment_providers.dart';
 import 'package:ivia_buyer/main.dart';
 import 'package:shared_preferences/shared_preferences.dart';
@@ -83,6 +84,7 @@ class BuyerHarness {
       ProviderScope(
         overrides: [
           ...overrides,
+          notificationWatchEnabledProvider.overrideWithValue(false),
           onboardingStoreProvider.overrideWithValue(onboarding),
           areaStoreProvider.overrideWithValue(area),
           locationServiceProvider.overrideWithValue(location),

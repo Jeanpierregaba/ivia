@@ -126,16 +126,18 @@ class _PaymentWaitScreenState extends ConsumerState<PaymentWaitScreen> {
   void _succeeded() {
     if (_done || !mounted) return;
     _done = true;
-    final messenger = ScaffoldMessenger.of(context);
     unawaited(
       ref
           .read(orderProvider(widget.orderId).notifier)
           .refresh()
           .catchError((Object _) {}),
     );
-    showMessage(
-      messenger,
-      'Paiement reçu. La boutique va confirmer votre commande.',
+    showIviaNotification(
+      context,
+      title: 'Paiement reçu',
+      body: 'La boutique va confirmer votre commande.',
+      icon: Icons.payments_outlined,
+      color: IviaColors.success,
     );
     context.go(Routes.order(widget.orderId));
   }

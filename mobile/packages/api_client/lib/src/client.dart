@@ -11,6 +11,7 @@ import 'promo.dart';
 
 part 'business.dart';
 part 'geo.dart';
+part 'notifications.dart';
 part 'driver_work.dart';
 part 'pharmacist.dart';
 part 'pharmacy.dart';

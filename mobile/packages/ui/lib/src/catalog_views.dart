@@ -193,7 +193,7 @@ class IviaProductCard extends StatelessWidget {
                         if (badge case final b?)
                           Positioned(
                             right: IviaSpacing.xs,
-                            top: IviaSpacing.xs,
+                            bottom: IviaSpacing.xs,
                             child: IviaPromoBadge(label: b),
                           ),
                       ],

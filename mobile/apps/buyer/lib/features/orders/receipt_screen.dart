@@ -67,6 +67,9 @@ class _ReceiptScreenState extends State<ReceiptScreen> {
       appBar: AppBar(
         backgroundColor: IviaColors.berkeleyBlue,
         foregroundColor: Colors.white,
+        iconTheme: const IconThemeData(color: Colors.white),
+        titleTextStyle: Theme.of(context).textTheme.titleLarge
+            ?.copyWith(color: Colors.white, fontWeight: FontWeight.w700),
         title: const Text('Reçu'),
       ),
       body: SafeArea(
@@ -98,10 +101,11 @@ class _ReceiptScreenState extends State<ReceiptScreen> {
                 child: Row(
                   children: [
                     Expanded(
-                      child: OutlinedButton.icon(
-                        style: OutlinedButton.styleFrom(
-                          foregroundColor: Colors.white,
-                          side: const BorderSide(color: Colors.white70),
+                      child: FilledButton.icon(
+                        style: FilledButton.styleFrom(
+                          backgroundColor: Colors.white,
+                          foregroundColor: IviaColors.berkeleyBlue,
+                          disabledBackgroundColor: Colors.white70,
                         ),
                         onPressed: _busy ? null : _download,
                         icon: const Icon(Icons.download_rounded),

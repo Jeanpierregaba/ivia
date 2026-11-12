@@ -260,7 +260,7 @@ void main() {
       expect(reads(id).length, before + 1);
       expect(find.byType(OrderScreen), findsOneWidget);
       expect(
-        find.text('Paiement reçu. La boutique va confirmer votre commande.'),
+        find.text('La boutique va confirmer votre commande.'),
         findsOneWidget,
       );
       expect(find.text('En attente de la boutique'), findsOneWidget);

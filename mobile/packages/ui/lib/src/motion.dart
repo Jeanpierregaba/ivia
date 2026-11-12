@@ -49,17 +49,26 @@ class IviaPageTransitionsBuilder extends PageTransitionsBuilder {
       parent: secondaryAnimation,
       curve: IviaMotion.standard,
     );
-    return FadeTransition(
-      opacity: enter,
-      child: SlideTransition(
-        position: Tween(
-          begin: const Offset(0, 0.035),
-          end: Offset.zero,
-        ).animate(enter),
-        // L'écran quitté s'efface légèrement sous le nouveau.
+    return SlideTransition(
+      // L'écran quitté recule un peu vers la gauche en s'estompant.
+      position: Tween(
+        begin: Offset.zero,
+        end: const Offset(-0.12, 0),
+      ).animate(leave),
+      child: FadeTransition(
+        opacity: Tween(begin: 1.0, end: 0.55).animate(leave),
         child: FadeTransition(
-          opacity: Tween(begin: 1.0, end: 0.92).animate(leave),
-          child: child,
+          opacity: enter,
+          child: SlideTransition(
+            position: Tween(
+              begin: const Offset(0.18, 0),
+              end: Offset.zero,
+            ).animate(enter),
+            child: ScaleTransition(
+              scale: Tween(begin: 0.98, end: 1.0).animate(enter),
+              child: child,
+            ),
+          ),
         ),
       ),
     );

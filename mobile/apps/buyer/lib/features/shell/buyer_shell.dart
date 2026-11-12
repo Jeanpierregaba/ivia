@@ -5,6 +5,7 @@ import 'package:flutter_riverpod/flutter_riverpod.dart';
 import 'package:go_router/go_router.dart';
 import 'package:ivia_ui/ivia_ui.dart';
 
+import '../notifications/notification_watcher.dart';
 import '../orders/orders_providers.dart';
 import '../promo/promo_overlay.dart';
 
@@ -29,7 +30,7 @@ class BuyerShell extends ConsumerWidget {
   Widget build(BuildContext context, WidgetRef ref) {
     return Scaffold(
       // Publicité pendant la navigation (fenêtres et interstitiels).
-      body: PromoHost(child: shell),
+      body: NotificationWatcher(child: PromoHost(child: shell)),
       bottomNavigationBar: IviaBottomNav(
         items: buyerTabs,
         currentIndex: shell.currentIndex,

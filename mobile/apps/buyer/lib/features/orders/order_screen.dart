@@ -136,6 +136,7 @@ class _OrderScreenState extends ConsumerState<OrderScreen> {
     if (_cancelling) return;
     if (!await showCancelSheet(context, order) || !mounted) return;
     final messenger = ScaffoldMessenger.of(context);
+    final overlay = Overlay.of(context, rootOverlay: true);
     final client = ref.read(apiClientProvider);
     final controller = ref.read(orderProvider(widget.orderId).notifier);
     // Conteneur lu avant l'envoi : la liste, même chargée entre-temps,
@@ -166,7 +167,13 @@ class _OrderScreenState extends ConsumerState<OrderScreen> {
       } else {
         final cancelled = await client.cancelOrder(order.id);
         publish(cancelled);
-        showMessage(messenger, 'Commande annulée.');
+        showIviaNotificationOn(
+          overlay,
+          title: 'Commande annulée.',
+          body: 'Vos produits sont libérés.',
+          icon: Icons.cancel_outlined,
+          color: IviaColors.error,
+        );
       }
     } on ApiException catch (e) {
       if (e.isNetwork) {

@@ -758,7 +758,10 @@ void main() {
         findsOneWidget,
       );
 
-      // La liste suit : la commande est dans « Terminées ».
+      // La liste suit : la commande est dans « Terminées » (après la
+      // notification « Commande annulée », repartie seule).
+      await tester.pump(const Duration(seconds: 5));
+      await tester.pumpAndSettle();
       await tester.tap(find.byTooltip('Retour'));
       await tester.pumpAndSettle();
       await tester.tap(find.byIcon(Icons.receipt_long_outlined));
