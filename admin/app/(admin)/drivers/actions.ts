@@ -81,6 +81,38 @@ export async function checkVehicle(_: ActionResult | null, form: FormData): Prom
   };
 }
 
+/** Date d'expiration d'une pièce, lue sur le document ; vide pour la retirer. */
+export async function setDocumentExpiry(_: ActionResult | null, form: FormData): Promise<ActionResult> {
+  const id = String(form.get("id"));
+  const documentId = String(form.get("document_id"));
+  const value = String(form.get("expires_on") ?? "");
+  try {
+    await api(
+      `/v1/admin/drivers/${encodeURIComponent(id)}/documents/${encodeURIComponent(documentId)}/expiry`,
+      { method: "PUT", body: { expires_on: value || null } },
+    );
+  } catch (err) {
+    return failure(err);
+  }
+  refresh(id);
+  return { ok: true, message: value ? "Date d'expiration enregistrée." : "Date d'expiration retirée." };
+}
+
+/** Clôt un signalement de livreur avec la suite donnée. */
+export async function resolveIncident(_: ActionResult | null, form: FormData): Promise<ActionResult> {
+  const id = String(form.get("id"));
+  try {
+    await api(`/v1/admin/driver-incidents/${encodeURIComponent(id)}/resolve`, {
+      method: "POST",
+      body: { note: String(form.get("reason") ?? "") },
+    });
+  } catch (err) {
+    return failure(err);
+  }
+  revalidatePath("/driver-incidents");
+  return { ok: true, message: "Signalement clos." };
+}
+
 /** Réglages partenaires : ouverture du VTC, contrôle du véhicule en livraison, guide. */
 export async function saveDriverSettings(_: ActionResult | null, form: FormData): Promise<ActionResult> {
   const body: Schemas["DriverSettings"] = {

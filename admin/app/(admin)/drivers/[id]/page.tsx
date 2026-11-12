@@ -3,6 +3,7 @@ import Link from "next/link";
 import { notFound } from "next/navigation";
 
 import { ActionForm } from "@/components/action-form";
+import { ServerForm } from "@/components/server-form";
 import { Avatar, Card, CardTitle, DefinitionList, ErrorState, StatusBadge } from "@/components/ui";
 import { api, ApiError, type Schemas } from "@/lib/api";
 import {
@@ -14,7 +15,7 @@ import {
   statusOf,
   VEHICLE,
 } from "@/lib/format";
-import { checkVehicle, reviewActivity, reviewDriver } from "../actions";
+import { checkVehicle, reviewActivity, reviewDriver, setDocumentExpiry } from "../actions";
 
 export const metadata = { title: "Dossier partenaire" };
 
@@ -115,27 +116,45 @@ export default async function DriverPage({ params }: { params: Promise<{ id: str
         ) : (
           <ul className="grid grid-cols-2 gap-2">
             {d.documents.map((doc) => (
-              <li
-                key={doc.id}
-                className="flex items-center justify-between rounded-card bg-background px-4 py-3"
-              >
-                <span className="flex items-center gap-2 font-semibold">
-                  <FileText size={16} aria-hidden="true" className="text-secondary" />
-                  {DOCUMENT_KIND[doc.kind] ?? doc.kind}
-                </span>
-                {doc.url ? (
-                  // Lien temporaire (10 min) vers le compartiment privé.
-                  <a
-                    href={doc.url}
-                    target="_blank"
-                    rel="noreferrer"
-                    className="font-semibold text-secondary hover:underline"
-                  >
-                    Consulter
-                  </a>
-                ) : (
-                  <span className="text-text-muted">indisponible</span>
-                )}
+              <li key={doc.id} className="rounded-card bg-background px-4 py-3">
+                <div className="flex items-center justify-between">
+                  <span className="flex items-center gap-2 font-semibold">
+                    <FileText size={16} aria-hidden="true" className="text-secondary" />
+                    {DOCUMENT_KIND[doc.kind] ?? doc.kind}
+                  </span>
+                  {doc.url ? (
+                    // Lien temporaire (10 min) vers le compartiment privé.
+                    <a
+                      href={doc.url}
+                      target="_blank"
+                      rel="noreferrer"
+                      className="font-semibold text-secondary hover:underline"
+                    >
+                      Consulter
+                    </a>
+                  ) : (
+                    <span className="text-text-muted">indisponible</span>
+                  )}
+                </div>
+                <ServerForm
+                  action={setDocumentExpiry}
+                  submitLabel="Enregistrer"
+                  variant="outline"
+                  inline
+                  className="mt-2"
+                >
+                  <input type="hidden" name="id" value={d.user_id} />
+                  <input type="hidden" name="document_id" value={doc.id} />
+                  <label className="text-[13px] text-text-secondary">
+                    Expire le{" "}
+                    <input
+                      type="date"
+                      name="expires_on"
+                      defaultValue={doc.expires_on ?? ""}
+                      className="rounded-field border border-border px-2 py-1"
+                    />
+                  </label>
+                </ServerForm>
               </li>
             ))}
           </ul>

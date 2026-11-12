@@ -93,6 +93,15 @@ export const VEHICLE: Record<string, string> = { bicycle: "Vélo", motorbike: "M
 /** Activités partenaire (livreur, chauffeur). */
 export const DRIVER_ACTIVITY: Record<string, string> = { delivery: "Livraison", vtc: "Taxi VTC" };
 
+/** Signalements des livreurs. */
+export const INCIDENT_KIND: Record<string, string> = {
+  damaged_parcel: "Colis endommagé",
+  address_not_found: "Adresse introuvable",
+  code_refused: "Code refusé",
+  accident: "Accident ou urgence",
+  other: "Autre problème",
+};
+
 /** Ouverture du taxi VTC aux partenaires. */
 export const VTC_MODE: Record<string, string> = {
   hidden: "Masqué",

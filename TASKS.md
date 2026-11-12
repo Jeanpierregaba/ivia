@@ -45,22 +45,24 @@ Partie serveur faite par la spec 032 (tâches 3 à 11, vérifié le 2026-11-08) 
 - [x] **Backend** : compteurs du jour (alertes reçues, répondues, confirmées) ; l'app les calcule sur les 50 dernières alertes
 - [x] **Backend** : pièces du dossier en PDF : le serveur les accepte déjà ; le choix du fichier dans l'app est la tâche 19 de la 032
 - [x] **Backend** : push d'alerte iOS sans son imposé (`aps.sound`), pour que « Sonnerie coupée » s'applique aussi sur iPhone ; le réglage n'est proposé que sur Android
-- [ ] **Backend** : règlement des livreurs, dont le remboursement des espèces avancées aux pharmacies (ADR 0014) ; aujourd'hui visible au back-office, réglé à part
+- [ ] **Backend** : règlement des livreurs chaque lundi (décidé le 2026-11-12), dont les espèces avancées aux pharmacies (ADR 0014) : le montant est estimé dans `GET /v1/driver/summary`, reste l'enregistrement des versements au back-office
 - [ ] **Mobile** (antérieur à la 031) : si la lecture de la pharmacie échoue au lancement, une pharmacie validée voit le formulaire de création au lieu d'un écran « réessayer »
 
 ### Ivia Driver (033) — manques côté serveur
 L'app livreur calcule ou masque en attendant (tableau « calculé ou masqué » de la
 [spec 033](docs/specs/033-ivia-driver/spec.md)) :
-- [ ] **Backend** : notifications push des livreurs (proposition app fermée) ; aujourd'hui les propositions n'arrivent qu'app ouverte, la sonnerie est jouée par l'app
-- [ ] **Backend** : positions du retrait et du client dans la proposition (tracé de D10) ; la carte reste centrée sur le livreur
-- [ ] **Backend** : noms des articles d'une mission de boutique (D12) ; l'app n'a que leur nombre
-- [ ] **Backend** : étapes « arrivé à la pharmacie » et « arrivé chez le client » des courses pharmacie ; l'arrivée est gardée dans l'app
-- [ ] **Backend** : livraison impossible pour une course pharmacie (client injoignable) ; l'app renvoie au support
-- [ ] **Backend** : signalements (colis endommagé, adresse introuvable, code refusé, accident) avec photo et position ; l'app appelle le support
-- [ ] **Backend** : km parcourus, temps en ligne, note du livreur, demande par quartier, objectif du jour (D08, D09, D18, D19) : masqués
-- [ ] **Backend** : date et montant du prochain versement (D18) ; seul le compte de versement est affiché
-- [ ] **Backend** : totaux de gains (jour, semaine, mois) ; l'app les calcule sur 62 jours d'historique
-- [ ] **Backend** : date d'expiration des pièces (« permis jusqu'en 2027 », D19)
+- [x] **Backend** : notification push de chaque proposition (boutique et pharmacie), prioritaire, jamais affichée une fois expirée (Gedeon, 2026-11-12)
+- [ ] **Mobile** : enregistrer le jeton push de l'app livreur (`PUT /v1/me/devices`, `firebase_messaging`) pour recevoir les propositions app fermée
+- [x] **Backend** : `shop_location` et `client_area` (client arrondi à environ 1 km, adresse exacte après acceptation) dans la proposition (Gedeon, 2026-11-12)
+- [x] **Backend** : `items` (nom et quantité) dans la mission de boutique (Gedeon, 2026-11-12)
+- [x] **Backend** : `arrived-at-pharmacy` et `arrived-at-customer` des courses pharmacie (Gedeon, 2026-11-12)
+- [x] **Backend** : client injoignable sur une course pharmacie (`fail` après 10 min et 2 appels, puis `returned`) : produits rendus à la pharmacie, client remboursé hors frais de livraison, espèces avancées dues au livreur (Gedeon, 2026-11-12)
+- [x] **Backend** : signalements avec photo, position et mission (`POST /v1/driver/incidents`), page « Signalements livreurs » au back-office (Gedeon, 2026-11-12)
+- [x] **Backend** : km parcourus et temps en ligne du jour, de la semaine et du mois (`GET /v1/driver/summary`) (Gedeon, 2026-11-12)
+- [ ] **Produit** : note du livreur (aucun système de notation), demande par quartier, objectif du jour (D08, D09, D18, D19) : à définir
+- [x] **Backend** : prochain versement estimé dans `GET /v1/driver/summary` (chaque lundi pour la semaine écoulée, espèces avancées comprises) (Gedeon, 2026-11-12)
+- [x] **Backend** : totaux de gains jour, semaine et mois, boutique et pharmacie (`GET /v1/driver/summary`) (Gedeon, 2026-11-12)
+- [x] **Backend** : `expires_on` des pièces, saisie par l'admin à la vérification (fiche du livreur au back-office) (Gedeon, 2026-11-12)
 - [ ] **Backend** : modification du véhicule ou de la zone d'un livreur validé (aujourd'hui `application_locked`, l'app renvoie au support) — à décider
 - [ ] **Backend** : messagerie avec la boutique ou le client (D11, D13) : seul l'appel est proposé
 - [x] **Backend** : zones de travail de `GET /v1/driver/options` relues (Gedeon, 2026-11-08) : seules les zones desservies actives sont acceptées ; sans zone saisie au back-office, le dossier n'est plus bloqué (`seed-demo` n'en crée pas)
