@@ -101,12 +101,21 @@ func NewFCM(serviceAccountJSON []byte) (*FCM, error) {
 // coupée sur ce téléphone (sound faux ; sur Android, l'app applique elle-même son réglage).
 func fcmMessage(token, title, body string, data map[string]string, sound bool) map[string]any {
 	if data["urgent"] != "true" {
-		return map[string]any{
+		msg := map[string]any{
 			"token":        token,
 			"notification": map[string]string{"title": title, "body": body},
 			"data":         data,
 			"android":      map[string]any{"priority": "high"},
 		}
+		// Proposition à durée limitée (« expires_at ») : jamais affichée une fois expirée.
+		if exp, err := time.Parse(time.RFC3339, data["expires_at"]); err == nil {
+			ttl := max(int(time.Until(exp).Seconds()), 1)
+			msg["android"] = map[string]any{"priority": "high", "ttl": fmt.Sprintf("%ds", ttl)}
+			msg["apns"] = map[string]any{"headers": map[string]string{
+				"apns-priority": "10", "apns-expiration": fmt.Sprint(exp.Unix()),
+			}}
+		}
+		return msg
 	}
 	full := make(map[string]string, len(data)+2)
 	for k, v := range data {

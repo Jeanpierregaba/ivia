@@ -21,14 +21,16 @@ var contactStatuses = []string{"assigned", "at_shop", "picked_up", "at_customer"
 
 // Mission est la vue du livreur sur sa mission.
 type Mission struct {
-	ID             uuid.UUID  `json:"id"`
-	OrderID        uuid.UUID  `json:"order_id"`
-	OrderReference string     `json:"order_reference"`
-	Status         string     `json:"status"`
-	FeeXOF         int64      `json:"fee_xof"`
-	ItemsCount     int32      `json:"items_count"`
-	ParcelSize     string     `json:"parcel_size"`
-	Shop           MissionPOI `json:"shop"`
+	ID             uuid.UUID `json:"id"`
+	OrderID        uuid.UUID `json:"order_id"`
+	OrderReference string    `json:"order_reference"`
+	Status         string    `json:"status"`
+	FeeXOF         int64     `json:"fee_xof"`
+	ItemsCount     int32     `json:"items_count"`
+	// Items : articles à récupérer à la boutique (nom et quantité).
+	Items      []orders.DeliveryItem `json:"items"`
+	ParcelSize string                `json:"parcel_size"`
+	Shop       MissionPOI            `json:"shop"`
 	// Customer n'est renseigné que pendant la mission (jusqu'à la remise ou l'échec).
 	Customer          *MissionPOI `json:"customer"`
 	AssignedAt        time.Time   `json:"assigned_at"`
@@ -75,7 +77,7 @@ func (s *Service) missionView(ctx context.Context, deliveryID uuid.UUID) (Missio
 	}
 	out := Mission{
 		ID: m.ID, OrderID: m.OrderID, OrderReference: order.Reference, Status: m.Status, FeeXOF: m.FeeXof,
-		ItemsCount: order.ItemsCount, ParcelSize: order.ParcelSize,
+		ItemsCount: order.ItemsCount, Items: order.Items, ParcelSize: order.ParcelSize,
 		Shop: MissionPOI{
 			Name: shop.Name, Phone: shop.Phone, AddressText: shop.AddressText,
 			Neighborhood: shop.NeighborhoodName, Location: shop.Location,

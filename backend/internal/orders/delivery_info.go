@@ -23,7 +23,14 @@ type DeliveryOrder struct {
 	DeliveryFeeXOF int64
 	Address        DeliveryAddress
 	ItemsCount     int32
+	Items          []DeliveryItem
 	ReadyAt        *time.Time
+}
+
+// DeliveryItem est un article à récupérer, vu par le livreur (nom et quantité, sans prix).
+type DeliveryItem struct {
+	Name     string `json:"name"`
+	Quantity int32  `json:"quantity"`
 }
 
 // ForDelivery retourne une commande en livraison (erreur si elle n'est pas en mode livraison).
@@ -36,13 +43,15 @@ func (s *Service) ForDelivery(ctx context.Context, orderID uuid.UUID) (DeliveryO
 		return DeliveryOrder{}, apperr.Conflict("not_a_delivery", "Cette commande n'est pas à livrer.")
 	}
 	var n int32
-	for _, it := range o.Items {
+	items := make([]DeliveryItem, len(o.Items))
+	for i, it := range o.Items {
 		n += it.Quantity
+		items[i] = DeliveryItem{Name: it.ProductName, Quantity: it.Quantity}
 	}
 	return DeliveryOrder{
 		ID: o.ID, Reference: o.Reference, Status: o.Status, ShopID: o.ShopID, BuyerID: o.BuyerID,
 		VehicleType: *o.VehicleType, ParcelSize: o.ParcelSize, DeliveryFeeXOF: o.DeliveryFeeXOF,
-		Address: *o.DeliveryAddress, ItemsCount: n, ReadyAt: o.ReadyAt,
+		Address: *o.DeliveryAddress, ItemsCount: n, Items: items, ReadyAt: o.ReadyAt,
 	}, nil
 }
 

@@ -13524,6 +13524,12 @@ components:
         expires_at:
           type: string
           format: date-time
+        shop_location:
+          "$ref": "#/components/schemas/Point"
+        client_area:
+          allOf:
+            - "$ref": "#/components/schemas/Point"
+          description: "Position du client arrondie à 2 décimales (environ 1 km), pour le tracé. L'adresse exacte n'est donnée qu'après acceptation, dans la mission."
       required:
         - id
         - order_id
@@ -13537,6 +13543,8 @@ components:
         - parcel_size
         - earning_xof
         - expires_at
+        - shop_location
+        - client_area
     MissionPOI:
       type: object
       properties:
@@ -13587,6 +13595,19 @@ components:
           description: "Montant en FCFA (entier)."
         items_count:
           type: integer
+        items:
+          type: array
+          description: "Articles à récupérer à la boutique (nom et quantité, sans prix)."
+          items:
+            type: object
+            properties:
+              name:
+                type: string
+              quantity:
+                type: integer
+            required:
+              - name
+              - quantity
         parcel_size:
           type: string
         shop:

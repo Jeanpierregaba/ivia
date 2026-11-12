@@ -6208,6 +6208,9 @@ export interface components {
             earning_xof: number;
             /** Format: date-time */
             expires_at: string;
+            shop_location: components["schemas"]["Point"];
+            /** @description Position du client arrondie à 2 décimales (environ 1 km), pour le tracé. L'adresse exacte n'est donnée qu'après acceptation, dans la mission. */
+            client_area: components["schemas"]["Point"];
         };
         MissionPOI: {
             name: string;
@@ -6231,6 +6234,11 @@ export interface components {
              */
             fee_xof: number;
             items_count: number;
+            /** @description Articles à récupérer à la boutique (nom et quantité, sans prix). */
+            items?: {
+                name: string;
+                quantity: number;
+            }[];
             parcel_size: string;
             shop: components["schemas"]["MissionPOI"];
             /** @description Uniquement pendant la mission (jusqu'à la remise ou l'échec). */

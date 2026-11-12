@@ -3,12 +3,14 @@ package delivery
 import (
 	"context"
 	"fmt"
+	"math"
 	"time"
 
 	"github.com/google/uuid"
 	"github.com/riverqueue/river"
 
 	"ivia/backend/internal/delivery/store"
+	"ivia/backend/internal/geo"
 	"ivia/backend/internal/notifications"
 	"ivia/backend/internal/orders"
 	"ivia/backend/internal/platform/apperr"
@@ -31,6 +33,16 @@ type Offer struct {
 	// EarningXOF est le gain indicatif (frais de livraison de la commande).
 	EarningXOF int64     `json:"earning_xof"`
 	ExpiresAt  time.Time `json:"expires_at"`
+	// ShopLocation : position exacte de la boutique (lieu public).
+	ShopLocation geo.Point `json:"shop_location"`
+	// ClientArea : position du client arrondie à 2 décimales (environ 1 km), pour le tracé de la
+	// proposition. L'adresse exacte n'est donnée qu'après acceptation, dans la mission.
+	ClientArea geo.Point `json:"client_area"`
+}
+
+// roughArea arrondit une position à 2 décimales (environ 1 km).
+func roughArea(p geo.Point) geo.Point {
+	return geo.Point{Lat: math.Round(p.Lat*100) / 100, Lng: math.Round(p.Lng*100) / 100}
 }
 
 // assignOutcome est le résultat d'une tentative d'attribution.
@@ -134,7 +146,7 @@ func (s *Service) assign(ctx context.Context, orderID uuid.UUID) (assignOutcome,
 		return s.notify.Notify(ctx, notifications.Message{
 			UserID: driver.UserID, App: notifications.AppDriver, Kind: "delivery_offer",
 			Title: "Nouvelle mission", Body: fmt.Sprintf("%s · %d m de vous. Répondez vite !", shop.Name, int64(driver.DistanceM+0.5)),
-			Data: map[string]string{"offer_id": offer.ID.String()},
+			Data: map[string]string{"offer_id": offer.ID.String(), "expires_at": expires.UTC().Format(time.RFC3339)},
 		})
 	})
 	return outcome, err
@@ -172,6 +184,7 @@ func (s *Service) CurrentOffer(ctx context.Context, driverID uuid.UUID) (*Offer,
 		ShopNeighborood: shop.NeighborhoodName, DeliveryArea: order.Address.Neighborhood,
 		DistanceToShopM: o.DistanceToShopM, ShopToClientM: dist, ParcelSize: order.ParcelSize,
 		EarningXOF: order.DeliveryFeeXOF, ExpiresAt: o.ExpiresAt,
+		ShopLocation: shop.Location, ClientArea: roughArea(order.Address.Location),
 	}, nil
 }
 
