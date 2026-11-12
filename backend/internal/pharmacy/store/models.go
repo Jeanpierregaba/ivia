@@ -79,6 +79,12 @@ type PharmacyDelivery struct {
 	PickupCode          *string
 	CashPaidXof         *int64
 	CashPaidAt          *time.Time
+	ArrivedPharmacyAt   *time.Time
+	ArrivedCustomerAt   *time.Time
+	FailedAt            *time.Time
+	FailureReason       string
+	CallAttempts        int32
+	ReturnedAt          *time.Time
 }
 
 type PharmacyDocument struct {
@@ -120,6 +126,7 @@ type PharmacyPayment struct {
 	CreatedAt       time.Time
 	UpdatedAt       time.Time
 	ResponseID      *uuid.UUID
+	RefundAmountXof *int64
 }
 
 type PharmacyPayout struct {

@@ -568,10 +568,10 @@ SELECT * FROM pharmacy_deliveries WHERE id = $1;
 SELECT * FROM pharmacy_deliveries WHERE id = $1 FOR UPDATE;
 
 -- name: ActiveDeliveryForDriver :one
-SELECT * FROM pharmacy_deliveries WHERE driver_id = $1 AND status IN ('assigned', 'picked_up');
+SELECT * FROM pharmacy_deliveries WHERE driver_id = $1 AND status IN ('assigned', 'picked_up', 'returning');
 
 -- name: ActiveDeliveryForReservation :one
-SELECT * FROM pharmacy_deliveries WHERE reservation_id = $1 AND status IN ('assigned', 'picked_up');
+SELECT * FROM pharmacy_deliveries WHERE reservation_id = $1 AND status IN ('assigned', 'picked_up', 'returning');
 
 -- name: LatestDeliveryForReservation :one
 SELECT * FROM pharmacy_deliveries WHERE reservation_id = $1 ORDER BY created_at DESC LIMIT 1;
@@ -583,9 +583,28 @@ UPDATE pharmacy_deliveries SET prescription_checked = true, updated_at = now() W
 UPDATE pharmacy_deliveries SET status = sqlc.arg(new_status),
   picked_up_at = CASE WHEN sqlc.arg(new_status) = 'picked_up' THEN now() ELSE picked_up_at END,
   delivered_at = CASE WHEN sqlc.arg(new_status) = 'delivered' THEN now() ELSE delivered_at END,
-  ended_at = CASE WHEN sqlc.arg(new_status) IN ('delivered', 'cancelled') THEN now() ELSE ended_at END,
+  returned_at = CASE WHEN sqlc.arg(new_status) = 'returned' THEN now() ELSE returned_at END,
+  ended_at = CASE WHEN sqlc.arg(new_status) IN ('delivered', 'cancelled', 'returned') THEN now() ELSE ended_at END,
   updated_at = now()
 WHERE id = sqlc.arg(id) AND status = ANY(sqlc.arg(from_statuses)::text[]);
+
+-- name: SetDeliveryArrivedPharmacy :execrows
+UPDATE pharmacy_deliveries SET arrived_pharmacy_at = coalesce(arrived_pharmacy_at, now()), updated_at = now()
+WHERE id = $1 AND status = 'assigned';
+
+-- name: SetDeliveryArrivedCustomer :execrows
+UPDATE pharmacy_deliveries SET arrived_customer_at = coalesce(arrived_customer_at, now()), updated_at = now()
+WHERE id = $1 AND status = 'picked_up';
+
+-- name: SetDeliveryFailed :execrows
+-- Client injoignable : le livreur rapporte les produits à la pharmacie.
+UPDATE pharmacy_deliveries
+SET status = 'returning', failed_at = now(), failure_reason = sqlc.arg(reason), call_attempts = sqlc.arg(call_attempts),
+    updated_at = now()
+WHERE id = sqlc.arg(id) AND status = 'picked_up';
+
+-- name: SetPaymentRefundAmount :exec
+UPDATE pharmacy_payments SET refund_amount_xof = sqlc.arg(amount_xof) WHERE id = sqlc.arg(id);
 
 -- name: ListDriverDeliveries :many
 SELECT * FROM pharmacy_deliveries WHERE driver_id = $1 ORDER BY created_at DESC LIMIT sqlc.arg(lim) OFFSET sqlc.arg(off);

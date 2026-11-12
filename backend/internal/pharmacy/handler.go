@@ -1,6 +1,7 @@
 package pharmacy
 
 import (
+	"context"
 	"net/http"
 	"strconv"
 	"time"
@@ -110,6 +111,10 @@ func (h *Handler) Register(rt *httpapi.Router) {
 	rt.Roles("POST /v1/driver/pharmacy-missions/{id}/picked-up", h.pickedUp, dr)
 	rt.Roles("POST /v1/driver/pharmacy-missions/{id}/delivered", h.delivered, dr)
 	rt.Roles("POST /v1/driver/pharmacy-missions/{id}/withdraw", h.withdraw, dr)
+	rt.Roles("POST /v1/driver/pharmacy-missions/{id}/arrived-at-pharmacy", h.courierStep(h.svc.CourierArrivedAtPharmacy), dr)
+	rt.Roles("POST /v1/driver/pharmacy-missions/{id}/arrived-at-customer", h.courierStep(h.svc.CourierArrivedAtCustomer), dr)
+	rt.Roles("POST /v1/driver/pharmacy-missions/{id}/fail", h.courierFail, dr)
+	rt.Roles("POST /v1/driver/pharmacy-missions/{id}/returned", h.courierStep(h.svc.CourierReturned), dr)
 
 	// Back-office.
 	ad := identity.RoleAdmin
@@ -633,6 +638,27 @@ func (h *Handler) withdraw(w http.ResponseWriter, r *http.Request) error {
 		return err
 	}
 	return httpapi.NoContent(w)
+}
+
+func (h *Handler) courierStep(fn func(context.Context, uuid.UUID, uuid.UUID) (CourierMission, error)) httpapi.HandlerFunc {
+	return func(w http.ResponseWriter, r *http.Request) error {
+		v, err := withID(r, func(id uuid.UUID) (any, error) { return fn(r.Context(), me(r), id) })
+		return ok(w, v, err)
+	}
+}
+
+func (h *Handler) courierFail(w http.ResponseWriter, r *http.Request) error {
+	var in struct {
+		Reason       string `json:"reason"`
+		CallAttempts int32  `json:"call_attempts"`
+	}
+	if err := httpapi.Decode(r, &in); err != nil {
+		return err
+	}
+	v, err := withID(r, func(id uuid.UUID) (any, error) {
+		return h.svc.CourierFail(r.Context(), me(r), id, in.Reason, in.CallAttempts)
+	})
+	return ok(w, v, err)
 }
 
 // --- Back-office ------------------------------------------------------------------------------

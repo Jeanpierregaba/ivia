@@ -44,10 +44,16 @@ type CourierMission struct {
 	PreparedAt                *time.Time `json:"prepared_at"`
 	Pharmacy                  MissionPOI `json:"pharmacy"`
 	// Client : coordonnées données seulement pendant la course.
-	Client      *MissionPOI `json:"client"`
-	AssignedAt  time.Time   `json:"assigned_at"`
-	PickedUpAt  *time.Time  `json:"picked_up_at"`
-	DeliveredAt *time.Time  `json:"delivered_at"`
+	Client            *MissionPOI `json:"client"`
+	AssignedAt        time.Time   `json:"assigned_at"`
+	ArrivedPharmacyAt *time.Time  `json:"arrived_pharmacy_at"`
+	PickedUpAt        *time.Time  `json:"picked_up_at"`
+	ArrivedCustomerAt *time.Time  `json:"arrived_customer_at"`
+	DeliveredAt       *time.Time  `json:"delivered_at"`
+	// FailedAt et FailureReason : client injoignable, produits rapportés à la pharmacie.
+	FailedAt      *time.Time `json:"failed_at"`
+	FailureReason string     `json:"failure_reason"`
+	ReturnedAt    *time.Time `json:"returned_at"`
 	// PickupCode : code de retrait à montrer à la pharmacie, tant que la remise n'est pas validée.
 	PickupCode *string `json:"pickup_code"`
 	// CashAdvancedXOF : espèces payées à la pharmacie par le livreur, que ivia lui rembourse.
@@ -339,7 +345,9 @@ func (s *Service) missionView(ctx context.Context, deliveryID uuid.UUID) (Courie
 		Pharmacy: MissionPOI{
 			Name: ph.Name, Phone: ph.Phone, AddressText: ph.AddressText, Location: geo.Point{Lat: ph.Lat, Lng: ph.Lng},
 		},
-		AssignedAt: d.AssignedAt, PickedUpAt: d.PickedUpAt, DeliveredAt: d.DeliveredAt, CashAdvancedXOF: d.CashPaidXof,
+		AssignedAt: d.AssignedAt, ArrivedPharmacyAt: d.ArrivedPharmacyAt, PickedUpAt: d.PickedUpAt,
+		ArrivedCustomerAt: d.ArrivedCustomerAt, DeliveredAt: d.DeliveredAt, CashAdvancedXOF: d.CashPaidXof,
+		FailedAt: d.FailedAt, FailureReason: d.FailureReason, ReturnedAt: d.ReturnedAt,
 	}
 	if d.Status == "assigned" {
 		m.PickupCode = d.PickupCode

@@ -3896,6 +3896,86 @@ export interface paths {
         patch?: never;
         trace?: never;
     };
+    "/v1/driver/pharmacy-missions/{id}/arrived-at-pharmacy": {
+        parameters: {
+            query?: never;
+            header?: never;
+            path?: never;
+            cookie?: never;
+        };
+        get?: never;
+        put?: never;
+        /**
+         * Arrivé à la pharmacie
+         * @description Avant la remise des produits ; sans effet si déjà signalé.
+         */
+        post: operations["postDriverPharmacyMissionsByIdArrivedAtPharmacy"];
+        delete?: never;
+        options?: never;
+        head?: never;
+        patch?: never;
+        trace?: never;
+    };
+    "/v1/driver/pharmacy-missions/{id}/arrived-at-customer": {
+        parameters: {
+            query?: never;
+            header?: never;
+            path?: never;
+            cookie?: never;
+        };
+        get?: never;
+        put?: never;
+        /**
+         * Arrivé chez le client
+         * @description Après la récupération ; démarre le délai d'attente avant un éventuel échec.
+         */
+        post: operations["postDriverPharmacyMissionsByIdArrivedAtCustomer"];
+        delete?: never;
+        options?: never;
+        head?: never;
+        patch?: never;
+        trace?: never;
+    };
+    "/v1/driver/pharmacy-missions/{id}/fail": {
+        parameters: {
+            query?: never;
+            header?: never;
+            path?: never;
+            cookie?: never;
+        };
+        get?: never;
+        put?: never;
+        /**
+         * Client injoignable : rapporter les produits
+         * @description Après 10 minutes chez le client et 2 appels au moins (409 `wait_required`, 422 sur `call_attempts`). La course passe en retour vers la pharmacie ; pharmacie et client prévenus.
+         */
+        post: operations["postDriverPharmacyMissionsByIdFail"];
+        delete?: never;
+        options?: never;
+        head?: never;
+        patch?: never;
+        trace?: never;
+    };
+    "/v1/driver/pharmacy-missions/{id}/returned": {
+        parameters: {
+            query?: never;
+            header?: never;
+            path?: never;
+            cookie?: never;
+        };
+        get?: never;
+        put?: never;
+        /**
+         * Produits rendus à la pharmacie
+         * @description Réservation annulée, client remboursé de ses produits (frais de livraison acquis), livreur libéré ; les espèces avancées lui restent dues.
+         */
+        post: operations["postDriverPharmacyMissionsByIdReturned"];
+        delete?: never;
+        options?: never;
+        head?: never;
+        patch?: never;
+        trace?: never;
+    };
     "/v1/admin/pharmacies": {
         parameters: {
             query?: never;
@@ -7394,7 +7474,7 @@ export interface components {
             reservation_id: string;
             number: string;
             /** @enum {string} */
-            status: "assigned" | "picked_up" | "delivered" | "cancelled";
+            status: "assigned" | "picked_up" | "returning" | "returned" | "delivered" | "cancelled";
             /** Format: int64 */
             fee_xof: number;
             lines: components["schemas"]["MedicineResponseLine"][];
@@ -7408,7 +7488,17 @@ export interface components {
             /** Format: date-time */
             picked_up_at: string | null;
             /** Format: date-time */
+            arrived_pharmacy_at?: string | null;
+            /** Format: date-time */
+            arrived_customer_at?: string | null;
+            /** Format: date-time */
             delivered_at: string | null;
+            /** Format: date-time */
+            failed_at?: string | null;
+            /** @description Client injoignable : motif du retour des produits à la pharmacie. */
+            failure_reason?: string;
+            /** Format: date-time */
+            returned_at?: string | null;
             /** @description Code de retrait à montrer à la pharmacie, tant que la remise n'est pas validée (null pour une course sans code). */
             pickup_code?: string | null;
             /**
@@ -15596,6 +15686,137 @@ export interface operations {
                     [name: string]: unknown;
                 };
                 content?: never;
+            };
+            /** @description Erreur (voir `code`) */
+            default: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["Error"];
+                };
+            };
+        };
+    };
+    postDriverPharmacyMissionsByIdArrivedAtPharmacy: {
+        parameters: {
+            query?: never;
+            header?: never;
+            path: {
+                id: string;
+            };
+            cookie?: never;
+        };
+        requestBody?: never;
+        responses: {
+            /** @description Succès */
+            200: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["PharmacyCourierMission"];
+                };
+            };
+            /** @description Erreur (voir `code`) */
+            default: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["Error"];
+                };
+            };
+        };
+    };
+    postDriverPharmacyMissionsByIdArrivedAtCustomer: {
+        parameters: {
+            query?: never;
+            header?: never;
+            path: {
+                id: string;
+            };
+            cookie?: never;
+        };
+        requestBody?: never;
+        responses: {
+            /** @description Succès */
+            200: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["PharmacyCourierMission"];
+                };
+            };
+            /** @description Erreur (voir `code`) */
+            default: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["Error"];
+                };
+            };
+        };
+    };
+    postDriverPharmacyMissionsByIdFail: {
+        parameters: {
+            query?: never;
+            header?: never;
+            path: {
+                id: string;
+            };
+            cookie?: never;
+        };
+        requestBody: {
+            content: {
+                "application/json": {
+                    reason?: string;
+                    call_attempts: number;
+                };
+            };
+        };
+        responses: {
+            /** @description Succès */
+            200: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["PharmacyCourierMission"];
+                };
+            };
+            /** @description Erreur (voir `code`) */
+            default: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["Error"];
+                };
+            };
+        };
+    };
+    postDriverPharmacyMissionsByIdReturned: {
+        parameters: {
+            query?: never;
+            header?: never;
+            path: {
+                id: string;
+            };
+            cookie?: never;
+        };
+        requestBody?: never;
+        responses: {
+            /** @description Succès */
+            200: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["PharmacyCourierMission"];
+                };
             };
             /** @description Erreur (voir `code`) */
             default: {

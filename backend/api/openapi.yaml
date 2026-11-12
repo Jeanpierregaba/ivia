@@ -8408,6 +8408,135 @@ paths:
             application/json:
               schema:
                 "$ref": "#/components/schemas/Error"
+  "/v1/driver/pharmacy-missions/{id}/arrived-at-pharmacy":
+    post:
+      summary: "Arrivé à la pharmacie"
+      description: "Avant la remise des produits ; sans effet si déjà signalé."
+      tags:
+        - Livreur
+      operationId: postDriverPharmacyMissionsByIdArrivedAtPharmacy
+      parameters:
+        - name: id
+          in: path
+          required: true
+          schema:
+            type: string
+            format: uuid
+      x-roles:
+        - driver
+      responses:
+        "200":
+          description: "Succès"
+          content:
+            application/json:
+              schema:
+                "$ref": "#/components/schemas/PharmacyCourierMission"
+        default:
+          description: "Erreur (voir `code`)"
+          content:
+            application/json:
+              schema:
+                "$ref": "#/components/schemas/Error"
+  "/v1/driver/pharmacy-missions/{id}/arrived-at-customer":
+    post:
+      summary: "Arrivé chez le client"
+      description: "Après la récupération ; démarre le délai d'attente avant un éventuel échec."
+      tags:
+        - Livreur
+      operationId: postDriverPharmacyMissionsByIdArrivedAtCustomer
+      parameters:
+        - name: id
+          in: path
+          required: true
+          schema:
+            type: string
+            format: uuid
+      x-roles:
+        - driver
+      responses:
+        "200":
+          description: "Succès"
+          content:
+            application/json:
+              schema:
+                "$ref": "#/components/schemas/PharmacyCourierMission"
+        default:
+          description: "Erreur (voir `code`)"
+          content:
+            application/json:
+              schema:
+                "$ref": "#/components/schemas/Error"
+  "/v1/driver/pharmacy-missions/{id}/fail":
+    post:
+      summary: "Client injoignable : rapporter les produits"
+      description: "Après 10 minutes chez le client et 2 appels au moins (409 `wait_required`, 422 sur `call_attempts`). La course passe en retour vers la pharmacie ; pharmacie et client prévenus."
+      tags:
+        - Livreur
+      operationId: postDriverPharmacyMissionsByIdFail
+      parameters:
+        - name: id
+          in: path
+          required: true
+          schema:
+            type: string
+            format: uuid
+      x-roles:
+        - driver
+      requestBody:
+        required: true
+        content:
+          application/json:
+            schema:
+              type: object
+              properties:
+                reason:
+                  type: string
+                call_attempts:
+                  type: integer
+              required:
+                - call_attempts
+      responses:
+        "200":
+          description: "Succès"
+          content:
+            application/json:
+              schema:
+                "$ref": "#/components/schemas/PharmacyCourierMission"
+        default:
+          description: "Erreur (voir `code`)"
+          content:
+            application/json:
+              schema:
+                "$ref": "#/components/schemas/Error"
+  "/v1/driver/pharmacy-missions/{id}/returned":
+    post:
+      summary: "Produits rendus à la pharmacie"
+      description: "Réservation annulée, client remboursé de ses produits (frais de livraison acquis), livreur libéré ; les espèces avancées lui restent dues."
+      tags:
+        - Livreur
+      operationId: postDriverPharmacyMissionsByIdReturned
+      parameters:
+        - name: id
+          in: path
+          required: true
+          schema:
+            type: string
+            format: uuid
+      x-roles:
+        - driver
+      responses:
+        "200":
+          description: "Succès"
+          content:
+            application/json:
+              schema:
+                "$ref": "#/components/schemas/PharmacyCourierMission"
+        default:
+          description: "Erreur (voir `code`)"
+          content:
+            application/json:
+              schema:
+                "$ref": "#/components/schemas/Error"
   "/v1/admin/pharmacies":
     get:
       summary: "Pharmacies"
@@ -16174,6 +16303,8 @@ components:
           enum:
             - assigned
             - picked_up
+            - returning
+            - returned
             - delivered
             - cancelled
         fee_xof:
@@ -16204,7 +16335,30 @@ components:
             - string
             - "null"
           format: date-time
+        arrived_pharmacy_at:
+          type:
+            - string
+            - "null"
+          format: date-time
+        arrived_customer_at:
+          type:
+            - string
+            - "null"
+          format: date-time
         delivered_at:
+          type:
+            - string
+            - "null"
+          format: date-time
+        failed_at:
+          type:
+            - string
+            - "null"
+          format: date-time
+        failure_reason:
+          type: string
+          description: "Client injoignable : motif du retour des produits à la pharmacie."
+        returned_at:
           type:
             - string
             - "null"

@@ -474,6 +474,14 @@ func (s *Service) startRefund(ctx context.Context, adminID *uuid.UUID, pay store
 	return s.jobs.Enqueue(ctx, RefundArgs{PaymentID: pay.ID}, nil)
 }
 
+// refundAmount : montant à rembourser, le paiement entier sauf remboursement partiel enregistré.
+func refundAmount(pay store.PharmacyPayment) int64 {
+	if pay.RefundAmountXof != nil {
+		return *pay.RefundAmountXof
+	}
+	return pay.AmountXof
+}
+
 // AdminRefund rembourse un paiement réussi (ex. déblocage alors qu'aucune pharmacie n'a pu
 // servir le client). Journalisé.
 func (s *Service) AdminRefund(ctx context.Context, adminID, paymentID uuid.UUID, reason string) (Payment, error) {
@@ -519,7 +527,7 @@ func (s *Service) executeRefund(ctx context.Context, paymentID uuid.UUID) error 
 	res, err := s.provider.PayoutStatus(ctx, *pay.RefundReference)
 	if errors.Is(err, payments.ErrPayoutNotFound) {
 		res, err = s.provider.Payout(ctx, payments.PayoutRequest{
-			Reference: *pay.RefundReference, AmountXOF: pay.AmountXof, Operator: payments.Operator(pay.Operator),
+			Reference: *pay.RefundReference, AmountXOF: refundAmount(pay), Operator: payments.Operator(pay.Operator),
 			Phone: pay.PayerPhone, Reason: "Remboursement alerte médicament",
 		})
 	}
@@ -548,7 +556,7 @@ func (s *Service) executeRefund(ctx context.Context, paymentID uuid.UUID) error 
 		}
 		return s.notify.Notify(ctx, notifications.Message{
 			UserID: pay.BuyerID, App: notifications.AppBuyer, Kind: "payment_refunded", Title: "Remboursement effectué",
-			Body: fmt.Sprintf("%d FCFA vous ont été remboursés sur votre compte Mobile Money.", pay.AmountXof),
+			Body: fmt.Sprintf("%d FCFA vous ont été remboursés sur votre compte Mobile Money.", refundAmount(pay)),
 			Data: map[string]string{"alert_id": pay.AlertID.String()},
 		})
 	})

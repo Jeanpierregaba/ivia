@@ -13,7 +13,7 @@ import (
 )
 
 const activeDeliveryForDriver = `-- name: ActiveDeliveryForDriver :one
-SELECT id, reservation_id, driver_id, offer_id, status, fee_xof, assigned_at, picked_up_at, delivered_at, ended_at, created_at, updated_at, prescription_checked, pickup_code, cash_paid_xof, cash_paid_at FROM pharmacy_deliveries WHERE driver_id = $1 AND status IN ('assigned', 'picked_up')
+SELECT id, reservation_id, driver_id, offer_id, status, fee_xof, assigned_at, picked_up_at, delivered_at, ended_at, created_at, updated_at, prescription_checked, pickup_code, cash_paid_xof, cash_paid_at, arrived_pharmacy_at, arrived_customer_at, failed_at, failure_reason, call_attempts, returned_at FROM pharmacy_deliveries WHERE driver_id = $1 AND status IN ('assigned', 'picked_up', 'returning')
 `
 
 func (q *Queries) ActiveDeliveryForDriver(ctx context.Context, driverID uuid.UUID) (PharmacyDelivery, error) {
@@ -36,12 +36,18 @@ func (q *Queries) ActiveDeliveryForDriver(ctx context.Context, driverID uuid.UUI
 		&i.PickupCode,
 		&i.CashPaidXof,
 		&i.CashPaidAt,
+		&i.ArrivedPharmacyAt,
+		&i.ArrivedCustomerAt,
+		&i.FailedAt,
+		&i.FailureReason,
+		&i.CallAttempts,
+		&i.ReturnedAt,
 	)
 	return i, err
 }
 
 const activeDeliveryForReservation = `-- name: ActiveDeliveryForReservation :one
-SELECT id, reservation_id, driver_id, offer_id, status, fee_xof, assigned_at, picked_up_at, delivered_at, ended_at, created_at, updated_at, prescription_checked, pickup_code, cash_paid_xof, cash_paid_at FROM pharmacy_deliveries WHERE reservation_id = $1 AND status IN ('assigned', 'picked_up')
+SELECT id, reservation_id, driver_id, offer_id, status, fee_xof, assigned_at, picked_up_at, delivered_at, ended_at, created_at, updated_at, prescription_checked, pickup_code, cash_paid_xof, cash_paid_at, arrived_pharmacy_at, arrived_customer_at, failed_at, failure_reason, call_attempts, returned_at FROM pharmacy_deliveries WHERE reservation_id = $1 AND status IN ('assigned', 'picked_up', 'returning')
 `
 
 func (q *Queries) ActiveDeliveryForReservation(ctx context.Context, reservationID uuid.UUID) (PharmacyDelivery, error) {
@@ -64,6 +70,12 @@ func (q *Queries) ActiveDeliveryForReservation(ctx context.Context, reservationI
 		&i.PickupCode,
 		&i.CashPaidXof,
 		&i.CashPaidAt,
+		&i.ArrivedPharmacyAt,
+		&i.ArrivedCustomerAt,
+		&i.FailedAt,
+		&i.FailureReason,
+		&i.CallAttempts,
+		&i.ReturnedAt,
 	)
 	return i, err
 }
@@ -537,7 +549,7 @@ func (q *Queries) CreateCourierOffer(ctx context.Context, arg CreateCourierOffer
 
 const createDelivery = `-- name: CreateDelivery :one
 INSERT INTO pharmacy_deliveries (reservation_id, driver_id, offer_id, fee_xof, pickup_code) VALUES ($1, $2, $3, $4, $5)
-RETURNING id, reservation_id, driver_id, offer_id, status, fee_xof, assigned_at, picked_up_at, delivered_at, ended_at, created_at, updated_at, prescription_checked, pickup_code, cash_paid_xof, cash_paid_at
+RETURNING id, reservation_id, driver_id, offer_id, status, fee_xof, assigned_at, picked_up_at, delivered_at, ended_at, created_at, updated_at, prescription_checked, pickup_code, cash_paid_xof, cash_paid_at, arrived_pharmacy_at, arrived_customer_at, failed_at, failure_reason, call_attempts, returned_at
 `
 
 type CreateDeliveryParams struct {
@@ -574,6 +586,12 @@ func (q *Queries) CreateDelivery(ctx context.Context, arg CreateDeliveryParams) 
 		&i.PickupCode,
 		&i.CashPaidXof,
 		&i.CashPaidAt,
+		&i.ArrivedPharmacyAt,
+		&i.ArrivedCustomerAt,
+		&i.FailedAt,
+		&i.FailureReason,
+		&i.CallAttempts,
+		&i.ReturnedAt,
 	)
 	return i, err
 }
@@ -583,7 +601,7 @@ const createPayment = `-- name: CreatePayment :one
 INSERT INTO pharmacy_payments (purpose, alert_id, reservation_id, response_id, buyer_id, provider, reference, amount_xof, operator, payer_phone)
 VALUES ($1, $2, $3, $4, $5, $6,
         $7, $8, $9, $10)
-RETURNING id, purpose, alert_id, reservation_id, buyer_id, provider, reference, provider_ref, amount_xof, currency, operator, payer_phone, status, failure_reason, succeeded_at, refund_reference, created_at, updated_at, response_id
+RETURNING id, purpose, alert_id, reservation_id, buyer_id, provider, reference, provider_ref, amount_xof, currency, operator, payer_phone, status, failure_reason, succeeded_at, refund_reference, created_at, updated_at, response_id, refund_amount_xof
 `
 
 type CreatePaymentParams struct {
@@ -634,6 +652,7 @@ func (q *Queries) CreatePayment(ctx context.Context, arg CreatePaymentParams) (P
 		&i.CreatedAt,
 		&i.UpdatedAt,
 		&i.ResponseID,
+		&i.RefundAmountXof,
 	)
 	return i, err
 }
@@ -1011,7 +1030,7 @@ func (q *Queries) GetAlert(ctx context.Context, id uuid.UUID) (GetAlertRow, erro
 }
 
 const getDelivery = `-- name: GetDelivery :one
-SELECT id, reservation_id, driver_id, offer_id, status, fee_xof, assigned_at, picked_up_at, delivered_at, ended_at, created_at, updated_at, prescription_checked, pickup_code, cash_paid_xof, cash_paid_at FROM pharmacy_deliveries WHERE id = $1
+SELECT id, reservation_id, driver_id, offer_id, status, fee_xof, assigned_at, picked_up_at, delivered_at, ended_at, created_at, updated_at, prescription_checked, pickup_code, cash_paid_xof, cash_paid_at, arrived_pharmacy_at, arrived_customer_at, failed_at, failure_reason, call_attempts, returned_at FROM pharmacy_deliveries WHERE id = $1
 `
 
 func (q *Queries) GetDelivery(ctx context.Context, id uuid.UUID) (PharmacyDelivery, error) {
@@ -1034,6 +1053,12 @@ func (q *Queries) GetDelivery(ctx context.Context, id uuid.UUID) (PharmacyDelive
 		&i.PickupCode,
 		&i.CashPaidXof,
 		&i.CashPaidAt,
+		&i.ArrivedPharmacyAt,
+		&i.ArrivedCustomerAt,
+		&i.FailedAt,
+		&i.FailureReason,
+		&i.CallAttempts,
+		&i.ReturnedAt,
 	)
 	return i, err
 }
@@ -1059,7 +1084,7 @@ func (q *Queries) GetMedicine(ctx context.Context, id uuid.UUID) (Medicine, erro
 }
 
 const getPayment = `-- name: GetPayment :one
-SELECT id, purpose, alert_id, reservation_id, buyer_id, provider, reference, provider_ref, amount_xof, currency, operator, payer_phone, status, failure_reason, succeeded_at, refund_reference, created_at, updated_at, response_id FROM pharmacy_payments WHERE id = $1
+SELECT id, purpose, alert_id, reservation_id, buyer_id, provider, reference, provider_ref, amount_xof, currency, operator, payer_phone, status, failure_reason, succeeded_at, refund_reference, created_at, updated_at, response_id, refund_amount_xof FROM pharmacy_payments WHERE id = $1
 `
 
 func (q *Queries) GetPayment(ctx context.Context, id uuid.UUID) (PharmacyPayment, error) {
@@ -1085,12 +1110,13 @@ func (q *Queries) GetPayment(ctx context.Context, id uuid.UUID) (PharmacyPayment
 		&i.CreatedAt,
 		&i.UpdatedAt,
 		&i.ResponseID,
+		&i.RefundAmountXof,
 	)
 	return i, err
 }
 
 const getPaymentByReference = `-- name: GetPaymentByReference :one
-SELECT id, purpose, alert_id, reservation_id, buyer_id, provider, reference, provider_ref, amount_xof, currency, operator, payer_phone, status, failure_reason, succeeded_at, refund_reference, created_at, updated_at, response_id FROM pharmacy_payments WHERE reference = $1
+SELECT id, purpose, alert_id, reservation_id, buyer_id, provider, reference, provider_ref, amount_xof, currency, operator, payer_phone, status, failure_reason, succeeded_at, refund_reference, created_at, updated_at, response_id, refund_amount_xof FROM pharmacy_payments WHERE reference = $1
 `
 
 func (q *Queries) GetPaymentByReference(ctx context.Context, reference string) (PharmacyPayment, error) {
@@ -1116,6 +1142,7 @@ func (q *Queries) GetPaymentByReference(ctx context.Context, reference string) (
 		&i.CreatedAt,
 		&i.UpdatedAt,
 		&i.ResponseID,
+		&i.RefundAmountXof,
 	)
 	return i, err
 }
@@ -1719,7 +1746,7 @@ func (q *Queries) InsertTarget(ctx context.Context, arg InsertTargetParams) (int
 }
 
 const latestDeliveryForReservation = `-- name: LatestDeliveryForReservation :one
-SELECT id, reservation_id, driver_id, offer_id, status, fee_xof, assigned_at, picked_up_at, delivered_at, ended_at, created_at, updated_at, prescription_checked, pickup_code, cash_paid_xof, cash_paid_at FROM pharmacy_deliveries WHERE reservation_id = $1 ORDER BY created_at DESC LIMIT 1
+SELECT id, reservation_id, driver_id, offer_id, status, fee_xof, assigned_at, picked_up_at, delivered_at, ended_at, created_at, updated_at, prescription_checked, pickup_code, cash_paid_xof, cash_paid_at, arrived_pharmacy_at, arrived_customer_at, failed_at, failure_reason, call_attempts, returned_at FROM pharmacy_deliveries WHERE reservation_id = $1 ORDER BY created_at DESC LIMIT 1
 `
 
 func (q *Queries) LatestDeliveryForReservation(ctx context.Context, reservationID uuid.UUID) (PharmacyDelivery, error) {
@@ -1742,6 +1769,12 @@ func (q *Queries) LatestDeliveryForReservation(ctx context.Context, reservationI
 		&i.PickupCode,
 		&i.CashPaidXof,
 		&i.CashPaidAt,
+		&i.ArrivedPharmacyAt,
+		&i.ArrivedCustomerAt,
+		&i.FailedAt,
+		&i.FailureReason,
+		&i.CallAttempts,
+		&i.ReturnedAt,
 	)
 	return i, err
 }
@@ -1822,7 +1855,7 @@ func (q *Queries) ListAlertItems(ctx context.Context, alertID uuid.UUID) ([]Phar
 }
 
 const listAlertPayments = `-- name: ListAlertPayments :many
-SELECT id, purpose, alert_id, reservation_id, buyer_id, provider, reference, provider_ref, amount_xof, currency, operator, payer_phone, status, failure_reason, succeeded_at, refund_reference, created_at, updated_at, response_id FROM pharmacy_payments WHERE alert_id = $1 ORDER BY created_at
+SELECT id, purpose, alert_id, reservation_id, buyer_id, provider, reference, provider_ref, amount_xof, currency, operator, payer_phone, status, failure_reason, succeeded_at, refund_reference, created_at, updated_at, response_id, refund_amount_xof FROM pharmacy_payments WHERE alert_id = $1 ORDER BY created_at
 `
 
 func (q *Queries) ListAlertPayments(ctx context.Context, alertID uuid.UUID) ([]PharmacyPayment, error) {
@@ -1854,6 +1887,7 @@ func (q *Queries) ListAlertPayments(ctx context.Context, alertID uuid.UUID) ([]P
 			&i.CreatedAt,
 			&i.UpdatedAt,
 			&i.ResponseID,
+			&i.RefundAmountXof,
 		); err != nil {
 			return nil, err
 		}
@@ -1988,7 +2022,7 @@ func (q *Queries) ListDocuments(ctx context.Context, pharmacyID uuid.UUID) ([]Ph
 }
 
 const listDriverDeliveries = `-- name: ListDriverDeliveries :many
-SELECT id, reservation_id, driver_id, offer_id, status, fee_xof, assigned_at, picked_up_at, delivered_at, ended_at, created_at, updated_at, prescription_checked, pickup_code, cash_paid_xof, cash_paid_at FROM pharmacy_deliveries WHERE driver_id = $1 ORDER BY created_at DESC LIMIT $3 OFFSET $2
+SELECT id, reservation_id, driver_id, offer_id, status, fee_xof, assigned_at, picked_up_at, delivered_at, ended_at, created_at, updated_at, prescription_checked, pickup_code, cash_paid_xof, cash_paid_at, arrived_pharmacy_at, arrived_customer_at, failed_at, failure_reason, call_attempts, returned_at FROM pharmacy_deliveries WHERE driver_id = $1 ORDER BY created_at DESC LIMIT $3 OFFSET $2
 `
 
 type ListDriverDeliveriesParams struct {
@@ -2023,6 +2057,12 @@ func (q *Queries) ListDriverDeliveries(ctx context.Context, arg ListDriverDelive
 			&i.PickupCode,
 			&i.CashPaidXof,
 			&i.CashPaidAt,
+			&i.ArrivedPharmacyAt,
+			&i.ArrivedCustomerAt,
+			&i.FailedAt,
+			&i.FailureReason,
+			&i.CallAttempts,
+			&i.ReturnedAt,
 		); err != nil {
 			return nil, err
 		}
@@ -2074,7 +2114,7 @@ func (q *Queries) ListDutyShifts(ctx context.Context, arg ListDutyShiftsParams) 
 }
 
 const listPayments = `-- name: ListPayments :many
-SELECT id, purpose, alert_id, reservation_id, buyer_id, provider, reference, provider_ref, amount_xof, currency, operator, payer_phone, status, failure_reason, succeeded_at, refund_reference, created_at, updated_at, response_id FROM pharmacy_payments
+SELECT id, purpose, alert_id, reservation_id, buyer_id, provider, reference, provider_ref, amount_xof, currency, operator, payer_phone, status, failure_reason, succeeded_at, refund_reference, created_at, updated_at, response_id, refund_amount_xof FROM pharmacy_payments
 WHERE ($1::text IS NULL OR status = $1)
   AND ($2::uuid IS NULL OR alert_id = $2)
 ORDER BY created_at DESC LIMIT $4 OFFSET $3
@@ -2121,6 +2161,7 @@ func (q *Queries) ListPayments(ctx context.Context, arg ListPaymentsParams) ([]P
 			&i.CreatedAt,
 			&i.UpdatedAt,
 			&i.ResponseID,
+			&i.RefundAmountXof,
 		); err != nil {
 			return nil, err
 		}
@@ -2402,7 +2443,7 @@ func (q *Queries) LockCourierOffer(ctx context.Context, id uuid.UUID) (PharmacyC
 }
 
 const lockDelivery = `-- name: LockDelivery :one
-SELECT id, reservation_id, driver_id, offer_id, status, fee_xof, assigned_at, picked_up_at, delivered_at, ended_at, created_at, updated_at, prescription_checked, pickup_code, cash_paid_xof, cash_paid_at FROM pharmacy_deliveries WHERE id = $1 FOR UPDATE
+SELECT id, reservation_id, driver_id, offer_id, status, fee_xof, assigned_at, picked_up_at, delivered_at, ended_at, created_at, updated_at, prescription_checked, pickup_code, cash_paid_xof, cash_paid_at, arrived_pharmacy_at, arrived_customer_at, failed_at, failure_reason, call_attempts, returned_at FROM pharmacy_deliveries WHERE id = $1 FOR UPDATE
 `
 
 func (q *Queries) LockDelivery(ctx context.Context, id uuid.UUID) (PharmacyDelivery, error) {
@@ -2425,12 +2466,18 @@ func (q *Queries) LockDelivery(ctx context.Context, id uuid.UUID) (PharmacyDeliv
 		&i.PickupCode,
 		&i.CashPaidXof,
 		&i.CashPaidAt,
+		&i.ArrivedPharmacyAt,
+		&i.ArrivedCustomerAt,
+		&i.FailedAt,
+		&i.FailureReason,
+		&i.CallAttempts,
+		&i.ReturnedAt,
 	)
 	return i, err
 }
 
 const lockPayment = `-- name: LockPayment :one
-SELECT id, purpose, alert_id, reservation_id, buyer_id, provider, reference, provider_ref, amount_xof, currency, operator, payer_phone, status, failure_reason, succeeded_at, refund_reference, created_at, updated_at, response_id FROM pharmacy_payments WHERE id = $1 FOR UPDATE
+SELECT id, purpose, alert_id, reservation_id, buyer_id, provider, reference, provider_ref, amount_xof, currency, operator, payer_phone, status, failure_reason, succeeded_at, refund_reference, created_at, updated_at, response_id, refund_amount_xof FROM pharmacy_payments WHERE id = $1 FOR UPDATE
 `
 
 func (q *Queries) LockPayment(ctx context.Context, id uuid.UUID) (PharmacyPayment, error) {
@@ -2456,6 +2503,7 @@ func (q *Queries) LockPayment(ctx context.Context, id uuid.UUID) (PharmacyPaymen
 		&i.CreatedAt,
 		&i.UpdatedAt,
 		&i.ResponseID,
+		&i.RefundAmountXof,
 	)
 	return i, err
 }
@@ -2741,7 +2789,7 @@ func (q *Queries) Overview(ctx context.Context, arg OverviewParams) (OverviewRow
 }
 
 const paymentsToRecheck = `-- name: PaymentsToRecheck :many
-SELECT id, purpose, alert_id, reservation_id, buyer_id, provider, reference, provider_ref, amount_xof, currency, operator, payer_phone, status, failure_reason, succeeded_at, refund_reference, created_at, updated_at, response_id FROM pharmacy_payments WHERE status = 'pending' ORDER BY created_at LIMIT 100
+SELECT id, purpose, alert_id, reservation_id, buyer_id, provider, reference, provider_ref, amount_xof, currency, operator, payer_phone, status, failure_reason, succeeded_at, refund_reference, created_at, updated_at, response_id, refund_amount_xof FROM pharmacy_payments WHERE status = 'pending' ORDER BY created_at LIMIT 100
 `
 
 func (q *Queries) PaymentsToRecheck(ctx context.Context) ([]PharmacyPayment, error) {
@@ -2773,6 +2821,7 @@ func (q *Queries) PaymentsToRecheck(ctx context.Context) ([]PharmacyPayment, err
 			&i.CreatedAt,
 			&i.UpdatedAt,
 			&i.ResponseID,
+			&i.RefundAmountXof,
 		); err != nil {
 			return nil, err
 		}
@@ -2825,7 +2874,7 @@ func (q *Queries) PendingCourierOfferForReservation(ctx context.Context, reserva
 }
 
 const pendingOrderPayment = `-- name: PendingOrderPayment :one
-SELECT id, purpose, alert_id, reservation_id, buyer_id, provider, reference, provider_ref, amount_xof, currency, operator, payer_phone, status, failure_reason, succeeded_at, refund_reference, created_at, updated_at, response_id FROM pharmacy_payments WHERE reservation_id = $1 AND purpose = 'order' AND status = 'pending'
+SELECT id, purpose, alert_id, reservation_id, buyer_id, provider, reference, provider_ref, amount_xof, currency, operator, payer_phone, status, failure_reason, succeeded_at, refund_reference, created_at, updated_at, response_id, refund_amount_xof FROM pharmacy_payments WHERE reservation_id = $1 AND purpose = 'order' AND status = 'pending'
 `
 
 func (q *Queries) PendingOrderPayment(ctx context.Context, reservationID *uuid.UUID) (PharmacyPayment, error) {
@@ -2851,12 +2900,13 @@ func (q *Queries) PendingOrderPayment(ctx context.Context, reservationID *uuid.U
 		&i.CreatedAt,
 		&i.UpdatedAt,
 		&i.ResponseID,
+		&i.RefundAmountXof,
 	)
 	return i, err
 }
 
 const pendingUnlockPayment = `-- name: PendingUnlockPayment :one
-SELECT id, purpose, alert_id, reservation_id, buyer_id, provider, reference, provider_ref, amount_xof, currency, operator, payer_phone, status, failure_reason, succeeded_at, refund_reference, created_at, updated_at, response_id FROM pharmacy_payments WHERE response_id = $1 AND purpose = 'unlock' AND status = 'pending'
+SELECT id, purpose, alert_id, reservation_id, buyer_id, provider, reference, provider_ref, amount_xof, currency, operator, payer_phone, status, failure_reason, succeeded_at, refund_reference, created_at, updated_at, response_id, refund_amount_xof FROM pharmacy_payments WHERE response_id = $1 AND purpose = 'unlock' AND status = 'pending'
 `
 
 func (q *Queries) PendingUnlockPayment(ctx context.Context, responseID *uuid.UUID) (PharmacyPayment, error) {
@@ -2882,6 +2932,7 @@ func (q *Queries) PendingUnlockPayment(ctx context.Context, responseID *uuid.UUI
 		&i.CreatedAt,
 		&i.UpdatedAt,
 		&i.ResponseID,
+		&i.RefundAmountXof,
 	)
 	return i, err
 }
@@ -3207,11 +3258,60 @@ func (q *Queries) SetAlertStatus(ctx context.Context, arg SetAlertStatusParams) 
 	return result.RowsAffected(), nil
 }
 
+const setDeliveryArrivedCustomer = `-- name: SetDeliveryArrivedCustomer :execrows
+UPDATE pharmacy_deliveries SET arrived_customer_at = coalesce(arrived_customer_at, now()), updated_at = now()
+WHERE id = $1 AND status = 'picked_up'
+`
+
+func (q *Queries) SetDeliveryArrivedCustomer(ctx context.Context, id uuid.UUID) (int64, error) {
+	result, err := q.db.Exec(ctx, setDeliveryArrivedCustomer, id)
+	if err != nil {
+		return 0, err
+	}
+	return result.RowsAffected(), nil
+}
+
+const setDeliveryArrivedPharmacy = `-- name: SetDeliveryArrivedPharmacy :execrows
+UPDATE pharmacy_deliveries SET arrived_pharmacy_at = coalesce(arrived_pharmacy_at, now()), updated_at = now()
+WHERE id = $1 AND status = 'assigned'
+`
+
+func (q *Queries) SetDeliveryArrivedPharmacy(ctx context.Context, id uuid.UUID) (int64, error) {
+	result, err := q.db.Exec(ctx, setDeliveryArrivedPharmacy, id)
+	if err != nil {
+		return 0, err
+	}
+	return result.RowsAffected(), nil
+}
+
+const setDeliveryFailed = `-- name: SetDeliveryFailed :execrows
+UPDATE pharmacy_deliveries
+SET status = 'returning', failed_at = now(), failure_reason = $1, call_attempts = $2,
+    updated_at = now()
+WHERE id = $3 AND status = 'picked_up'
+`
+
+type SetDeliveryFailedParams struct {
+	Reason       string
+	CallAttempts int32
+	ID           uuid.UUID
+}
+
+// Client injoignable : le livreur rapporte les produits à la pharmacie.
+func (q *Queries) SetDeliveryFailed(ctx context.Context, arg SetDeliveryFailedParams) (int64, error) {
+	result, err := q.db.Exec(ctx, setDeliveryFailed, arg.Reason, arg.CallAttempts, arg.ID)
+	if err != nil {
+		return 0, err
+	}
+	return result.RowsAffected(), nil
+}
+
 const setDeliveryStatus = `-- name: SetDeliveryStatus :execrows
 UPDATE pharmacy_deliveries SET status = $1,
   picked_up_at = CASE WHEN $1 = 'picked_up' THEN now() ELSE picked_up_at END,
   delivered_at = CASE WHEN $1 = 'delivered' THEN now() ELSE delivered_at END,
-  ended_at = CASE WHEN $1 IN ('delivered', 'cancelled') THEN now() ELSE ended_at END,
+  returned_at = CASE WHEN $1 = 'returned' THEN now() ELSE returned_at END,
+  ended_at = CASE WHEN $1 IN ('delivered', 'cancelled', 'returned') THEN now() ELSE ended_at END,
   updated_at = now()
 WHERE id = $2 AND status = ANY($3::text[])
 `
@@ -3249,6 +3349,20 @@ func (q *Queries) SetOpenStatus(ctx context.Context, arg SetOpenStatusParams) er
 		arg.Open24h,
 		arg.ID,
 	)
+	return err
+}
+
+const setPaymentRefundAmount = `-- name: SetPaymentRefundAmount :exec
+UPDATE pharmacy_payments SET refund_amount_xof = $1 WHERE id = $2
+`
+
+type SetPaymentRefundAmountParams struct {
+	AmountXof *int64
+	ID        uuid.UUID
+}
+
+func (q *Queries) SetPaymentRefundAmount(ctx context.Context, arg SetPaymentRefundAmountParams) error {
+	_, err := q.db.Exec(ctx, setPaymentRefundAmount, arg.AmountXof, arg.ID)
 	return err
 }
 
@@ -3442,7 +3556,7 @@ func (q *Queries) SetTargetStatus(ctx context.Context, arg SetTargetStatusParams
 }
 
 const succeededOrderPayment = `-- name: SucceededOrderPayment :one
-SELECT id, purpose, alert_id, reservation_id, buyer_id, provider, reference, provider_ref, amount_xof, currency, operator, payer_phone, status, failure_reason, succeeded_at, refund_reference, created_at, updated_at, response_id FROM pharmacy_payments WHERE reservation_id = $1 AND purpose = 'order' AND status = 'succeeded'
+SELECT id, purpose, alert_id, reservation_id, buyer_id, provider, reference, provider_ref, amount_xof, currency, operator, payer_phone, status, failure_reason, succeeded_at, refund_reference, created_at, updated_at, response_id, refund_amount_xof FROM pharmacy_payments WHERE reservation_id = $1 AND purpose = 'order' AND status = 'succeeded'
 ORDER BY created_at LIMIT 1
 `
 
@@ -3469,6 +3583,7 @@ func (q *Queries) SucceededOrderPayment(ctx context.Context, reservationID *uuid
 		&i.CreatedAt,
 		&i.UpdatedAt,
 		&i.ResponseID,
+		&i.RefundAmountXof,
 	)
 	return i, err
 }
