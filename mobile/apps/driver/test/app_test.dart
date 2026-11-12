@@ -2353,11 +2353,12 @@ void main() {
 
     for (final ring in [true, false]) {
       testWidgets(
-        'sonnerie des missions ${ring ? 'activée : sonnerie en boucle' : 'coupée : silence'}',
+        'sonnerie des missions ${ring ? 'activée : sonnerie une fois' : 'coupée : silence'}',
         (tester) async {
           await onlineWithOffer(tester, driverOfferBody(), ring: ring);
           expect(find.text('Glisser pour accepter'), findsOneWidget);
-          expect(ringer.rings, ring ? 1 : 0);
+          expect(ringer.alerts, ring ? 1 : 0);
+          expect(ringer.rings, 0);
         },
       );
     }
@@ -3036,7 +3037,11 @@ void main() {
 /// Sonnerie des tests : compte les démarrages et arrêts, sans son.
 class _RecordingRinger extends IviaRinger {
   var rings = 0;
+  var alerts = 0;
   var stops = 0;
+
+  @override
+  Future<void> alert() async => alerts++;
 
   @override
   Future<void> ring() async => rings++;

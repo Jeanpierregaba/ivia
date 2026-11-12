@@ -64,14 +64,25 @@ class IviaRinger {
     }
   }
 
+  /// Sonnerie jouée une seule fois, avec une vibration forte : une offre à
+  /// voir (course du livreur, nouvelle commande du marchand). La boucle
+  /// ([ring]) est réservée aux alertes de la pharmacie.
+  Future<void> alert() => _once('ring.wav', strong: true);
+
   /// Son court de notification.
-  Future<void> chime() async {
+  Future<void> chime() => _once('chime.wav');
+
+  Future<void> _once(String name, {bool strong = false}) async {
     if (_silent) return;
     final player = AudioPlayer();
     try {
-      _chimeBytes ??= await _bytes('chime.wav');
-      await player.play(BytesSource(_chimeBytes!, mimeType: 'audio/wav'));
-      HapticFeedback.lightImpact();
+      final bytes = name == 'ring.wav'
+          ? _ringBytes ??= await _bytes(name)
+          : _chimeBytes ??= await _bytes(name);
+      await player.play(BytesSource(bytes, mimeType: 'audio/wav'));
+      unawaited(
+        strong ? HapticFeedback.heavyImpact() : HapticFeedback.lightImpact(),
+      );
       // Libéré une fois le son fini.
       unawaited(player.onPlayerComplete.first.then((_) => player.dispose()));
     } on Object {

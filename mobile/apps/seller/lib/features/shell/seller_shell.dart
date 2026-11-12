@@ -131,12 +131,27 @@ class _SellerShellState extends ConsumerState<SellerShell> {
             ),
           )
         : 0;
-    // Sonnerie en boucle tant qu'une nouvelle commande attend d'être
-    // acceptée ou refusée.
-    WidgetsBinding.instance.addPostFrameCallback((_) {
-      if (!mounted) return;
-      unawaited(fresh > 0 ? _ringer.ring() : _ringer.stop());
-    });
+    // Nouvelle commande arrivée : sonnerie jouée une fois et bandeau bien
+    // visible, qui ouvre l'onglet Commandes.
+    ref.listen(
+      sellerOrdersProvider.select((s) => s.value?.count(OrderTab.fresh)),
+      (before, now) {
+        // Premier chargement : rien n'est annoncé, ces commandes étaient là.
+        if (!published || before == null || now == null || now <= before) {
+          return;
+        }
+        unawaited(_ringer.alert());
+        showIviaNotification(
+          context,
+          title: now == 1 ? 'Nouvelle commande' : '$now nouvelles commandes',
+          body: 'À accepter ou refuser',
+          icon: Icons.receipt_long_rounded,
+          color: IviaColors.success,
+          visibleFor: const Duration(seconds: 8),
+          onTap: () => widget.shell.goBranch(ordersTabIndex),
+        );
+      },
+    );
     final sector = ref.watch(
       businessGateProvider.select((g) => g.value?.opened?.sector),
     );

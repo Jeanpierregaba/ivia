@@ -60,15 +60,14 @@ class _OfferCardState extends ConsumerState<OfferCard> {
 
   late final IviaRinger _ringer;
 
-  /// Sonnerie forte en boucle jusqu'à la réponse (ou l'expiration), si elle
-  /// est activée (Profil).
+  /// Sonnerie jouée une fois à l'arrivée de la proposition, si elle est
+  /// activée (Profil) ; la carte reste bien visible jusqu'à la réponse.
   Future<void> _ring() async {
     final on = await ref.read(missionRingProvider.future).catchError((_) {
       return true;
     });
     if (!on || !mounted) return;
-    await _ringer.ring();
-    if (!mounted) await _ringer.stop();
+    await _ringer.alert();
   }
 
   @override
