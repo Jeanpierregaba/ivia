@@ -26,6 +26,24 @@ class AlertScreen extends ConsumerStatefulWidget {
 }
 
 class _AlertScreenState extends ConsumerState<AlertScreen> with LivePolling {
+  /// Nombre de réponses déjà annoncées par la fenêtre : elle ne s'ouvre qu'à
+  /// l'arrivée d'une nouvelle réponse.
+  var _announced = 0;
+
+  void _announce(MedAlert alert, int count, MedResponse best) {
+    if (count <= _announced) return;
+    _announced = count;
+    WidgetsBinding.instance.addPostFrameCallback((_) {
+      if (!mounted) return;
+      _showResponsesSheet(
+        context,
+        count: count,
+        best: best,
+        onOpen: () => context.push(Routes.medResponses(alert.id)),
+      );
+    });
+  }
+
   @override
   void initState() {
     super.initState();
@@ -57,6 +75,7 @@ class _AlertScreenState extends ConsumerState<AlertScreen> with LivePolling {
     final best = ([
       ...responded,
     ]..sort((a, b) => a.distanceM.compareTo(b.distanceM))).firstOrNull;
+    if (best != null) _announce(alert, responded.length, best);
     return MedScaffold(
       top: MedTopBar(
         title: 'Alerte en cours',
@@ -103,59 +122,64 @@ class _AlertScreenState extends ConsumerState<AlertScreen> with LivePolling {
           ? null
           : SafeArea(
               top: false,
-              child: Padding(
-                padding: const EdgeInsets.fromLTRB(
-                  IviaSpacing.screen,
-                  8,
-                  IviaSpacing.screen,
-                  IviaSpacing.lg,
-                ),
-                child: Material(
-                  color: Med.navy,
-                  borderRadius: BorderRadius.circular(Med.radius),
-                  child: InkWell(
-                    borderRadius: BorderRadius.circular(Med.radius),
+              child: IviaReveal(
+                child: Padding(
+                  padding: const EdgeInsets.fromLTRB(
+                    IviaSpacing.screen,
+                    8,
+                    IviaSpacing.screen,
+                    IviaSpacing.lg,
+                  ),
+                  child: GestureDetector(
                     onTap: () => context.push(Routes.medResponses(alert.id)),
-                    child: Padding(
-                      padding: const EdgeInsets.all(18),
-                      child: Row(
-                        children: [
-                          const MedIconTile(
-                            Icons.check,
-                            bg: IviaColors.primary,
-                            fg: Colors.white,
-                          ),
-                          const SizedBox(width: 14),
-                          Expanded(
-                            child: Column(
-                              crossAxisAlignment: CrossAxisAlignment.start,
-                              children: [
-                                Text(
-                                  responded.length > 1
-                                      ? '${responded.length} pharmacies ont vos produits'
-                                      : 'Une pharmacie a vos produits',
-                                  style: t.titleMedium?.copyWith(
-                                    color: Colors.white,
-                                    fontWeight: FontWeight.w800,
-                                  ),
-                                ),
-                                Text(
-                                  '${best.availableCount} sur ${best.lineCount} disponible${best.availableCount > 1 ? 's' : ''} · ${formatDistance(best.distanceM)}',
-                                  style: t.bodyMedium?.copyWith(
-                                    color: Colors.white70,
-                                  ),
-                                ),
-                              ],
-                            ),
-                          ),
-                          Text(
-                            'Voir',
-                            style: t.titleMedium?.copyWith(
-                              color: const Color(0xFFFF6B7A),
-                              fontWeight: FontWeight.w800,
-                            ),
+                    child: DecoratedBox(
+                      decoration: BoxDecoration(
+                        color: IviaColors.surface,
+                        borderRadius: BorderRadius.circular(Med.radius),
+                        boxShadow: const [
+                          BoxShadow(
+                            color: Color(0x1F0B1F3A),
+                            blurRadius: 24,
+                            offset: Offset(0, 8),
                           ),
                         ],
+                      ),
+                      child: Padding(
+                        padding: const EdgeInsets.all(16),
+                        child: Row(
+                          children: [
+                            const MedIconTile(
+                              Icons.check,
+                              bg: IviaColors.primary,
+                              fg: Colors.white,
+                            ),
+                            const SizedBox(width: 14),
+                            Expanded(
+                              child: Column(
+                                crossAxisAlignment: CrossAxisAlignment.start,
+                                children: [
+                                  Text(
+                                    _respondedTitle(responded.length),
+                                    style: t.titleMedium?.copyWith(
+                                      fontWeight: FontWeight.w800,
+                                    ),
+                                  ),
+                                  const SizedBox(height: 2),
+                                  Text(
+                                    _bestLine(best),
+                                    style: t.bodyMedium?.copyWith(
+                                      color: Med.muted,
+                                    ),
+                                  ),
+                                ],
+                              ),
+                            ),
+                            const Icon(
+                              Icons.chevron_right_rounded,
+                              color: IviaColors.primary,
+                            ),
+                          ],
+                        ),
                       ),
                     ),
                   ),
@@ -164,6 +188,102 @@ class _AlertScreenState extends ConsumerState<AlertScreen> with LivePolling {
             ),
     );
   }
+}
+
+String _respondedTitle(int n) =>
+    n > 1 ? '$n pharmacies ont vos produits' : 'Une pharmacie a vos produits';
+
+String _bestLine(MedResponse best) =>
+    '${best.availableCount} sur ${best.lineCount} disponible${best.availableCount > 1 ? 's' : ''} · ${formatDistance(best.distanceM)}';
+
+/// Fenêtre douce à l'arrivée d'une réponse : « Voir les réponses » ou
+/// « Plus tard ».
+Future<void> _showResponsesSheet(
+  BuildContext context, {
+  required int count,
+  required MedResponse best,
+  required VoidCallback onOpen,
+}) async {
+  final open = await showModalBottomSheet<bool>(
+    context: context,
+    useRootNavigator: true,
+    showDragHandle: true,
+    backgroundColor: IviaColors.surface,
+    sheetAnimationStyle: const AnimationStyle(
+      duration: Duration(milliseconds: 420),
+      reverseDuration: Duration(milliseconds: 260),
+    ),
+    shape: const RoundedRectangleBorder(
+      borderRadius: BorderRadius.vertical(top: Radius.circular(28)),
+    ),
+    builder: (context) {
+      final t = Theme.of(context).textTheme;
+      return SafeArea(
+        child: Padding(
+          padding: const EdgeInsets.fromLTRB(
+            IviaSpacing.screen,
+            0,
+            IviaSpacing.screen,
+            IviaSpacing.lg,
+          ),
+          child: Column(
+            mainAxisSize: MainAxisSize.min,
+            children: [
+              TweenAnimationBuilder<double>(
+                tween: Tween(begin: 0.6, end: 1),
+                duration: const Duration(milliseconds: 520),
+                curve: Curves.elasticOut,
+                builder: (_, v, child) =>
+                    Transform.scale(scale: v, child: child),
+                child: Container(
+                  width: 72,
+                  height: 72,
+                  decoration: BoxDecoration(
+                    color: IviaColors.primary.withValues(alpha: 0.12),
+                    shape: BoxShape.circle,
+                  ),
+                  child: const Icon(
+                    Icons.local_pharmacy_rounded,
+                    color: IviaColors.primary,
+                    size: 36,
+                  ),
+                ),
+              ),
+              const SizedBox(height: IviaSpacing.lg),
+              Text(
+                _respondedTitle(count),
+                textAlign: TextAlign.center,
+                style: t.titleLarge?.copyWith(fontWeight: FontWeight.w800),
+              ),
+              const SizedBox(height: IviaSpacing.sm),
+              Text(
+                'La plus proche : ${_bestLine(best)}.',
+                textAlign: TextAlign.center,
+                style: t.bodyLarge?.copyWith(color: Med.muted),
+              ),
+              const SizedBox(height: IviaSpacing.xl),
+              SizedBox(
+                width: double.infinity,
+                child: FilledButton(
+                  onPressed: () => Navigator.pop(context, true),
+                  child: const Text('Voir les réponses'),
+                ),
+              ),
+              const SizedBox(height: IviaSpacing.sm),
+              SizedBox(
+                width: double.infinity,
+                child: TextButton(
+                  onPressed: () => Navigator.pop(context, false),
+                  child: const Text('Plus tard'),
+                ),
+              ),
+            ],
+          ),
+        ),
+      );
+    },
+  );
+  if (open == true) onOpen();
 }
 
 class _Stat extends StatelessWidget {

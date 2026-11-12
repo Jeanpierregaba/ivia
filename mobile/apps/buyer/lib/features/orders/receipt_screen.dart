@@ -70,7 +70,7 @@ class _ReceiptScreenState extends State<ReceiptScreen> {
         iconTheme: const IconThemeData(color: Colors.white),
         titleTextStyle: Theme.of(context).textTheme.titleLarge
             ?.copyWith(color: Colors.white, fontWeight: FontWeight.w700),
-        title: const Text('Reçu'),
+        title: Text(widget.invoice.isReceipt ? 'Reçu' : 'Récapitulatif'),
       ),
       body: SafeArea(
         child: Column(
@@ -198,7 +198,7 @@ class _Ticket extends StatelessWidget {
             IviaLogo(color: brand.logoOnLight, height: 34),
             const SizedBox(height: IviaSpacing.xl),
             Text(
-              'Reçu de paiement',
+              invoice.title,
               style: t.headlineSmall?.copyWith(
                 color: IviaColors.berkeleyBlue,
                 fontWeight: FontWeight.w800,
@@ -212,6 +212,28 @@ class _Ticket extends StatelessWidget {
                 fontWeight: FontWeight.w700,
               ),
             ),
+            if (!invoice.isReceipt) ...[
+              const SizedBox(height: IviaSpacing.md),
+              DecoratedBox(
+                decoration: BoxDecoration(
+                  color: IviaColors.error.withValues(alpha: 0.1),
+                  borderRadius: BorderRadius.circular(999),
+                ),
+                child: Padding(
+                  padding: const EdgeInsets.symmetric(
+                    horizontal: IviaSpacing.md,
+                    vertical: IviaSpacing.xs,
+                  ),
+                  child: Text(
+                    invoice.closedLabel!,
+                    style: t.labelLarge?.copyWith(
+                      color: IviaColors.error,
+                      fontWeight: FontWeight.w800,
+                    ),
+                  ),
+                ),
+              ),
+            ],
             divider,
             field(
               'Vendu par',
@@ -257,7 +279,9 @@ class _Ticket extends StatelessWidget {
             Text(
               invoice.paymentNote,
               style: t.bodyMedium?.copyWith(
-                color: IviaColors.success,
+                color: invoice.isReceipt
+                    ? IviaColors.success
+                    : IviaColors.secondary,
                 fontWeight: FontWeight.w700,
               ),
             ),

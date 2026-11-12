@@ -26,7 +26,18 @@ class Invoice {
     required this.deliveryXof,
     required this.totalXof,
     required this.paymentNote,
+    this.closedLabel,
   });
+
+  /// Commande annulée, expirée ou remboursée : un récapitulatif, pas un reçu
+  /// de paiement.
+  bool get isReceipt => closedLabel == null;
+
+  /// « Commande annulée », « Commande expirée »… ; `null` pour un reçu.
+  final String? closedLabel;
+
+  String get title =>
+      isReceipt ? 'Reçu de paiement' : 'Récapitulatif de commande';
 
   /// Facture d'une commande de boutique.
   factory Invoice.fromOrder(BuyerOrder o, User? me) => Invoice(
@@ -49,9 +60,23 @@ class Invoice {
     subtotalXof: o.subtotalXof,
     deliveryXof: o.deliveryFeeXof,
     totalXof: o.totalXof,
-    paymentNote: o.paidAt == null
-        ? 'En attente de paiement'
-        : 'Payée par Mobile Money le ${_date(o.paidAt!)}',
+    closedLabel: switch (o.status) {
+      OrderStatus.cancelled => 'Commande annulée',
+      OrderStatus.expired => 'Commande expirée',
+      OrderStatus.refunded => 'Commande remboursée',
+      OrderStatus.returnedToShop => 'Commande retournée',
+      _ => null,
+    },
+    paymentNote: switch ((o.status, o.paidAt)) {
+      (OrderStatus.cancelled || OrderStatus.expired, null) =>
+        'Aucun paiement n’a été débité.',
+      (OrderStatus.refunded, final DateTime p) =>
+        'Payée le ${_date(p)}, puis remboursée.',
+      (OrderStatus.cancelled || OrderStatus.returnedToShop, final DateTime p) =>
+        'Payée le ${_date(p)} · remboursement en cours.',
+      (_, null) => 'En attente de paiement',
+      (_, final DateTime p) => 'Payée par Mobile Money le ${_date(p)}',
+    },
   );
 
   /// Facture d'une réservation pharmacie (produits payés dans l'app ou sur place).
@@ -95,7 +120,10 @@ class Invoice {
 
   /// PDF aux couleurs d'ivia.
   Future<Uint8List> pdf() async {
-    final doc = pw.Document(title: 'Facture $number', author: 'ivia');
+    final doc = pw.Document(
+      title: '${isReceipt ? 'Facture' : 'Récapitulatif'} $number',
+      author: 'ivia',
+    );
     const navy = PdfColor.fromInt(0xFF0E2E54);
     const red = PdfColor.fromInt(0xFFE31B2C);
     const muted = PdfColor.fromInt(0xFF6B7280);
@@ -143,7 +171,7 @@ class Invoice {
                     crossAxisAlignment: pw.CrossAxisAlignment.end,
                     children: [
                       pw.Text(
-                        'FACTURE',
+                        isReceipt ? 'FACTURE' : 'RÉCAPITULATIF',
                         style: pw.TextStyle(
                           font: bold,
                           fontSize: 14,
@@ -310,7 +338,9 @@ class Invoice {
             pw.Spacer(),
             pw.Divider(color: PdfColors.grey300),
             pw.Text(
-              'Merci pour votre achat. Cette facture est émise pour le compte du vendeur via la plateforme ivia.',
+              isReceipt
+                  ? 'Merci pour votre achat. Cette facture est émise pour le compte du vendeur via la plateforme ivia.'
+                  : '${closedLabel!}. Ce récapitulatif n’est pas une facture.',
               style: pw.TextStyle(font: font, fontSize: 8, color: muted),
             ),
           ],

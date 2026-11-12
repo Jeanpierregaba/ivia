@@ -331,18 +331,27 @@ class _OrderScreenState extends ConsumerState<OrderScreen> {
               ],
             ),
           ),
-          if (order.paidAt != null) ...[
+          if (order.paidAt != null ||
+              order.status == OrderStatus.cancelled ||
+              order.status == OrderStatus.expired) ...[
             const SizedBox(height: IviaSpacing.lg),
-            OutlinedButton.icon(
-              onPressed: () {
+            Builder(
+              builder: (context) {
                 final me = switch (ref.read(authControllerProvider)) {
                   AuthSignedIn(:final user) => user,
                   _ => null,
                 };
-                showReceipt(context, Invoice.fromOrder(order, me));
+                final invoice = Invoice.fromOrder(order, me);
+                return OutlinedButton.icon(
+                  onPressed: () => showReceipt(context, invoice),
+                  icon: const Icon(Icons.receipt_long_outlined),
+                  label: Text(
+                    invoice.isReceipt
+                        ? 'Voir le reçu'
+                        : 'Voir le récapitulatif',
+                  ),
+                );
               },
-              icon: const Icon(Icons.receipt_long_outlined),
-              label: const Text('Voir le reçu'),
             ),
           ],
           if (canCancel(order)) ...[
