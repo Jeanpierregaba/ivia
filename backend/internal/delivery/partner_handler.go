@@ -10,6 +10,7 @@ import (
 
 // registerPartner enregistre les routes du workflow partenaire (livreur, chauffeur VTC).
 func (h *Handler) registerPartner(rt *httpapi.Router) {
+	h.registerIncidents(rt)
 	// Inscription : ouverte à tout utilisateur connecté (le rôle driver vient de la validation).
 	rt.Auth("GET /v1/driver/options", h.options)
 	rt.Auth("PUT /v1/driver/activities/{activity}", h.saveActivity)

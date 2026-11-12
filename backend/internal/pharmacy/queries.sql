@@ -708,3 +708,6 @@ WHERE t.pharmacy_id = sqlc.arg(pharmacy_id)
 SELECT coalesce(sum(fee_xof) FILTER (WHERE status = 'delivered' AND delivered_at >= sqlc.arg(since) AND delivered_at < sqlc.arg(until)), 0)::bigint AS fees_xof,
        coalesce(sum(cash_paid_xof) FILTER (WHERE cash_paid_at >= sqlc.arg(since) AND cash_paid_at < sqlc.arg(until)), 0)::bigint AS cash_xof
 FROM pharmacy_deliveries WHERE driver_id = sqlc.arg(driver_id);
+
+-- name: CourierMissionOwnedBy :one
+SELECT EXISTS (SELECT 1 FROM pharmacy_deliveries WHERE id = sqlc.arg(id) AND driver_id = sqlc.arg(driver_id));

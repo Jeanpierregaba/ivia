@@ -281,6 +281,15 @@ func (q *Queries) DeleteDocumentsOf(ctx context.Context, driverID uuid.UUID) err
 	return err
 }
 
+const deleteIncidentsOf = `-- name: DeleteIncidentsOf :exec
+DELETE FROM driver_incidents WHERE driver_id = $1
+`
+
+func (q *Queries) DeleteIncidentsOf(ctx context.Context, driverID uuid.UUID) error {
+	_, err := q.db.Exec(ctx, deleteIncidentsOf, driverID)
+	return err
+}
+
 const deletePositionsOf = `-- name: DeletePositionsOf :exec
 DELETE FROM driver_positions WHERE driver_id = $1
 `
@@ -288,6 +297,24 @@ DELETE FROM driver_positions WHERE driver_id = $1
 func (q *Queries) DeletePositionsOf(ctx context.Context, driverID uuid.UUID) error {
 	_, err := q.db.Exec(ctx, deletePositionsOf, driverID)
 	return err
+}
+
+const deliveryOwnedBy = `-- name: DeliveryOwnedBy :one
+
+SELECT EXISTS (SELECT 1 FROM deliveries WHERE id = $1 AND driver_id = $2)
+`
+
+type DeliveryOwnedByParams struct {
+	ID       uuid.UUID
+	DriverID uuid.UUID
+}
+
+// ---------------------------------------------------------------- signalements et pièces
+func (q *Queries) DeliveryOwnedBy(ctx context.Context, arg DeliveryOwnedByParams) (bool, error) {
+	row := q.db.QueryRow(ctx, deliveryOwnedBy, arg.ID, arg.DriverID)
+	var exists bool
+	err := row.Scan(&exists)
+	return exists, err
 }
 
 const driverDistanceBetween = `-- name: DriverDistanceBetween :one
@@ -318,6 +345,8 @@ func (q *Queries) DriverDistanceBetween(ctx context.Context, arg DriverDistanceB
 
 const driverDocumentKeysIn = `-- name: DriverDocumentKeysIn :many
 SELECT object_key FROM driver_documents WHERE object_key = ANY($1::text[])
+UNION
+SELECT photo_key::text FROM driver_incidents WHERE photo_key = ANY($1::text[])
 `
 
 // Clés rattachées parmi celles données (purge des fichiers jamais rattachés).
@@ -726,6 +755,53 @@ func (q *Queries) GetDriverSettings(ctx context.Context) (GetDriverSettingsRow, 
 	return i, err
 }
 
+const getIncident = `-- name: GetIncident :one
+SELECT i.id, i.driver_id, i.kind, i.mission_type, i.mission_id, i.note, i.photo_key,
+       (i.location IS NOT NULL)::boolean AS has_location,
+       coalesce(ST_Y(i.location::geometry), 0)::float8 AS lat, coalesce(ST_X(i.location::geometry), 0)::float8 AS lng,
+       i.status, i.resolution_note, i.resolved_at, i.created_at
+FROM driver_incidents i WHERE i.id = $1
+`
+
+type GetIncidentRow struct {
+	ID             uuid.UUID
+	DriverID       uuid.UUID
+	Kind           string
+	MissionType    *string
+	MissionID      *uuid.UUID
+	Note           string
+	PhotoKey       *string
+	HasLocation    bool
+	Lat            float64
+	Lng            float64
+	Status         string
+	ResolutionNote string
+	ResolvedAt     *time.Time
+	CreatedAt      time.Time
+}
+
+func (q *Queries) GetIncident(ctx context.Context, id uuid.UUID) (GetIncidentRow, error) {
+	row := q.db.QueryRow(ctx, getIncident, id)
+	var i GetIncidentRow
+	err := row.Scan(
+		&i.ID,
+		&i.DriverID,
+		&i.Kind,
+		&i.MissionType,
+		&i.MissionID,
+		&i.Note,
+		&i.PhotoKey,
+		&i.HasLocation,
+		&i.Lat,
+		&i.Lng,
+		&i.Status,
+		&i.ResolutionNote,
+		&i.ResolvedAt,
+		&i.CreatedAt,
+	)
+	return i, err
+}
+
 const getOffer = `-- name: GetOffer :one
 SELECT id, order_id, driver_id, status, distance_to_shop_m, expires_at, responded_at, created_at FROM delivery_offers WHERE id = $1
 `
@@ -804,7 +880,7 @@ func (q *Queries) InsertActivity(ctx context.Context, arg InsertActivityParams) 
 }
 
 const insertDocument = `-- name: InsertDocument :one
-INSERT INTO driver_documents (driver_id, kind, object_key) VALUES ($1, $2, $3) RETURNING id, driver_id, kind, object_key, created_at
+INSERT INTO driver_documents (driver_id, kind, object_key) VALUES ($1, $2, $3) RETURNING id, driver_id, kind, object_key, created_at, expires_on
 `
 
 type InsertDocumentParams struct {
@@ -822,8 +898,45 @@ func (q *Queries) InsertDocument(ctx context.Context, arg InsertDocumentParams) 
 		&i.Kind,
 		&i.ObjectKey,
 		&i.CreatedAt,
+		&i.ExpiresOn,
 	)
 	return i, err
+}
+
+const insertIncident = `-- name: InsertIncident :one
+INSERT INTO driver_incidents (driver_id, kind, mission_type, mission_id, note, photo_key, location)
+VALUES ($1, $2, $3, $4, $5,
+        $6,
+        CASE WHEN $7::float8 IS NULL THEN NULL
+             ELSE ST_SetSRID(ST_MakePoint($8::float8, $7::float8), 4326)::geography END)
+RETURNING id
+`
+
+type InsertIncidentParams struct {
+	DriverID    uuid.UUID
+	Kind        string
+	MissionType *string
+	MissionID   *uuid.UUID
+	Note        string
+	PhotoKey    *string
+	Lat         *float64
+	Lng         *float64
+}
+
+func (q *Queries) InsertIncident(ctx context.Context, arg InsertIncidentParams) (uuid.UUID, error) {
+	row := q.db.QueryRow(ctx, insertIncident,
+		arg.DriverID,
+		arg.Kind,
+		arg.MissionType,
+		arg.MissionID,
+		arg.Note,
+		arg.PhotoKey,
+		arg.Lat,
+		arg.Lng,
+	)
+	var id uuid.UUID
+	err := row.Scan(&id)
+	return id, err
 }
 
 const insertPosition = `-- name: InsertPosition :exec
@@ -976,7 +1089,7 @@ func (q *Queries) ListAlerts(ctx context.Context) ([]AssignmentRequest, error) {
 }
 
 const listDocuments = `-- name: ListDocuments :many
-SELECT id, driver_id, kind, object_key, created_at FROM driver_documents WHERE driver_id = $1 ORDER BY created_at
+SELECT id, driver_id, kind, object_key, created_at, expires_on FROM driver_documents WHERE driver_id = $1 ORDER BY created_at
 `
 
 func (q *Queries) ListDocuments(ctx context.Context, driverID uuid.UUID) ([]DriverDocument, error) {
@@ -994,6 +1107,7 @@ func (q *Queries) ListDocuments(ctx context.Context, driverID uuid.UUID) ([]Driv
 			&i.Kind,
 			&i.ObjectKey,
 			&i.CreatedAt,
+			&i.ExpiresOn,
 		); err != nil {
 			return nil, err
 		}
@@ -1118,6 +1232,82 @@ func (q *Queries) ListDrivers(ctx context.Context, arg ListDriversParams) ([]Lis
 			&i.LastLocationAt,
 			&i.CreatedAt,
 			&i.UpdatedAt,
+		); err != nil {
+			return nil, err
+		}
+		items = append(items, i)
+	}
+	if err := rows.Err(); err != nil {
+		return nil, err
+	}
+	return items, nil
+}
+
+const listIncidents = `-- name: ListIncidents :many
+SELECT i.id, i.driver_id, i.kind, i.mission_type, i.mission_id, i.note, i.photo_key,
+       (i.location IS NOT NULL)::boolean AS has_location,
+       coalesce(ST_Y(i.location::geometry), 0)::float8 AS lat, coalesce(ST_X(i.location::geometry), 0)::float8 AS lng,
+       i.status, i.resolution_note, i.resolved_at, i.created_at
+FROM driver_incidents i
+WHERE ($1::text IS NULL OR i.status = $1::text)
+  AND ($2::uuid IS NULL OR i.driver_id = $2::uuid)
+ORDER BY i.created_at DESC
+LIMIT $4 OFFSET $3
+`
+
+type ListIncidentsParams struct {
+	Status   *string
+	DriverID *uuid.UUID
+	Off      int32
+	Lim      int32
+}
+
+type ListIncidentsRow struct {
+	ID             uuid.UUID
+	DriverID       uuid.UUID
+	Kind           string
+	MissionType    *string
+	MissionID      *uuid.UUID
+	Note           string
+	PhotoKey       *string
+	HasLocation    bool
+	Lat            float64
+	Lng            float64
+	Status         string
+	ResolutionNote string
+	ResolvedAt     *time.Time
+	CreatedAt      time.Time
+}
+
+func (q *Queries) ListIncidents(ctx context.Context, arg ListIncidentsParams) ([]ListIncidentsRow, error) {
+	rows, err := q.db.Query(ctx, listIncidents,
+		arg.Status,
+		arg.DriverID,
+		arg.Off,
+		arg.Lim,
+	)
+	if err != nil {
+		return nil, err
+	}
+	defer rows.Close()
+	items := []ListIncidentsRow{}
+	for rows.Next() {
+		var i ListIncidentsRow
+		if err := rows.Scan(
+			&i.ID,
+			&i.DriverID,
+			&i.Kind,
+			&i.MissionType,
+			&i.MissionID,
+			&i.Note,
+			&i.PhotoKey,
+			&i.HasLocation,
+			&i.Lat,
+			&i.Lng,
+			&i.Status,
+			&i.ResolutionNote,
+			&i.ResolvedAt,
+			&i.CreatedAt,
 		); err != nil {
 			return nil, err
 		}
@@ -1339,6 +1529,26 @@ func (q *Queries) ReleaseBusyDriver(ctx context.Context, userID uuid.UUID) error
 	return err
 }
 
+const resolveIncident = `-- name: ResolveIncident :execrows
+UPDATE driver_incidents
+SET status = 'resolved', resolution_note = $1, resolved_at = now(), resolved_by = $2
+WHERE id = $3 AND status = 'open'
+`
+
+type ResolveIncidentParams struct {
+	Note    string
+	AdminID *uuid.UUID
+	ID      uuid.UUID
+}
+
+func (q *Queries) ResolveIncident(ctx context.Context, arg ResolveIncidentParams) (int64, error) {
+	result, err := q.db.Exec(ctx, resolveIncident, arg.Note, arg.AdminID, arg.ID)
+	if err != nil {
+		return 0, err
+	}
+	return result.RowsAffected(), nil
+}
+
 const respondOffer = `-- name: RespondOffer :execrows
 UPDATE delivery_offers SET status = $1, responded_at = now()
 WHERE id = $2 AND status = 'pending'
@@ -1439,6 +1649,25 @@ func (q *Queries) SetDeliveryStatus(ctx context.Context, arg SetDeliveryStatusPa
 		arg.ID,
 		arg.FromStatuses,
 	)
+	if err != nil {
+		return 0, err
+	}
+	return result.RowsAffected(), nil
+}
+
+const setDocumentExpiry = `-- name: SetDocumentExpiry :execrows
+UPDATE driver_documents SET expires_on = $1
+WHERE id = $2 AND driver_id = $3
+`
+
+type SetDocumentExpiryParams struct {
+	ExpiresOn *time.Time
+	ID        uuid.UUID
+	DriverID  uuid.UUID
+}
+
+func (q *Queries) SetDocumentExpiry(ctx context.Context, arg SetDocumentExpiryParams) (int64, error) {
+	result, err := q.db.Exec(ctx, setDocumentExpiry, arg.ExpiresOn, arg.ID, arg.DriverID)
 	if err != nil {
 		return 0, err
 	}

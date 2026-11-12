@@ -14,6 +14,7 @@ import (
 // par un livreur sur une période.
 type PharmacyEarnings interface {
 	DriverPharmacyTotals(ctx context.Context, driverID uuid.UUID, since, until time.Time) (feesXOF, cashXOF int64, err error)
+	OwnsCourierMission(ctx context.Context, driverID, missionID uuid.UUID) (bool, error)
 }
 
 // SetPharmacyEarnings branche le module pharmacie (assemblage de l'app).

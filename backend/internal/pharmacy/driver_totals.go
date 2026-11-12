@@ -10,6 +10,15 @@ import (
 	"ivia/backend/internal/pharmacy/store"
 )
 
+// OwnsCourierMission indique si la course pharmacie est celle du livreur (signalements).
+func (s *Service) OwnsCourierMission(ctx context.Context, driverID, missionID uuid.UUID) (bool, error) {
+	ok, err := s.q(ctx).CourierMissionOwnedBy(ctx, store.CourierMissionOwnedByParams{ID: missionID, DriverID: driverID})
+	if err != nil {
+		return false, fmt.Errorf("course du livreur : %w", err)
+	}
+	return ok, nil
+}
+
 // DriverPharmacyTotals : gains des courses pharmacie livrées et espèces avancées aux pharmacies par
 // un livreur sur une période (delivery.PharmacyEarnings).
 func (s *Service) DriverPharmacyTotals(ctx context.Context, driverID uuid.UUID, since, until time.Time) (int64, int64, error) {

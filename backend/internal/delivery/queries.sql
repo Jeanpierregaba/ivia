@@ -227,7 +227,9 @@ WHERE x.assigned_at >= sqlc.arg(from_time)::timestamptz AND x.assigned_at < sqlc
 
 -- name: DriverDocumentKeysIn :many
 -- Clés rattachées parmi celles données (purge des fichiers jamais rattachés).
-SELECT object_key FROM driver_documents WHERE object_key = ANY(sqlc.arg(keys)::text[]);
+SELECT object_key FROM driver_documents WHERE object_key = ANY(sqlc.arg(keys)::text[])
+UNION
+SELECT photo_key::text FROM driver_incidents WHERE photo_key = ANY(sqlc.arg(keys)::text[]);
 
 -- name: DriverOverview :one
 -- Livreurs maintenant (tableau de bord) : validés et non suspendus par disponibilité, suspendus,
@@ -394,3 +396,46 @@ WITH p AS (
   WINDOW w AS (ORDER BY recorded_at)
 )
 SELECT coalesce(sum(step) FILTER (WHERE gap < interval '5 minutes' AND step < 2000), 0)::float8 FROM p;
+
+-- ---------------------------------------------------------------- signalements et pièces
+
+-- name: DeliveryOwnedBy :one
+SELECT EXISTS (SELECT 1 FROM deliveries WHERE id = sqlc.arg(id) AND driver_id = sqlc.arg(driver_id));
+
+-- name: InsertIncident :one
+INSERT INTO driver_incidents (driver_id, kind, mission_type, mission_id, note, photo_key, location)
+VALUES (sqlc.arg(driver_id), sqlc.arg(kind), sqlc.narg(mission_type), sqlc.narg(mission_id), sqlc.arg(note),
+        sqlc.narg(photo_key),
+        CASE WHEN sqlc.narg(lat)::float8 IS NULL THEN NULL
+             ELSE ST_SetSRID(ST_MakePoint(sqlc.narg(lng)::float8, sqlc.narg(lat)::float8), 4326)::geography END)
+RETURNING id;
+
+-- name: ListIncidents :many
+SELECT i.id, i.driver_id, i.kind, i.mission_type, i.mission_id, i.note, i.photo_key,
+       (i.location IS NOT NULL)::boolean AS has_location,
+       coalesce(ST_Y(i.location::geometry), 0)::float8 AS lat, coalesce(ST_X(i.location::geometry), 0)::float8 AS lng,
+       i.status, i.resolution_note, i.resolved_at, i.created_at
+FROM driver_incidents i
+WHERE (sqlc.narg(status)::text IS NULL OR i.status = sqlc.narg(status)::text)
+  AND (sqlc.narg(driver_id)::uuid IS NULL OR i.driver_id = sqlc.narg(driver_id)::uuid)
+ORDER BY i.created_at DESC
+LIMIT sqlc.arg(lim) OFFSET sqlc.arg(off);
+
+-- name: GetIncident :one
+SELECT i.id, i.driver_id, i.kind, i.mission_type, i.mission_id, i.note, i.photo_key,
+       (i.location IS NOT NULL)::boolean AS has_location,
+       coalesce(ST_Y(i.location::geometry), 0)::float8 AS lat, coalesce(ST_X(i.location::geometry), 0)::float8 AS lng,
+       i.status, i.resolution_note, i.resolved_at, i.created_at
+FROM driver_incidents i WHERE i.id = $1;
+
+-- name: ResolveIncident :execrows
+UPDATE driver_incidents
+SET status = 'resolved', resolution_note = sqlc.arg(note), resolved_at = now(), resolved_by = sqlc.arg(admin_id)
+WHERE id = sqlc.arg(id) AND status = 'open';
+
+-- name: DeleteIncidentsOf :exec
+DELETE FROM driver_incidents WHERE driver_id = $1;
+
+-- name: SetDocumentExpiry :execrows
+UPDATE driver_documents SET expires_on = sqlc.narg(expires_on)
+WHERE id = sqlc.arg(id) AND driver_id = sqlc.arg(driver_id);

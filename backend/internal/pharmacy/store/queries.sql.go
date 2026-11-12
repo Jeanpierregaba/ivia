@@ -470,6 +470,22 @@ func (q *Queries) CountTargets(ctx context.Context, alertID uuid.UUID) (int64, e
 	return column_1, err
 }
 
+const courierMissionOwnedBy = `-- name: CourierMissionOwnedBy :one
+SELECT EXISTS (SELECT 1 FROM pharmacy_deliveries WHERE id = $1 AND driver_id = $2)
+`
+
+type CourierMissionOwnedByParams struct {
+	ID       uuid.UUID
+	DriverID uuid.UUID
+}
+
+func (q *Queries) CourierMissionOwnedBy(ctx context.Context, arg CourierMissionOwnedByParams) (bool, error) {
+	row := q.db.QueryRow(ctx, courierMissionOwnedBy, arg.ID, arg.DriverID)
+	var exists bool
+	err := row.Scan(&exists)
+	return exists, err
+}
+
 const createAlert = `-- name: CreateAlert :one
 
 INSERT INTO pharmacy_alerts (buyer_id, kind, medicine_name, quantity, note, location, radius_m, search_ends_at,

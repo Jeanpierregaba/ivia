@@ -1781,6 +1781,27 @@ export interface paths {
         patch?: never;
         trace?: never;
     };
+    "/v1/driver/incidents": {
+        parameters: {
+            query?: never;
+            header?: never;
+            path?: never;
+            cookie?: never;
+        };
+        /** Mes signalements */
+        get: operations["getDriverIncidents"];
+        put?: never;
+        /**
+         * Signaler un problème
+         * @description Colis endommagé, adresse introuvable, code refusé, accident ou autre, avec mission, photo (envoyée d'abord dans le dossier privé du livreur, usage driver_document) et position facultatives. L'équipe ivia est prévenue (en urgence pour un accident).
+         */
+        post: operations["postDriverIncidents"];
+        delete?: never;
+        options?: never;
+        head?: never;
+        patch?: never;
+        trace?: never;
+    };
     "/v1/driver/missions": {
         parameters: {
             query?: never;
@@ -2358,6 +2379,60 @@ export interface paths {
          * @description vtc_mode : hidden (masqué), preregistration (dossiers possibles, courses fermées) ou open. Journalisé.
          */
         put: operations["putAdminDriverSettings"];
+        post?: never;
+        delete?: never;
+        options?: never;
+        head?: never;
+        patch?: never;
+        trace?: never;
+    };
+    "/v1/admin/driver-incidents": {
+        parameters: {
+            query?: never;
+            header?: never;
+            path?: never;
+            cookie?: never;
+        };
+        /** Signalements des livreurs */
+        get: operations["getAdminDriverIncidents"];
+        put?: never;
+        post?: never;
+        delete?: never;
+        options?: never;
+        head?: never;
+        patch?: never;
+        trace?: never;
+    };
+    "/v1/admin/driver-incidents/{id}/resolve": {
+        parameters: {
+            query?: never;
+            header?: never;
+            path?: never;
+            cookie?: never;
+        };
+        get?: never;
+        put?: never;
+        /** Clore un signalement (journalisé) */
+        post: operations["postAdminDriverIncidentsByIdResolve"];
+        delete?: never;
+        options?: never;
+        head?: never;
+        patch?: never;
+        trace?: never;
+    };
+    "/v1/admin/drivers/{id}/documents/{document_id}/expiry": {
+        parameters: {
+            query?: never;
+            header?: never;
+            path?: never;
+            cookie?: never;
+        };
+        get?: never;
+        /**
+         * Date d'expiration d'une pièce (journalisé)
+         * @description Saisie par l'équipe ivia à la vérification. expires_on nul ou vide : date retirée.
+         */
+        put: operations["putAdminDriversByIdDocumentsByDocumentIdExpiry"];
         post?: never;
         delete?: never;
         options?: never;
@@ -6141,6 +6216,11 @@ export interface components {
             id: string;
             /** @enum {string} */
             kind: "id_card" | "driving_license" | "vehicle_registration" | "vehicle_insurance" | "vehicle_photo" | "criminal_record" | "photo" | "other";
+            /**
+             * Format: date
+             * @description Date d'expiration, saisie par l'équipe ivia ; nulle si inconnue.
+             */
+            expires_on?: string | null;
             /** @description Lien temporaire (10 min), fourni aux admins seulement. */
             url?: string;
             /** Format: date-time */
@@ -6319,6 +6399,41 @@ export interface components {
             neighborhood: string;
             instructions?: string;
             location: components["schemas"]["Point"];
+        };
+        DriverIncidentInput: {
+            /** @enum {string} */
+            kind: "damaged_parcel" | "address_not_found" | "code_refused" | "accident" | "other";
+            /** @enum {string|null} */
+            mission_type?: "shop" | "pharmacy" | null;
+            /** Format: uuid */
+            mission_id?: string | null;
+            note?: string;
+            photo_key?: string | null;
+            lat?: number | null;
+            lng?: number | null;
+        };
+        DriverIncident: {
+            /** Format: uuid */
+            id: string;
+            /** Format: uuid */
+            driver_id: string;
+            /** @enum {string} */
+            kind: "damaged_parcel" | "address_not_found" | "code_refused" | "accident" | "other";
+            mission_type: string | null;
+            /** Format: uuid */
+            mission_id: string | null;
+            note: string;
+            has_photo: boolean;
+            /** @description Lien temporaire vers la photo : back-office seulement. */
+            photo_url?: string;
+            location: components["schemas"]["Point"] | null;
+            /** @enum {string} */
+            status: "open" | "resolved";
+            resolution_note: string;
+            /** Format: date-time */
+            resolved_at: string | null;
+            /** Format: date-time */
+            created_at: string;
         };
         DriverSummary: {
             today: {
@@ -11215,6 +11330,74 @@ export interface operations {
             };
         };
     };
+    getDriverIncidents: {
+        parameters: {
+            query?: {
+                limit?: number;
+                offset?: number;
+            };
+            header?: never;
+            path?: never;
+            cookie?: never;
+        };
+        requestBody?: never;
+        responses: {
+            /** @description Succès */
+            200: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": {
+                        items: components["schemas"]["DriverIncident"][];
+                        next_offset: number | null;
+                    };
+                };
+            };
+            /** @description Erreur (voir `code`) */
+            default: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["Error"];
+                };
+            };
+        };
+    };
+    postDriverIncidents: {
+        parameters: {
+            query?: never;
+            header?: never;
+            path?: never;
+            cookie?: never;
+        };
+        requestBody: {
+            content: {
+                "application/json": components["schemas"]["DriverIncidentInput"];
+            };
+        };
+        responses: {
+            /** @description Succès */
+            201: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["DriverIncident"];
+                };
+            };
+            /** @description Erreur (voir `code`) */
+            default: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["Error"];
+                };
+            };
+        };
+    };
     getDriverMissions: {
         parameters: {
             query?: {
@@ -12493,6 +12676,118 @@ export interface operations {
                 };
                 content: {
                     "application/json": components["schemas"]["DriverSettings"];
+                };
+            };
+            /** @description Erreur (voir `code`) */
+            default: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["Error"];
+                };
+            };
+        };
+    };
+    getAdminDriverIncidents: {
+        parameters: {
+            query?: {
+                status?: "open" | "resolved";
+                limit?: number;
+                offset?: number;
+            };
+            header?: never;
+            path?: never;
+            cookie?: never;
+        };
+        requestBody?: never;
+        responses: {
+            /** @description Succès */
+            200: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": {
+                        items: components["schemas"]["DriverIncident"][];
+                        next_offset: number | null;
+                    };
+                };
+            };
+            /** @description Erreur (voir `code`) */
+            default: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["Error"];
+                };
+            };
+        };
+    };
+    postAdminDriverIncidentsByIdResolve: {
+        parameters: {
+            query?: never;
+            header?: never;
+            path: {
+                id: string;
+            };
+            cookie?: never;
+        };
+        requestBody: {
+            content: {
+                "application/json": {
+                    note: string;
+                };
+            };
+        };
+        responses: {
+            /** @description Succès */
+            200: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["DriverIncident"];
+                };
+            };
+            /** @description Erreur (voir `code`) */
+            default: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["Error"];
+                };
+            };
+        };
+    };
+    putAdminDriversByIdDocumentsByDocumentIdExpiry: {
+        parameters: {
+            query?: never;
+            header?: never;
+            path: {
+                id: string;
+                document_id: string;
+            };
+            cookie?: never;
+        };
+        requestBody: {
+            content: {
+                "application/json": {
+                    /** Format: date */
+                    expires_on?: string | null;
+                };
+            };
+        };
+        responses: {
+            /** @description Succès */
+            200: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["AdminDriver"];
                 };
             };
             /** @description Erreur (voir `code`) */

@@ -80,9 +80,11 @@ type Driver struct {
 
 // Document est une pièce du dossier d'un livreur. L'URL n'est fournie qu'aux admins.
 type Document struct {
-	ID        uuid.UUID `json:"id"`
-	Kind      string    `json:"kind"`
-	URL       string    `json:"url,omitempty"`
+	ID   uuid.UUID `json:"id"`
+	Kind string    `json:"kind"`
+	URL  string    `json:"url,omitempty"`
+	// ExpiresOn : date d'expiration (AAAA-MM-JJ), saisie par l'équipe ivia ; nulle si inconnue.
+	ExpiresOn *string   `json:"expires_on"`
 	CreatedAt time.Time `json:"created_at"`
 }
 
@@ -208,6 +210,10 @@ func (s *Service) getDriver(ctx context.Context, userID uuid.UUID, withURLs bool
 	}
 	for i, doc := range docs {
 		d.Documents[i] = Document{ID: doc.ID, Kind: doc.Kind, CreatedAt: doc.CreatedAt}
+		if doc.ExpiresOn != nil {
+			e := doc.ExpiresOn.Format(time.DateOnly)
+			d.Documents[i].ExpiresOn = &e
+		}
 		if withURLs {
 			if d.Documents[i].URL, err = s.uploads.PrivateURL(ctx, doc.ObjectKey); err != nil {
 				return Driver{}, err
@@ -605,6 +611,9 @@ func (s *Service) OnAccountDeleted(ctx context.Context, userID uuid.UUID) error 
 	}
 	if err := q.CancelPendingOffersForDriver(ctx, userID); err != nil {
 		return err
+	}
+	if err := q.DeleteIncidentsOf(ctx, userID); err != nil {
+		return fmt.Errorf("suppression des signalements : %w", err)
 	}
 	if err := q.DeleteDocumentsOf(ctx, userID); err != nil {
 		return fmt.Errorf("suppression des documents : %w", err)

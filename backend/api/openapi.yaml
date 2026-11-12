@@ -3678,6 +3678,77 @@ paths:
             application/json:
               schema:
                 "$ref": "#/components/schemas/Error"
+  "/v1/driver/incidents":
+    post:
+      summary: "Signaler un problème"
+      description: "Colis endommagé, adresse introuvable, code refusé, accident ou autre, avec mission, photo (envoyée d'abord dans le dossier privé du livreur, usage driver_document) et position facultatives. L'équipe ivia est prévenue (en urgence pour un accident)."
+      tags:
+        - Livreur
+      operationId: postDriverIncidents
+      x-roles:
+        - driver
+      requestBody:
+        required: true
+        content:
+          application/json:
+            schema:
+              "$ref": "#/components/schemas/DriverIncidentInput"
+      responses:
+        "201":
+          description: "Succès"
+          content:
+            application/json:
+              schema:
+                "$ref": "#/components/schemas/DriverIncident"
+        default:
+          description: "Erreur (voir `code`)"
+          content:
+            application/json:
+              schema:
+                "$ref": "#/components/schemas/Error"
+    get:
+      summary: "Mes signalements"
+      tags:
+        - Livreur
+      operationId: getDriverIncidents
+      parameters:
+        - name: limit
+          in: query
+          required: false
+          schema:
+            type: integer
+        - name: offset
+          in: query
+          required: false
+          schema:
+            type: integer
+      x-roles:
+        - driver
+      responses:
+        "200":
+          description: "Succès"
+          content:
+            application/json:
+              schema:
+                type: object
+                properties:
+                  items:
+                    type: array
+                    items:
+                      "$ref": "#/components/schemas/DriverIncident"
+                  next_offset:
+                    type:
+                      - integer
+                      - "null"
+                required:
+                  - items
+                  - next_offset
+        default:
+          description: "Erreur (voir `code`)"
+          content:
+            application/json:
+              schema:
+                "$ref": "#/components/schemas/Error"
   "/v1/driver/missions":
     get:
       summary: "Historique de mes missions"
@@ -5039,6 +5110,144 @@ paths:
             application/json:
               schema:
                 "$ref": "#/components/schemas/DriverSettings"
+        default:
+          description: "Erreur (voir `code`)"
+          content:
+            application/json:
+              schema:
+                "$ref": "#/components/schemas/Error"
+  "/v1/admin/driver-incidents":
+    get:
+      summary: "Signalements des livreurs"
+      tags:
+        - Admin
+      operationId: getAdminDriverIncidents
+      parameters:
+        - name: status
+          in: query
+          required: false
+          schema:
+            type: string
+            enum:
+              - open
+              - resolved
+        - name: limit
+          in: query
+          required: false
+          schema:
+            type: integer
+        - name: offset
+          in: query
+          required: false
+          schema:
+            type: integer
+      x-roles:
+        - admin
+      responses:
+        "200":
+          description: "Succès"
+          content:
+            application/json:
+              schema:
+                type: object
+                properties:
+                  items:
+                    type: array
+                    items:
+                      "$ref": "#/components/schemas/DriverIncident"
+                  next_offset:
+                    type:
+                      - integer
+                      - "null"
+                required:
+                  - items
+                  - next_offset
+        default:
+          description: "Erreur (voir `code`)"
+          content:
+            application/json:
+              schema:
+                "$ref": "#/components/schemas/Error"
+  "/v1/admin/driver-incidents/{id}/resolve":
+    post:
+      summary: "Clore un signalement (journalisé)"
+      tags:
+        - Admin
+      operationId: postAdminDriverIncidentsByIdResolve
+      parameters:
+        - name: id
+          in: path
+          required: true
+          schema:
+            type: string
+            format: uuid
+      x-roles:
+        - admin
+      requestBody:
+        required: true
+        content:
+          application/json:
+            schema:
+              type: object
+              properties:
+                note:
+                  type: string
+              required:
+                - note
+      responses:
+        "200":
+          description: "Succès"
+          content:
+            application/json:
+              schema:
+                "$ref": "#/components/schemas/DriverIncident"
+        default:
+          description: "Erreur (voir `code`)"
+          content:
+            application/json:
+              schema:
+                "$ref": "#/components/schemas/Error"
+  "/v1/admin/drivers/{id}/documents/{document_id}/expiry":
+    put:
+      summary: "Date d'expiration d'une pièce (journalisé)"
+      description: "Saisie par l'équipe ivia à la vérification. expires_on nul ou vide : date retirée."
+      tags:
+        - Admin
+      operationId: putAdminDriversByIdDocumentsByDocumentIdExpiry
+      parameters:
+        - name: id
+          in: path
+          required: true
+          schema:
+            type: string
+            format: uuid
+        - name: document_id
+          in: path
+          required: true
+          schema:
+            type: string
+            format: uuid
+      x-roles:
+        - admin
+      requestBody:
+        required: true
+        content:
+          application/json:
+            schema:
+              type: object
+              properties:
+                expires_on:
+                  type:
+                    - string
+                    - "null"
+                  format: date
+      responses:
+        "200":
+          description: "Succès"
+          content:
+            application/json:
+              schema:
+                "$ref": "#/components/schemas/AdminDriver"
         default:
           description: "Erreur (voir `code`)"
           content:
@@ -13219,6 +13428,12 @@ components:
             - criminal_record
             - photo
             - other
+        expires_on:
+          type:
+            - string
+            - "null"
+          format: date
+          description: "Date d'expiration, saisie par l'équipe ivia ; nulle si inconnue."
         url:
           type: string
           description: "Lien temporaire (10 min), fourni aux admins seulement."
@@ -13717,6 +13932,111 @@ components:
         - address_text
         - neighborhood
         - location
+    DriverIncidentInput:
+      type: object
+      properties:
+        kind:
+          type: string
+          enum:
+            - damaged_parcel
+            - address_not_found
+            - code_refused
+            - accident
+            - other
+        mission_type:
+          type:
+            - string
+            - "null"
+          enum:
+            - shop
+            - pharmacy
+            - null
+        mission_id:
+          type:
+            - string
+            - "null"
+          format: uuid
+        note:
+          type: string
+        photo_key:
+          type:
+            - string
+            - "null"
+        lat:
+          type:
+            - number
+            - "null"
+        lng:
+          type:
+            - number
+            - "null"
+      required:
+        - kind
+    DriverIncident:
+      type: object
+      properties:
+        id:
+          type: string
+          format: uuid
+        driver_id:
+          type: string
+          format: uuid
+        kind:
+          type: string
+          enum:
+            - damaged_parcel
+            - address_not_found
+            - code_refused
+            - accident
+            - other
+        mission_type:
+          type:
+            - string
+            - "null"
+        mission_id:
+          type:
+            - string
+            - "null"
+          format: uuid
+        note:
+          type: string
+        has_photo:
+          type: boolean
+        photo_url:
+          type: string
+          description: "Lien temporaire vers la photo : back-office seulement."
+        location:
+          oneOf:
+            - "$ref": "#/components/schemas/Point"
+            - type: "null"
+        status:
+          type: string
+          enum:
+            - open
+            - resolved
+        resolution_note:
+          type: string
+        resolved_at:
+          type:
+            - string
+            - "null"
+          format: date-time
+        created_at:
+          type: string
+          format: date-time
+      required:
+        - id
+        - driver_id
+        - kind
+        - mission_type
+        - mission_id
+        - note
+        - has_photo
+        - location
+        - status
+        - resolution_note
+        - resolved_at
+        - created_at
     DriverSummary:
       type: object
       properties:

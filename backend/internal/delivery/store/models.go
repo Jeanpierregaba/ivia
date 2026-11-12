@@ -55,4 +55,5 @@ type DriverDocument struct {
 	Kind      string
 	ObjectKey string
 	CreatedAt time.Time
+	ExpiresOn *time.Time
 }
