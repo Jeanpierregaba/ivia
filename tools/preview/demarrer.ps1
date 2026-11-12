@@ -51,7 +51,17 @@ $env:DATABASE_URL = 'postgres://ivia@127.0.0.1:5434/ivia?sslmode=disable'
 $env:PORT = '8080'
 $env:LOCAL_STORAGE_DIR = './var/uploads'
 $backend = Join-Path $root 'backend'
-$api = Start-Process -FilePath (Join-Path $backend 'bin\api.exe') -WorkingDirectory $backend -WindowStyle Hidden `
+# Recherche d'adresses Google : clé lue dans backend/.env (jamais affichée ni commitée). Sans clé,
+# recherche dans les lieux enregistrés seulement.
+$envFile = Join-Path $backend '.env'
+if (Test-Path $envFile) {
+  $line = Get-Content $envFile | Where-Object { $_ -match '^\s*GOOGLE_PLACES_API_KEY\s*=\s*\S' } | Select-Object -First 1
+  if ($line) {
+    $env:GOOGLE_PLACES_API_KEY = ($line -split '=', 2)[1].Trim().Trim('"')
+    $env:GEO_PLACES_PROVIDER = 'composite'
+  }
+}
+$api =Start-Process -FilePath (Join-Path $backend 'bin\api.exe') -WorkingDirectory $backend -WindowStyle Hidden `
   -RedirectStandardOutput (Join-Path $backend 'var\api.log') -RedirectStandardError (Join-Path $backend 'var\api.err.log') -PassThru
 $started += $api.Id
 
