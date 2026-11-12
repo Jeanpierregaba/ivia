@@ -2,7 +2,7 @@
 #   docker build --build-arg APP_VERSION=<sha> -t ivia-api backend/
 # Deux binaires : api (serveur + tâches de fond) et manage (grant-admin, migrate).
 
-FROM golang:1.27.3-alpine AS build
+FROM golang:1.27.4-alpine AS build
 WORKDIR /src
 COPY go.mod go.sum ./
 RUN go mod download
