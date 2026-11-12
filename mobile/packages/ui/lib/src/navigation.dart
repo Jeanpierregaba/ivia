@@ -1,6 +1,8 @@
 import 'package:flutter/material.dart';
+import 'package:flutter/services.dart';
 
 import 'brand.dart';
+import 'motion.dart';
 import 'tokens.dart';
 
 /// Onglet de [IviaBottomNav].
@@ -79,8 +81,8 @@ class _NavIcon extends StatelessWidget {
   }
 }
 
-/// Barre du bas en pilule blanche : l'onglet actif est une pilule pleine
-/// (icône et libellé), les autres une icône seule.
+/// Barre du bas en pilule blanche : l'onglet actif est une pilule pleine (icône et libellé) qui
+/// glisse et s'élargit d'un onglet à l'autre ; les autres sont une icône seule.
 class IviaBottomNav extends StatelessWidget {
   const IviaBottomNav({
     super.key,
@@ -98,7 +100,7 @@ class IviaBottomNav extends StatelessWidget {
   @override
   Widget build(BuildContext context) {
     final brand = IviaAppBrand.of(context);
-    final textTheme = Theme.of(context).textTheme;
+    final duration = IviaMotion.of(context, IviaMotion.medium);
     return SafeArea(
       top: false,
       minimum: const EdgeInsets.fromLTRB(
@@ -114,70 +116,124 @@ class IviaBottomNav extends StatelessWidget {
           shape: StadiumBorder(),
           shadows: IviaShadows.navigation,
         ),
-        child: Row(
-          children: [
-            for (final (i, item) in items.indexed)
-              Expanded(
-                flex: i == currentIndex ? 2 : 1,
-                child: Semantics(
-                  button: true,
-                  selected: i == currentIndex,
-                  label: item.semanticLabel,
-                  excludeSemantics: true,
-                  onTap: () => onSelected(i),
-                  child: InkWell(
-                    customBorder: const StadiumBorder(),
-                    onTap: () => onSelected(i),
-                    child: ConstrainedBox(
-                      constraints: const BoxConstraints(
-                        minHeight: _height - 16,
-                      ),
-                      child: i == currentIndex
-                          ? DecoratedBox(
-                              decoration: ShapeDecoration(
-                                color: brand.action,
-                                shape: const StadiumBorder(),
+        child: LayoutBuilder(
+          builder: (context, constraints) {
+            // L'onglet actif compte double : il prend la place de son libellé.
+            final unit = constraints.maxWidth / (items.length + 1);
+            return Row(
+              children: [
+                for (final (i, item) in items.indexed)
+                  _NavTab(
+                    item: item,
+                    selected: i == currentIndex,
+                    width: unit * (i == currentIndex ? 2 : 1),
+                    height: _height - 16,
+                    color: brand.action,
+                    duration: duration,
+                    onTap: () {
+                      if (i != currentIndex) HapticFeedback.selectionClick();
+                      onSelected(i);
+                    },
+                  ),
+              ],
+            );
+          },
+        ),
+      ),
+    );
+  }
+}
+
+class _NavTab extends StatelessWidget {
+  const _NavTab({
+    required this.item,
+    required this.selected,
+    required this.width,
+    required this.height,
+    required this.color,
+    required this.duration,
+    required this.onTap,
+  });
+
+  final IviaNavItem item;
+  final bool selected;
+  final double width, height;
+  final Color color;
+  final Duration duration;
+  final VoidCallback onTap;
+
+  @override
+  Widget build(BuildContext context) {
+    final textTheme = Theme.of(context).textTheme;
+    final fg = selected ? Colors.white : IviaColors.textMuted;
+    return Semantics(
+      button: true,
+      selected: selected,
+      label: item.semanticLabel,
+      excludeSemantics: true,
+      onTap: onTap,
+      child: AnimatedContainer(
+        duration: duration,
+        curve: IviaMotion.emphasized,
+        width: width,
+        height: height,
+        decoration: ShapeDecoration(
+          color: selected ? color : color.withValues(alpha: 0),
+          shape: const StadiumBorder(),
+        ),
+        child: Material(
+          type: MaterialType.transparency,
+          child: InkWell(
+            customBorder: const StadiumBorder(),
+            onTap: onTap,
+            child: Padding(
+              padding: const EdgeInsets.symmetric(horizontal: IviaSpacing.sm),
+              child: Row(
+                mainAxisAlignment: MainAxisAlignment.center,
+                children: [
+                  AnimatedScale(
+                    scale: selected ? 1.06 : 1,
+                    duration: duration,
+                    curve: Curves.easeOutBack,
+                    child: TweenAnimationBuilder<Color?>(
+                      tween: ColorTween(end: fg),
+                      duration: duration,
+                      builder: (context, c, _) =>
+                          _NavIcon(item: item, color: c ?? fg),
+                    ),
+                  ),
+                  // Libellé de l'onglet actif seulement : il apparaît en fondu en s'élargissant.
+                  Flexible(
+                    child: AnimatedSize(
+                      duration: duration,
+                      curve: IviaMotion.emphasized,
+                      child: selected
+                          ? Padding(
+                              padding: const EdgeInsets.only(
+                                left: IviaSpacing.sm,
                               ),
-                              child: Padding(
-                                padding: const EdgeInsets.symmetric(
-                                  horizontal: IviaSpacing.md,
-                                  vertical: IviaSpacing.sm,
-                                ),
-                                child: Row(
-                                  mainAxisAlignment: MainAxisAlignment.center,
-                                  children: [
-                                    _NavIcon(item: item, color: Colors.white),
-                                    const SizedBox(width: IviaSpacing.sm),
-                                    Flexible(
-                                      child: Text(
-                                        item.label,
-                                        maxLines: 1,
-                                        overflow: TextOverflow.ellipsis,
-                                        style: textTheme.titleSmall?.copyWith(
-                                          color: Colors.white,
-                                        ),
-                                      ),
-                                    ),
-                                  ],
+                              child: TweenAnimationBuilder<double>(
+                                tween: Tween(begin: 0, end: 1),
+                                duration: duration,
+                                builder: (context, v, child) =>
+                                    Opacity(opacity: v, child: child),
+                                child: Text(
+                                  item.label,
+                                  maxLines: 1,
+                                  overflow: TextOverflow.ellipsis,
+                                  style: textTheme.titleSmall?.copyWith(
+                                    color: Colors.white,
+                                  ),
                                 ),
                               ),
                             )
-                          // Hauteur fixe : un Center seul s'étirerait sur
-                          // tout l'écran dans `Scaffold.bottomNavigationBar`.
-                          : SizedBox(
-                              height: _height - 16,
-                              child: Center(
-                                child: _NavIcon(
-                                  item: item,
-                                  color: IviaColors.textMuted,
-                                ),
-                              ),
-                            ),
+                          : const SizedBox.shrink(),
                     ),
                   ),
-                ),
+                ],
               ),
-          ],
+            ),
+          ),
         ),
       ),
     );

@@ -12,6 +12,7 @@ import '../common/unavailable_view.dart';
 import 'cancel_sheet.dart';
 import 'order_labels.dart';
 import 'invoice.dart';
+import 'receipt_screen.dart';
 import 'order_parts.dart';
 import 'orders_providers.dart';
 
@@ -331,10 +332,10 @@ class _OrderScreenState extends ConsumerState<OrderScreen> {
                   AuthSignedIn(:final user) => user,
                   _ => null,
                 };
-                Invoice.fromOrder(order, me).download();
+                showReceipt(context, Invoice.fromOrder(order, me));
               },
               icon: const Icon(Icons.receipt_long_outlined),
-              label: const Text('Télécharger la facture'),
+              label: const Text('Voir le reçu'),
             ),
           ],
           if (canCancel(order)) ...[

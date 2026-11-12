@@ -1,6 +1,7 @@
 import 'package:flutter/material.dart';
 
 import 'brand.dart';
+import 'motion.dart';
 import 'tokens.dart';
 import 'typography.dart';
 
@@ -66,6 +67,7 @@ abstract final class IviaTheme {
         );
 
     return ThemeData(
+      pageTransitionsTheme: iviaPageTransitionsTheme,
       useMaterial3: true,
       extensions: [IviaBrandTheme(brand)],
       colorScheme: colorScheme,

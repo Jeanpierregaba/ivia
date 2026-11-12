@@ -81,7 +81,7 @@ class _ProductScreenState extends ConsumerState<ProductScreen> {
                 ref.invalidate(publicProductProvider(widget.productId)),
           ),
         ),
-        _ => const Center(child: CircularProgressIndicator()),
+        _ => const IviaPageSkeleton(),
       },
       bottomNavigationBar: switch (data) {
         AsyncData(value: (final product, _)) => _bottomBar(product),

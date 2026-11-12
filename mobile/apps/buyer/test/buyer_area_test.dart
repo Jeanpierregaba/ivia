@@ -56,7 +56,7 @@ void main() {
     expect((area as AreaUnknown).failure, LocationFailure.denied);
     expect(
       locationFailureMessage(LocationFailure.denied),
-      contains('Choisissez votre quartier'),
+      contains('Autorisez la localisation'),
     );
   });
 

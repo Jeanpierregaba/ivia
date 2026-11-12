@@ -183,8 +183,8 @@ class _HomeScreenState extends ConsumerState<HomeScreen> {
             ],
             if (area is AreaLocating)
               const Padding(
-                padding: EdgeInsets.all(IviaSpacing.xxl),
-                child: Center(child: CircularProgressIndicator()),
+                padding: EdgeInsets.all(IviaSpacing.screen),
+                child: IviaListSkeleton(rows: 3),
               )
             else ...[
               if (categories.any((c) => c.parentId == null)) ...[
@@ -369,48 +369,89 @@ class _SearchEntry extends StatelessWidget {
   }
 }
 
-/// Position manquante : raison et choix du quartier.
-class _AreaMissing extends StatelessWidget {
+/// Position manquante : invitation à activer la localisation, ou à choisir
+/// son quartier, sans jamais parler de saisie à la main.
+class _AreaMissing extends ConsumerWidget {
   const _AreaMissing({required this.failure});
 
   final LocationFailure failure;
 
   @override
-  Widget build(BuildContext context) {
+  Widget build(BuildContext context, WidgetRef ref) {
+    final t = Theme.of(context).textTheme;
+    final brand = IviaAppBrand.of(context);
+    // Refus définitif ou localisation coupée : seuls les réglages la rétablissent.
+    final settings =
+        failure == LocationFailure.deniedForever ||
+        failure == LocationFailure.serviceDisabled;
     return Container(
       padding: const EdgeInsets.all(IviaSpacing.lg),
       decoration: BoxDecoration(
         color: IviaColors.surface,
         borderRadius: BorderRadius.circular(IviaRadius.large),
       ),
-      child: Column(
+      child: Row(
         crossAxisAlignment: CrossAxisAlignment.start,
         children: [
-          Semantics(
-            liveRegion: true,
-            child: Text(
-              locationFailureMessage(failure),
-              style: Theme.of(context).textTheme.bodyMedium,
+          Container(
+            width: 44,
+            height: 44,
+            decoration: BoxDecoration(
+              color: brand.accentSoft,
+              shape: BoxShape.circle,
             ),
+            child: Icon(Icons.near_me_outlined, color: brand.accent),
           ),
-          const SizedBox(height: IviaSpacing.sm),
-          Wrap(
-            spacing: IviaSpacing.sm,
-            children: [
-              TextButton(
-                onPressed: () => showAreaSheet(context),
-                child: const Text('Choisir mon quartier'),
-              ),
-              // Refus définitif : seule l'app Réglages peut le lever.
-              if (failure == LocationFailure.deniedForever)
-                Consumer(
-                  builder: (context, ref, _) => TextButton(
-                    onPressed: () =>
-                        ref.read(locationServiceProvider).openSettings(),
-                    child: const Text('Ouvrir les réglages'),
+          const SizedBox(width: IviaSpacing.md),
+          Expanded(
+            child: Column(
+              crossAxisAlignment: CrossAxisAlignment.start,
+              children: [
+                Text(
+                  'Voir ce qui est près de vous',
+                  style: t.titleSmall?.copyWith(fontWeight: FontWeight.w700),
+                ),
+                const SizedBox(height: IviaSpacing.xs),
+                Semantics(
+                  liveRegion: true,
+                  child: Text(
+                    locationFailureMessage(failure),
+                    style: t.bodyMedium?.copyWith(
+                      color: IviaColors.textSecondary,
+                    ),
                   ),
                 ),
-            ],
+                const SizedBox(height: IviaSpacing.md),
+                Wrap(
+                  spacing: IviaSpacing.sm,
+                  runSpacing: IviaSpacing.sm,
+                  children: [
+                    FilledButton.tonal(
+                      onPressed: () async {
+                        if (settings) {
+                          await ref
+                              .read(locationServiceProvider)
+                              .openSettings();
+                          return;
+                        }
+                        if (await askForLocation(context, ref)) {
+                          await ref.read(buyerAreaProvider.notifier).locate();
+                        }
+                      },
+                      child: Text(
+                        settings
+                            ? 'Ouvrir les réglages'
+                            : 'Activer la localisation',
+                      ),
+                    ),
+                    TextButton(
+                      onPressed: () => showAreaSheet(context),
+                      child: const Text('Choisir mon quartier'),
+                    ),
+                  ],
+                ),
+              ],
+            ),
           ),
         ],
       ),
@@ -555,13 +596,16 @@ class _SectionLoading extends StatelessWidget {
 
   @override
   Widget build(BuildContext context) => const Padding(
-    padding: EdgeInsets.all(IviaSpacing.xl),
-    child: Center(child: CircularProgressIndicator()),
+    padding: EdgeInsets.symmetric(horizontal: IviaSpacing.screen),
+    child: IviaGridSkeleton(count: 2),
   );
 }
 
-/// Les 8 services de la maquette A01 ; ceux sans module affichent
-/// « Bientôt disponible ».
+typedef _Service = (IconData, String, Color, Color, VoidCallback);
+
+/// Services de l'accueil (maquette A01) ; ceux sans module affichent
+/// « Bientôt disponible ». Sept tuiles, puis « Plus » qui ouvre la liste
+/// complète : d'autres services viendront.
 class _ServicesGrid extends StatelessWidget {
   const _ServicesGrid({
     required this.onPharmacy,
@@ -571,16 +615,17 @@ class _ServicesGrid extends StatelessWidget {
 
   final VoidCallback onPharmacy, onShops, onProducts;
 
-  @override
-  Widget build(BuildContext context) {
+  static const _visible = 7;
+
+  List<_Service> _services(BuildContext context) {
     void soon(String name) => ScaffoldMessenger.of(context)
       ..hideCurrentSnackBar()
       ..showSnackBar(
         SnackBar(content: Text('$name : bientôt disponible sur ivia.')),
       );
-    const red = Color(0xFFFDE8EA), blue = Color(0xFFE5EEF8);
-    const navy = Color(0xFF0E2E54);
-    final services = <(IconData, String, Color, Color, VoidCallback)>[
+    const red = IviaColors.primarySoft, blue = IviaColors.secondarySoft;
+    const navy = IviaColors.berkeleyBlue;
+    return [
       (Icons.add_box_outlined, 'Pharmacie', blue, navy, onPharmacy),
       (
         Icons.shopping_basket_outlined,
@@ -640,51 +685,162 @@ class _ServicesGrid extends StatelessWidget {
         () => soon('Coursier'),
       ),
     ];
-    return GridView.count(
-      crossAxisCount: 4,
-      shrinkWrap: true,
-      physics: const NeverScrollableScrollPhysics(),
-      mainAxisSpacing: IviaSpacing.sm,
-      crossAxisSpacing: IviaSpacing.sm,
-      childAspectRatio: MediaQuery.textScalerOf(context).scale(1) > 1.3
-          ? 0.6
-          : 0.85,
-      children: [
-        for (final (icon, label, bg, fg, onTap) in services)
-          Material(
-            color: IviaColors.surface,
+  }
+
+  @override
+  Widget build(BuildContext context) {
+    final all = _services(context);
+    final shown = all.take(_visible).toList();
+    return _ServiceTiles(
+      tiles: [
+        for (final (i, s) in shown.indexed) _ServiceTile(service: s, index: i),
+        _ServiceTile(
+          index: shown.length,
+          service: (
+            Icons.grid_view_rounded,
+            'Plus',
+            IviaColors.backgroundAlt,
+            IviaColors.textSecondary,
+            () => _showAllServices(context, all),
+          ),
+        ),
+      ],
+    );
+  }
+}
+
+/// Grille des tuiles : 4 par ligne, plus sur un grand écran.
+class _ServiceTiles extends StatelessWidget {
+  const _ServiceTiles({required this.tiles});
+
+  final List<Widget> tiles;
+
+  @override
+  Widget build(BuildContext context) => LayoutBuilder(
+    builder: (context, constraints) {
+      final columns = constraints.maxWidth >= 600 ? 8 : 4;
+      final large = MediaQuery.textScalerOf(context).scale(1) > 1.3;
+      return GridView.count(
+        crossAxisCount: columns,
+        shrinkWrap: true,
+        physics: const NeverScrollableScrollPhysics(),
+        mainAxisSpacing: IviaSpacing.sm,
+        crossAxisSpacing: IviaSpacing.sm,
+        childAspectRatio: large ? 0.6 : 0.82,
+        children: tiles,
+      );
+    },
+  );
+}
+
+/// Tuile d'un service : pastille d'icône et libellé centrés, qui s'enfonce
+/// sous le doigt.
+class _ServiceTile extends StatelessWidget {
+  const _ServiceTile({required this.service, required this.index});
+
+  final _Service service;
+  final int index;
+
+  @override
+  Widget build(BuildContext context) {
+    final (icon, label, bg, fg, onTap) = service;
+    return IviaReveal(
+      index: index,
+      child: IviaPressable(
+        child: Material(
+          color: IviaColors.surface,
+          borderRadius: BorderRadius.circular(IviaRadius.large),
+          child: InkWell(
             borderRadius: BorderRadius.circular(IviaRadius.large),
-            child: InkWell(
-              borderRadius: BorderRadius.circular(IviaRadius.large),
-              onTap: onTap,
+            onTap: onTap,
+            child: Padding(
+              padding: const EdgeInsets.symmetric(
+                horizontal: IviaSpacing.xs,
+                vertical: IviaSpacing.sm,
+              ),
               child: Column(
                 mainAxisAlignment: MainAxisAlignment.center,
                 children: [
                   Container(
-                    width: 44,
-                    height: 44,
+                    width: 46,
+                    height: 46,
                     decoration: BoxDecoration(
                       color: bg,
-                      borderRadius: BorderRadius.circular(12),
+                      borderRadius: BorderRadius.circular(14),
                     ),
                     child: Icon(icon, color: fg),
                   ),
-                  const SizedBox(height: 6),
+                  const SizedBox(height: IviaSpacing.sm),
                   Text(
                     label,
                     maxLines: 1,
+                    textAlign: TextAlign.center,
                     overflow: TextOverflow.ellipsis,
                     style: Theme.of(context).textTheme.labelMedium
-                        ?.copyWith(fontWeight: FontWeight.w700),
+                        ?.copyWith(fontWeight: FontWeight.w700, height: 1.2),
                   ),
                 ],
               ),
             ),
           ),
-      ],
+        ),
+      ),
     );
   }
 }
+
+/// « Tous les services » : la liste complète, dans une feuille.
+Future<void> _showAllServices(BuildContext context, List<_Service> all) =>
+    showModalBottomSheet<void>(
+      context: context,
+      useRootNavigator: true,
+      showDragHandle: true,
+      isScrollControlled: true,
+      backgroundColor: IviaColors.background,
+      shape: const RoundedRectangleBorder(
+        borderRadius: BorderRadius.vertical(top: Radius.circular(28)),
+      ),
+      builder: (sheet) => SafeArea(
+        child: Padding(
+          padding: const EdgeInsets.fromLTRB(
+            IviaSpacing.screen,
+            0,
+            IviaSpacing.screen,
+            IviaSpacing.xl,
+          ),
+          child: Column(
+            mainAxisSize: MainAxisSize.min,
+            crossAxisAlignment: CrossAxisAlignment.start,
+            children: [
+              Text(
+                'Tous les services',
+                style: Theme.of(sheet).textTheme.titleLarge
+                    ?.copyWith(fontWeight: FontWeight.w700),
+              ),
+              const SizedBox(height: IviaSpacing.lg),
+              _ServiceTiles(
+                tiles: [
+                  for (final (i, (icon, label, bg, fg, onTap)) in all.indexed)
+                    _ServiceTile(
+                      index: i,
+                      service: (
+                        icon,
+                        label,
+                        bg,
+                        fg,
+                        () {
+                          Navigator.of(sheet).pop();
+                          onTap();
+                        },
+                      ),
+                    ),
+                ],
+              ),
+            ],
+          ),
+        ),
+      ),
+    );
 
 /// « Pharmacies de garde » (A01) : les 3 plus proches.
 class _OnDutySection extends ConsumerWidget {

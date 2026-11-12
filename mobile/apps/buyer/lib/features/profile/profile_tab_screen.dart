@@ -948,7 +948,7 @@ class FaqScreen extends StatelessWidget {
     ),
     (
       'Où trouver ma facture ?',
-      'Dans le suivi de chaque commande payée : « Télécharger la facture ».',
+      'Dans le suivi de chaque commande payée : « Voir le reçu », puis « Télécharger » ou « Partager ».',
     ),
   ];
 

@@ -146,8 +146,7 @@ void main() {
         findsOneWidget,
       );
       expect(find.bySemanticsLabel('Panier, 2 articles'), findsOneWidget);
-      ScaffoldMessenger.of(tester.element(find.byType(ProductScreen)))
-          .removeCurrentSnackBar();
+      await tester.tap(find.text('Continuer mes achats'));
       await tester.pumpAndSettle();
 
       await tester.tap(find.bySemanticsLabel(RegExp('^Boutique Chez Afi')));

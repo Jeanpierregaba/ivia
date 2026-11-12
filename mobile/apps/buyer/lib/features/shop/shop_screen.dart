@@ -111,7 +111,7 @@ class _ShopScreenState extends ConsumerState<ShopScreen> {
             gone: 'Cette boutique n’est plus disponible.',
             onRetry: () => ref.invalidate(publicShopProvider(widget.shopId)),
           ),
-          _ => const Center(child: CircularProgressIndicator()),
+          _ => const IviaPageSkeleton(),
         },
       ),
       bottomNavigationBar: shop.hasValue
@@ -160,8 +160,8 @@ class _ShopScreenState extends ConsumerState<ShopScreen> {
       return const [
         SliverToBoxAdapter(
           child: Padding(
-            padding: EdgeInsets.all(IviaSpacing.xxl),
-            child: Center(child: CircularProgressIndicator()),
+            padding: EdgeInsets.all(IviaSpacing.screen),
+            child: IviaGridSkeleton(),
           ),
         ),
       ];

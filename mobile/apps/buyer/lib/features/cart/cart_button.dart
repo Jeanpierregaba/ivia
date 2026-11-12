@@ -61,12 +61,23 @@ class CartButton extends ConsumerWidget {
                           borderRadius: BorderRadius.circular(12),
                           border: Border.all(color: Colors.white, width: 2),
                         ),
-                        child: Text(
-                          count > 99 ? '99+' : '$count',
-                          style: const TextStyle(
-                            color: Colors.white,
-                            fontSize: 12,
-                            fontWeight: FontWeight.w800,
+                        child: AnimatedSwitcher(
+                          duration: IviaMotion.of(context, IviaMotion.medium),
+                          transitionBuilder: (child, a) => ScaleTransition(
+                            scale: CurvedAnimation(
+                              parent: a,
+                              curve: Curves.easeOutBack,
+                            ),
+                            child: child,
+                          ),
+                          child: Text(
+                            count > 99 ? '99+' : '$count',
+                            key: ValueKey(count),
+                            style: const TextStyle(
+                              color: Colors.white,
+                              fontSize: 12,
+                              fontWeight: FontWeight.w800,
+                            ),
                           ),
                         ),
                       ),

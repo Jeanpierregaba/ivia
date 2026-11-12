@@ -64,9 +64,9 @@ void main() {
     await tester.pumpAndSettle();
   }
 
+  /// Ferme la fenêtre « … ajouté au panier ».
   Future<void> hideMessage(WidgetTester tester, Type screen) async {
-    ScaffoldMessenger.of(tester.element(find.byType(screen)))
-        .removeCurrentSnackBar();
+    await tester.tap(find.text('Continuer mes achats'));
     await tester.pumpAndSettle();
   }
 
@@ -161,16 +161,17 @@ void main() {
       expect(find.text('Ce produit n’est plus disponible.'), findsOneWidget);
     });
 
-    testWidgets('message avec action : disparaît après quelques secondes', (
+    testWidgets('fenêtre d’ajout : « Continuer mes achats » la ferme', (
       tester,
     ) async {
       await open(tester, Routes.shop(afi['id'] as String));
       await tester.tap(find.bySemanticsLabel('Ajouter Huile 1 L au panier'));
       await tester.pumpAndSettle();
       expect(find.text('Huile 1 L ajouté au panier'), findsOneWidget);
-      await tester.pump(const Duration(seconds: 7));
+      await tester.tap(find.text('Continuer mes achats'));
       await tester.pumpAndSettle();
-      expect(find.byType(SnackBar), findsNothing);
+      expect(find.text('Huile 1 L ajouté au panier'), findsNothing);
+      expect(find.byType(ShopScreen), findsOneWidget);
     });
 
     testWidgets('panier non chargé au lancement : l’ajout le relit', (

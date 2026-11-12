@@ -181,9 +181,10 @@ class BuyerAreaController extends Notifier<BuyerArea> {
 /// Explication d'une position manquante, pour l'acheteur.
 String locationFailureMessage(LocationFailure failure) => switch (failure) {
   LocationFailure.serviceDisabled =>
-    'La localisation est désactivée. Choisissez votre quartier.',
-  LocationFailure.denied || LocationFailure.deniedForever =>
-    'Position non autorisée. Choisissez votre quartier.',
+    'La localisation de votre téléphone est désactivée.',
+  LocationFailure.denied => 'Autorisez la localisation pour voir les boutiques et produits autour de vous.',
+  LocationFailure.deniedForever =>
+    'La localisation est bloquée pour ivia dans les réglages du téléphone.',
   LocationFailure.unavailable =>
-    'Position introuvable pour l’instant. Choisissez votre quartier.',
+    'Votre position est introuvable pour l’instant.',
 };

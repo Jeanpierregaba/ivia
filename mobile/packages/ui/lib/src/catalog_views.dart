@@ -2,6 +2,7 @@ import 'package:flutter/material.dart';
 
 import 'brand.dart';
 import 'components.dart';
+import 'motion.dart';
 import 'tokens.dart';
 
 /// Puce de filtre en pilule : blanche au repos, Berkeley quand elle est
@@ -170,105 +171,108 @@ class IviaProductCard extends StatelessWidget {
       label: spoken,
       excludeSemantics: true,
       onTap: onTap,
-      child: Material(
-        color: IviaColors.surface,
-        borderRadius: BorderRadius.circular(IviaRadius.large),
-        child: InkWell(
+      child: IviaPressable(
+        haptic: false,
+        child: Material(
+          color: IviaColors.surface,
           borderRadius: BorderRadius.circular(IviaRadius.large),
-          onTap: onTap,
-          child: Padding(
-            padding: const EdgeInsets.all(IviaSpacing.sm),
-            child: Column(
-              crossAxisAlignment: CrossAxisAlignment.start,
-              children: [
-                AspectRatio(
-                  aspectRatio: 1.3,
-                  child: Stack(
-                    fit: StackFit.expand,
-                    children: [
-                      IviaNetworkImage(url: imageUrl),
-                      if (badge case final b?)
-                        Positioned(
-                          left: IviaSpacing.xs,
-                          bottom: IviaSpacing.xs,
-                          child: IviaPromoBadge(label: b),
-                        ),
-                    ],
+          child: InkWell(
+            borderRadius: BorderRadius.circular(IviaRadius.large),
+            onTap: onTap,
+            child: Padding(
+              padding: const EdgeInsets.all(IviaSpacing.sm),
+              child: Column(
+                crossAxisAlignment: CrossAxisAlignment.start,
+                children: [
+                  AspectRatio(
+                    aspectRatio: 1.3,
+                    child: Stack(
+                      fit: StackFit.expand,
+                      children: [
+                        IviaNetworkImage(url: imageUrl),
+                        if (badge case final b?)
+                          Positioned(
+                            right: IviaSpacing.xs,
+                            top: IviaSpacing.xs,
+                            child: IviaPromoBadge(label: b),
+                          ),
+                      ],
+                    ),
                   ),
-                ),
-                Padding(
-                  padding: const EdgeInsets.fromLTRB(
-                    IviaSpacing.xs,
-                    IviaSpacing.md,
-                    IviaSpacing.xs,
-                    IviaSpacing.xs,
-                  ),
-                  child: Column(
-                    crossAxisAlignment: CrossAxisAlignment.start,
-                    children: [
-                      Text(
-                        name,
-                        maxLines: 2,
-                        overflow: TextOverflow.ellipsis,
-                        style: textTheme.titleSmall?.copyWith(
-                          fontWeight: FontWeight.w700,
+                  Padding(
+                    padding: const EdgeInsets.fromLTRB(
+                      IviaSpacing.xs,
+                      IviaSpacing.md,
+                      IviaSpacing.xs,
+                      IviaSpacing.xs,
+                    ),
+                    child: Column(
+                      crossAxisAlignment: CrossAxisAlignment.start,
+                      children: [
+                        Text(
+                          name,
+                          maxLines: 2,
+                          overflow: TextOverflow.ellipsis,
+                          style: textTheme.titleSmall?.copyWith(
+                            fontWeight: FontWeight.w700,
+                          ),
                         ),
-                      ),
-                      const SizedBox(height: 2),
-                      Text.rich(
-                        TextSpan(
-                          text: shopName,
+                        const SizedBox(height: 2),
+                        Text.rich(
+                          TextSpan(
+                            text: shopName,
+                            children: [
+                              if (distance case final d?)
+                                TextSpan(
+                                  text: ' · $d',
+                                  style: const TextStyle(
+                                    color: IviaColors.cobaltBlue,
+                                    fontWeight: FontWeight.w700,
+                                  ),
+                                ),
+                            ],
+                          ),
+                          maxLines: 1,
+                          overflow: TextOverflow.ellipsis,
+                          style: textTheme.bodySmall,
+                        ),
+                        const SizedBox(height: IviaSpacing.xs),
+                        Wrap(
+                          spacing: IviaSpacing.xs,
+                          crossAxisAlignment: WrapCrossAlignment.end,
                           children: [
-                            if (distance case final d?)
-                              TextSpan(
-                                text: ' · $d',
-                                style: const TextStyle(
-                                  color: IviaColors.cobaltBlue,
-                                  fontWeight: FontWeight.w700,
+                            Text(
+                              price,
+                              style: textTheme.titleMedium?.copyWith(
+                                fontWeight: FontWeight.w700,
+                                color: oldPrice == null
+                                    ? null
+                                    : IviaColors.imperialRed,
+                              ),
+                            ),
+                            if (oldPrice case final old?)
+                              Text(
+                                old,
+                                style: textTheme.bodySmall?.copyWith(
+                                  decoration: TextDecoration.lineThrough,
+                                  color: IviaColors.textMuted,
                                 ),
                               ),
                           ],
                         ),
-                        maxLines: 1,
-                        overflow: TextOverflow.ellipsis,
-                        style: textTheme.bodySmall,
-                      ),
-                      const SizedBox(height: IviaSpacing.xs),
-                      Wrap(
-                        spacing: IviaSpacing.xs,
-                        crossAxisAlignment: WrapCrossAlignment.end,
-                        children: [
+                        if (soldOut)
                           Text(
-                            price,
-                            style: textTheme.titleMedium?.copyWith(
+                            'Épuisé',
+                            style: textTheme.bodySmall?.copyWith(
+                              color: IviaColors.error,
                               fontWeight: FontWeight.w700,
-                              color: oldPrice == null
-                                  ? null
-                                  : IviaColors.imperialRed,
                             ),
                           ),
-                          if (oldPrice case final old?)
-                            Text(
-                              old,
-                              style: textTheme.bodySmall?.copyWith(
-                                decoration: TextDecoration.lineThrough,
-                                color: IviaColors.textMuted,
-                              ),
-                            ),
-                        ],
-                      ),
-                      if (soldOut)
-                        Text(
-                          'Épuisé',
-                          style: textTheme.bodySmall?.copyWith(
-                            color: IviaColors.error,
-                            fontWeight: FontWeight.w700,
-                          ),
-                        ),
-                    ],
+                      ],
+                    ),
                   ),
-                ),
-              ],
+                ],
+              ),
             ),
           ),
         ),

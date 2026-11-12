@@ -84,8 +84,8 @@ class _OrdersScreenState extends ConsumerState<OrdersScreen> {
                 ],
                 null => const [
                   Padding(
-                    padding: EdgeInsets.all(IviaSpacing.xxl),
-                    child: Center(child: CircularProgressIndicator()),
+                    padding: EdgeInsets.all(IviaSpacing.screen),
+                    child: IviaListSkeleton(),
                   ),
                 ],
               },

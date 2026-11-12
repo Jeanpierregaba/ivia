@@ -70,7 +70,9 @@ void main() {
       app.location.next = const LocationResult.failed(LocationFailure.denied);
       await app.launch(tester);
       expect(
-        find.text('Position non autorisée. Choisissez votre quartier.'),
+        find.text(
+          'Autorisez la localisation pour voir les boutiques et produits autour de vous.',
+        ),
         findsOneWidget,
       );
       await tapText(tester, 'Choisir mon quartier');
@@ -293,7 +295,9 @@ void main() {
           expect(find.text('Ma position'), findsOneWidget);
         } else {
           expect(
-            find.text('Position non autorisée. Choisissez votre quartier.'),
+            find.text(
+              'Autorisez la localisation pour voir les boutiques et produits autour de vous.',
+            ),
             findsWidgets,
           );
         }

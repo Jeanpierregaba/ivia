@@ -10,6 +10,7 @@ import 'package:flutter/services.dart';
 
 import '../../app/router.dart';
 import '../orders/invoice.dart';
+import '../orders/receipt_screen.dart';
 import 'alert_screen.dart';
 import 'med_ui.dart';
 import 'pharmacy_state.dart';
@@ -1219,7 +1220,7 @@ class _PickupScreenState extends ConsumerState<PickupScreen> with LivePolling {
   }
 }
 
-/// « Télécharger la facture » d'une réservation réglée.
+/// « Voir le reçu » d'une réservation réglée.
 class _InvoiceButton extends ConsumerWidget {
   const _InvoiceButton({required this.r});
   final MedReservation r;
@@ -1233,10 +1234,10 @@ class _InvoiceButton extends ConsumerWidget {
           AuthSignedIn(:final user) => user,
           _ => null,
         };
-        Invoice.fromReservation(r, me).download();
+        showReceipt(context, Invoice.fromReservation(r, me));
       },
       icon: const Icon(Icons.receipt_long_outlined),
-      label: const Text('Télécharger la facture'),
+      label: const Text('Voir le reçu'),
     ),
   );
 }

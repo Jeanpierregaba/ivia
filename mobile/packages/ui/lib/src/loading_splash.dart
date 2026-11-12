@@ -1,3 +1,5 @@
+import 'dart:math' as math;
+
 import 'package:flutter/material.dart';
 import 'package:flutter/services.dart';
 
@@ -70,10 +72,17 @@ class IviaLoadingSplash extends StatefulWidget {
 }
 
 class _IviaLoadingSplashState extends State<IviaLoadingSplash>
-    with SingleTickerProviderStateMixin {
+    with TickerProviderStateMixin {
   late final _controller = AnimationController(
     vsync: this,
     duration: const Duration(milliseconds: 1200),
+  );
+
+  /// Entrée, une fois : le visuel (déjà affiché par le splash natif, donc
+  /// jamais masqué) respire et lance deux ondes, puis les textes montent.
+  late final _intro = AnimationController(
+    vsync: this,
+    duration: const Duration(milliseconds: 1400),
   );
 
   @override
@@ -82,13 +91,16 @@ class _IviaLoadingSplashState extends State<IviaLoadingSplash>
     // Animations réduites (accessibilité) : points immobiles.
     if (MediaQuery.disableAnimationsOf(context)) {
       _controller.stop();
-    } else if (!_controller.isAnimating) {
-      _controller.repeat();
+      _intro.value = 1;
+    } else {
+      if (!_controller.isAnimating) _controller.repeat();
+      if (_intro.isDismissed) _intro.forward();
     }
   }
 
   @override
   void dispose() {
+    _intro.dispose();
     _controller.dispose();
     super.dispose();
   }
@@ -112,19 +124,19 @@ class _IviaLoadingSplashState extends State<IviaLoadingSplash>
                   child: Column(
                     mainAxisSize: MainAxisSize.min,
                     children: [
-                      widget.tile ? _tile() : _wordmark(),
+                      _animatedVisual(visualHeight),
                       SizedBox(
                         height: widget.tile
                             ? IviaSpacing.xxl
                             : IviaSpacing.huge,
                       ),
-                      _texts(textTheme),
+                      _enter(_texts(textTheme)),
                     ],
                   ),
                 ),
               )
             else ...[
-              Center(child: widget.tile ? _tile() : _wordmark()),
+              Center(child: _animatedVisual(visualHeight)),
               // Textes sous le visuel, sans décaler celui-ci (40 dp sous le
               // logotype, maquette acheteur ; 24 dp sous la tuile, marchand).
               Positioned(
@@ -134,7 +146,7 @@ class _IviaLoadingSplashState extends State<IviaLoadingSplash>
                     MediaQuery.sizeOf(context).height / 2 +
                     visualHeight / 2 +
                     (widget.tile ? IviaSpacing.xxl : IviaSpacing.huge),
-                child: _texts(textTheme),
+                child: _enter(_texts(textTheme)),
               ),
             ],
             Positioned(
@@ -159,6 +171,77 @@ class _IviaLoadingSplashState extends State<IviaLoadingSplash>
       ),
     );
   }
+
+  /// Visuel qui respire une fois, avec deux ondes blanches qui s'éloignent.
+  Widget _animatedVisual(double height) {
+    final visual = widget.tile ? _tile() : _wordmark();
+    final width = widget.tile
+        ? widget.tileStyle.size
+        : IviaLoadingSplash.logoWidth;
+    return AnimatedBuilder(
+      animation: _intro,
+      child: visual,
+      builder: (context, child) {
+        final t = _intro.value;
+        final breath = Curves.easeInOut.transform((t / 0.55).clamp(0.0, 1.0));
+        final scale = 1 + 0.07 * math.sin(math.pi * breath);
+        Widget ring(double start) {
+          final r = ((t - start) / 0.6).clamp(0.0, 1.0);
+          return IgnorePointer(
+            child: Opacity(
+              opacity: (1 - r) * (r > 0 ? 0.35 : 0),
+              child: Container(
+                width: width * (1 + 1.2 * Curves.easeOut.transform(r)),
+                height: width * (1 + 1.2 * Curves.easeOut.transform(r)),
+                decoration: BoxDecoration(
+                  shape: BoxShape.circle,
+                  border: Border.all(color: Colors.white, width: 2),
+                ),
+              ),
+            ),
+          );
+        }
+
+        return SizedBox(
+          width: width,
+          height: height,
+          child: Stack(
+            clipBehavior: Clip.none,
+            alignment: Alignment.center,
+            children: [
+              OverflowBox(
+                maxWidth: width * 2.4,
+                maxHeight: width * 2.4,
+                child: Stack(
+                  alignment: Alignment.center,
+                  children: [ring(0.15), ring(0.35)],
+                ),
+              ),
+              Transform.scale(scale: scale, child: child),
+            ],
+          ),
+        );
+      },
+    );
+  }
+
+  /// Textes qui montent en fondu après le visuel.
+  Widget _enter(Widget child) => AnimatedBuilder(
+    animation: _intro,
+    child: child,
+    builder: (context, child) {
+      final v = Curves.easeOutCubic.transform(
+        ((_intro.value - 0.3) / 0.5).clamp(0.0, 1.0),
+      );
+      return Opacity(
+        opacity: v,
+        child: Transform.translate(
+          offset: Offset(0, 14 * (1 - v)),
+          child: child,
+        ),
+      );
+    },
+  );
 
   Widget _texts(TextTheme textTheme) => Column(
     children: [

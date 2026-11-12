@@ -501,7 +501,7 @@ class _Loading extends StatelessWidget {
 
   @override
   Widget build(BuildContext context) => const Padding(
-    padding: EdgeInsets.all(IviaSpacing.xxl),
-    child: Center(child: CircularProgressIndicator()),
+    padding: EdgeInsets.all(IviaSpacing.screen),
+    child: IviaGridSkeleton(),
   );
 }
