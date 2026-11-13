@@ -29,6 +29,7 @@ import {
   Store,
   Truck,
   Users,
+  UserCog,
   X,
   Radar,
   Droplets,
@@ -51,7 +52,7 @@ type Item = {
 };
 
 // Sections de la maquette B03 ; Comptes et Référentiels complètent « Système ».
-const sections: { title: string; items: Item[] }[] = [
+const groups: { title: string; items: Item[] }[] = [
   {
     title: "Opérations",
     items: [
@@ -113,11 +114,52 @@ const sections: { title: string; items: Item[] }[] = [
       { href: "/audit", label: "Journal des actions", icon: ScrollText },
       { href: "/settings", label: "Paramètres", icon: Settings2 },
       { href: "/users", label: "Comptes", icon: Users },
+      { href: "/admins", label: "Comptes admin", icon: UserCog },
       { href: "/security", label: "Sécurité", icon: ShieldCheck },
       { href: "/referentials", label: "Référentiels", icon: BookOpen },
     ],
   },
 ];
+
+// Section de l'API (/v1/admin/<section>) dont dépend chaque page : le menu ne montre que celles
+// du rôle de l'admin (spec 039). Sans section : visible par tous les admins.
+const SECTION: Record<string, string> = {
+  "/orders": "orders",
+  "/ivi-orders": "platform-orders",
+  "/payments": "payments",
+  "/refunds": "refund-queue",
+  "/business": "business",
+  "/shops": "shops",
+  "/drivers": "drivers",
+  "/fleet": "fleet",
+  "/ratings": "ratings",
+  "/driver-incidents": "driver-incidents",
+  "/driver-settings": "driver-settings",
+  "/properties": "properties",
+  "/pharmacies": "pharmacies",
+  "/medicine-alerts": "medicine-alerts",
+  "/medicine-payments": "medicine-payments",
+  "/medicines": "medicines",
+  "/pharmacy-settings": "pharmacy",
+  "/places": "places",
+  "/zones": "zones",
+  "/geo-metrics": "geo",
+  "/promo": "promo",
+  "/coupons": "promo-codes",
+  "/products": "products",
+  "/settlements": "settlements",
+  "/deliveries": "deliveries",
+  "/audit": "audit-log",
+  "/settings": "settings",
+  "/users": "users",
+  "/admins": "admins",
+  "/referentials": "categories",
+};
+
+function visible(href: string, sections: string[]) {
+  const s = SECTION[href];
+  return !s || sections.includes("*") || sections.includes(s);
+}
 
 function initialsOf(first: string, last: string, email: string) {
   const v = ((first[0] ?? "") + (last[0] ?? "")).toUpperCase();
@@ -159,6 +201,8 @@ export function Sidebar({
   collapsed = false,
   toggle,
   onClose,
+  sections = ["*"],
+  roleLabel = "Administrateur",
 }: {
   firstName: string;
   lastName: string;
@@ -167,12 +211,18 @@ export function Sidebar({
   collapsed?: boolean;
   toggle?: React.ReactNode;
   onClose?: () => void;
+  /** Sections du rôle de l'admin (« * » : toutes). */
+  sections?: string[];
+  roleLabel?: string;
 }) {
   const path = usePathname();
   const on = (href: string) => (href === "/" ? path === "/" : path.startsWith(href));
   const fullName = [firstName, lastName].filter(Boolean).join(" ") || email;
   // Le tiroir (petit écran) est toujours déplié.
   const mini = collapsed && !onClose;
+  const menu = groups
+    .map((g) => ({ ...g, items: g.items.filter((i) => visible(i.href, sections)) }))
+    .filter((g) => g.items.length > 0);
 
   return (
     <aside className="flex h-full flex-col overflow-hidden bg-tertiary text-white lg:h-screen">
@@ -229,7 +279,7 @@ export function Sidebar({
           <Label hidden={mini}>Tableau de bord</Label>
         </Link>
 
-        {sections.map((s) => (
+        {menu.map((s) => (
           <div key={s.title} className="mb-4">
             <div className="relative mb-1.5 h-5">
               <p
@@ -320,7 +370,7 @@ export function Sidebar({
         </span>
         <Label hidden={mini} className="min-w-0 flex-1">
           <span className="block truncate text-[14px] font-bold">{fullName}</span>
-          <span className="block text-[13px] text-white/60">Administrateur</span>
+          <span className="block text-[13px] text-white/60">{roleLabel}</span>
         </Label>
         <a
           href="/logout"

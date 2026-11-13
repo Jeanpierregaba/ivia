@@ -2,6 +2,7 @@ import 'dart:async';
 
 import 'package:flutter/material.dart';
 import 'package:flutter_riverpod/flutter_riverpod.dart';
+import 'package:ivia_api_client/ivia_api_client.dart';
 import 'package:ivia_app_core/ivia_app_core.dart';
 import 'package:ivia_ui/ivia_ui.dart';
 
@@ -25,10 +26,28 @@ class DriverShell extends ConsumerStatefulWidget {
 
 class _DriverShellState extends ConsumerState<DriverShell> {
   var _tab = 0;
+  StreamSubscription<RealtimeEvent>? _chat;
+
+  @override
+  void dispose() {
+    unawaited(_chat?.cancel());
+    super.dispose();
+  }
 
   @override
   void initState() {
     super.initState();
+    // Nouveau message du client ou de la boutique (spec 037) : bandeau qui ouvre la discussion.
+    _chat = ref.read(iviaRealtimeProvider('driver')).events.listen((e) {
+      if (e.kind != 'chat_message' || !mounted) return;
+      showChatBanner(context, e, (e) {
+        final order = e.orderId;
+        if (order == null) return null;
+        return e.data['thread'] == 'driver_shop'
+            ? ChatChannel.driverShop(order)
+            : ChatChannel.driverClient(order);
+      });
+    });
     // Push réels (Firebase) : touchés, ils ramènent à l'accueil (proposition
     // ou mission en cours).
     unawaited(

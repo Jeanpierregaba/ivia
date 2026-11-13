@@ -15,7 +15,7 @@ import {
 } from "@/components/ui";
 import { api, ApiError, type Schemas } from "@/lib/api";
 import { formatDateTime, formatPhone, ROLE_LABEL } from "@/lib/format";
-import { resetMfa, setAdmin } from "./actions";
+import { resetMfa } from "./actions";
 
 export const metadata = { title: "Comptes" };
 
@@ -137,30 +137,9 @@ export default async function UsersPage({ searchParams }: Props) {
                         }}
                         reason={{ label: "Motif", required: true }}
                       />
-                      <ActionForm
-                        action={setAdmin}
-                        label="Retirer"
-                        variant="outline"
-                        hidden={{ id: u.id, grant: "false" }}
-                        confirm={{
-                          title: `Retirer les droits admin de ${name} ?`,
-                          body: "L'accès au back-office est coupé dès sa prochaine page.",
-                        }}
-                        reason={{ label: "Motif", required: true }}
-                      />
                     </div>
                   ) : (
-                    <ActionForm
-                      action={setAdmin}
-                      label="Rendre admin"
-                      variant="outline"
-                      hidden={{ id: u.id, grant: "true" }}
-                      confirm={{
-                        title: `Donner les droits admin à ${name} ?`,
-                        body: "Ce compte pourra valider les boutiques et les livreurs, annuler des commandes et rembourser.",
-                      }}
-                      reason={{ label: "Motif", required: true }}
-                    />
+                    <span className="text-[13px] text-text-muted">—</span>
                   )}
                 </Td>
               </tr>

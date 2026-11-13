@@ -1,4 +1,19 @@
-import { Bell, Search } from "lucide-react";
+import {
+  ArrowUpRight,
+  Banknote,
+  Bell,
+  CheckCircle2,
+  LockKeyhole,
+  PackageSearch,
+  RotateCcw,
+  Route,
+  Search,
+  ShoppingBag,
+  Store,
+  Timer,
+  Truck,
+  Wallet,
+} from "lucide-react";
 import Link from "next/link";
 
 import { AnimatedNumber, LiveRefresh, PeriodMenu } from "@/components/live";
@@ -86,12 +101,11 @@ export default async function DashboardPage({ searchParams }: Props) {
       />
 
       {/* À traiter */}
-      <h2 className="mb-3 text-[14px] font-extrabold uppercase tracking-[0.12em] text-text-secondary">
-        À traiter
-      </h2>
+      <h2 className="dash-section mb-3">À traiter</h2>
       <div className="mb-4 grid grid-cols-1 gap-4 sm:grid-cols-2 lg:grid-cols-3 2xl:grid-cols-5">
         <TodoCard
           tone="#ED1C2F"
+          icon={<Banknote size={20} aria-hidden="true" />}
           value={o.todo.refunds}
           action="Rembourser"
           title="Remboursements en attente"
@@ -105,6 +119,7 @@ export default async function DashboardPage({ searchParams }: Props) {
         />
         <TodoCard
           tone="#0E2E54"
+          icon={<Store size={20} aria-hidden="true" />}
           value={o.todo.shops}
           action="Examiner"
           title="Boutiques à valider"
@@ -118,6 +133,7 @@ export default async function DashboardPage({ searchParams }: Props) {
         />
         <TodoCard
           tone="#004DA8"
+          icon={<Truck size={20} aria-hidden="true" />}
           value={o.todo.drivers}
           action="Examiner"
           title="Livreurs à valider"
@@ -127,6 +143,7 @@ export default async function DashboardPage({ searchParams }: Props) {
         />
         <TodoCard
           tone="#AA0E1B"
+          icon={<LockKeyhole size={20} aria-hidden="true" />}
           value={o.todo.handover_locked}
           action="Intervenir"
           title="Code de remise bloqué"
@@ -140,6 +157,7 @@ export default async function DashboardPage({ searchParams }: Props) {
         />
         <TodoCard
           tone="#8A5A00"
+          icon={<PackageSearch size={20} aria-hidden="true" />}
           value={o.todo.unassigned}
           action="Assigner"
           title="Commande sans livreur"
@@ -158,8 +176,9 @@ export default async function DashboardPage({ searchParams }: Props) {
       </div>
 
       {/* Indicateurs */}
+      <h2 className="dash-section mb-3 mt-8">Indicateurs</h2>
       <div className="mb-4 grid grid-cols-1 gap-4 sm:grid-cols-2 lg:grid-cols-3 2xl:grid-cols-5">
-        <KpiCard label="Commandes payées">
+        <KpiCard label="Commandes payées" icon={<ShoppingBag size={17} aria-hidden="true" />}>
           <BigValue>
             <AnimatedNumber value={k.paid_orders} />
           </BigValue>
@@ -167,21 +186,21 @@ export default async function DashboardPage({ searchParams }: Props) {
             {delta === null ? "Pas de comparaison" : `${delta >= 0 ? "+" : ""}${delta} % ${versus}`}
           </p>
         </KpiCard>
-        <KpiCard label="Volume des ventes">
+        <KpiCard label="Volume des ventes" icon={<Wallet size={17} aria-hidden="true" />}>
           <BigValue>
             <AnimatedNumber value={k.gmv_xof} kind="xof" />
           </BigValue>
           <p className="mt-3 text-[14px] text-text-muted">Commission : {F(k.commission_xof)}</p>
         </KpiCard>
-        <KpiCard label="Annulées ou remboursées">
+        <KpiCard label="Annulées ou remboursées" icon={<RotateCcw size={17} aria-hidden="true" />}>
           <BigValue>{pct(k.cancellation_rate_pct, 1)}</BigValue>
           <Goal note="Sur 30 jours" label="Objectif < 5 %" ok={k.cancellation_rate_pct < 5} />
         </KpiCard>
-        <KpiCard label="Livreur assigné < 10 min">
+        <KpiCard label="Livreur assigné < 10 min" icon={<Timer size={17} aria-hidden="true" />}>
           <BigValue>{pct(k.assigned_within_10_min_pct, 0)}</BigValue>
           <Goal note="Commandes prêtes" label="Objectif 80 %" ok={k.assigned_within_10_min_pct >= 80} />
         </KpiCard>
-        <KpiCard label="Prête → livrée">
+        <KpiCard label="Prête → livrée" icon={<Route size={17} aria-hidden="true" />}>
           <BigValue>
             {k.median_ready_to_delivered_minutes > 0
               ? `${Math.round(k.median_ready_to_delivered_minutes)} min`
@@ -195,7 +214,8 @@ export default async function DashboardPage({ searchParams }: Props) {
         </KpiCard>
       </div>
 
-      <div className="mb-4 grid grid-cols-[minmax(0,1.75fr)_minmax(0,1fr)] gap-4 max-[1200px]:grid-cols-1">
+      <h2 className="dash-section mb-3 mt-8">Activité</h2>
+      <div className="mb-4 grid grid-cols-1 gap-4 xl:grid-cols-[minmax(0,1.75fr)_minmax(0,1fr)]">
         <PaidChart days={o.paid_per_day} />
         <DriversPanel
           drivers={o.drivers}
@@ -204,7 +224,7 @@ export default async function DashboardPage({ searchParams }: Props) {
         />
       </div>
 
-      <div className="grid grid-cols-[minmax(0,1.75fr)_minmax(0,1fr)] gap-4 max-[1200px]:grid-cols-1">
+      <div className="grid grid-cols-1 gap-4 xl:grid-cols-[minmax(0,1.75fr)_minmax(0,1fr)]">
         <ActiveOrders active={o.active_orders} now={o.generated_at} chipHref={(g) => href(period, g)} />
         <AuditFeed lines={o.audit} now={o.generated_at} />
       </div>
@@ -221,43 +241,50 @@ function LiveRefreshHeader(props: {
   unread: number;
 }) {
   return (
-    <header className="animate-rise mb-7 flex flex-wrap items-start justify-between gap-6">
-      <div>
-        <h1 className="text-[26px] font-extrabold leading-[32px] tracking-[-0.03em] sm:text-[30px] sm:leading-[36px]">
-          Bonjour {props.firstName}
-        </h1>
-        <p className="mt-2 text-[15px] text-text-secondary">
-          {props.date} · Lomé · <LiveRefresh generatedAt={props.generatedAt} />
-        </p>
-      </div>
-      <div className="flex w-full flex-wrap items-center gap-3 sm:w-auto">
-        <form action="/search" role="search" className="relative min-w-0 flex-1 sm:flex-none">
-          <Search
-            size={19}
-            aria-hidden="true"
-            className="pointer-events-none absolute left-4 top-1/2 -translate-y-1/2 text-text-muted"
-          />
-          <label htmlFor="global-search" className="sr-only">
-            Rechercher une commande, une boutique, un livreur, un téléphone
-          </label>
-          <input
-            id="global-search"
-            name="q"
-            placeholder="Commande, boutique, livreur, téléphone…"
-            className="h-[54px] w-full rounded-[14px] bg-surface pl-12 pr-4 text-[14px] outline-none transition-shadow duration-300 focus:shadow-[inset_0_0_0_2px_var(--color-primary)] sm:w-[260px] 2xl:w-[380px]"
-          />
-        </form>
-        <PeriodMenu current={props.period} options={props.periodOptions} />
-        <Link
-          href="/notifications"
-          aria-label={props.unread ? `${props.unread} notification(s) non lue(s)` : "Notifications"}
-          className="relative grid size-[54px] place-items-center rounded-[14px] bg-surface hover:bg-white/70"
-        >
-          <Bell size={21} aria-hidden="true" />
-          {props.unread > 0 && (
-            <span className="animate-live absolute right-3 top-3 size-2.5 rounded-full bg-primary ring-2 ring-surface" />
-          )}
-        </Link>
+    <header className="dash-hero animate-rise relative z-30 mb-8 overflow-visible rounded-[28px] px-6 py-7 text-white sm:px-8 sm:py-8">
+      <span aria-hidden="true" className="dash-hero-glow dash-hero-glow-a" />
+      <span aria-hidden="true" className="dash-hero-glow dash-hero-glow-b" />
+      <div className="relative flex flex-wrap items-end justify-between gap-6">
+        <div>
+          <p className="text-[13px] font-semibold uppercase tracking-[0.14em] text-white/60">
+            Tableau de bord
+          </p>
+          <h1 className="mt-1 text-[28px] font-extrabold leading-[34px] tracking-[-0.03em] sm:text-[34px] sm:leading-[40px]">
+            Bonjour {props.firstName}
+          </h1>
+          <p className="mt-2 text-[14px] text-white/75">
+            {props.date} · Lomé · <LiveRefresh generatedAt={props.generatedAt} />
+          </p>
+        </div>
+        <div className="flex w-full flex-wrap items-center gap-2.5 sm:w-auto">
+          <form action="/search" role="search" className="relative min-w-0 flex-1 sm:flex-none">
+            <Search
+              size={18}
+              aria-hidden="true"
+              className="pointer-events-none absolute left-4 top-1/2 -translate-y-1/2 text-white/70"
+            />
+            <label htmlFor="global-search" className="sr-only">
+              Rechercher une commande, une boutique, un livreur, un téléphone
+            </label>
+            <input
+              id="global-search"
+              name="q"
+              placeholder="Commande, boutique, livreur, téléphone…"
+              className="h-12 w-full rounded-[14px] bg-white/12 pl-11 pr-4 text-[14px] text-white outline-none ring-1 ring-white/20 backdrop-blur transition-[background-color,box-shadow] duration-300 placeholder:text-white/60 focus:bg-white/20 focus:ring-2 focus:ring-white/60 sm:w-[260px] 2xl:w-[340px]"
+            />
+          </form>
+          <PeriodMenu current={props.period} options={props.periodOptions} />
+          <Link
+            href="/notifications"
+            aria-label={props.unread ? `${props.unread} notification(s) non lue(s)` : "Notifications"}
+            className="relative grid size-12 place-items-center rounded-[14px] bg-white/12 ring-1 ring-white/20 backdrop-blur transition-colors hover:bg-white/20"
+          >
+            <Bell size={20} aria-hidden="true" />
+            {props.unread > 0 && (
+              <span className="animate-live absolute right-2.5 top-2.5 size-2.5 rounded-full bg-primary ring-2 ring-tertiary" />
+            )}
+          </Link>
+        </div>
       </div>
     </header>
   );
@@ -265,6 +292,7 @@ function LiveRefreshHeader(props: {
 
 function TodoCard(props: {
   tone: string;
+  icon: React.ReactNode;
   value: number;
   action: string;
   title: string;
@@ -276,37 +304,69 @@ function TodoCard(props: {
   return (
     <Link
       href={props.href}
-      style={{ borderTopColor: props.tone, animationDelay: `${props.delay}ms` }}
-      className="animate-rise group block min-w-0 rounded-[18px] border-t-[4px] bg-surface p-5 transition-[transform,box-shadow] duration-300 hover:-translate-y-0.5 hover:shadow-[0_10px_24px_rgba(14,46,84,0.10)]"
+      style={{ animationDelay: `${props.delay}ms`, ["--tone" as string]: props.tone }}
+      className={cx(
+        "dash-card animate-rise group relative flex min-w-0 flex-col overflow-hidden rounded-[22px] bg-surface p-5",
+        !idle && "dash-card-hot",
+      )}
     >
-      <div className="flex items-start justify-between gap-3">
-        <span
-          className="text-[30px] font-extrabold leading-none"
-          style={{ color: idle ? "#9AA5B4" : props.tone }}
-        >
-          <AnimatedNumber value={props.value} />
-        </span>
-        <span className="shrink-0 rounded-full bg-background px-3 py-1 text-[13px] font-bold transition-colors group-hover:bg-tertiary group-hover:text-white">
-          {props.action}
-        </span>
+      <div className="flex items-center justify-between gap-3">
+        <span className="dash-chip grid size-11 place-items-center rounded-[14px]">{props.icon}</span>
+        {idle ? (
+          <span className="inline-flex items-center gap-1 rounded-full bg-[#E6F2EC] px-2.5 py-1 text-[12px] font-bold text-success">
+            <CheckCircle2 size={13} aria-hidden="true" /> À jour
+          </span>
+        ) : (
+          <span className="inline-flex items-center gap-1 rounded-full px-2.5 py-1 text-[12px] font-bold text-text-secondary transition-colors group-hover:bg-tertiary group-hover:text-white">
+            {props.action}
+            <ArrowUpRight
+              size={13}
+              aria-hidden="true"
+              className="transition-transform duration-300 group-hover:translate-x-0.5 group-hover:-translate-y-0.5"
+            />
+          </span>
+        )}
       </div>
-      <p className="mt-5 text-[16px] font-extrabold leading-[21px]">{props.title}</p>
-      <p className="mt-1.5 text-[14px] leading-[20px] text-text-muted">{props.detail}</p>
+      <span
+        className="mt-4 text-[32px] font-extrabold leading-none tracking-[-0.02em] tabular-nums"
+        style={{ color: idle ? "#A3ADBB" : props.tone }}
+      >
+        <AnimatedNumber value={props.value} />
+      </span>
+      <p className="mt-2 text-[15px] font-bold leading-[20px]">{props.title}</p>
+      <p className="mt-1 text-[13px] leading-[18px] text-text-muted">{props.detail}</p>
     </Link>
   );
 }
 
-function KpiCard({ label, children }: { label: string; children: React.ReactNode }) {
+function KpiCard({
+  label,
+  icon,
+  children,
+}: {
+  label: string;
+  icon: React.ReactNode;
+  children: React.ReactNode;
+}) {
   return (
-    <section className="animate-rise min-w-0 rounded-[18px] bg-surface p-5">
-      <p className="text-[14px] text-text-secondary">{label}</p>
+    <section className="dash-card animate-rise min-w-0 rounded-[22px] bg-surface p-5">
+      <div className="flex items-center gap-2.5">
+        <span className="grid size-9 place-items-center rounded-[12px] bg-secondary-soft text-secondary">
+          {icon}
+        </span>
+        <p className="text-[13px] font-semibold text-text-secondary">{label}</p>
+      </div>
       {children}
     </section>
   );
 }
 
 function BigValue({ children }: { children: React.ReactNode }) {
-  return <p className="mt-2 text-[28px] font-extrabold leading-[34px] tracking-[-0.02em]">{children}</p>;
+  return (
+    <p className="mt-3 text-[26px] font-extrabold leading-[32px] tracking-[-0.02em] tabular-nums">
+      {children}
+    </p>
+  );
 }
 
 function Goal({ note, label, ok }: { note: string; label: string; ok: boolean }) {

@@ -114,7 +114,7 @@ export function PeriodMenu({
       {open && (
         <div
           role="menu"
-          className="animate-rise absolute right-0 z-20 mt-2 w-56 overflow-hidden rounded-[14px] bg-surface py-1.5 shadow-[0_12px_32px_rgba(14,46,84,0.18)]"
+          className="animate-rise absolute right-0 z-50 mt-2 w-56 overflow-hidden rounded-[14px] bg-surface py-1.5 shadow-[0_12px_32px_rgba(14,46,84,0.18)]"
         >
           {options.map((o) => (
             <Link

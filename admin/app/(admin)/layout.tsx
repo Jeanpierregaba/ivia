@@ -12,6 +12,14 @@ export default async function AdminLayout({ children }: { children: React.ReactN
     api<Schemas["User"]>("/v1/me"),
     api<Schemas["SessionInfo"]>("/v1/auth/session"),
   ]);
+  if (!session.mfa_verified) redirect("/login/code");
+  // Rôle de l'admin (spec 039) : le menu ne montre que ses sections.
+  let adminMe: Schemas["AdminMe"] = { role: "", sections: [] };
+  try {
+    adminMe = await api<Schemas["AdminMe"]>("/v1/admin/me");
+  } catch (err) {
+    if (!(err instanceof ApiError)) throw err;
+  }
   if (!me.roles.includes("admin")) redirect("/logout");
   if (!session.mfa_verified) redirect("/login/code");
 
@@ -24,7 +32,14 @@ export default async function AdminLayout({ children }: { children: React.ReactN
   }
 
   return (
-    <AdminShell firstName={me.first_name} lastName={me.last_name} email={me.email ?? ""} counts={counts}>
+    <AdminShell
+      firstName={me.first_name}
+      lastName={me.last_name}
+      email={me.email ?? ""}
+      counts={counts}
+      sections={adminMe.sections}
+      roleLabel={adminMe.role_label || "Administrateur"}
+    >
       {children}
     </AdminShell>
   );

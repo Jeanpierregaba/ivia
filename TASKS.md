@@ -8,6 +8,8 @@ docs/specs/NNN-nom/tasks.md. Les petites tâches isolées (bug, retouche) peuven
 
 ## En cours
 
+- [ ] 039 — Comptes admin à rôles ([spec](docs/specs/039-roles-admin/spec.md), 2026-11-13, migration 00049) : super admin et 7 rôles par domaine, droits vérifiés par le serveur, menu par rôle, page Comptes admin, journal filtré par admin ; tableau de bord restylé
+- [ ] 037 — Messagerie de la course ([spec](docs/specs/037-messagerie-course/spec.md), 2026-11-13, migration 00048) : client ↔ livreur, livreur ↔ boutique, en direct, accusés de lecture, lecture seule après la course
 - [x] 038 — Audit des simulations ([rapport](docs/specs/038-suppression-simulations/spec.md), 2026-11-13) : réponses automatiques des pharmacies supprimées à la source (route, service, app), pharmacies de démonstration retirées du jeu de démo et suspendues dans la base locale, « En attente de réponse » ; test réel avec 3 pharmacies
 - [ ] 036 — Temps réel et parcours de livraison ([spec](docs/specs/036-temps-reel-livraison/spec.md), 2026-11-13, migration 00047) : événements en direct (WebSocket des apps, SSE du back-office), glissements du livreur (démarrer, arrivée, démarrer vers le client), suivi du livreur par le client, le marchand et le back-office ; reste le suivi en arrière-plan sur téléphone (service Android avec les builds natifs)
 - [ ] 034 — Codes promo et coupons ([spec](docs/specs/034-codes-promo/spec.md), 2026-11-13) : serveur (migration 00044, module `coupons`, tests de calcul, de cycle de vie et de concurrence), apps (champ Code promo, Mes coupons, Codes promo de Business) et back-office faits ; reste la vérification sur l'aperçu et la relecture

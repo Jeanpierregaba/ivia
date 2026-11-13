@@ -303,6 +303,7 @@ class _OrderScreenState extends ConsumerState<OrderScreen> {
               orderId: order.id,
               app: 'buyer',
               load: (api, id) => api.orderDelivery(id),
+              chat: ChatChannel.buyer(order.id),
             ),
           Align(
             alignment: Alignment.centerLeft,

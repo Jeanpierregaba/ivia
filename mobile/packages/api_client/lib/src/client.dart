@@ -12,6 +12,7 @@ import 'models.dart';
 import 'promo.dart';
 
 part 'business.dart';
+part 'chat.dart';
 part 'coupons.dart';
 part 'delivery_live.dart';
 part 'ratings.dart';

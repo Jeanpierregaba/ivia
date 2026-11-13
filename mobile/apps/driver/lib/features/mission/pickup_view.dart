@@ -8,6 +8,7 @@ import '../work/work_state.dart';
 import 'mission_screen.dart' show MissionPhase;
 import 'mission_ui.dart';
 import 'navigation.dart';
+import 'mission_chat.dart';
 import 'problem_sheet.dart';
 
 /// Retrait (D12).
@@ -234,6 +235,7 @@ class _PickupViewState extends ConsumerState<PickupView> {
                     dark: true,
                     onConfirmed: ready && !busy ? _pickedUp : null,
                   ),
+                MissionChatButtons(mission: m),
                 ProblemButton(mission: m, phase: MissionPhase.atPickup),
               ],
             ),

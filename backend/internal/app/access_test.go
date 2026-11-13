@@ -70,7 +70,7 @@ func TestAccessControl(t *testing.T) {
 	if roles := me.Body["roles"].([]any); len(roles) != 1 || roles[0] != "buyer" {
 		t.Errorf("rôles d'un nouvel inscrit : %v", roles)
 	}
-	if r := call(t, b2.token, "POST", "/v1/admin/users/"+me.str("id")+"/grant-admin", map[string]any{}); r.Status != http.StatusForbidden {
+	if r := call(t, b2.token, "POST", "/v1/admin/admins", map[string]any{"email": "moi@example.tg", "first_name": "A", "last_name": "B", "role": "super_admin"}); r.Status != http.StatusForbidden {
 		t.Errorf("auto-attribution du rôle admin : %d", r.Status)
 	}
 }

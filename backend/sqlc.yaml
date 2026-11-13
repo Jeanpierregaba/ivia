@@ -105,3 +105,6 @@ sql:
   - <<: *module
     queries: internal/ratings/queries.sql
     gen: { go: { <<: *gen, out: internal/ratings/store } }
+  - <<: *module
+    queries: internal/chat/queries.sql
+    gen: { go: { <<: *gen, out: internal/chat/store } }

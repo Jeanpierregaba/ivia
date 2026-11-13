@@ -20,12 +20,16 @@ export function AdminShell({
   lastName,
   email,
   counts,
+  sections,
+  roleLabel,
   children,
 }: {
   firstName: string;
   lastName: string;
   email: string;
   counts: SidebarCounts;
+  sections: string[];
+  roleLabel: string;
   children: React.ReactNode;
 }) {
   const [collapsed, setCollapsed] = useState(false);
@@ -102,6 +106,8 @@ export function AdminShell({
           lastName={lastName}
           email={email}
           counts={counts}
+          sections={sections}
+          roleLabel={roleLabel}
           collapsed={collapsed}
           onClose={drawer ? () => setDrawer(false) : undefined}
           toggle={

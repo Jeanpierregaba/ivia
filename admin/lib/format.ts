@@ -125,6 +125,21 @@ export const PAYMENT_STATUS: Record<string, { label: string; tone: Tone }> = {
 
 /** Libellés des actions du journal d'audit (identifiant technique affiché si inconnu). */
 export const AUDIT_ACTION: Record<string, string> = {
+  "admin.create": "Compte admin créé",
+  "admin.role": "Rôle admin changé",
+  "admin.remove": "Accès admin retiré",
+  "promo_code.create": "Code promo créé",
+  "promo_code.suspend": "Code promo suspendu",
+  "promo_code.resume": "Code promo repris",
+  "promo_code.end": "Code promo terminé",
+  "coupon_settings.update": "Coupon de bienvenue modifié",
+  "shop.platform_managed": "Boutique confiée au back-office",
+  "platform_order.accept": "Commande IVI acceptée",
+  "platform_order.reject": "Commande IVI refusée",
+  "platform_order.preparing": "Commande IVI en préparation",
+  "platform_order.ready": "Commande IVI prête",
+  "platform_order.handover": "Commande IVI remise",
+  "platform_order.confirm-return": "Retour IVI confirmé",
   "shop.approve": "Boutique publiée",
   "shop.reject": "Boutique refusée",
   "shop.suspend": "Boutique suspendue",

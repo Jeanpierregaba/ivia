@@ -36,7 +36,9 @@ func (fakeAuth) Authenticate(_ context.Context, token string) (identity.Principa
 	case "buyer":
 		return identity.Principal{UserID: uuid.New(), Roles: []identity.Role{identity.RoleBuyer}}, nil
 	case "admin":
-		return identity.Principal{UserID: uuid.New(), Roles: []identity.Role{identity.RoleAdmin}, MFA: true}, nil
+		return identity.Principal{UserID: uuid.New(), Roles: []identity.Role{identity.RoleAdmin}, MFA: true, AdminRole: "super_admin"}, nil
+	case "admin-carte":
+		return identity.Principal{UserID: uuid.New(), Roles: []identity.Role{identity.RoleAdmin}, MFA: true, AdminRole: "map"}, nil
 	case "admin-sans-code":
 		return identity.Principal{UserID: uuid.New(), Roles: []identity.Role{identity.RoleAdmin}}, nil
 	}
@@ -127,6 +129,7 @@ func TestAuthAndRoles(t *testing.T) {
 		{"/v1/me", "buyer", http.StatusOK, ""},
 		{"/v1/admin/x", "buyer", http.StatusForbidden, "forbidden"},
 		{"/v1/admin/x", "admin", http.StatusOK, ""},
+		{"/v1/admin/x", "admin-carte", http.StatusForbidden, "admin_scope"},
 		// Mot de passe seul : la double vérification par code est exigée (ADR 0011).
 		{"/v1/admin/x", "admin-sans-code", http.StatusForbidden, "mfa_required"},
 		{"/v1/me", "admin-sans-code", http.StatusOK, ""},

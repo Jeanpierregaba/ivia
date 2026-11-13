@@ -4,6 +4,7 @@ package httpapi
 
 import (
 	"context"
+	"ivia/backend/internal/platform/adminperm"
 	"log/slog"
 	"net/http"
 	"strings"
@@ -145,6 +146,10 @@ func (rt *Router) requireAuth(roles []identity.Role, next HandlerFunc) HandlerFu
 		// code (ADR 0011) ; un mot de passe volé ne suffit pas.
 		if adminOnly(roles) && !principal.MFA {
 			return apperr.Forbidden("mfa_required", "Confirmez votre connexion avec votre application d'authentification ou le code reçu par e-mail.")
+		}
+		// Comptes admin à rôles (spec 039) : sections du rôle seulement.
+		if adminOnly(roles) && !adminperm.Allowed(principal.AdminRole, r.Method, r.URL.Path) {
+			return apperr.Forbidden("admin_scope", "Votre rôle d'admin ne donne pas accès à cette section.")
 		}
 		return next(w, r.WithContext(identity.WithPrincipal(r.Context(), principal)))
 	}

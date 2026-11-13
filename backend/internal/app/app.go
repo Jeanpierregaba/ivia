@@ -19,6 +19,7 @@ import (
 	"ivia/backend/internal/business"
 	"ivia/backend/internal/cart"
 	"ivia/backend/internal/catalog"
+	"ivia/backend/internal/chat"
 	"ivia/backend/internal/coupons"
 	"ivia/backend/internal/delivery"
 	"ivia/backend/internal/geo"
@@ -76,6 +77,7 @@ type App struct {
 	Promo         *promo.Service
 	Coupons       *coupons.Service
 	Ratings       *ratings.Service
+	Chat          *chat.Service
 	Pharmacy      *pharmacy.Service
 	Properties    *properties.Service
 	Business      *business.Service
@@ -151,6 +153,7 @@ func New(cfg config.Config, logger *slog.Logger, pool *pgxpool.Pool, opts Option
 		Uploads: a.Uploads, Notify: a.Notifications, Logger: logger,
 	})
 	a.Ratings = ratings.NewService(db, a.Orders, a.Users, a.Delivery)
+	a.Chat = chat.NewService(db, a.Orders, a.Shops, a.Users, a.Delivery, a.Notifications)
 	a.Settlements = settlements.NewService(db, a.Orders, a.Shops, a.Admin, a.Notifications)
 	a.Promo = promo.NewService(db, a.Uploads, a.Catalog, a.Orders, a.Admin)
 	a.Pharmacy = pharmacy.NewService(pharmacy.Deps{
@@ -225,6 +228,7 @@ func (a *App) routes() (http.Handler, []string) {
 	orders.NewHandler(a.Orders).Register(rt)
 	coupons.NewHandler(a.Coupons).Register(rt)
 	a.Ratings.Register(rt)
+	a.Chat.Register(rt)
 	payments.NewHandler(a.Payments, a.Logger, a.Config.DevToolsEnabled()).Register(rt)
 	delivery.NewHandler(a.Delivery).Register(rt)
 	settlements.NewHandler(a.Settlements).Register(rt)

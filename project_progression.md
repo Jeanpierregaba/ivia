@@ -18,6 +18,9 @@
 
 ## Dernières avancées (2026-11-13)
 
+- **Messagerie de la course** : le client écrit au livreur, le livreur au client et à la boutique, comme sur WhatsApp (en direct, lu / non lu, messages rapides).
+- **Admins à rôles** : un super admin crée les comptes admin (Opérations, Réseau, Santé, Marketing, Finances, Carte, Support) ; chacun ne voit que son domaine ; le super admin suit les actions de tous. Plus aucun compte client, marchand ou livreur ne peut devenir admin.
+- **Tableau de bord** plus chic : en-tête en dégradé, cartes douces avec pictogrammes ; menu de période corrigé.
 - **Alertes médicament 100 % réelles** : plus aucune réponse inventée (le mécanisme de démonstration est supprimé) ; seules les vraies pharmacies du rayon reçoivent l'alerte et y répondent ; « En attente de réponse » sinon.
 - **Tout en direct** : paiement reçu, nouvelle course, étapes du livreur arrivent aussitôt dans les apps et au back-office, sans recharger (WebSocket et flux du back-office) ; l'app Livreur reste en ligne après un rechargement.
 - **Livreur au glissement** : « démarrer ma course », « arrivée », « démarrer ma course vers le client » ; la carte suit sa position et recalcule l'itinéraire.

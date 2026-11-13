@@ -62,6 +62,7 @@ class WorkOffer {
 class WorkMission {
   WorkMission.shop(Map<String, dynamic> j)
     : id = j['id'] as String,
+      orderId = j['order_id'] as String?,
       pharmacy = false,
       reference = j['order_reference'] as String? ?? '',
       status = j['status'] as String,
@@ -92,6 +93,7 @@ class WorkMission {
 
   WorkMission.pharmacy(Map<String, dynamic> j)
     : id = j['id'] as String,
+      orderId = null,
       pharmacy = true,
       reference = j['number'] as String? ?? '',
       status = j['status'] as String,
@@ -122,6 +124,9 @@ class WorkMission {
           : _i(j['cash_advanced_xof']);
 
   final String id, reference, status, failureReason;
+
+  /// Commande de boutique (messagerie avec le client et la boutique) ; `null` : course pharmacie.
+  final String? orderId;
   final bool pharmacy, prescriptionCheck;
   final int feeXof, itemsCount;
 

@@ -10,6 +10,7 @@ import '../earnings/earnings.dart';
 import '../work/work_state.dart';
 import 'mission_screen.dart' show MissionPhase;
 import 'mission_ui.dart';
+import 'mission_chat.dart';
 import 'problem_sheet.dart';
 
 /// Preuve de remise (D14) : code à 4 chiffres du client, case « J'ai vu
@@ -210,6 +211,7 @@ class _ProofViewState extends ConsumerState<ProofView> {
                   busy: _busy,
                   onTap: _ready ? _confirm : null,
                 ),
+                MissionChatButtons(mission: m),
                 ProblemButton(mission: m, phase: MissionPhase.atClient),
               ],
             ),

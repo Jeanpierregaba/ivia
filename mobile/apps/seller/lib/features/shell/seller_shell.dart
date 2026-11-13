@@ -82,6 +82,14 @@ class _SellerShellState extends ConsumerState<SellerShell> {
     _timer = Timer.periodic(ordersRefreshInterval, (_) => _poll());
     // Temps réel (spec 036) : un paiement reçu fait apparaître la commande aussitôt.
     _live ??= ref.read(iviaRealtimeProvider('seller')).events.listen((e) {
+      if (e.kind == 'chat_message' && mounted) {
+        showChatBanner(
+          context,
+          e,
+          (e) => e.orderId == null ? null : ChatChannel.seller(e.orderId!),
+        );
+        return;
+      }
       if (e.orderId != null || e.kind == RealtimeEvent.reconnected) _poll();
     });
   }

@@ -47,6 +47,20 @@ func (q *Queries) CountRoleHolders(ctx context.Context, role string) (int64, err
 	return count, err
 }
 
+const countSuperAdmins = `-- name: CountSuperAdmins :one
+SELECT count(*)::int FROM admin_profiles p
+JOIN user_roles r ON r.user_id = p.user_id AND r.role = 'admin'
+JOIN users u ON u.id = p.user_id AND u.deleted_at IS NULL
+WHERE p.role = 'super_admin'
+`
+
+func (q *Queries) CountSuperAdmins(ctx context.Context) (int32, error) {
+	row := q.db.QueryRow(ctx, countSuperAdmins)
+	var column_1 int32
+	err := row.Scan(&column_1)
+	return column_1, err
+}
+
 const createAddress = `-- name: CreateAddress :one
 INSERT INTO addresses (user_id, label, address_text, neighborhood_id, location, instructions)
 VALUES (
@@ -157,6 +171,15 @@ func (q *Queries) DeleteAddress(ctx context.Context, arg DeleteAddressParams) (i
 	return result.RowsAffected(), nil
 }
 
+const deleteAdminProfile = `-- name: DeleteAdminProfile :exec
+DELETE FROM admin_profiles WHERE user_id = $1
+`
+
+func (q *Queries) DeleteAdminProfile(ctx context.Context, userID uuid.UUID) error {
+	_, err := q.db.Exec(ctx, deleteAdminProfile, userID)
+	return err
+}
+
 const deleteAllAddresses = `-- name: DeleteAllAddresses :exec
 DELETE FROM addresses WHERE user_id = $1
 `
@@ -195,6 +218,16 @@ DELETE FROM device_tokens WHERE token = $1
 
 func (q *Queries) DeleteDeviceTokenByValue(ctx context.Context, token string) error {
 	_, err := q.db.Exec(ctx, deleteDeviceTokenByValue, token)
+	return err
+}
+
+const ensureAdminProfile = `-- name: EnsureAdminProfile :exec
+INSERT INTO admin_profiles (user_id, role) VALUES ($1, 'super_admin') ON CONFLICT DO NOTHING
+`
+
+// Admin créé par la ligne de commande (premier compte) : super admin s'il n'a pas encore de rôle.
+func (q *Queries) EnsureAdminProfile(ctx context.Context, userID uuid.UUID) error {
+	_, err := q.db.Exec(ctx, ensureAdminProfile, userID)
 	return err
 }
 
@@ -267,6 +300,19 @@ func (q *Queries) GetAddress(ctx context.Context, arg GetAddressParams) (GetAddr
 		&i.Lng,
 	)
 	return i, err
+}
+
+const getAdminRole = `-- name: GetAdminRole :one
+
+SELECT role FROM admin_profiles WHERE user_id = $1
+`
+
+// ---------------------------------------------------------------- comptes admin (spec 039)
+func (q *Queries) GetAdminRole(ctx context.Context, userID uuid.UUID) (string, error) {
+	row := q.db.QueryRow(ctx, getAdminRole, userID)
+	var role string
+	err := row.Scan(&role)
+	return role, err
 }
 
 const getUser = `-- name: GetUser :one
@@ -395,6 +441,51 @@ func (q *Queries) ListAddresses(ctx context.Context, userID uuid.UUID) ([]ListAd
 			&i.UpdatedAt,
 			&i.Lat,
 			&i.Lng,
+		); err != nil {
+			return nil, err
+		}
+		items = append(items, i)
+	}
+	if err := rows.Err(); err != nil {
+		return nil, err
+	}
+	return items, nil
+}
+
+const listAdmins = `-- name: ListAdmins :many
+SELECT u.id, u.email, u.first_name, u.last_name, p.role, p.created_at
+FROM users u
+JOIN user_roles r ON r.user_id = u.id AND r.role = 'admin'
+JOIN admin_profiles p ON p.user_id = u.id
+WHERE u.deleted_at IS NULL
+ORDER BY (p.role = 'super_admin') DESC, p.created_at
+`
+
+type ListAdminsRow struct {
+	ID        uuid.UUID
+	Email     *string
+	FirstName string
+	LastName  string
+	Role      string
+	CreatedAt time.Time
+}
+
+func (q *Queries) ListAdmins(ctx context.Context) ([]ListAdminsRow, error) {
+	rows, err := q.db.Query(ctx, listAdmins)
+	if err != nil {
+		return nil, err
+	}
+	defer rows.Close()
+	items := []ListAdminsRow{}
+	for rows.Next() {
+		var i ListAdminsRow
+		if err := rows.Scan(
+			&i.ID,
+			&i.Email,
+			&i.FirstName,
+			&i.LastName,
+			&i.Role,
+			&i.CreatedAt,
 		); err != nil {
 			return nil, err
 		}
@@ -747,6 +838,22 @@ func (q *Queries) UpdateProfile(ctx context.Context, arg UpdateProfileParams) (U
 		&i.AvatarKey,
 	)
 	return i, err
+}
+
+const upsertAdminProfile = `-- name: UpsertAdminProfile :exec
+INSERT INTO admin_profiles (user_id, role, created_by) VALUES ($1, $2, $3)
+ON CONFLICT (user_id) DO UPDATE SET role = excluded.role, updated_at = now()
+`
+
+type UpsertAdminProfileParams struct {
+	UserID    uuid.UUID
+	Role      string
+	CreatedBy *uuid.UUID
+}
+
+func (q *Queries) UpsertAdminProfile(ctx context.Context, arg UpsertAdminProfileParams) error {
+	_, err := q.db.Exec(ctx, upsertAdminProfile, arg.UserID, arg.Role, arg.CreatedBy)
+	return err
 }
 
 const upsertDeviceToken = `-- name: UpsertDeviceToken :exec

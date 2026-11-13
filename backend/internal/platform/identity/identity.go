@@ -37,6 +37,8 @@ type Principal struct {
 	// MFA : session vérifiée par un code reçu par e-mail (double vérification, ADR 0011). Exigée
 	// pour les routes réservées aux admins.
 	MFA bool
+	// AdminRole : rôle du compte admin (adminperm) ; "" pour les autres comptes.
+	AdminRole string
 }
 
 // HasRole indique si l'utilisateur possède au moins un des rôles.

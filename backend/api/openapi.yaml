@@ -4159,6 +4159,345 @@ paths:
             application/json:
               schema:
                 "$ref": "#/components/schemas/Error"
+  "/v1/orders/{id}/chat":
+    get:
+      summary: "Discussion avec le livreur (marquée lue)"
+      tags:
+        - Acheteur
+      operationId: getOrderChat
+      parameters:
+        - name: id
+          in: path
+          required: true
+          schema:
+            type: string
+            format: uuid
+      x-roles:
+        - buyer
+      responses:
+        "200":
+          description: "Succès"
+          content:
+            application/json:
+              schema:
+                "$ref": "#/components/schemas/ChatThread"
+        default:
+          description: "Erreur (voir `code`)"
+          content:
+            application/json:
+              schema:
+                "$ref": "#/components/schemas/Error"
+    post:
+      summary: "Écrire au livreur"
+      tags:
+        - Acheteur
+      operationId: postOrderChat
+      parameters:
+        - name: id
+          in: path
+          required: true
+          schema:
+            type: string
+            format: uuid
+      x-roles:
+        - buyer
+      requestBody:
+        required: true
+        content:
+          application/json:
+            schema:
+              "$ref": "#/components/schemas/ChatSendInput"
+      responses:
+        "201":
+          description: "Succès"
+          content:
+            application/json:
+              schema:
+                "$ref": "#/components/schemas/ChatMessage"
+        default:
+          description: "Erreur (voir `code`)"
+          content:
+            application/json:
+              schema:
+                "$ref": "#/components/schemas/Error"
+  "/v1/seller/orders/{id}/chat":
+    get:
+      summary: "Discussion avec le livreur (marquée lue)"
+      tags:
+        - Marchand
+      operationId: getSellerOrderChat
+      parameters:
+        - name: id
+          in: path
+          required: true
+          schema:
+            type: string
+            format: uuid
+      x-roles:
+        - seller
+      responses:
+        "200":
+          description: "Succès"
+          content:
+            application/json:
+              schema:
+                "$ref": "#/components/schemas/ChatThread"
+        default:
+          description: "Erreur (voir `code`)"
+          content:
+            application/json:
+              schema:
+                "$ref": "#/components/schemas/Error"
+    post:
+      summary: "Écrire au livreur"
+      tags:
+        - Marchand
+      operationId: postSellerOrderChat
+      parameters:
+        - name: id
+          in: path
+          required: true
+          schema:
+            type: string
+            format: uuid
+      x-roles:
+        - seller
+      requestBody:
+        required: true
+        content:
+          application/json:
+            schema:
+              "$ref": "#/components/schemas/ChatSendInput"
+      responses:
+        "201":
+          description: "Succès"
+          content:
+            application/json:
+              schema:
+                "$ref": "#/components/schemas/ChatMessage"
+        default:
+          description: "Erreur (voir `code`)"
+          content:
+            application/json:
+              schema:
+                "$ref": "#/components/schemas/Error"
+  "/v1/driver/orders/{id}/chat/{with}":
+    get:
+      summary: "Discussion avec le client ou la boutique (marquée lue)"
+      tags:
+        - Livreur
+      operationId: getDriverOrderChat
+      parameters:
+        - name: id
+          in: path
+          required: true
+          schema:
+            type: string
+            format: uuid
+        - name: with
+          in: path
+          required: true
+          schema:
+            type: string
+            enum:
+              - client
+              - shop
+      x-roles:
+        - driver
+      responses:
+        "200":
+          description: "Succès"
+          content:
+            application/json:
+              schema:
+                "$ref": "#/components/schemas/ChatThread"
+        default:
+          description: "Erreur (voir `code`)"
+          content:
+            application/json:
+              schema:
+                "$ref": "#/components/schemas/Error"
+    post:
+      summary: "Écrire au client ou à la boutique"
+      tags:
+        - Livreur
+      operationId: postDriverOrderChat
+      parameters:
+        - name: id
+          in: path
+          required: true
+          schema:
+            type: string
+            format: uuid
+        - name: with
+          in: path
+          required: true
+          schema:
+            type: string
+            enum:
+              - client
+              - shop
+      x-roles:
+        - driver
+      requestBody:
+        required: true
+        content:
+          application/json:
+            schema:
+              "$ref": "#/components/schemas/ChatSendInput"
+      responses:
+        "201":
+          description: "Succès"
+          content:
+            application/json:
+              schema:
+                "$ref": "#/components/schemas/ChatMessage"
+        default:
+          description: "Erreur (voir `code`)"
+          content:
+            application/json:
+              schema:
+                "$ref": "#/components/schemas/Error"
+  "/v1/admin/me":
+    get:
+      summary: "Mon rôle admin et les sections auxquelles il donne accès"
+      tags:
+        - Admin
+      operationId: getAdminMe
+      x-roles:
+        - admin
+      responses:
+        "200":
+          description: "Succès"
+          content:
+            application/json:
+              schema:
+                "$ref": "#/components/schemas/AdminMe"
+        default:
+          description: "Erreur (voir `code`)"
+          content:
+            application/json:
+              schema:
+                "$ref": "#/components/schemas/Error"
+  "/v1/admin/admins":
+    get:
+      summary: "Comptes admin (super admin)"
+      tags:
+        - Admin
+      operationId: getAdminAdmins
+      x-roles:
+        - admin
+      responses:
+        "200":
+          description: "Succès"
+          content:
+            application/json:
+              schema:
+                type: object
+                properties:
+                  items:
+                    type: array
+                    items:
+                      "$ref": "#/components/schemas/AdminAccount"
+                  roles:
+                    type: array
+                    items:
+                      "$ref": "#/components/schemas/AdminRole"
+        default:
+          description: "Erreur (voir `code`)"
+          content:
+            application/json:
+              schema:
+                "$ref": "#/components/schemas/Error"
+    post:
+      summary: "Créer un compte admin avec son rôle (adresse jamais utilisée sur ivia)"
+      tags:
+        - Admin
+      operationId: postAdminAdmins
+      x-roles:
+        - admin
+      requestBody:
+        required: true
+        content:
+          application/json:
+            schema:
+              "$ref": "#/components/schemas/AdminInput"
+      responses:
+        "201":
+          description: "Succès"
+          content:
+            application/json:
+              schema:
+                "$ref": "#/components/schemas/AdminAccount"
+        default:
+          description: "Erreur (voir `code`)"
+          content:
+            application/json:
+              schema:
+                "$ref": "#/components/schemas/Error"
+  "/v1/admin/admins/{id}/role":
+    put:
+      summary: "Changer le rôle d'un compte admin"
+      tags:
+        - Admin
+      operationId: putAdminAdminRole
+      parameters:
+        - name: id
+          in: path
+          required: true
+          schema:
+            type: string
+            format: uuid
+      x-roles:
+        - admin
+      requestBody:
+        required: true
+        content:
+          application/json:
+            schema:
+              type: object
+              properties:
+                role:
+                  type: string
+              required:
+                - role
+      responses:
+        "200":
+          description: "Succès"
+          content:
+            application/json:
+              schema:
+                "$ref": "#/components/schemas/AdminAccount"
+        default:
+          description: "Erreur (voir `code`)"
+          content:
+            application/json:
+              schema:
+                "$ref": "#/components/schemas/Error"
+  "/v1/admin/admins/{id}":
+    delete:
+      summary: "Retirer l'accès au back-office d'un compte admin"
+      tags:
+        - Admin
+      operationId: deleteAdminAdmin
+      parameters:
+        - name: id
+          in: path
+          required: true
+          schema:
+            type: string
+            format: uuid
+      x-roles:
+        - admin
+      responses:
+        "204":
+          description: "Succès"
+        default:
+          description: "Erreur (voir `code`)"
+          content:
+            application/json:
+              schema:
+                "$ref": "#/components/schemas/Error"
   "/v1/driver/me":
     get:
       summary: "Mon dossier de livreur"
@@ -5009,74 +5348,6 @@ paths:
             format: uuid
       x-roles:
         - admin
-      responses:
-        "200":
-          description: "Succès"
-          content:
-            application/json:
-              schema:
-                "$ref": "#/components/schemas/User"
-        default:
-          description: "Erreur (voir `code`)"
-          content:
-            application/json:
-              schema:
-                "$ref": "#/components/schemas/Error"
-  "/v1/admin/users/{id}/grant-admin":
-    post:
-      summary: "Donner le rôle admin"
-      tags:
-        - Admin
-      operationId: postAdminUsersByIdGrantAdmin
-      parameters:
-        - name: id
-          in: path
-          required: true
-          schema:
-            type: string
-            format: uuid
-      x-roles:
-        - admin
-      requestBody:
-        required: true
-        content:
-          application/json:
-            schema:
-              "$ref": "#/components/schemas/Reason"
-      responses:
-        "200":
-          description: "Succès"
-          content:
-            application/json:
-              schema:
-                "$ref": "#/components/schemas/User"
-        default:
-          description: "Erreur (voir `code`)"
-          content:
-            application/json:
-              schema:
-                "$ref": "#/components/schemas/Error"
-  "/v1/admin/users/{id}/revoke-admin":
-    post:
-      summary: "Retirer le rôle admin"
-      tags:
-        - Admin
-      operationId: postAdminUsersByIdRevokeAdmin
-      parameters:
-        - name: id
-          in: path
-          required: true
-          schema:
-            type: string
-            format: uuid
-      x-roles:
-        - admin
-      requestBody:
-        required: true
-        content:
-          application/json:
-            schema:
-              "$ref": "#/components/schemas/Reason"
       responses:
         "200":
           description: "Succès"
@@ -13680,6 +13951,122 @@ components:
         - lat
         - lng
         - recorded_at
+    ChatMessage:
+      type: object
+      properties:
+        id:
+          type: string
+          format: uuid
+        mine:
+          type: boolean
+        sender_role:
+          type: string
+          enum: [buyer, driver, seller]
+        body:
+          type: string
+        created_at:
+          type: string
+          format: date-time
+      required:
+        - id
+        - mine
+        - body
+        - created_at
+    ChatThread:
+      type: object
+      properties:
+        order_id:
+          type: string
+          format: uuid
+        order_reference:
+          type: string
+        thread:
+          type: string
+          enum: [buyer_driver, driver_shop]
+        can_send:
+          type: boolean
+          description: "Faux une fois la course terminée (lecture seule)."
+        other_name:
+          type: string
+        other_role:
+          type: string
+        other_read_at:
+          type:
+            - string
+            - "null"
+          format: date-time
+        messages:
+          type: array
+          items:
+            "$ref": "#/components/schemas/ChatMessage"
+    ChatSendInput:
+      type: object
+      properties:
+        body:
+          type: string
+          maxLength: 1000
+      required:
+        - body
+    AdminRole:
+      type: object
+      properties:
+        code:
+          type: string
+          enum: [super_admin, operations, network, health, marketing, finance, map, support]
+        label:
+          type: string
+        description:
+          type: string
+      required: [code, label]
+    AdminMe:
+      type: object
+      properties:
+        role:
+          type: string
+        role_label:
+          type: string
+        sections:
+          type: array
+          description: "Sections /v1/admin/<section> autorisées ; « * » pour le super admin."
+          items:
+            type: string
+        roles:
+          type: array
+          items:
+            "$ref": "#/components/schemas/AdminRole"
+      required: [role, sections]
+    AdminAccount:
+      type: object
+      properties:
+        id:
+          type: string
+          format: uuid
+        email:
+          type: string
+        first_name:
+          type: string
+        last_name:
+          type: string
+        role:
+          type: string
+        role_label:
+          type: string
+        created_at:
+          type: string
+          format: date-time
+      required: [id, email, role]
+    AdminInput:
+      type: object
+      properties:
+        email:
+          type: string
+        first_name:
+          type: string
+        last_name:
+          type: string
+        role:
+          type: string
+      required: [email, first_name, last_name, role]
     CheckoutInput:
       type: object
       properties:

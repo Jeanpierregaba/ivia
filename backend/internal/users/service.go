@@ -439,6 +439,9 @@ func (s *Service) AdminGrantAdmin(ctx context.Context, grantedBy *uuid.UUID, use
 		if err := s.GrantRole(ctx, userID, identity.RoleAdmin, grantedBy); err != nil {
 			return err
 		}
+		if err := store.New(s.db.Conn(ctx)).EnsureAdminProfile(ctx, userID); err != nil {
+			return fmt.Errorf("rôle admin : %w", err)
+		}
 		if out, err = s.Get(ctx, userID); err != nil {
 			return err
 		}

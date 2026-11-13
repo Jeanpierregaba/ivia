@@ -157,3 +157,33 @@ WHERE r.role = $1 AND u.deleted_at IS NULL;
 UPDATE users SET avatar_key = sqlc.narg(avatar_key), updated_at = now()
 WHERE id = sqlc.arg(id) AND deleted_at IS NULL
 RETURNING *;
+
+-- ---------------------------------------------------------------- comptes admin (spec 039)
+
+-- name: GetAdminRole :one
+SELECT role FROM admin_profiles WHERE user_id = $1;
+
+-- name: UpsertAdminProfile :exec
+INSERT INTO admin_profiles (user_id, role, created_by) VALUES ($1, $2, $3)
+ON CONFLICT (user_id) DO UPDATE SET role = excluded.role, updated_at = now();
+
+-- name: EnsureAdminProfile :exec
+-- Admin créé par la ligne de commande (premier compte) : super admin s'il n'a pas encore de rôle.
+INSERT INTO admin_profiles (user_id, role) VALUES ($1, 'super_admin') ON CONFLICT DO NOTHING;
+
+-- name: DeleteAdminProfile :exec
+DELETE FROM admin_profiles WHERE user_id = $1;
+
+-- name: ListAdmins :many
+SELECT u.id, u.email, u.first_name, u.last_name, p.role, p.created_at
+FROM users u
+JOIN user_roles r ON r.user_id = u.id AND r.role = 'admin'
+JOIN admin_profiles p ON p.user_id = u.id
+WHERE u.deleted_at IS NULL
+ORDER BY (p.role = 'super_admin') DESC, p.created_at;
+
+-- name: CountSuperAdmins :one
+SELECT count(*)::int FROM admin_profiles p
+JOIN user_roles r ON r.user_id = p.user_id AND r.role = 'admin'
+JOIN users u ON u.id = p.user_id AND u.deleted_at IS NULL
+WHERE p.role = 'super_admin';

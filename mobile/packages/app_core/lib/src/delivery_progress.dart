@@ -5,6 +5,7 @@ import 'package:flutter_riverpod/flutter_riverpod.dart';
 import 'package:ivia_api_client/ivia_api_client.dart';
 import 'package:ivia_ui/ivia_ui.dart';
 
+import 'chat_screen.dart';
 import 'ivia_map.dart';
 import 'providers.dart';
 import 'realtime.dart';
@@ -18,7 +19,11 @@ class DeliveryProgress extends ConsumerStatefulWidget {
     required this.app,
     required this.load,
     this.customerView = true,
+    this.chat,
   });
+
+  /// Discussion avec le livreur (spec 037) ; `null` : pas de bouton.
+  final ChatChannel? chat;
 
   final String orderId;
 
@@ -129,6 +134,29 @@ class _DeliveryProgressState extends ConsumerState<DeliveryProgress> {
                             step: d.step,
                             customerView: widget.customerView,
                           ),
+                          if (widget.chat case final chat?) ...[
+                            const SizedBox(height: IviaSpacing.sm),
+                            OutlinedButton.icon(
+                              onPressed: () => openChat(context, chat),
+                              icon: const Icon(
+                                Icons.chat_bubble_outline_rounded,
+                                size: 18,
+                              ),
+                              label: Text(
+                                d.driverFirstName.isEmpty
+                                    ? 'Écrire au livreur'
+                                    : 'Écrire à ${d.driverFirstName}',
+                              ),
+                              style: OutlinedButton.styleFrom(
+                                minimumSize: const Size.fromHeight(46),
+                                shape: const StadiumBorder(),
+                                foregroundColor: const Color(0xFF128C7E),
+                                side: const BorderSide(
+                                  color: Color(0x55128C7E),
+                                ),
+                              ),
+                            ),
+                          ],
                         ],
                       ),
                     ),

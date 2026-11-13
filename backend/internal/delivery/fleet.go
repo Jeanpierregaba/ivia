@@ -128,3 +128,22 @@ func (h *Handler) trail(w http.ResponseWriter, r *http.Request) error {
 	}
 	return httpapi.OK(w, map[string]any{"items": items})
 }
+
+// ChatDriver donne le livreur de la commande (dernière mission) et si sa course est en cours :
+// la messagerie s'ouvre à l'acceptation et passe en lecture seule à la fin (spec 037).
+func (s *Service) ChatDriver(ctx context.Context, orderID uuid.UUID) (*uuid.UUID, bool, error) {
+	m, err := store.New(s.db.Conn(ctx)).LatestDeliveryForOrder(ctx, orderID)
+	if database.IsNoRows(err) {
+		return nil, false, nil
+	}
+	if err != nil {
+		return nil, false, fmt.Errorf("mission : %w", err)
+	}
+	switch m.Status {
+	case "withdrawn", "cancelled":
+		return nil, false, nil
+	case "assigned", "at_shop", "picked_up", "at_customer", "returning":
+		return &m.DriverID, true, nil
+	}
+	return &m.DriverID, false, nil
+}

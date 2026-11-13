@@ -29,7 +29,7 @@ function Card({
   className?: string;
 }) {
   return (
-    <section className={cx("animate-rise rounded-[18px] bg-surface p-7", className)}>
+    <section className={cx("dash-card animate-rise rounded-[22px] bg-surface p-6", className)}>
       <div className="mb-5 flex items-center justify-between gap-4">
         <h2 className="text-[17px] font-extrabold tracking-[-0.01em]">{title}</h2>
         {aside}

@@ -87,6 +87,7 @@ type UserDirectory interface {
 	SetVerifiedPhone(ctx context.Context, id uuid.UUID, phone string) (users.User, error)
 	Get(ctx context.Context, id uuid.UUID) (users.User, error)
 	Roles(ctx context.Context, id uuid.UUID) ([]identity.Role, error)
+	AdminRole(ctx context.Context, id uuid.UUID) (string, error)
 }
 
 // Options de configuration du service.
@@ -446,7 +447,13 @@ func (s *Service) Authenticate(ctx context.Context, token string) (identity.Prin
 			s.logger.Warn("prolongation de session impossible", "err", err)
 		}
 	}
-	return identity.Principal{UserID: sess.UserID, SessionID: sess.ID, Roles: roles, MFA: sess.MfaVerifiedAt != nil}, nil
+	p := identity.Principal{UserID: sess.UserID, SessionID: sess.ID, Roles: roles, MFA: sess.MfaVerifiedAt != nil}
+	if p.HasRole(identity.RoleAdmin) {
+		if p.AdminRole, err = s.users.AdminRole(ctx, sess.UserID); err != nil {
+			return identity.Principal{}, err
+		}
+	}
+	return p, nil
 }
 
 // Logout révoque la session courante.

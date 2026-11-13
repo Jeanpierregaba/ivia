@@ -32,8 +32,7 @@ func (h *Handler) Register(rt *httpapi.Router) {
 
 	rt.Roles("GET /v1/admin/users", h.adminList, identity.RoleAdmin)
 	rt.Roles("GET /v1/admin/users/{id}", h.adminGet, identity.RoleAdmin)
-	rt.Roles("POST /v1/admin/users/{id}/grant-admin", h.adminGrant, identity.RoleAdmin)
-	rt.Roles("POST /v1/admin/users/{id}/revoke-admin", h.adminRevoke, identity.RoleAdmin)
+	h.registerAdmins(rt)
 }
 
 func userID(r *http.Request) identity.Principal { return identity.MustFromContext(r.Context()) }

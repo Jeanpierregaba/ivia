@@ -13,6 +13,7 @@ import '../offer/offer_card.dart' show parcelLabel;
 import '../profile/settings.dart';
 import '../work/work_state.dart';
 import 'eta.dart';
+import 'mission_chat.dart';
 import 'mission_ui.dart';
 import 'navigation.dart';
 import 'pickup_view.dart';
@@ -317,6 +318,7 @@ class _RouteViewState extends ConsumerState<_RouteView> {
                                   onConfirmed: widget.onArrived,
                                 ),
                         ),
+                        MissionChatButtons(mission: m),
                         ProblemButton(
                           mission: m,
                           phase: widget.toClient

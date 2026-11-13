@@ -236,6 +236,7 @@ class _OrderScreenState extends ConsumerState<OrderScreen> {
                     app: 'seller',
                     customerView: false,
                     load: (api, id) => api.sellerOrderDelivery(id),
+                    chat: ChatChannel.seller(order.id),
                   ),
                 _Items(order: order),
                 const SizedBox(height: IviaSpacing.lg),

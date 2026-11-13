@@ -3,6 +3,7 @@ import 'dart:async';
 import 'package:flutter/material.dart';
 import 'package:flutter_riverpod/flutter_riverpod.dart';
 import 'package:go_router/go_router.dart';
+import 'package:ivia_api_client/ivia_api_client.dart';
 import 'package:ivia_app_core/ivia_app_core.dart';
 import 'package:ivia_ui/ivia_ui.dart';
 
@@ -50,6 +51,13 @@ class _NotificationWatcherState extends ConsumerState<NotificationWatcher>
       );
       // Temps réel (spec 036) : la cloche se met à jour dès l'événement.
       _live = ref.read(iviaRealtimeProvider('buyer')).events.listen((e) {
+        if (e.kind == 'chat_message' && mounted) {
+          showChatBanner(
+            context,
+            e,
+            (e) => e.orderId == null ? null : ChatChannel.buyer(e.orderId!),
+          );
+        }
         if (e.isNotification || e.kind == RealtimeEvent.reconnected) {
           unawaited(_poll());
         }
