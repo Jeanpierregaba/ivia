@@ -92,7 +92,7 @@ export default async function NewSettlementPage({ searchParams }: Props) {
           <Field label="Au">
             <input type="date" name="to" defaultValue={to} required className={fieldClass} />
           </Field>
-          <button className="inline-flex h-11 items-center gap-2 rounded-full bg-tertiary px-6 text-[15px] font-bold text-white hover:bg-[#163c6b]">
+          <button className="inline-flex h-11 items-center gap-2 rounded-full bg-tertiary px-6 text-[14px] font-bold text-white hover:bg-[#163c6b]">
             <Eye size={17} aria-hidden="true" /> Aperçu
           </button>
         </form>

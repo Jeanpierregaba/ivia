@@ -328,6 +328,11 @@ class _Ticket extends StatelessWidget {
             amount('Sous-total', invoice.subtotalXof),
             if (invoice.deliveryXof > 0)
               amount('Livraison', invoice.deliveryXof),
+            if (invoice.discountXof > 0)
+              amount(
+                'Réduction (${invoice.promoCode ?? ''})',
+                -invoice.discountXof,
+              ),
             const SizedBox(height: IviaSpacing.sm),
             amount('Montant total', invoice.totalXof, strong: true),
             divider,

@@ -8,6 +8,7 @@ import 'package:ivia_ui/ivia_ui.dart';
 import 'package:url_launcher/url_launcher.dart';
 
 import '../../app/router.dart';
+import '../coupons/coupons_screen.dart';
 import '../pharmacy/med_ui.dart';
 import 'profile_settings.dart';
 
@@ -76,6 +77,12 @@ class ProfileTabScreen extends ConsumerWidget {
                 'Mes adresses',
                 'Maison, bureau…',
                 () => open(const AddressesScreen()),
+              ),
+              _Item(
+                Icons.local_offer_outlined,
+                'Mes coupons',
+                'Codes promo et cadeaux',
+                () => open(const CouponsScreen()),
               ),
               _Item(
                 Icons.receipt_outlined,

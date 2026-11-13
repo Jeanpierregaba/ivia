@@ -59,7 +59,7 @@ export default async function DriverPage({ params }: { params: Promise<{ id: str
           <p className="text-[12px] font-semibold uppercase tracking-[0.08em] text-white/60">
             Dossier partenaire
           </p>
-          <h1 className="text-[28px] font-bold leading-8 tracking-[-0.02em]">
+          <h1 className="text-[24px] font-bold leading-8 tracking-[-0.02em]">
             {d.first_name || "Sans prénom"}
           </h1>
           <p className="mt-1 text-white/75">

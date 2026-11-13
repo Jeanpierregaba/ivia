@@ -76,7 +76,7 @@ export function AdminShell({
           <Menu size={22} aria-hidden="true" />
         </button>
         <LogoTile size={36} />
-        <span className="text-[17px] font-extrabold">Back-office</span>
+        <span className="text-[15px] font-extrabold">Back-office</span>
       </header>
 
       {/* Voile du tiroir */}

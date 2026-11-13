@@ -10,6 +10,7 @@ import 'models.dart';
 import 'promo.dart';
 
 part 'business.dart';
+part 'coupons.dart';
 part 'geo.dart';
 part 'notifications.dart';
 part 'driver_work.dart';
@@ -467,11 +468,16 @@ class IviaApiClient {
   Future<OrderQuote> quoteOrder({
     Fulfillment fulfillment = Fulfillment.pickup,
     String? addressId,
+    String? promoCode,
   }) async => OrderQuote.fromJson(
     await _send(
       'POST',
       '/v1/orders/quote',
-      data: {'fulfillment': fulfillment.code, 'address_id': ?addressId},
+      data: {
+        'fulfillment': fulfillment.code,
+        'address_id': ?addressId,
+        'promo_code': ?promoCode,
+      },
     ),
   );
 
@@ -482,6 +488,7 @@ class IviaApiClient {
     required String clientRequestId,
     Fulfillment fulfillment = Fulfillment.pickup,
     String? addressId,
+    String? promoCode,
   }) async => BuyerOrder.fromJson(
     await _send(
       'POST',
@@ -490,6 +497,7 @@ class IviaApiClient {
         'fulfillment': fulfillment.code,
         'address_id': ?addressId,
         'client_request_id': clientRequestId,
+        'promo_code': ?promoCode,
       },
     ),
   );

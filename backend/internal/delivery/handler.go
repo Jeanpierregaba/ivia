@@ -61,6 +61,8 @@ func (h *Handler) Register(rt *httpapi.Router) {
 	rt.Roles("GET /v1/seller/orders/{id}/delivery", h.sellerInfo, identity.RoleSeller)
 
 	rt.Roles("GET /v1/admin/drivers", h.adminList, identity.RoleAdmin)
+	rt.Roles("GET /v1/admin/fleet", h.fleet, identity.RoleAdmin)
+	rt.Roles("GET /v1/admin/fleet/{id}/trail", h.trail, identity.RoleAdmin)
 	rt.Roles("GET /v1/admin/drivers/{id}", h.adminGet, identity.RoleAdmin)
 	for _, d := range []string{"approve", "reject", "suspend", "reinstate"} {
 		rt.Roles("POST /v1/admin/drivers/{id}/"+d, h.review(d), identity.RoleAdmin)

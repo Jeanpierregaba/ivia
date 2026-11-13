@@ -129,7 +129,7 @@ export function VisualForm({ visual, products, officialURL }: Props) {
               rows={3}
               maxLength={600}
               defaultValue={v?.body}
-              className="w-full rounded-field border border-border-input bg-surface px-4 py-2 text-[15px] outline-none focus:border-2 focus:border-primary"
+              className="w-full rounded-field border border-border-input bg-surface px-4 py-2 text-[14px] outline-none focus:border-2 focus:border-primary"
             />
           </Field>
           <Field

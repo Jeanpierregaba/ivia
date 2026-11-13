@@ -72,6 +72,9 @@ func (s *Service) apply(ctx context.Context, orderID uuid.UUID, to Status, actor
 				return err
 			}
 			p.MarkPaid = true
+			if err := s.coupons.Confirm(ctx, orderID); err != nil {
+				return err
+			}
 			deadline := time.Now().Add(settings.SellerResponseTimeout())
 			p.SellerDeadlineAt = &deadline
 			if o.StockReleased { // paiement tardif : le stock rendu à l'expiration est repris
@@ -89,10 +92,16 @@ func (s *Service) apply(ctx context.Context, orderID uuid.UUID, to Status, actor
 				p.RefundDueXof = o.TotalXOF
 			}
 		case StatusReturnedToShop:
-			// Échec de livraison : produits remboursés, frais de livraison conservés.
-			p.RefundDueXof = o.SubtotalXOF
+			// Échec de livraison : produits remboursés (réduction déduite), frais de livraison conservés.
+			p.RefundDueXof = o.SubtotalXOF - o.DiscountXOF
 		case StatusRefunded:
 			p.RefundDueXof = 0
+		}
+		// Jamais payée (expirée, annulée avant paiement) : le code promo est rendu.
+		if (to == StatusExpired || to == StatusCancelled) && o.PaidAt == nil && !p.MarkPaid {
+			if err := s.coupons.Release(ctx, orderID); err != nil {
+				return err
+			}
 		}
 		if to.releasesStock() && !p.StockReleased {
 			if err := s.stock.Release(ctx, orderID, o.trackedLines()); err != nil {

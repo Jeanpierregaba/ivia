@@ -118,7 +118,9 @@ func (q *Queries) AdminListOrders(ctx context.Context, arg AdminListOrdersParams
 }
 
 const completedForShop = `-- name: CompletedForShop :many
-SELECT id, number, completed_at, subtotal_xof, commission_xof FROM orders
+SELECT id, number, completed_at,
+       (subtotal_xof - CASE WHEN discount_funded_by = 'shop' THEN discount_xof ELSE 0 END)::bigint AS subtotal_xof,
+       commission_xof FROM orders
 WHERE shop_id = $1
   AND status IN ('completed', 'delivered')
   AND completed_at >= $2::timestamptz AND completed_at < $3::timestamptz
@@ -140,6 +142,7 @@ type CompletedForShopRow struct {
 }
 
 // Commandes remises (retrait ou livraison) dans une période, pour les relevés marchands.
+// Réduction d'un code de boutique : retirée de ce que reçoit le marchand (spec 034).
 func (q *Queries) CompletedForShop(ctx context.Context, arg CompletedForShopParams) ([]CompletedForShopRow, error) {
 	rows, err := q.db.Query(ctx, completedForShop, arg.ShopID, arg.FromTime, arg.ToTime)
 	if err != nil {
@@ -199,7 +202,8 @@ INSERT INTO orders (
   buyer_id, shop_id, status, fulfillment, vehicle_type, parcel_size,
   subtotal_xof, delivery_fee_xof, total_xof, commission_rate_bp, commission_xof,
   delivery_distance_m, delivery_address_text, delivery_neighborhood, delivery_location, delivery_instructions,
-  handover_code, client_request_id, payment_deadline_at
+  handover_code, client_request_id, payment_deadline_at,
+  promo_code_id, promo_code, discount_xof, discount_funded_by
 ) VALUES (
   $1, $2, 'pending_payment', $3, $4, $5,
   $6, $7, $8, $9, $10,
@@ -207,7 +211,8 @@ INSERT INTO orders (
   CASE WHEN $14::float8 IS NULL THEN NULL
        ELSE ST_SetSRID(ST_MakePoint($15::float8, $14::float8), 4326)::geography END,
   $16,
-  $17, $18, $19
+  $17, $18, $19,
+  $20, $21, $22, $23
 )
 RETURNING id
 `
@@ -232,6 +237,10 @@ type CreateOrderParams struct {
 	HandoverCode         string
 	ClientRequestID      *uuid.UUID
 	PaymentDeadlineAt    time.Time
+	PromoCodeID          *uuid.UUID
+	PromoCode            *string
+	DiscountXof          int64
+	DiscountFundedBy     *string
 }
 
 func (q *Queries) CreateOrder(ctx context.Context, arg CreateOrderParams) (uuid.UUID, error) {
@@ -255,6 +264,10 @@ func (q *Queries) CreateOrder(ctx context.Context, arg CreateOrderParams) (uuid.
 		arg.HandoverCode,
 		arg.ClientRequestID,
 		arg.PaymentDeadlineAt,
+		arg.PromoCodeID,
+		arg.PromoCode,
+		arg.DiscountXof,
+		arg.DiscountFundedBy,
 	)
 	var id uuid.UUID
 	err := row.Scan(&id)
@@ -283,7 +296,8 @@ SELECT o.id, o.number, o.buyer_id, o.shop_id, o.status, o.fulfillment, o.vehicle
        coalesce(ST_X(o.delivery_location::geometry), 0)::float8 AS delivery_lng,
        o.handover_code, o.handover_attempts, o.stock_released, o.cancel_reason, o.refund_due_xof,
        o.payment_deadline_at, o.seller_deadline_at, o.paid_at, o.accepted_at, o.ready_at, o.picked_up_at,
-       o.completed_at, o.cancelled_at, o.refunded_at, o.created_at, o.updated_at
+       o.completed_at, o.cancelled_at, o.refunded_at, o.created_at, o.updated_at,
+       o.promo_code, o.discount_xof, o.discount_funded_by
 FROM orders o
 WHERE o.id = $1
 `
@@ -325,6 +339,9 @@ type GetOrderRow struct {
 	RefundedAt           *time.Time
 	CreatedAt            time.Time
 	UpdatedAt            time.Time
+	PromoCode            *string
+	DiscountXof          int64
+	DiscountFundedBy     *string
 }
 
 func (q *Queries) GetOrder(ctx context.Context, id uuid.UUID) (GetOrderRow, error) {
@@ -367,6 +384,9 @@ func (q *Queries) GetOrder(ctx context.Context, id uuid.UUID) (GetOrderRow, erro
 		&i.RefundedAt,
 		&i.CreatedAt,
 		&i.UpdatedAt,
+		&i.PromoCode,
+		&i.DiscountXof,
+		&i.DiscountFundedBy,
 	)
 	return i, err
 }
@@ -396,7 +416,8 @@ SELECT o.id, o.number, o.buyer_id, o.shop_id, o.status, o.fulfillment, o.vehicle
        coalesce(ST_X(o.delivery_location::geometry), 0)::float8 AS delivery_lng,
        o.handover_code, o.handover_attempts, o.stock_released, o.cancel_reason, o.refund_due_xof,
        o.payment_deadline_at, o.seller_deadline_at, o.paid_at, o.accepted_at, o.ready_at, o.picked_up_at,
-       o.completed_at, o.cancelled_at, o.refunded_at, o.created_at, o.updated_at
+       o.completed_at, o.cancelled_at, o.refunded_at, o.created_at, o.updated_at,
+       o.promo_code, o.discount_xof, o.discount_funded_by
 FROM orders o
 WHERE o.id = ANY($1::uuid[])
 `
@@ -438,6 +459,9 @@ type GetOrdersByIDsRow struct {
 	RefundedAt           *time.Time
 	CreatedAt            time.Time
 	UpdatedAt            time.Time
+	PromoCode            *string
+	DiscountXof          int64
+	DiscountFundedBy     *string
 }
 
 func (q *Queries) GetOrdersByIDs(ctx context.Context, dollar_1 []uuid.UUID) ([]GetOrdersByIDsRow, error) {
@@ -486,6 +510,9 @@ func (q *Queries) GetOrdersByIDs(ctx context.Context, dollar_1 []uuid.UUID) ([]G
 			&i.RefundedAt,
 			&i.CreatedAt,
 			&i.UpdatedAt,
+			&i.PromoCode,
+			&i.DiscountXof,
+			&i.DiscountFundedBy,
 		); err != nil {
 			return nil, err
 		}
@@ -495,6 +522,17 @@ func (q *Queries) GetOrdersByIDs(ctx context.Context, dollar_1 []uuid.UUID) ([]G
 		return nil, err
 	}
 	return items, nil
+}
+
+const hasPaidOrder = `-- name: HasPaidOrder :one
+SELECT EXISTS (SELECT 1 FROM orders WHERE buyer_id = $1 AND paid_at IS NOT NULL)::boolean
+`
+
+func (q *Queries) HasPaidOrder(ctx context.Context, buyerID uuid.UUID) (bool, error) {
+	row := q.db.QueryRow(ctx, hasPaidOrder, buyerID)
+	var column_1 bool
+	err := row.Scan(&column_1)
+	return column_1, err
 }
 
 const incrementHandoverAttempts = `-- name: IncrementHandoverAttempts :one

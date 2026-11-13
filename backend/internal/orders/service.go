@@ -18,6 +18,7 @@ import (
 	"ivia/backend/internal/admin"
 	"ivia/backend/internal/cart"
 	"ivia/backend/internal/catalog"
+	"ivia/backend/internal/coupons"
 	"ivia/backend/internal/geo"
 	"ivia/backend/internal/notifications"
 	"ivia/backend/internal/orders/store"
@@ -82,6 +83,8 @@ type Order struct {
 	SubtotalXOF       int64            `json:"subtotal_xof"`
 	DeliveryFeeXOF    int64            `json:"delivery_fee_xof"`
 	TotalXOF          int64            `json:"total_xof"`
+	PromoCode         *string          `json:"promo_code"`
+	DiscountXOF       int64            `json:"discount_xof"`
 	DeliveryAddress   *DeliveryAddress `json:"delivery_address"`
 	CancelReason      string           `json:"cancel_reason"`
 	PaymentDeadlineAt time.Time        `json:"payment_deadline_at"`
@@ -107,6 +110,7 @@ type Order struct {
 	HandoverAttempts  int32     `json:"-"`
 	StockReleased     bool      `json:"-"`
 	DeliveryDistanceM *int32    `json:"-"`
+	DiscountFundedBy  *string   `json:"-"`
 }
 
 // BuyerOrder est la vue de l'acheteur : son code de remise et la boutique (pour un retrait).
@@ -152,6 +156,7 @@ type Service struct {
 	notify  *notifications.Service
 	logger  *slog.Logger
 	limiter *ratelimit.Limiter
+	coupons *coupons.Service
 }
 
 // Deps regroupe les dépendances du service.
@@ -167,13 +172,14 @@ type Deps struct {
 	Cart    *cart.Service
 	Notify  *notifications.Service
 	Logger  *slog.Logger
+	Coupons *coupons.Service
 }
 
 // NewService crée le service.
 func NewService(d Deps) *Service {
 	return &Service{
 		db: d.DB, jobs: d.Jobs, admin: d.Admin, users: d.Users, geo: d.Geo, shops: d.Shops,
-		catalog: d.Catalog, stock: d.Stock, cart: d.Cart, notify: d.Notify, logger: d.Logger,
+		catalog: d.Catalog, stock: d.Stock, cart: d.Cart, notify: d.Notify, logger: d.Logger, coupons: d.Coupons,
 		// Création de commande : 20 par heure et par acheteur.
 		limiter: ratelimit.New(20, time.Hour),
 	}
@@ -218,6 +224,7 @@ func buildOrder(r store.GetOrderRow, items []store.OrderItem, events []store.Ord
 		BuyerID: r.BuyerID, ShopID: r.ShopID, CommissionRateBP: r.CommissionRateBp, CommissionXOF: r.CommissionXof,
 		RefundDueXOF: r.RefundDueXof, HandoverCode: r.HandoverCode, HandoverAttempts: r.HandoverAttempts,
 		StockReleased: r.StockReleased, DeliveryDistanceM: r.DeliveryDistanceM,
+		PromoCode: r.PromoCode, DiscountXOF: r.DiscountXof, DiscountFundedBy: r.DiscountFundedBy,
 	}
 	if r.VehicleType != nil {
 		v := Vehicle(*r.VehicleType)
@@ -284,6 +291,14 @@ func (s *Service) loadOrders(ctx context.Context, ids []uuid.UUID) ([]Order, err
 	return out, nil
 }
 
+// merchantGross : montant des produits pour le marchand, moins la réduction d'un code de boutique.
+func (o Order) merchantGross() int64 {
+	if o.DiscountFundedBy != nil && *o.DiscountFundedBy == coupons.FundedByShop {
+		return o.SubtotalXOF - o.DiscountXOF
+	}
+	return o.SubtotalXOF
+}
+
 // trackedLines retourne les lignes à stock suivi (réservation et libération).
 func (o Order) trackedLines() []stock.Line {
 	var out []stock.Line
@@ -323,7 +338,7 @@ func sellerOrder(o Order, buyerFirstName string) SellerOrder {
 	o.DeliveryAddress = nil
 	return SellerOrder{
 		Order: o, ShopID: o.ShopID, BuyerFirstName: buyerFirstName,
-		CommissionXOF: o.CommissionXOF, NetXOF: o.SubtotalXOF - o.CommissionXOF, HandoverAttempts: o.HandoverAttempts,
+		CommissionXOF: o.CommissionXOF, NetXOF: o.merchantGross() - o.CommissionXOF, HandoverAttempts: o.HandoverAttempts,
 	}
 }
 

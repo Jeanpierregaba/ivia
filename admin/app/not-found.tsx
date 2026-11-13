@@ -12,7 +12,7 @@ export default function NotFound() {
         <p className="mt-10 text-[12px] font-semibold uppercase tracking-[0.08em] text-secondary">
           Erreur 404
         </p>
-        <h1 className="mt-1.5 text-[34px] font-bold leading-[38px] tracking-[-0.02em]">
+        <h1 className="mt-1.5 text-[28px] font-bold leading-[32px] tracking-[-0.02em]">
           Page <span className="text-primary">introuvable</span>
         </h1>
         <p className="mt-2 text-text-secondary">Cette ressource n&apos;existe pas ou plus.</p>

@@ -13,7 +13,7 @@ export function AuthShell({ children }: { children: React.ReactNode }) {
       >
         <div className="flex items-center gap-4">
           <LogoTile size={46} />
-          <span className="text-[19px] font-bold text-white">Back-office</span>
+          <span className="text-[16px] font-bold text-white">Back-office</span>
         </div>
 
         {/* Mosaïque de la charte, coupée par le bord droit du panneau */}
@@ -25,10 +25,10 @@ export function AuthShell({ children }: { children: React.ReactNode }) {
         </div>
 
         <div className="relative max-w-[420px]">
-          <p className="text-[46px] font-extrabold leading-[46px] tracking-[-0.03em] text-white">
+          <p className="text-[36px] font-extrabold leading-[38px] tracking-[-0.03em] text-white">
             Toute la plateforme, au même endroit.
           </p>
-          <p className="mt-5 text-[17px] leading-[25px] text-white/70">
+          <p className="mt-5 text-[15px] leading-[22px] text-white/70">
             Boutiques, livreurs, commandes, paiements et remboursements de Lomé.
           </p>
         </div>
@@ -38,7 +38,7 @@ export function AuthShell({ children }: { children: React.ReactNode }) {
         <div className="mx-auto w-full max-w-[430px]">
           <div className="mb-10 hidden items-center gap-3 max-[1023px]:flex">
             <LogoTile size={40} />
-            <span className="text-[17px] font-bold">Back-office</span>
+            <span className="text-[15px] font-bold">Back-office</span>
           </div>
           {children}
         </div>
@@ -58,4 +58,4 @@ export function AuthNote({ children }: { children: React.ReactNode }) {
 }
 
 export const authFieldClass =
-  "h-[52px] w-full rounded-[14px] border border-border-input bg-surface px-4 text-[16px] outline-none focus-visible:outline-none transition-colors placeholder:text-text-muted focus:border-2 focus:border-primary focus:px-[15px]";
+  "h-[52px] w-full rounded-[14px] border border-border-input bg-surface px-4 text-[14px] outline-none focus-visible:outline-none transition-colors placeholder:text-text-muted focus:border-2 focus:border-primary focus:px-[15px]";

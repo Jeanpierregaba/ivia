@@ -37,7 +37,7 @@ export default async function SecurityPage() {
           <CardTitle icon={<ShieldCheck size={18} aria-hidden="true" />}>Double vérification</CardTitle>
           {totp ? (
             <>
-              <p className="rounded-field bg-success/10 px-4 py-3 text-[15px] font-semibold text-success">
+              <p className="rounded-field bg-success/10 px-4 py-3 text-[14px] font-semibold text-success">
                 Application d&apos;authentification activée.
               </p>
               <p className="mt-3 text-text-secondary">

@@ -14,7 +14,7 @@ export function LoginForm() {
   return (
     <form action={action} className="space-y-5">
       <label className="block">
-        <span className="mb-2 block text-[15px] font-bold">E-mail</span>
+        <span className="mb-2 block text-[14px] font-bold">E-mail</span>
         <input
           name="email"
           type="email"
@@ -29,7 +29,7 @@ export function LoginForm() {
         )}
       </label>
       <label className="block">
-        <span className="mb-2 block text-[15px] font-bold">Mot de passe</span>
+        <span className="mb-2 block text-[14px] font-bold">Mot de passe</span>
         <span className="relative block">
           <input
             name="password"
@@ -59,7 +59,7 @@ export function LoginForm() {
       <button
         type="submit"
         disabled={pending}
-        className={buttonClass("imperial", "!h-[56px] w-full !rounded-[14px] text-[17px]")}
+        className={buttonClass("imperial", "!h-[56px] w-full !rounded-[14px] text-[15px]")}
       >
         {pending ? "Vérification…" : "Recevoir le code"}
       </button>

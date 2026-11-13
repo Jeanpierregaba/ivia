@@ -74,7 +74,7 @@ export default async function PharmaciesPage({ searchParams }: Props) {
       <div className="mb-4 grid grid-cols-2 md:grid-cols-3 xl:grid-cols-6 gap-3">
         {tiles.map(([label, value]) => (
           <Card key={label}>
-            <p className="text-[22px] font-bold leading-7">{value}</p>
+            <p className="text-[18px] font-bold leading-7">{value}</p>
             <p className="mt-1 text-[12px] text-text-muted">{label}</p>
           </Card>
         ))}

@@ -65,7 +65,7 @@ export default async function PharmacyPage({ params }: { params: Promise<{ id: s
           <p className="text-[12px] font-semibold uppercase tracking-[0.08em] text-white/60">
             Dossier pharmacie
           </p>
-          <h1 className="text-[28px] font-bold leading-8 tracking-[-0.02em]">{p.name}</h1>
+          <h1 className="text-[24px] font-bold leading-8 tracking-[-0.02em]">{p.name}</h1>
           <p className="mt-1 text-white/75">
             {p.address_text} · {formatPhone(p.phone)}
           </p>

@@ -21,7 +21,7 @@ function CodeField({ label = "Code de l'application" }: { label?: string }) {
         pattern="[0-9 ]{6,7}"
         maxLength={7}
         placeholder="123 456"
-        className={fieldClass + " w-40 text-center font-mono text-[18px] tracking-[0.2em]"}
+        className={fieldClass + " w-40 text-center font-mono text-[16px] tracking-[0.2em]"}
       />
     </label>
   );
@@ -46,7 +46,7 @@ function RecoveryList({ codes }: { codes: string[] }) {
         Chacun ne sert qu&apos;une fois, si vous perdez votre téléphone. Gardez-les hors de cet ordinateur
         (papier, coffre-fort de mots de passe) : ils ne seront plus jamais affichés.
       </p>
-      <ol className="mt-4 grid grid-cols-1 md:grid-cols-2 gap-2 font-mono text-[17px] font-bold">
+      <ol className="mt-4 grid grid-cols-1 md:grid-cols-2 gap-2 font-mono text-[15px] font-bold">
         {codes.map((c) => (
           <li key={c} className="rounded-[10px] bg-background px-3 py-2 text-center">
             {c}
@@ -91,7 +91,7 @@ export function TotpEnroll() {
   if (result?.ok) {
     return (
       <>
-        <p className="mt-5 rounded-field bg-success/10 px-4 py-3 text-[15px] font-semibold text-success">
+        <p className="mt-5 rounded-field bg-success/10 px-4 py-3 text-[14px] font-semibold text-success">
           Application activée. Elle sera demandée à votre prochaine connexion.
         </p>
         <RecoveryList codes={result.codes} />
@@ -123,7 +123,7 @@ export function TotpEnroll() {
 
   return (
     <div className="mt-6 grid gap-5">
-      <ol className="list-decimal space-y-1 pl-5 text-[15px] text-text-secondary">
+      <ol className="list-decimal space-y-1 pl-5 text-[14px] text-text-secondary">
         <li>Ouvrez votre application d&apos;authentification et ajoutez un compte.</li>
         <li>Scannez ce QR code (ou saisissez la clé à la main).</li>
         <li>Saisissez le code à 6 chiffres affiché pour ivia.</li>
@@ -138,7 +138,7 @@ export function TotpEnroll() {
         />
         <div className="min-w-0">
           <p className="text-[13px] font-semibold text-text-muted">Clé à saisir à la main</p>
-          <p className="mt-1 break-all font-mono text-[15px] font-bold tracking-wider">
+          <p className="mt-1 break-all font-mono text-[14px] font-bold tracking-wider">
             {setup.secret.match(/.{1,4}/g)?.join(" ")}
           </p>
         </div>
@@ -190,7 +190,7 @@ export function TotpDisable() {
           onChange={(e) => setCode(e.target.value.replace(/\D/g, "").slice(0, 6))}
           inputMode="numeric"
           placeholder="123456"
-          className={fieldClass + " w-40 text-center font-mono text-[18px] tracking-[0.2em]"}
+          className={fieldClass + " w-40 text-center font-mono text-[16px] tracking-[0.2em]"}
         />
       </label>
       <ActionForm

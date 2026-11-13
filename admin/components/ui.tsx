@@ -33,7 +33,7 @@ export type ButtonVariant = keyof typeof buttonVariants;
 
 export function buttonClass(variant: ButtonVariant = "primary", extra?: string): string {
   return cx(
-    "inline-flex h-11 items-center justify-center gap-2 rounded-full px-6 text-[15px] font-bold transition-[background-color,color,transform,box-shadow] duration-300 ease-[cubic-bezier(0.16,1,0.3,1)] hover:-translate-y-px active:translate-y-0 active:scale-[0.97]",
+    "inline-flex h-11 items-center justify-center gap-2 rounded-full px-6 text-[14px] font-bold transition-[background-color,color,transform,box-shadow] duration-300 ease-[cubic-bezier(0.16,1,0.3,1)] hover:-translate-y-px active:translate-y-0 active:scale-[0.97]",
     "disabled:cursor-not-allowed disabled:bg-border disabled:text-text-muted",
     buttonVariants[variant],
     extra,
@@ -58,7 +58,7 @@ export function CardTitle({
 }) {
   return (
     <div className="mb-5 flex items-center justify-between gap-3">
-      <h2 className="flex items-center gap-3 text-[17px] font-bold leading-[22px]">
+      <h2 className="flex items-center gap-3 text-[15px] font-bold leading-[20px]">
         {icon && (
           <span className="grid size-9 place-items-center rounded-card bg-secondary-soft text-tertiary">
             {icon}
@@ -97,7 +97,7 @@ export function PageHeader({
             {overline}
           </p>
         )}
-        <h1 className="text-[28px] font-bold leading-[32px] tracking-[-0.02em] sm:text-[34px] sm:leading-[38px]">
+        <h1 className="text-[24px] font-bold leading-[32px] tracking-[-0.02em] sm:text-[28px] sm:leading-[32px]">
           {at >= 0 && highlight ? (
             <>
               {title.slice(0, at)}
@@ -150,7 +150,7 @@ export function StatusBadge({ label, tone }: { label: string; tone: Tone }) {
 export function Table({ head, children }: { head: string[]; children: React.ReactNode }) {
   return (
     <div className="overflow-x-auto rounded-field bg-surface">
-      <table className="w-full min-w-[640px] text-left text-[15px]">
+      <table className="w-full min-w-[640px] text-left text-[14px]">
         <thead>
           <tr className="border-b border-border">
             {head.map((h, i) => (
@@ -181,7 +181,7 @@ export function EmptyState({ title, message }: { title?: string; message: string
       <span className="mb-4 grid size-14 place-items-center rounded-full bg-background text-text-muted">
         <Inbox size={26} aria-hidden="true" />
       </span>
-      {title && <p className="text-[17px] font-bold">{title}</p>}
+      {title && <p className="text-[15px] font-bold">{title}</p>}
       <p className="mt-1 max-w-md text-text-secondary">{message}</p>
     </div>
   );
@@ -325,7 +325,7 @@ export function Avatar({
 
 /** Champ de saisie (DESIGN.md) : contour 3:1 au repos, Imperial 2 px quand il est actif. */
 export const fieldClass =
-  "h-11 w-full rounded-field border border-border-input bg-surface px-4 text-[15px] outline-none focus:border-2 focus:border-primary focus:px-[15px]";
+  "h-11 w-full rounded-field border border-border-input bg-surface px-4 text-[14px] outline-none focus:border-2 focus:border-primary focus:px-[15px]";
 
 /** Libellé au-dessus du champ, précision facultative en dessous. */
 export function Field({

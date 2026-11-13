@@ -11,6 +11,7 @@ import 'package:ivia_ui/ivia_ui.dart';
 import '../../app/business_state.dart';
 import '../../app/router.dart';
 import '../../app/seller_shop.dart';
+import '../account/promo_codes_screen.dart';
 import '../account/revenue_screen.dart';
 import 'pro_ui.dart';
 
@@ -2373,6 +2374,13 @@ class ProProfile extends ConsumerWidget {
                           Icons.query_stats,
                           'Revenus et relevés',
                           () => _open(context, const RevenueScreen()),
+                        ),
+                        const Divider(height: 1),
+                        row(
+                          Icons.local_offer_outlined,
+                          'Codes promo',
+                          () => _open(context, const PromoCodesScreen()),
+                          sub: 'Attirez des clients avec une réduction',
                         ),
                         const Divider(height: 1),
                       ],

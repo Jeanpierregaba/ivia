@@ -43,12 +43,12 @@ export default async function OrderPage({ params }: { params: Promise<{ id: stri
           <p className="text-[12px] font-semibold uppercase tracking-[0.08em] text-white/60">
             Commande · {o.fulfillment === "delivery" ? "Livraison" : "Retrait en boutique"}
           </p>
-          <h1 className="text-[28px] font-bold leading-8 tracking-[-0.02em]">{o.reference}</h1>
+          <h1 className="text-[24px] font-bold leading-8 tracking-[-0.02em]">{o.reference}</h1>
           <p className="mt-1 text-white/75">Créée le {formatDateTime(o.created_at)}</p>
         </div>
         <div className="text-right">
           <p className="text-[13px] text-white/60">Total payé</p>
-          <p className="text-[28px] font-bold leading-8">{formatXOF(o.total_xof)}</p>
+          <p className="text-[24px] font-bold leading-8">{formatXOF(o.total_xof)}</p>
         </div>
         <span className="rounded-full bg-surface">
           <StatusBadge {...statusOf(ORDER_STATUS, o.status)} />
@@ -100,7 +100,7 @@ export default async function OrderPage({ params }: { params: Promise<{ id: stri
         </Card>
       </div>
 
-      <h2 className="mb-3 mt-8 flex items-center gap-2 text-[17px] font-bold">
+      <h2 className="mb-3 mt-8 flex items-center gap-2 text-[15px] font-bold">
         <ShoppingBasket size={18} aria-hidden="true" className="text-secondary" /> Produits
       </h2>
       <Table head={["Produit", "Prix unitaire", "Quantité", "Total"]}>
@@ -114,7 +114,7 @@ export default async function OrderPage({ params }: { params: Promise<{ id: stri
         ))}
       </Table>
 
-      <h2 className="mb-3 mt-8 flex items-center gap-2 text-[17px] font-bold">
+      <h2 className="mb-3 mt-8 flex items-center gap-2 text-[15px] font-bold">
         <CreditCard size={18} aria-hidden="true" className="text-secondary" /> Paiements
       </h2>
       {payments.items.length === 0 ? (

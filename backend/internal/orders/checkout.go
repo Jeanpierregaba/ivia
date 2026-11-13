@@ -10,6 +10,7 @@ import (
 
 	"ivia/backend/internal/admin"
 	"ivia/backend/internal/catalog"
+	"ivia/backend/internal/coupons"
 	"ivia/backend/internal/orders/store"
 	"ivia/backend/internal/platform/apperr"
 	"ivia/backend/internal/platform/database"
@@ -26,6 +27,8 @@ type CheckoutInput struct {
 	VehicleType *Vehicle `json:"vehicle_type"`
 	// ClientRequestID rend la création idempotente : une requête rejouée renvoie la même commande.
 	ClientRequestID *uuid.UUID `json:"client_request_id"`
+	// PromoCode : code promo facultatif (spec 034), un seul par commande.
+	PromoCode string `json:"promo_code"`
 }
 
 // VehicleQuote est le prix de livraison d'un véhicule.
@@ -45,6 +48,8 @@ type Quote struct {
 	VehicleType        *Vehicle           `json:"vehicle_type"`
 	DeliveryDistanceM  *int64             `json:"delivery_distance_m"`
 	DeliveryFeeXOF     int64              `json:"delivery_fee_xof"`
+	PromoCode          *string            `json:"promo_code"`
+	DiscountXOF        int64              `json:"discount_xof"`
 	TotalXOF           int64              `json:"total_xof"`
 	PaymentTimeoutMins int32              `json:"payment_timeout_minutes"`
 
@@ -53,6 +58,7 @@ type Quote struct {
 	address       *users.Address
 	shop          shops.Shop
 	settings      admin.Settings
+	promo         *coupons.Applied
 }
 
 // Quote calcule le récapitulatif de la commande sans rien enregistrer.
@@ -154,6 +160,24 @@ func (s *Service) Quote(ctx context.Context, buyerID uuid.UUID, in CheckoutInput
 		q.TotalXOF += q.DeliveryFeeXOF
 		q.address = &addr
 	}
+	if in.PromoCode != "" {
+		a, err := s.coupons.Quote(ctx, buyerID, in.PromoCode, shopID, q.SubtotalXOF)
+		if err != nil {
+			return Quote{}, err
+		}
+		a.DiscountXOF = coupons.CapToMinTotal(a.DiscountXOF, q.TotalXOF)
+		if a.DiscountXOF <= 0 {
+			return Quote{}, apperr.Conflict("promo_total_too_low", "Cette commande est trop petite pour ce code promo.")
+		}
+		q.promo = &a
+		q.PromoCode = &a.Code
+		q.DiscountXOF = a.DiscountXOF
+		q.TotalXOF -= a.DiscountXOF
+		if a.FundedBy == coupons.FundedByShop {
+			// Code de boutique : commission sur le montant des produits après réduction.
+			q.commissionXOF = Commission(q.SubtotalXOF-a.DiscountXOF, q.commissionBP)
+		}
+	}
 	return q, nil
 }
 
@@ -197,6 +221,9 @@ func (s *Service) Checkout(ctx context.Context, buyerID uuid.UUID, in CheckoutIn
 			CommissionRateBp: q.commissionBP, CommissionXof: q.commissionXOF,
 			HandoverCode: code, ClientRequestID: in.ClientRequestID, PaymentDeadlineAt: deadline,
 		}
+		if q.promo != nil {
+			p.PromoCodeID, p.PromoCode, p.DiscountXof, p.DiscountFundedBy = &q.promo.CodeID, &q.promo.Code, q.promo.DiscountXOF, &q.promo.FundedBy
+		}
 		if q.address != nil {
 			v := string(*q.VehicleType)
 			dist := int32(*q.DeliveryDistanceM)
@@ -216,6 +243,11 @@ func (s *Service) Checkout(ctx context.Context, buyerID uuid.UUID, in CheckoutIn
 		}
 		if err != nil {
 			return fmt.Errorf("création de la commande : %w", err)
+		}
+		if q.promo != nil {
+			if err := s.coupons.Reserve(ctx, *q.promo, orderID, buyerID); err != nil {
+				return err
+			}
 		}
 		var tracked []stock.Line
 		for _, it := range q.Items {

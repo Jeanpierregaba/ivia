@@ -111,7 +111,7 @@ export default async function PromoPage() {
             <p className="flex items-center gap-2 text-[13px] font-semibold text-text-secondary">
               <k.icon size={16} aria-hidden="true" className="text-secondary" /> {k.label}
             </p>
-            <p className="mt-2 text-[28px] font-bold leading-8 tracking-[-0.02em]">{k.value}</p>
+            <p className="mt-2 text-[24px] font-bold leading-8 tracking-[-0.02em]">{k.value}</p>
             <p className="mt-1 text-[13px] text-text-muted">{k.sub}</p>
           </div>
         ))}
@@ -146,7 +146,7 @@ export default async function PromoPage() {
         )}
       </Card>
 
-      <h2 className="mb-4 text-[22px] font-bold">Visuels publiés</h2>
+      <h2 className="mb-4 text-[18px] font-bold">Visuels publiés</h2>
       {visuals.length === 0 ? (
         <EmptyState
           title="Aucun visuel"
@@ -172,7 +172,7 @@ export default async function PromoPage() {
                       <p className="text-[12px] font-semibold uppercase tracking-[0.08em] text-secondary">
                         {KINDS[v.kind]?.label ?? v.kind} · priorité {v.priority}
                       </p>
-                      <h3 className="mt-1 text-[17px] font-bold leading-6">{v.title}</h3>
+                      <h3 className="mt-1 text-[15px] font-bold leading-6">{v.title}</h3>
                     </div>
                     <StatusBadge
                       label={v.live ? "En diffusion" : v.is_active ? "Programmé" : "Arrêté"}
@@ -205,7 +205,7 @@ export default async function PromoPage() {
         </div>
       )}
 
-      <h2 className="mb-4 text-[22px] font-bold">Produits promus</h2>
+      <h2 className="mb-4 text-[18px] font-bold">Produits promus</h2>
       {stats.products.length === 0 ? (
         <EmptyState message="Aucun produit mis en avant ou promu pour le moment." />
       ) : (

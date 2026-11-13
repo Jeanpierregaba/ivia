@@ -21,22 +21,22 @@ export function ForgotForm() {
     <div className="animate-rise">
       <Link
         href="/login"
-        className="mb-6 inline-flex items-center gap-1.5 text-[15px] font-bold text-text-secondary hover:text-text"
+        className="mb-6 inline-flex items-center gap-1.5 text-[14px] font-bold text-text-secondary hover:text-text"
       >
         <ArrowLeft size={17} aria-hidden="true" /> Retour à la connexion
       </Link>
       <p className="text-[13px] font-bold uppercase tracking-[0.12em] text-primary">Espace administrateur</p>
-      <h1 className="mt-3 text-[40px] font-extrabold leading-[44px] tracking-[-0.03em]">
+      <h1 className="mt-3 text-[40px] font-extrabold leading-[34px] tracking-[-0.03em]">
         Mot de passe oublié
       </h1>
 
       {!email ? (
         <form action={send} className="mt-8 space-y-5">
-          <p className="text-[16px] text-text-secondary">
+          <p className="text-[14px] text-text-secondary">
             Indiquez votre e-mail professionnel : vous recevrez un code pour choisir un nouveau mot de passe.
           </p>
           <label className="block">
-            <span className="mb-2 block text-[15px] font-bold">E-mail</span>
+            <span className="mb-2 block text-[14px] font-bold">E-mail</span>
             <input
               name="email"
               type="email"
@@ -53,7 +53,7 @@ export function ForgotForm() {
           <button
             type="submit"
             disabled={sending}
-            className={buttonClass("imperial", "!h-[56px] w-full !rounded-[14px] text-[17px]")}
+            className={buttonClass("imperial", "!h-[56px] w-full !rounded-[14px] text-[15px]")}
           >
             {sending ? "Envoi…" : "Recevoir le code"}
           </button>
@@ -69,7 +69,7 @@ export function ForgotForm() {
           </p>
           <input type="hidden" name="email" value={email} />
           <label className="block">
-            <span className="mb-2 block text-[15px] font-bold">Code reçu</span>
+            <span className="mb-2 block text-[14px] font-bold">Code reçu</span>
             <input
               name="code"
               inputMode="numeric"
@@ -82,7 +82,7 @@ export function ForgotForm() {
             />
           </label>
           <label className="block">
-            <span className="mb-2 block text-[15px] font-bold">Nouveau mot de passe</span>
+            <span className="mb-2 block text-[14px] font-bold">Nouveau mot de passe</span>
             <input
               name="password"
               type="password"
@@ -103,7 +103,7 @@ export function ForgotForm() {
           <button
             type="submit"
             disabled={resetting}
-            className={buttonClass("imperial", "!h-[56px] w-full !rounded-[14px] text-[17px]")}
+            className={buttonClass("imperial", "!h-[56px] w-full !rounded-[14px] text-[15px]")}
           >
             {resetting ? "Enregistrement…" : "Changer le mot de passe"}
           </button>

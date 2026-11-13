@@ -15,7 +15,7 @@ export const metadata: Metadata = {
 export default function RootLayout({ children }: { children: React.ReactNode }) {
   return (
     <html lang="fr" className={parkinsans.variable} suppressHydrationWarning>
-      <body className="min-h-screen font-sans text-[15px] leading-[22px] antialiased">
+      <body className="min-h-screen font-sans text-[14px] leading-[20px] antialiased">
         <Splash />
         {children}
       </body>

@@ -1383,6 +1383,8 @@ class OrderQuote {
     required this.deliveryFeeXof,
     required this.totalXof,
     required this.paymentTimeout,
+    this.promoCode,
+    this.discountXof = 0,
   });
 
   factory OrderQuote.fromJson(Map<String, dynamic> json) => OrderQuote(
@@ -1398,6 +1400,8 @@ class OrderQuote {
     paymentTimeout: Duration(
       minutes: json['payment_timeout_minutes'] as int? ?? 15,
     ),
+    promoCode: json['promo_code'] as String?,
+    discountXof: json['discount_xof'] as int? ?? 0,
   );
 
   final String shopId;
@@ -1409,6 +1413,10 @@ class OrderQuote {
 
   /// Temps laissé pour payer : les produits sont réservés pendant ce délai.
   final Duration paymentTimeout;
+
+  /// Code promo appliqué et réduction sur les produits (déjà retirée du total).
+  final String? promoCode;
+  final int discountXof;
 
   int get articleCount => items.fold(0, (n, i) => n + i.quantity);
 }
@@ -1457,6 +1465,8 @@ class BuyerOrder {
     required this.events,
     required this.shop,
     required this.handoverCode,
+    this.promoCode,
+    this.discountXof = 0,
   });
 
   factory BuyerOrder.fromJson(Map<String, dynamic> json) => BuyerOrder(
@@ -1482,9 +1492,15 @@ class BuyerOrder {
     ],
     shop: PublicShop.fromJson(json['shop'] as Map<String, dynamic>),
     handoverCode: json['handover_code'] as String?,
+    promoCode: json['promo_code'] as String?,
+    discountXof: json['discount_xof'] as int? ?? 0,
   );
 
   final String id;
+
+  /// Code promo appliqué et réduction sur les produits (déjà retirée du total).
+  final String? promoCode;
+  final int discountXof;
 
   /// Numéro lisible (« #1042 »).
   final int number;

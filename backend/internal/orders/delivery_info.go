@@ -95,6 +95,15 @@ func (s *Service) CompletedForShop(ctx context.Context, shopID uuid.UUID, from, 
 	return out, nil
 }
 
+// HasPaidOrder dit si un compte a déjà payé une commande (coupon de bienvenue, spec 034).
+func (s *Service) HasPaidOrder(ctx context.Context, userID uuid.UUID) (bool, error) {
+	ok, err := store.New(s.db.Conn(ctx)).HasPaidOrder(ctx, userID)
+	if err != nil {
+		return false, fmt.Errorf("commandes payées : %w", err)
+	}
+	return ok, nil
+}
+
 // CheckAccountDeletable refuse la suppression d'un compte qui a une commande en cours, comme
 // acheteur ou comme marchand (users.DeletionGuard).
 func (s *Service) CheckAccountDeletable(ctx context.Context, userID uuid.UUID) error {

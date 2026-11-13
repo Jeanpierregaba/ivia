@@ -13,22 +13,33 @@ import '../pharmacy/reservation_screen.dart' show pickDeliveryAddress;
 import '../orders/order_parts.dart';
 import '../orders/orders_providers.dart';
 import '../promo/promo_state.dart';
+import 'promo_code_field.dart';
 import '../shop/shop_screen.dart' show publicShopProvider;
 
-/// Récapitulatif du retrait, calculé par le serveur à l'ouverture.
-/// Clé : adresse de livraison, ou `null` pour le retrait.
+/// Clé du récapitulatif : adresse de livraison (`null` : retrait) et code
+/// promo demandé.
+typedef CheckoutKey = ({String? addressId, String? promo});
+
+/// Récapitulatif de la commande, calculé par le serveur. Un code promo qui ne
+/// s'applique plus est retiré (récapitulatif sans code).
 final checkoutQuoteProvider = FutureProvider.autoDispose
-    .family<OrderQuote, String?>(
-      (ref, addressId) => ref
-          .read(apiClientProvider)
-          .quoteOrder(
-            fulfillment: addressId == null
-                ? Fulfillment.pickup
-                : Fulfillment.delivery,
-            addressId: addressId,
-          ),
-      retry: (_, _) => null,
-    );
+    .family<OrderQuote, CheckoutKey>((ref, key) async {
+      final client = ref.read(apiClientProvider);
+      Future<OrderQuote> quote(String? promo) => client.quoteOrder(
+        fulfillment: key.addressId == null
+            ? Fulfillment.pickup
+            : Fulfillment.delivery,
+        addressId: key.addressId,
+        promoCode: promo,
+      );
+      if (key.promo == null) return quote(null);
+      try {
+        return await quote(key.promo);
+      } on ApiException catch (e) {
+        if (!e.code.startsWith('promo_')) rethrow;
+        return quote(null);
+      }
+    }, retry: (_, _) => null);
 
 /// Refus qui viennent du panier : « Revenir au panier » le relit.
 const _cartRefusals = {
@@ -56,6 +67,11 @@ class _CheckoutScreenState extends ConsumerState<CheckoutScreen> {
   /// Livraison : adresse choisie ; `null` : retrait en boutique.
   BuyerAddress? _address;
 
+  /// Code promo demandé ; appliqué si le récapitulatif le porte.
+  String? _promo;
+
+  CheckoutKey get _key => (addressId: _address?.id, promo: _promo);
+
   /// Issue inconnue (réseau coupé, réponse inattendue) : la commande a pu
   /// être créée et le panier vidé. Le panier est relu à la sortie de
   /// l'écran, pour ne jamais recommander un panier périmé.
@@ -73,6 +89,27 @@ class _CheckoutScreenState extends ConsumerState<CheckoutScreen> {
     // Lus ici : ils servent encore après la fermeture de l'écran.
     _cart;
     _container;
+    // Code choisi dans « Mes coupons » : proposé tout seul.
+    _promo = _container.read(pendingCouponProvider).take();
+  }
+
+  /// « Appliquer » : vérifié par le serveur avant d'être retenu.
+  Future<String?> _applyPromo(String code) async {
+    try {
+      await ref
+          .read(apiClientProvider)
+          .quoteOrder(
+            fulfillment: _address == null
+                ? Fulfillment.pickup
+                : Fulfillment.delivery,
+            addressId: _address?.id,
+            promoCode: code,
+          );
+      if (mounted) setState(() => _promo = code);
+      return null;
+    } on ApiException catch (e) {
+      return e.message;
+    }
   }
 
   @override
@@ -98,6 +135,7 @@ class _CheckoutScreenState extends ConsumerState<CheckoutScreen> {
     final client = ref.read(apiClientProvider);
     final messenger = ScaffoldMessenger.of(context);
     final router = GoRouter.of(context);
+    final promo = ref.read(checkoutQuoteProvider(_key)).value?.promoCode;
     setState(() => _placing = true);
     try {
       BuyerOrder order;
@@ -108,6 +146,7 @@ class _CheckoutScreenState extends ConsumerState<CheckoutScreen> {
               ? Fulfillment.pickup
               : Fulfillment.delivery,
           addressId: _address?.id,
+          promoCode: promo,
         );
       } on ApiException catch (e) {
         // Même requête encore en cours de création : elle est rendue
@@ -120,6 +159,7 @@ class _CheckoutScreenState extends ConsumerState<CheckoutScreen> {
               ? Fulfillment.pickup
               : Fulfillment.delivery,
           addressId: _address?.id,
+          promoCode: promo,
         );
       }
       _uncertain = false;
@@ -149,6 +189,10 @@ class _CheckoutScreenState extends ConsumerState<CheckoutScreen> {
       }
     } on ApiException catch (e) {
       if (e.isNetwork) _uncertain = true;
+      // Code suspendu ou épuisé entre-temps : retiré, nouveau total affiché.
+      if (e.code.startsWith('promo_') && mounted) {
+        setState(() => _promo = null);
+      }
       showMessage(
         messenger,
         e.code == 'shop_closed'
@@ -176,7 +220,7 @@ class _CheckoutScreenState extends ConsumerState<CheckoutScreen> {
 
   @override
   Widget build(BuildContext context) {
-    final quote = ref.watch(checkoutQuoteProvider(_address?.id));
+    final quote = ref.watch(checkoutQuoteProvider(_key));
     final textTheme = Theme.of(context).textTheme;
     // Pas de retour pendant l'envoi : l'issue de « Payer » doit être connue.
     return PopScope(
@@ -209,8 +253,7 @@ class _CheckoutScreenState extends ConsumerState<CheckoutScreen> {
                 AsyncError(:final error) => [
                   _QuoteError(
                     error: error,
-                    onRetry: () =>
-                        ref.invalidate(checkoutQuoteProvider(_address?.id)),
+                    onRetry: () => ref.invalidate(checkoutQuoteProvider(_key)),
                     onBack: () => _backToCart(GoRouter.of(context)),
                   ),
                 ],
@@ -343,6 +386,16 @@ class _CheckoutScreenState extends ConsumerState<CheckoutScreen> {
         ),
         const SizedBox(height: IviaSpacing.lg),
       ],
+      PromoCodeField(
+        applied: quote.promoCode,
+        discountXof: quote.discountXof,
+        warning: _promo != null && quote.promoCode == null
+            ? 'Le code $_promo ne s’applique pas à cette commande.'
+            : null,
+        onApply: _applyPromo,
+        onRemove: () => setState(() => _promo = null),
+      ),
+      const SizedBox(height: IviaSpacing.lg),
       OrderCard(
         child: Column(
           crossAxisAlignment: CrossAxisAlignment.stretch,
@@ -358,6 +411,11 @@ class _CheckoutScreenState extends ConsumerState<CheckoutScreen> {
               amount: formatXof(quote.subtotalXof),
             ),
             IviaAmountRow(label: 'Retrait en boutique', amount: 'Gratuit'),
+            if (quote.discountXof > 0)
+              IviaAmountRow(
+                label: 'Réduction (${quote.promoCode})',
+                amount: '− ${formatXof(quote.discountXof)}',
+              ),
             const SizedBox(height: IviaSpacing.sm),
             IviaAmountRow(
               label: 'Total',

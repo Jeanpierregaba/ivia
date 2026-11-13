@@ -3279,6 +3279,678 @@ paths:
             application/json:
               schema:
                 "$ref": "#/components/schemas/Error"
+  "/v1/me/coupons":
+    get:
+      summary: "Mes coupons (codes publics en cours et coupons réservés)"
+      tags:
+        - Acheteur
+      operationId: getMeCoupons
+      x-roles:
+        - buyer
+      responses:
+        "200":
+          description: "Succès"
+          content:
+            application/json:
+              schema:
+                type: object
+                properties:
+                  items:
+                    type: array
+                    items:
+                      "$ref": "#/components/schemas/PromoCode"
+                  next_offset:
+                    type:
+                      - integer
+                      - "null"
+        default:
+          description: "Erreur (voir `code`)"
+          content:
+            application/json:
+              schema:
+                "$ref": "#/components/schemas/Error"
+  "/v1/seller/shops/{id}/promo-codes":
+    get:
+      summary: "Codes promo de ma boutique"
+      tags:
+        - Marchand
+      operationId: getSellerShopPromoCodes
+      parameters:
+        - name: id
+          in: path
+          required: true
+          schema:
+            type: string
+            format: uuid
+        - name: limit
+          in: query
+          required: false
+          schema:
+            type: integer
+        - name: offset
+          in: query
+          required: false
+          schema:
+            type: integer
+      x-roles:
+        - seller
+      responses:
+        "200":
+          description: "Succès"
+          content:
+            application/json:
+              schema:
+                type: object
+                properties:
+                  items:
+                    type: array
+                    items:
+                      "$ref": "#/components/schemas/PromoCode"
+                  next_offset:
+                    type:
+                      - integer
+                      - "null"
+        default:
+          description: "Erreur (voir `code`)"
+          content:
+            application/json:
+              schema:
+                "$ref": "#/components/schemas/Error"
+    post:
+      summary: "Créer un code promo (à la charge de la boutique)"
+      tags:
+        - Marchand
+      operationId: postSellerShopPromoCodes
+      parameters:
+        - name: id
+          in: path
+          required: true
+          schema:
+            type: string
+            format: uuid
+      x-roles:
+        - seller
+      requestBody:
+        required: true
+        content:
+          application/json:
+            schema:
+              "$ref": "#/components/schemas/PromoCodeInput"
+      responses:
+        "201":
+          description: "Succès"
+          content:
+            application/json:
+              schema:
+                "$ref": "#/components/schemas/PromoCode"
+        default:
+          description: "Erreur (voir `code`)"
+          content:
+            application/json:
+              schema:
+                "$ref": "#/components/schemas/Error"
+  "/v1/seller/promo-codes/{id}/{action}":
+    post:
+      summary: "Suspendre, reprendre ou terminer un code de ma boutique"
+      tags:
+        - Marchand
+      operationId: postSellerPromoCodeAction
+      parameters:
+        - name: id
+          in: path
+          required: true
+          schema:
+            type: string
+            format: uuid
+        - name: action
+          in: path
+          required: true
+          schema:
+            type: string
+            enum:
+              - suspend
+              - resume
+              - end
+      x-roles:
+        - seller
+      responses:
+        "200":
+          description: "Succès"
+          content:
+            application/json:
+              schema:
+                "$ref": "#/components/schemas/PromoCode"
+        default:
+          description: "Erreur (voir `code`)"
+          content:
+            application/json:
+              schema:
+                "$ref": "#/components/schemas/Error"
+  "/v1/admin/promo-codes":
+    get:
+      summary: "Tous les codes promo"
+      tags:
+        - Admin
+      operationId: getAdminPromoCodes
+      parameters:
+        - name: shop_id
+          in: query
+          required: false
+          schema:
+            type: string
+            format: uuid
+        - name: welcome
+          in: query
+          required: false
+          schema:
+            type: string
+        - name: limit
+          in: query
+          required: false
+          schema:
+            type: integer
+        - name: offset
+          in: query
+          required: false
+          schema:
+            type: integer
+      x-roles:
+        - admin
+      responses:
+        "200":
+          description: "Succès"
+          content:
+            application/json:
+              schema:
+                type: object
+                properties:
+                  items:
+                    type: array
+                    items:
+                      "$ref": "#/components/schemas/PromoCode"
+                  next_offset:
+                    type:
+                      - integer
+                      - "null"
+        default:
+          description: "Erreur (voir `code`)"
+          content:
+            application/json:
+              schema:
+                "$ref": "#/components/schemas/Error"
+    post:
+      summary: "Créer un code promo pour une boutique (boutique IVI)"
+      tags:
+        - Admin
+      operationId: postAdminPromoCodes
+      x-roles:
+        - admin
+      requestBody:
+        required: true
+        content:
+          application/json:
+            schema:
+              "$ref": "#/components/schemas/PromoCodeInput"
+      responses:
+        "201":
+          description: "Succès"
+          content:
+            application/json:
+              schema:
+                "$ref": "#/components/schemas/PromoCode"
+        default:
+          description: "Erreur (voir `code`)"
+          content:
+            application/json:
+              schema:
+                "$ref": "#/components/schemas/Error"
+  "/v1/admin/promo-codes/{id}/{action}":
+    post:
+      summary: "Suspendre (motif obligatoire), reprendre ou terminer un code"
+      tags:
+        - Admin
+      operationId: postAdminPromoCodeAction
+      parameters:
+        - name: id
+          in: path
+          required: true
+          schema:
+            type: string
+            format: uuid
+        - name: action
+          in: path
+          required: true
+          schema:
+            type: string
+            enum:
+              - suspend
+              - resume
+              - end
+      x-roles:
+        - admin
+      requestBody:
+        required: true
+        content:
+          application/json:
+            schema:
+              "$ref": "#/components/schemas/PromoCodeActionInput"
+      responses:
+        "200":
+          description: "Succès"
+          content:
+            application/json:
+              schema:
+                "$ref": "#/components/schemas/PromoCode"
+        default:
+          description: "Erreur (voir `code`)"
+          content:
+            application/json:
+              schema:
+                "$ref": "#/components/schemas/Error"
+  "/v1/admin/coupon-settings":
+    get:
+      summary: "Réglages du coupon de bienvenue"
+      tags:
+        - Admin
+      operationId: getAdminCouponSettings
+      x-roles:
+        - admin
+      responses:
+        "200":
+          description: "Succès"
+          content:
+            application/json:
+              schema:
+                "$ref": "#/components/schemas/CouponSettings"
+        default:
+          description: "Erreur (voir `code`)"
+          content:
+            application/json:
+              schema:
+                "$ref": "#/components/schemas/Error"
+    put:
+      summary: "Modifier les réglages du coupon de bienvenue"
+      tags:
+        - Admin
+      operationId: putAdminCouponSettings
+      x-roles:
+        - admin
+      requestBody:
+        required: true
+        content:
+          application/json:
+            schema:
+              "$ref": "#/components/schemas/CouponSettings"
+      responses:
+        "200":
+          description: "Succès"
+          content:
+            application/json:
+              schema:
+                "$ref": "#/components/schemas/CouponSettings"
+        default:
+          description: "Erreur (voir `code`)"
+          content:
+            application/json:
+              schema:
+                "$ref": "#/components/schemas/Error"
+  "/v1/orders/{id}/rating":
+    get:
+      summary: "Note de la livraison (peut-on noter, note donnée)"
+      tags:
+        - Acheteur
+      operationId: getOrderRating
+      parameters:
+        - name: id
+          in: path
+          required: true
+          schema:
+            type: string
+            format: uuid
+      x-roles:
+        - buyer
+      responses:
+        "200":
+          description: "Succès"
+          content:
+            application/json:
+              schema:
+                "$ref": "#/components/schemas/OrderRating"
+        default:
+          description: "Erreur (voir `code`)"
+          content:
+            application/json:
+              schema:
+                "$ref": "#/components/schemas/Error"
+    post:
+      summary: "Noter le livreur d'une commande livrée"
+      tags:
+        - Acheteur
+      operationId: postOrderRating
+      parameters:
+        - name: id
+          in: path
+          required: true
+          schema:
+            type: string
+            format: uuid
+      x-roles:
+        - buyer
+      requestBody:
+        required: true
+        content:
+          application/json:
+            schema:
+              "$ref": "#/components/schemas/RatingInput"
+      responses:
+        "201":
+          description: "Succès"
+          content:
+            application/json:
+              schema:
+                "$ref": "#/components/schemas/DeliveryRating"
+        default:
+          description: "Erreur (voir `code`)"
+          content:
+            application/json:
+              schema:
+                "$ref": "#/components/schemas/Error"
+  "/v1/seller/orders/{id}/driver-rating":
+    get:
+      summary: "Note du livreur par le marchand"
+      tags:
+        - Marchand
+      operationId: getSellerDriverRating
+      parameters:
+        - name: id
+          in: path
+          required: true
+          schema:
+            type: string
+            format: uuid
+      x-roles:
+        - seller
+      responses:
+        "200":
+          description: "Succès"
+          content:
+            application/json:
+              schema:
+                "$ref": "#/components/schemas/OrderRating"
+        default:
+          description: "Erreur (voir `code`)"
+          content:
+            application/json:
+              schema:
+                "$ref": "#/components/schemas/Error"
+    post:
+      summary: "Noter le livreur d'une commande livrée"
+      tags:
+        - Marchand
+      operationId: postSellerDriverRating
+      parameters:
+        - name: id
+          in: path
+          required: true
+          schema:
+            type: string
+            format: uuid
+      x-roles:
+        - seller
+      requestBody:
+        required: true
+        content:
+          application/json:
+            schema:
+              "$ref": "#/components/schemas/RatingInput"
+      responses:
+        "201":
+          description: "Succès"
+          content:
+            application/json:
+              schema:
+                "$ref": "#/components/schemas/DeliveryRating"
+        default:
+          description: "Erreur (voir `code`)"
+          content:
+            application/json:
+              schema:
+                "$ref": "#/components/schemas/Error"
+  "/v1/me/app-feedback":
+    post:
+      summary: "Donner son avis sur l'application"
+      tags:
+        - Compte
+      operationId: postMeAppFeedback
+      x-roles:
+        - any
+      requestBody:
+        required: true
+        content:
+          application/json:
+            schema:
+              "$ref": "#/components/schemas/AppFeedbackInput"
+      responses:
+        "201":
+          description: "Succès"
+          content:
+            application/json:
+              schema:
+                "$ref": "#/components/schemas/AppFeedback"
+        default:
+          description: "Erreur (voir `code`)"
+          content:
+            application/json:
+              schema:
+                "$ref": "#/components/schemas/Error"
+  "/v1/driver/rating":
+    get:
+      summary: "Ma note moyenne de livreur"
+      tags:
+        - Livreur
+      operationId: getDriverRating
+      x-roles:
+        - driver
+      responses:
+        "200":
+          description: "Succès"
+          content:
+            application/json:
+              schema:
+                type: object
+                properties:
+                  average:
+                    type: number
+                  ratings:
+                    type: integer
+        default:
+          description: "Erreur (voir `code`)"
+          content:
+            application/json:
+              schema:
+                "$ref": "#/components/schemas/Error"
+  "/v1/admin/ratings":
+    get:
+      summary: "Notes des livraisons"
+      tags:
+        - Admin
+      operationId: getAdminRatings
+      parameters:
+        - name: driver_id
+          in: query
+          required: false
+          schema:
+            type: string
+            format: uuid
+        - name: limit
+          in: query
+          required: false
+          schema:
+            type: integer
+        - name: offset
+          in: query
+          required: false
+          schema:
+            type: integer
+      x-roles:
+        - admin
+      responses:
+        "200":
+          description: "Succès"
+          content:
+            application/json:
+              schema:
+                type: object
+                properties:
+                  items:
+                    type: array
+                    items:
+                      "$ref": "#/components/schemas/DeliveryRating"
+                  next_offset:
+                    type:
+                      - integer
+                      - "null"
+        default:
+          description: "Erreur (voir `code`)"
+          content:
+            application/json:
+              schema:
+                "$ref": "#/components/schemas/Error"
+  "/v1/admin/app-feedback":
+    get:
+      summary: "Avis sur les applications"
+      tags:
+        - Admin
+      operationId: getAdminAppFeedback
+      parameters:
+        - name: limit
+          in: query
+          required: false
+          schema:
+            type: integer
+        - name: offset
+          in: query
+          required: false
+          schema:
+            type: integer
+      x-roles:
+        - admin
+      responses:
+        "200":
+          description: "Succès"
+          content:
+            application/json:
+              schema:
+                type: object
+                properties:
+                  items:
+                    type: array
+                    items:
+                      "$ref": "#/components/schemas/AppFeedback"
+                  next_offset:
+                    type:
+                      - integer
+                      - "null"
+        default:
+          description: "Erreur (voir `code`)"
+          content:
+            application/json:
+              schema:
+                "$ref": "#/components/schemas/Error"
+  "/v1/admin/rating-scores":
+    get:
+      summary: "Moyennes des livreurs et des applications"
+      tags:
+        - Admin
+      operationId: getAdminRatingScores
+      x-roles:
+        - admin
+      responses:
+        "200":
+          description: "Succès"
+          content:
+            application/json:
+              schema:
+                "$ref": "#/components/schemas/RatingScores"
+        default:
+          description: "Erreur (voir `code`)"
+          content:
+            application/json:
+              schema:
+                "$ref": "#/components/schemas/Error"
+  "/v1/admin/fleet":
+    get:
+      summary: "Carte de la flotte : livreurs vus récemment, position et mission"
+      tags:
+        - Admin
+      operationId: getAdminFleet
+      parameters:
+        - name: hours
+          in: query
+          required: false
+          schema:
+            type: integer
+      x-roles:
+        - admin
+      responses:
+        "200":
+          description: "Succès"
+          content:
+            application/json:
+              schema:
+                type: object
+                properties:
+                  items:
+                    type: array
+                    items:
+                      "$ref": "#/components/schemas/FleetDriver"
+                  generated_at:
+                    type: string
+                    format: date-time
+        default:
+          description: "Erreur (voir `code`)"
+          content:
+            application/json:
+              schema:
+                "$ref": "#/components/schemas/Error"
+  "/v1/admin/fleet/{id}/trail":
+    get:
+      summary: "Trajet récent d'un livreur"
+      tags:
+        - Admin
+      operationId: getAdminFleetTrail
+      parameters:
+        - name: id
+          in: path
+          required: true
+          schema:
+            type: string
+            format: uuid
+        - name: hours
+          in: query
+          required: false
+          schema:
+            type: integer
+      x-roles:
+        - admin
+      responses:
+        "200":
+          description: "Succès"
+          content:
+            application/json:
+              schema:
+                type: object
+                properties:
+                  items:
+                    type: array
+                    items:
+                      "$ref": "#/components/schemas/TrailPoint"
+        default:
+          description: "Erreur (voir `code`)"
+          content:
+            application/json:
+              schema:
+                "$ref": "#/components/schemas/Error"
   "/v1/driver/me":
     get:
       summary: "Mon dossier de livreur"
@@ -12505,9 +13177,338 @@ components:
         - items
         - subtotal_xof
         - orderable
+    PromoCode:
+      type: object
+      properties:
+        id:
+          type: string
+          format: uuid
+        code:
+          type: string
+        shop_id:
+          type:
+            - string
+            - "null"
+          format: uuid
+        shop_name:
+          type: string
+        funded_by:
+          type: string
+          enum:
+            - shop
+            - ivia
+        kind:
+          type: string
+          enum:
+            - percent
+            - fixed
+        value:
+          type: integer
+          description: "Pourcentage (1 à 90) ou montant en FCFA."
+        max_discount_xof:
+          type:
+            - integer
+            - "null"
+          format: int64
+        min_order_xof:
+          type: integer
+          format: int64
+        starts_at:
+          type: string
+          format: date-time
+        ends_at:
+          type:
+            - string
+            - "null"
+          format: date-time
+        max_uses:
+          type:
+            - integer
+            - "null"
+        max_uses_per_user:
+          type: integer
+        visibility:
+          type: string
+          enum:
+            - public
+            - private
+        welcome:
+          type: boolean
+        status:
+          type: string
+          enum:
+            - active
+            - suspended
+            - ended
+        state:
+          type: string
+          enum:
+            - active
+            - scheduled
+            - suspended
+            - ended
+        suspension_reason:
+          type: string
+        uses_count:
+          type: integer
+        used_count:
+          type: integer
+        discount_given_xof:
+          type: integer
+          format: int64
+        created_at:
+          type: string
+          format: date-time
+      required:
+        - id
+        - code
+        - kind
+        - value
+        - status
+        - state
+    PromoCodeInput:
+      type: object
+      properties:
+        code:
+          type: string
+          description: "Vide : code généré."
+        shop_id:
+          type:
+            - string
+            - "null"
+          format: uuid
+          description: "Admin seulement."
+        kind:
+          type: string
+          enum:
+            - percent
+            - fixed
+        value:
+          type: integer
+        max_discount_xof:
+          type:
+            - integer
+            - "null"
+          format: int64
+        min_order_xof:
+          type: integer
+          format: int64
+        starts_at:
+          type:
+            - string
+            - "null"
+          format: date-time
+        ends_at:
+          type:
+            - string
+            - "null"
+          format: date-time
+        max_uses:
+          type:
+            - integer
+            - "null"
+        max_uses_per_user:
+          type: integer
+        visibility:
+          type: string
+          enum:
+            - public
+            - private
+      required:
+        - kind
+        - value
+    PromoCodeActionInput:
+      type: object
+      properties:
+        reason:
+          type: string
+          description: "Obligatoire pour suspendre."
+    CouponSettings:
+      type: object
+      properties:
+        welcome_enabled:
+          type: boolean
+        welcome_amount_xof:
+          type: integer
+          format: int64
+        welcome_min_order_xof:
+          type: integer
+          format: int64
+        welcome_valid_days:
+          type: integer
+    DeliveryRating:
+      type: object
+      properties:
+        id:
+          type: string
+          format: uuid
+        order_id:
+          type: string
+          format: uuid
+        driver_id:
+          type: string
+          format: uuid
+        rater_role:
+          type: string
+        stars:
+          type: integer
+        tags:
+          type: array
+          items:
+            type: string
+        comment:
+          type: string
+        created_at:
+          type: string
+          format: date-time
+        driver_name:
+          type: string
+        rater_name:
+          type: string
+        order_reference:
+          type: string
+      required:
+        - id
+        - stars
+    OrderRating:
+      type: object
+      properties:
+        can_rate:
+          type: boolean
+        rating:
+          oneOf:
+            - "$ref": "#/components/schemas/DeliveryRating"
+            - type: "null"
+    RatingInput:
+      type: object
+      properties:
+        stars:
+          type: integer
+        tags:
+          type: array
+          items:
+            type: string
+        comment:
+          type: string
+      required:
+        - stars
+    AppFeedback:
+      type: object
+      properties:
+        id:
+          type: string
+          format: uuid
+        app:
+          type: string
+        stars:
+          type: integer
+        comment:
+          type: string
+        created_at:
+          type: string
+          format: date-time
+        user_name:
+          type: string
+    AppFeedbackInput:
+      type: object
+      properties:
+        app:
+          type: string
+        stars:
+          type: integer
+        comment:
+          type: string
+      required:
+        - app
+        - stars
+    RatingScores:
+      type: object
+      properties:
+        drivers:
+          type: array
+          items:
+            type: object
+            properties:
+              driver_id:
+                type: string
+                format: uuid
+              driver_name:
+                type: string
+              average:
+                type: number
+              ratings:
+                type: integer
+              low:
+                type: integer
+        apps:
+          type: array
+          items:
+            type: object
+            properties:
+              app:
+                type: string
+              average:
+                type: number
+              ratings:
+                type: integer
+    FleetDriver:
+      type: object
+      properties:
+        id:
+          type: string
+          format: uuid
+        first_name:
+          type: string
+        phone:
+          type: string
+        availability:
+          type: string
+        vehicle_type:
+          type: string
+        vehicle_plate:
+          type: string
+        suspended:
+          type: boolean
+        lat:
+          type: number
+        lng:
+          type: number
+        located_at:
+          type: string
+          format: date-time
+        mission_order_id:
+          type:
+            - string
+            - "null"
+          format: uuid
+        mission_status:
+          type: string
+      required:
+        - id
+        - lat
+        - lng
+        - located_at
+        - availability
+    TrailPoint:
+      type: object
+      properties:
+        lat:
+          type: number
+        lng:
+          type: number
+        recorded_at:
+          type: string
+          format: date-time
+      required:
+        - lat
+        - lng
+        - recorded_at
     CheckoutInput:
       type: object
       properties:
+        promo_code:
+          type: string
+          description: "Code promo facultatif (un seul par commande)."
         fulfillment:
           type: string
           enum:
@@ -12615,6 +13616,14 @@ components:
           type: integer
           format: int64
           description: "Montant en FCFA (entier)."
+        promo_code:
+          type:
+            - string
+            - "null"
+        discount_xof:
+          type: integer
+          format: int64
+          description: "Réduction du code promo, en FCFA."
         total_xof:
           type: integer
           format: int64
@@ -12742,6 +13751,14 @@ components:
           type: integer
           format: int64
           description: "Montant en FCFA (entier)."
+        promo_code:
+          type:
+            - string
+            - "null"
+        discount_xof:
+          type: integer
+          format: int64
+          description: "Réduction du code promo, en FCFA."
         total_xof:
           type: integer
           format: int64
@@ -12893,6 +13910,14 @@ components:
           type: integer
           format: int64
           description: "Montant en FCFA (entier)."
+        promo_code:
+          type:
+            - string
+            - "null"
+        discount_xof:
+          type: integer
+          format: int64
+          description: "Réduction du code promo, en FCFA."
         total_xof:
           type: integer
           format: int64
@@ -13054,6 +14079,14 @@ components:
           type: integer
           format: int64
           description: "Montant en FCFA (entier)."
+        promo_code:
+          type:
+            - string
+            - "null"
+        discount_xof:
+          type: integer
+          format: int64
+          description: "Réduction du code promo, en FCFA."
         total_xof:
           type: integer
           format: int64

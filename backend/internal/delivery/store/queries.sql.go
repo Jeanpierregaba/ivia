@@ -489,6 +489,46 @@ func (q *Queries) DriverPayout(ctx context.Context, userID uuid.UUID) (DriverPay
 	return i, err
 }
 
+const driverTrail = `-- name: DriverTrail :many
+SELECT ST_Y(location::geometry)::float8 AS lat, ST_X(location::geometry)::float8 AS lng, recorded_at
+FROM driver_positions
+WHERE driver_id = $1 AND recorded_at > now() - make_interval(hours => $2::int)
+ORDER BY recorded_at
+LIMIT 3000
+`
+
+type DriverTrailParams struct {
+	DriverID uuid.UUID
+	Hours    int32
+}
+
+type DriverTrailRow struct {
+	Lat        float64
+	Lng        float64
+	RecordedAt time.Time
+}
+
+// Trajet récent d'un livreur (positions envoyées en ligne, gardées 30 jours).
+func (q *Queries) DriverTrail(ctx context.Context, arg DriverTrailParams) ([]DriverTrailRow, error) {
+	rows, err := q.db.Query(ctx, driverTrail, arg.DriverID, arg.Hours)
+	if err != nil {
+		return nil, err
+	}
+	defer rows.Close()
+	items := []DriverTrailRow{}
+	for rows.Next() {
+		var i DriverTrailRow
+		if err := rows.Scan(&i.Lat, &i.Lng, &i.RecordedAt); err != nil {
+			return nil, err
+		}
+		items = append(items, i)
+	}
+	if err := rows.Err(); err != nil {
+		return nil, err
+	}
+	return items, nil
+}
+
 const expireOffer = `-- name: ExpireOffer :execrows
 UPDATE delivery_offers SET status = 'expired', responded_at = now()
 WHERE id = $1 AND status = 'pending' AND expires_at <= now()
@@ -647,6 +687,70 @@ func (q *Queries) FindNearestDriver(ctx context.Context, arg FindNearestDriverPa
 	var i FindNearestDriverRow
 	err := row.Scan(&i.UserID, &i.DistanceM)
 	return i, err
+}
+
+const fleet = `-- name: Fleet :many
+
+SELECT d.user_id, d.availability, d.vehicle_type, d.vehicle_plate, (d.suspended_at IS NOT NULL)::boolean AS suspended,
+       ST_Y(d.last_location::geometry)::float8 AS lat, ST_X(d.last_location::geometry)::float8 AS lng,
+       d.last_location_at::timestamptz AS located_at,
+       coalesce(m.order_id::text, '')::text AS mission_order_id, coalesce(m.status, '')::text AS mission_status
+FROM drivers d
+LEFT JOIN LATERAL (
+  SELECT x.order_id, x.status FROM deliveries x
+  WHERE x.driver_id = d.user_id AND x.status IN ('assigned', 'at_shop', 'picked_up', 'at_customer', 'returning')
+  LIMIT 1
+) m ON true
+WHERE d.review_status = 'approved' AND d.last_location IS NOT NULL AND d.last_location_at IS NOT NULL
+  AND d.last_location_at > now() - make_interval(hours => $1::int)
+ORDER BY d.last_location_at DESC
+LIMIT 500
+`
+
+type FleetRow struct {
+	UserID         uuid.UUID
+	Availability   string
+	VehicleType    string
+	VehiclePlate   string
+	Suspended      bool
+	Lat            float64
+	Lng            float64
+	LocatedAt      time.Time
+	MissionOrderID string
+	MissionStatus  string
+}
+
+// ---------------------------------------------------------------- carte de la flotte (back-office)
+// Livreurs validés vus depuis moins de [hours] heures, avec leur mission en cours.
+func (q *Queries) Fleet(ctx context.Context, hours int32) ([]FleetRow, error) {
+	rows, err := q.db.Query(ctx, fleet, hours)
+	if err != nil {
+		return nil, err
+	}
+	defer rows.Close()
+	items := []FleetRow{}
+	for rows.Next() {
+		var i FleetRow
+		if err := rows.Scan(
+			&i.UserID,
+			&i.Availability,
+			&i.VehicleType,
+			&i.VehiclePlate,
+			&i.Suspended,
+			&i.Lat,
+			&i.Lng,
+			&i.LocatedAt,
+			&i.MissionOrderID,
+			&i.MissionStatus,
+		); err != nil {
+			return nil, err
+		}
+		items = append(items, i)
+	}
+	if err := rows.Err(); err != nil {
+		return nil, err
+	}
+	return items, nil
 }
 
 const forgetLocation = `-- name: ForgetLocation :exec

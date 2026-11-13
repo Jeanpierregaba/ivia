@@ -223,10 +223,10 @@ function LiveRefreshHeader(props: {
   return (
     <header className="animate-rise mb-7 flex flex-wrap items-start justify-between gap-6">
       <div>
-        <h1 className="text-[32px] font-extrabold leading-[38px] tracking-[-0.03em] sm:text-[44px] sm:leading-[48px]">
+        <h1 className="text-[26px] font-extrabold leading-[32px] tracking-[-0.03em] sm:text-[30px] sm:leading-[36px]">
           Bonjour {props.firstName}
         </h1>
-        <p className="mt-2 text-[17px] text-text-secondary">
+        <p className="mt-2 text-[15px] text-text-secondary">
           {props.date} · Lomé · <LiveRefresh generatedAt={props.generatedAt} />
         </p>
       </div>
@@ -244,7 +244,7 @@ function LiveRefreshHeader(props: {
             id="global-search"
             name="q"
             placeholder="Commande, boutique, livreur, téléphone…"
-            className="h-[54px] w-full rounded-[14px] bg-surface pl-12 pr-4 text-[15px] outline-none transition-shadow duration-300 focus:shadow-[inset_0_0_0_2px_var(--color-primary)] sm:w-[260px] 2xl:w-[380px]"
+            className="h-[54px] w-full rounded-[14px] bg-surface pl-12 pr-4 text-[14px] outline-none transition-shadow duration-300 focus:shadow-[inset_0_0_0_2px_var(--color-primary)] sm:w-[260px] 2xl:w-[380px]"
           />
         </form>
         <PeriodMenu current={props.period} options={props.periodOptions} />
@@ -277,20 +277,20 @@ function TodoCard(props: {
     <Link
       href={props.href}
       style={{ borderTopColor: props.tone, animationDelay: `${props.delay}ms` }}
-      className="animate-rise group block rounded-[18px] border-t-[5px] bg-surface p-6 transition-transform hover:-translate-y-0.5 hover:shadow-[0_10px_24px_rgba(14,46,84,0.10)]"
+      className="animate-rise group block min-w-0 rounded-[18px] border-t-[4px] bg-surface p-5 transition-[transform,box-shadow] duration-300 hover:-translate-y-0.5 hover:shadow-[0_10px_24px_rgba(14,46,84,0.10)]"
     >
       <div className="flex items-start justify-between gap-3">
         <span
-          className="text-[44px] font-extrabold leading-none"
+          className="text-[30px] font-extrabold leading-none"
           style={{ color: idle ? "#9AA5B4" : props.tone }}
         >
           <AnimatedNumber value={props.value} />
         </span>
-        <span className="rounded-full bg-background px-3.5 py-1.5 text-[14px] font-bold transition-colors group-hover:bg-tertiary group-hover:text-white">
+        <span className="shrink-0 rounded-full bg-background px-3 py-1 text-[13px] font-bold transition-colors group-hover:bg-tertiary group-hover:text-white">
           {props.action}
         </span>
       </div>
-      <p className="mt-5 text-[19px] font-extrabold leading-[24px]">{props.title}</p>
+      <p className="mt-5 text-[16px] font-extrabold leading-[21px]">{props.title}</p>
       <p className="mt-1.5 text-[14px] leading-[20px] text-text-muted">{props.detail}</p>
     </Link>
   );
@@ -298,24 +298,24 @@ function TodoCard(props: {
 
 function KpiCard({ label, children }: { label: string; children: React.ReactNode }) {
   return (
-    <section className="animate-rise rounded-[18px] bg-surface p-6">
-      <p className="text-[16px] text-text-secondary">{label}</p>
+    <section className="animate-rise min-w-0 rounded-[18px] bg-surface p-5">
+      <p className="text-[14px] text-text-secondary">{label}</p>
       {children}
     </section>
   );
 }
 
 function BigValue({ children }: { children: React.ReactNode }) {
-  return <p className="mt-2 text-[38px] font-extrabold leading-[44px] tracking-[-0.02em]">{children}</p>;
+  return <p className="mt-2 text-[28px] font-extrabold leading-[34px] tracking-[-0.02em]">{children}</p>;
 }
 
 function Goal({ note, label, ok }: { note: string; label: string; ok: boolean }) {
   return (
-    <div className="mt-3 flex items-center justify-between gap-2">
-      <span className="text-[14px] leading-[18px] text-text-muted">{note}</span>
+    <div className="mt-3 flex flex-wrap items-center justify-between gap-2">
+      <span className="text-[13px] leading-[18px] text-text-muted">{note}</span>
       <span
         className={cx(
-          "whitespace-nowrap rounded-full px-3 py-1 text-[14px] font-bold",
+          "whitespace-nowrap rounded-full px-2.5 py-0.5 text-[12px] font-bold",
           ok ? "bg-secondary-soft text-secondary" : "bg-primary-soft text-primary-strong",
         )}
       >

@@ -31,7 +31,7 @@ function Card({
   return (
     <section className={cx("animate-rise rounded-[18px] bg-surface p-7", className)}>
       <div className="mb-5 flex items-center justify-between gap-4">
-        <h2 className="text-[21px] font-extrabold tracking-[-0.01em]">{title}</h2>
+        <h2 className="text-[17px] font-extrabold tracking-[-0.01em]">{title}</h2>
         {aside}
       </div>
       {children}
@@ -41,7 +41,7 @@ function Card({
 
 function RedLink({ href, children }: { href: string; children: React.ReactNode }) {
   return (
-    <Link href={href} className="text-[16px] font-bold text-primary hover:underline">
+    <Link href={href} className="text-[14px] font-bold text-primary hover:underline">
       {children}
     </Link>
   );
@@ -52,7 +52,7 @@ export function PaidChart({ days }: { days: Schemas["OverviewDay"][] }) {
   const max = Math.max(1, ...days.map((d) => d.delivery + d.pickup));
   return (
     <Card title="Commandes payées · 14 derniers jours">
-      <div className="-mt-2 mb-6 flex gap-6 text-[15px] text-text-secondary">
+      <div className="-mt-2 mb-6 flex gap-6 text-[14px] text-text-secondary">
         <span className="flex items-center gap-2">
           <span className="size-3 rounded-[3px] bg-primary" /> Livraison
         </span>
@@ -67,7 +67,7 @@ export function PaidChart({ days }: { days: Schemas["OverviewDay"][] }) {
           const date = new Date(`${d.day}T00:00:00Z`);
           return (
             <li key={d.day} className="group relative flex h-full flex-1 flex-col items-center justify-end">
-              {last && <span className="mb-1.5 text-[16px] font-extrabold">{total}</span>}
+              {last && <span className="mb-1.5 text-[14px] font-extrabold">{total}</span>}
               <span
                 className="animate-grow flex w-full origin-bottom flex-col justify-end gap-[3px]"
                 style={{
@@ -144,7 +144,7 @@ export function DriversPanel({
       </div>
       <ul className="space-y-3.5">
         {rows.map((r) => (
-          <li key={r.label} className="flex items-center justify-between text-[17px]">
+          <li key={r.label} className="flex items-center justify-between text-[15px]">
             <span className="flex items-center gap-3">
               <span className={cx("size-2.5 rounded-full", r.color)} /> {r.label}
             </span>
@@ -153,8 +153,8 @@ export function DriversPanel({
         ))}
       </ul>
       <div className="mt-5 border-t border-border pt-4">
-        <p className="mb-2 text-[16px] text-text-secondary">Paiements · {periodLabel.toLowerCase()}</p>
-        <ul className="space-y-2 text-[17px]">
+        <p className="mb-2 text-[14px] text-text-secondary">Paiements · {periodLabel.toLowerCase()}</p>
+        <ul className="space-y-2 text-[15px]">
           <li className="flex items-center justify-between">
             <span className="flex items-center gap-3">
               <span className="size-2.5 rounded-full bg-secondary" /> Réussis
@@ -240,7 +240,7 @@ export function ActiveOrders({
             scroll={false}
             aria-current={active.group === c.value ? "true" : undefined}
             className={cx(
-              "rounded-full px-5 py-2.5 text-[16px] font-bold transition-colors",
+              "rounded-full px-5 py-2.5 text-[14px] font-bold transition-colors",
               active.group === c.value
                 ? "bg-tertiary text-white"
                 : "bg-background text-text hover:bg-secondary-soft",
@@ -256,9 +256,9 @@ export function ActiveOrders({
         </p>
       ) : (
         <div className="overflow-x-auto">
-          <table className="w-full text-left text-[16px]">
+          <table className="w-full text-left text-[14px]">
             <thead>
-              <tr className="border-b border-border text-[15px] text-text-secondary">
+              <tr className="border-b border-border text-[14px] text-text-secondary">
                 {["N°", "Boutique", "Acheteur", "Mode", "Montant", "Statut", "Depuis"].map((h) => (
                   <th key={h} scope="col" className="px-2 pb-3 font-bold first:pl-1">
                     {h}
@@ -375,7 +375,7 @@ export function AuditFeed({ lines, now }: { lines: Schemas["OverviewAuditLine"][
               <span className="grid size-10 shrink-0 place-items-center rounded-full bg-background text-[13px] font-extrabold text-tertiary">
                 {l.admin_initials}
               </span>
-              <div className="min-w-0 text-[16px] leading-[22px]">
+              <div className="min-w-0 text-[14px] leading-[20px]">
                 <p>
                   <strong>{l.admin_name}</strong> {VERBS[l.action] ?? l.action}
                   {l.target_label && (

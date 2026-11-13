@@ -102,7 +102,7 @@ export function PeriodMenu({
         onClick={() => setOpen((o) => !o)}
         aria-expanded={open}
         aria-haspopup="menu"
-        className="flex h-[54px] items-center gap-2 rounded-[14px] bg-surface px-5 text-[16px] font-bold hover:bg-white/70"
+        className="flex h-[54px] items-center gap-2 rounded-[14px] bg-surface px-5 text-[14px] font-bold hover:bg-white/70"
       >
         {label}
         <ChevronDown
@@ -123,7 +123,7 @@ export function PeriodMenu({
               href={o.href}
               onClick={() => setOpen(false)}
               className={cx(
-                "block px-4 py-2.5 text-[15px] hover:bg-background",
+                "block px-4 py-2.5 text-[14px] hover:bg-background",
                 o.value === current && "font-bold text-primary",
               )}
             >

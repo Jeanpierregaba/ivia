@@ -20,6 +20,7 @@ import {
   LayoutGrid,
   LogOut,
   Megaphone,
+  TicketPercent,
   Package,
   ReceiptText,
   ScrollText,
@@ -89,6 +90,7 @@ const sections: { title: string; items: Item[] }[] = [
     title: "Marketing",
     items: [
       { href: "/promo", label: "Publicité", icon: Megaphone },
+      { href: "/coupons", label: "Codes promo", icon: TicketPercent },
       { href: "/products", label: "Produits IVI", icon: Package },
     ],
   },
@@ -179,7 +181,7 @@ export function Sidebar({
             <LogoTile size={mini ? 44 : 48} />
           </span>
           <Label hidden={mini} className="leading-tight">
-            <span className="block text-[20px] font-extrabold">ivia</span>
+            <span className="block text-[17px] font-extrabold">ivia</span>
             <span className="block text-[14px] text-white/65">Back-office</span>
           </Label>
         </Link>
@@ -205,7 +207,7 @@ export function Sidebar({
           title={mini ? "Tableau de bord" : undefined}
           aria-current={on("/") ? "page" : undefined}
           className={cx(
-            "nav-item mb-5 flex h-[52px] items-center gap-3 rounded-[14px] text-[16px] font-bold",
+            "nav-item mb-5 flex h-[52px] items-center gap-3 rounded-[14px] text-[14px] font-bold",
             mini ? "justify-center px-0" : "px-4",
             on("/")
               ? "bg-white text-tertiary shadow-[0_10px_24px_-14px_rgba(0,0,0,0.6)]"
@@ -251,7 +253,7 @@ export function Sidebar({
                   title={mini ? item.label + (n > 0 ? ` (${n})` : "") : undefined}
                   aria-current={active ? "page" : undefined}
                   className={cx(
-                    "nav-item group relative flex h-[44px] items-center gap-3 rounded-[12px] text-[15px]",
+                    "nav-item group relative flex h-[44px] items-center gap-3 rounded-[12px] text-[14px]",
                     mini ? "justify-center px-0" : "px-4",
                     active
                       ? "bg-white font-bold text-tertiary shadow-[0_10px_24px_-14px_rgba(0,0,0,0.6)]"
@@ -306,12 +308,12 @@ export function Sidebar({
       >
         <span
           title={mini ? fullName : undefined}
-          className="grid size-11 shrink-0 place-items-center rounded-full bg-secondary text-[15px] font-bold"
+          className="grid size-11 shrink-0 place-items-center rounded-full bg-secondary text-[14px] font-bold"
         >
           {initialsOf(firstName, lastName, email)}
         </span>
         <Label hidden={mini} className="min-w-0 flex-1">
-          <span className="block truncate text-[16px] font-bold">{fullName}</span>
+          <span className="block truncate text-[14px] font-bold">{fullName}</span>
           <span className="block text-[13px] text-white/60">Administrateur</span>
         </Label>
         <a

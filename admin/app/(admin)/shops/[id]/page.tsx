@@ -37,7 +37,7 @@ export default async function ShopPage({ params }: { params: Promise<{ id: strin
           <p className="text-[12px] font-semibold uppercase tracking-[0.08em] text-white/60">
             Dossier boutique
           </p>
-          <h1 className="text-[28px] font-bold leading-8 tracking-[-0.02em]">{s.name}</h1>
+          <h1 className="text-[24px] font-bold leading-8 tracking-[-0.02em]">{s.name}</h1>
           <p className="mt-1 text-white/75">
             {s.category_name || "Sans catégorie"}
             {s.neighborhood_name && ` · ${s.neighborhood_name}`} · {formatPhone(s.phone)}

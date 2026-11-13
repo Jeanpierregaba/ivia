@@ -46,14 +46,14 @@ export default async function SettlementPage({ params }: { params: Promise<{ id:
           <p className="text-[12px] font-semibold uppercase tracking-[0.08em] text-white/60">
             Relevé marchand
           </p>
-          <h1 className="text-[28px] font-bold leading-8 tracking-[-0.02em]">{s.shop_name || "Boutique"}</h1>
+          <h1 className="text-[24px] font-bold leading-8 tracking-[-0.02em]">{s.shop_name || "Boutique"}</h1>
           <p className="mt-1 text-white/75">
             Du {frDate(s.period_start)} au {frDate(s.period_end)} · {s.orders_count} commande(s)
           </p>
         </div>
         <div className="text-right">
           <p className="text-[13px] text-white/60">Net à reverser</p>
-          <p className="text-[28px] font-bold leading-8">{formatXOF(s.net_xof)}</p>
+          <p className="text-[24px] font-bold leading-8">{formatXOF(s.net_xof)}</p>
         </div>
         <span className="rounded-full bg-surface">
           <StatusBadge {...statusOf(SETTLEMENT_STATUS, s.status)} />
@@ -116,7 +116,7 @@ export default async function SettlementPage({ params }: { params: Promise<{ id:
         )}
       </div>
 
-      <h2 className="mb-3 mt-8 text-[17px] font-bold">Commandes du relevé</h2>
+      <h2 className="mb-3 mt-8 text-[15px] font-bold">Commandes du relevé</h2>
       <Table head={["Commande", "Remise le", "Produits", "Commission", "Net"]}>
         {(s.lines ?? []).map((l) => (
           <tr key={l.order_id}>

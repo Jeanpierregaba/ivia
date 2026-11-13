@@ -1517,6 +1517,266 @@ export interface paths {
         patch?: never;
         trace?: never;
     };
+    "/v1/me/coupons": {
+        parameters: {
+            query?: never;
+            header?: never;
+            path?: never;
+            cookie?: never;
+        };
+        /** Mes coupons (codes publics en cours et coupons réservés) */
+        get: operations["getMeCoupons"];
+        put?: never;
+        post?: never;
+        delete?: never;
+        options?: never;
+        head?: never;
+        patch?: never;
+        trace?: never;
+    };
+    "/v1/seller/shops/{id}/promo-codes": {
+        parameters: {
+            query?: never;
+            header?: never;
+            path?: never;
+            cookie?: never;
+        };
+        /** Codes promo de ma boutique */
+        get: operations["getSellerShopPromoCodes"];
+        put?: never;
+        /** Créer un code promo (à la charge de la boutique) */
+        post: operations["postSellerShopPromoCodes"];
+        delete?: never;
+        options?: never;
+        head?: never;
+        patch?: never;
+        trace?: never;
+    };
+    "/v1/seller/promo-codes/{id}/{action}": {
+        parameters: {
+            query?: never;
+            header?: never;
+            path?: never;
+            cookie?: never;
+        };
+        get?: never;
+        put?: never;
+        /** Suspendre, reprendre ou terminer un code de ma boutique */
+        post: operations["postSellerPromoCodeAction"];
+        delete?: never;
+        options?: never;
+        head?: never;
+        patch?: never;
+        trace?: never;
+    };
+    "/v1/admin/promo-codes": {
+        parameters: {
+            query?: never;
+            header?: never;
+            path?: never;
+            cookie?: never;
+        };
+        /** Tous les codes promo */
+        get: operations["getAdminPromoCodes"];
+        put?: never;
+        /** Créer un code promo pour une boutique (boutique IVI) */
+        post: operations["postAdminPromoCodes"];
+        delete?: never;
+        options?: never;
+        head?: never;
+        patch?: never;
+        trace?: never;
+    };
+    "/v1/admin/promo-codes/{id}/{action}": {
+        parameters: {
+            query?: never;
+            header?: never;
+            path?: never;
+            cookie?: never;
+        };
+        get?: never;
+        put?: never;
+        /** Suspendre (motif obligatoire), reprendre ou terminer un code */
+        post: operations["postAdminPromoCodeAction"];
+        delete?: never;
+        options?: never;
+        head?: never;
+        patch?: never;
+        trace?: never;
+    };
+    "/v1/admin/coupon-settings": {
+        parameters: {
+            query?: never;
+            header?: never;
+            path?: never;
+            cookie?: never;
+        };
+        /** Réglages du coupon de bienvenue */
+        get: operations["getAdminCouponSettings"];
+        /** Modifier les réglages du coupon de bienvenue */
+        put: operations["putAdminCouponSettings"];
+        post?: never;
+        delete?: never;
+        options?: never;
+        head?: never;
+        patch?: never;
+        trace?: never;
+    };
+    "/v1/orders/{id}/rating": {
+        parameters: {
+            query?: never;
+            header?: never;
+            path?: never;
+            cookie?: never;
+        };
+        /** Note de la livraison (peut-on noter, note donnée) */
+        get: operations["getOrderRating"];
+        put?: never;
+        /** Noter le livreur d'une commande livrée */
+        post: operations["postOrderRating"];
+        delete?: never;
+        options?: never;
+        head?: never;
+        patch?: never;
+        trace?: never;
+    };
+    "/v1/seller/orders/{id}/driver-rating": {
+        parameters: {
+            query?: never;
+            header?: never;
+            path?: never;
+            cookie?: never;
+        };
+        /** Note du livreur par le marchand */
+        get: operations["getSellerDriverRating"];
+        put?: never;
+        /** Noter le livreur d'une commande livrée */
+        post: operations["postSellerDriverRating"];
+        delete?: never;
+        options?: never;
+        head?: never;
+        patch?: never;
+        trace?: never;
+    };
+    "/v1/me/app-feedback": {
+        parameters: {
+            query?: never;
+            header?: never;
+            path?: never;
+            cookie?: never;
+        };
+        get?: never;
+        put?: never;
+        /** Donner son avis sur l'application */
+        post: operations["postMeAppFeedback"];
+        delete?: never;
+        options?: never;
+        head?: never;
+        patch?: never;
+        trace?: never;
+    };
+    "/v1/driver/rating": {
+        parameters: {
+            query?: never;
+            header?: never;
+            path?: never;
+            cookie?: never;
+        };
+        /** Ma note moyenne de livreur */
+        get: operations["getDriverRating"];
+        put?: never;
+        post?: never;
+        delete?: never;
+        options?: never;
+        head?: never;
+        patch?: never;
+        trace?: never;
+    };
+    "/v1/admin/ratings": {
+        parameters: {
+            query?: never;
+            header?: never;
+            path?: never;
+            cookie?: never;
+        };
+        /** Notes des livraisons */
+        get: operations["getAdminRatings"];
+        put?: never;
+        post?: never;
+        delete?: never;
+        options?: never;
+        head?: never;
+        patch?: never;
+        trace?: never;
+    };
+    "/v1/admin/app-feedback": {
+        parameters: {
+            query?: never;
+            header?: never;
+            path?: never;
+            cookie?: never;
+        };
+        /** Avis sur les applications */
+        get: operations["getAdminAppFeedback"];
+        put?: never;
+        post?: never;
+        delete?: never;
+        options?: never;
+        head?: never;
+        patch?: never;
+        trace?: never;
+    };
+    "/v1/admin/rating-scores": {
+        parameters: {
+            query?: never;
+            header?: never;
+            path?: never;
+            cookie?: never;
+        };
+        /** Moyennes des livreurs et des applications */
+        get: operations["getAdminRatingScores"];
+        put?: never;
+        post?: never;
+        delete?: never;
+        options?: never;
+        head?: never;
+        patch?: never;
+        trace?: never;
+    };
+    "/v1/admin/fleet": {
+        parameters: {
+            query?: never;
+            header?: never;
+            path?: never;
+            cookie?: never;
+        };
+        /** Carte de la flotte : livreurs vus récemment, position et mission */
+        get: operations["getAdminFleet"];
+        put?: never;
+        post?: never;
+        delete?: never;
+        options?: never;
+        head?: never;
+        patch?: never;
+        trace?: never;
+    };
+    "/v1/admin/fleet/{id}/trail": {
+        parameters: {
+            query?: never;
+            header?: never;
+            path?: never;
+            cookie?: never;
+        };
+        /** Trajet récent d'un livreur */
+        get: operations["getAdminFleetTrail"];
+        put?: never;
+        post?: never;
+        delete?: never;
+        options?: never;
+        head?: never;
+        patch?: never;
+        trace?: never;
+    };
     "/v1/driver/me": {
         parameters: {
             query?: never;
@@ -5819,7 +6079,162 @@ export interface components {
             subtotal_xof: number;
             orderable: boolean;
         };
+        PromoCode: {
+            /** Format: uuid */
+            id: string;
+            code: string;
+            /** Format: uuid */
+            shop_id?: string | null;
+            shop_name?: string;
+            /** @enum {string} */
+            funded_by?: "shop" | "ivia";
+            /** @enum {string} */
+            kind: "percent" | "fixed";
+            /** @description Pourcentage (1 à 90) ou montant en FCFA. */
+            value: number;
+            /** Format: int64 */
+            max_discount_xof?: number | null;
+            /** Format: int64 */
+            min_order_xof?: number;
+            /** Format: date-time */
+            starts_at?: string;
+            /** Format: date-time */
+            ends_at?: string | null;
+            max_uses?: number | null;
+            max_uses_per_user?: number;
+            /** @enum {string} */
+            visibility?: "public" | "private";
+            welcome?: boolean;
+            /** @enum {string} */
+            status: "active" | "suspended" | "ended";
+            /** @enum {string} */
+            state: "active" | "scheduled" | "suspended" | "ended";
+            suspension_reason?: string;
+            uses_count?: number;
+            used_count?: number;
+            /** Format: int64 */
+            discount_given_xof?: number;
+            /** Format: date-time */
+            created_at?: string;
+        };
+        PromoCodeInput: {
+            /** @description Vide : code généré. */
+            code?: string;
+            /**
+             * Format: uuid
+             * @description Admin seulement.
+             */
+            shop_id?: string | null;
+            /** @enum {string} */
+            kind: "percent" | "fixed";
+            value: number;
+            /** Format: int64 */
+            max_discount_xof?: number | null;
+            /** Format: int64 */
+            min_order_xof?: number;
+            /** Format: date-time */
+            starts_at?: string | null;
+            /** Format: date-time */
+            ends_at?: string | null;
+            max_uses?: number | null;
+            max_uses_per_user?: number;
+            /** @enum {string} */
+            visibility?: "public" | "private";
+        };
+        PromoCodeActionInput: {
+            /** @description Obligatoire pour suspendre. */
+            reason?: string;
+        };
+        CouponSettings: {
+            welcome_enabled?: boolean;
+            /** Format: int64 */
+            welcome_amount_xof?: number;
+            /** Format: int64 */
+            welcome_min_order_xof?: number;
+            welcome_valid_days?: number;
+        };
+        DeliveryRating: {
+            /** Format: uuid */
+            id: string;
+            /** Format: uuid */
+            order_id?: string;
+            /** Format: uuid */
+            driver_id?: string;
+            rater_role?: string;
+            stars: number;
+            tags?: string[];
+            comment?: string;
+            /** Format: date-time */
+            created_at?: string;
+            driver_name?: string;
+            rater_name?: string;
+            order_reference?: string;
+        };
+        OrderRating: {
+            can_rate?: boolean;
+            rating?: components["schemas"]["DeliveryRating"] | null;
+        };
+        RatingInput: {
+            stars: number;
+            tags?: string[];
+            comment?: string;
+        };
+        AppFeedback: {
+            /** Format: uuid */
+            id?: string;
+            app?: string;
+            stars?: number;
+            comment?: string;
+            /** Format: date-time */
+            created_at?: string;
+            user_name?: string;
+        };
+        AppFeedbackInput: {
+            app: string;
+            stars: number;
+            comment?: string;
+        };
+        RatingScores: {
+            drivers?: {
+                /** Format: uuid */
+                driver_id?: string;
+                driver_name?: string;
+                average?: number;
+                ratings?: number;
+                low?: number;
+            }[];
+            apps?: {
+                app?: string;
+                average?: number;
+                ratings?: number;
+            }[];
+        };
+        FleetDriver: {
+            /** Format: uuid */
+            id: string;
+            first_name?: string;
+            phone?: string;
+            availability: string;
+            vehicle_type?: string;
+            vehicle_plate?: string;
+            suspended?: boolean;
+            lat: number;
+            lng: number;
+            /** Format: date-time */
+            located_at: string;
+            /** Format: uuid */
+            mission_order_id?: string | null;
+            mission_status?: string;
+        };
+        TrailPoint: {
+            lat: number;
+            lng: number;
+            /** Format: date-time */
+            recorded_at: string;
+        };
         CheckoutInput: {
+            /** @description Code promo facultatif (un seul par commande). */
+            promo_code?: string;
             /** @enum {string} */
             fulfillment: "pickup" | "delivery";
             /** Format: uuid */
@@ -5879,6 +6294,12 @@ export interface components {
              * @description Montant en FCFA (entier).
              */
             delivery_fee_xof: number;
+            promo_code?: string | null;
+            /**
+             * Format: int64
+             * @description Réduction du code promo, en FCFA.
+             */
+            discount_xof?: number;
             /**
              * Format: int64
              * @description Montant en FCFA (entier).
@@ -5925,6 +6346,12 @@ export interface components {
              * @description Montant en FCFA (entier).
              */
             delivery_fee_xof: number;
+            promo_code?: string | null;
+            /**
+             * Format: int64
+             * @description Réduction du code promo, en FCFA.
+             */
+            discount_xof?: number;
             /**
              * Format: int64
              * @description Montant en FCFA (entier).
@@ -5983,6 +6410,12 @@ export interface components {
              * @description Montant en FCFA (entier).
              */
             delivery_fee_xof: number;
+            promo_code?: string | null;
+            /**
+             * Format: int64
+             * @description Réduction du code promo, en FCFA.
+             */
+            discount_xof?: number;
             /**
              * Format: int64
              * @description Montant en FCFA (entier).
@@ -6053,6 +6486,12 @@ export interface components {
              * @description Montant en FCFA (entier).
              */
             delivery_fee_xof: number;
+            promo_code?: string | null;
+            /**
+             * Format: int64
+             * @description Réduction du code promo, en FCFA.
+             */
+            discount_xof?: number;
             /**
              * Format: int64
              * @description Montant en FCFA (entier).
@@ -10904,6 +11343,677 @@ export interface operations {
                 };
                 content: {
                     "application/json": components["schemas"]["Settlement"];
+                };
+            };
+            /** @description Erreur (voir `code`) */
+            default: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["Error"];
+                };
+            };
+        };
+    };
+    getMeCoupons: {
+        parameters: {
+            query?: never;
+            header?: never;
+            path?: never;
+            cookie?: never;
+        };
+        requestBody?: never;
+        responses: {
+            /** @description Succès */
+            200: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": {
+                        items?: components["schemas"]["PromoCode"][];
+                        next_offset?: number | null;
+                    };
+                };
+            };
+            /** @description Erreur (voir `code`) */
+            default: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["Error"];
+                };
+            };
+        };
+    };
+    getSellerShopPromoCodes: {
+        parameters: {
+            query?: {
+                limit?: number;
+                offset?: number;
+            };
+            header?: never;
+            path: {
+                id: string;
+            };
+            cookie?: never;
+        };
+        requestBody?: never;
+        responses: {
+            /** @description Succès */
+            200: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": {
+                        items?: components["schemas"]["PromoCode"][];
+                        next_offset?: number | null;
+                    };
+                };
+            };
+            /** @description Erreur (voir `code`) */
+            default: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["Error"];
+                };
+            };
+        };
+    };
+    postSellerShopPromoCodes: {
+        parameters: {
+            query?: never;
+            header?: never;
+            path: {
+                id: string;
+            };
+            cookie?: never;
+        };
+        requestBody: {
+            content: {
+                "application/json": components["schemas"]["PromoCodeInput"];
+            };
+        };
+        responses: {
+            /** @description Succès */
+            201: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["PromoCode"];
+                };
+            };
+            /** @description Erreur (voir `code`) */
+            default: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["Error"];
+                };
+            };
+        };
+    };
+    postSellerPromoCodeAction: {
+        parameters: {
+            query?: never;
+            header?: never;
+            path: {
+                id: string;
+                action: "suspend" | "resume" | "end";
+            };
+            cookie?: never;
+        };
+        requestBody?: never;
+        responses: {
+            /** @description Succès */
+            200: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["PromoCode"];
+                };
+            };
+            /** @description Erreur (voir `code`) */
+            default: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["Error"];
+                };
+            };
+        };
+    };
+    getAdminPromoCodes: {
+        parameters: {
+            query?: {
+                shop_id?: string;
+                welcome?: string;
+                limit?: number;
+                offset?: number;
+            };
+            header?: never;
+            path?: never;
+            cookie?: never;
+        };
+        requestBody?: never;
+        responses: {
+            /** @description Succès */
+            200: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": {
+                        items?: components["schemas"]["PromoCode"][];
+                        next_offset?: number | null;
+                    };
+                };
+            };
+            /** @description Erreur (voir `code`) */
+            default: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["Error"];
+                };
+            };
+        };
+    };
+    postAdminPromoCodes: {
+        parameters: {
+            query?: never;
+            header?: never;
+            path?: never;
+            cookie?: never;
+        };
+        requestBody: {
+            content: {
+                "application/json": components["schemas"]["PromoCodeInput"];
+            };
+        };
+        responses: {
+            /** @description Succès */
+            201: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["PromoCode"];
+                };
+            };
+            /** @description Erreur (voir `code`) */
+            default: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["Error"];
+                };
+            };
+        };
+    };
+    postAdminPromoCodeAction: {
+        parameters: {
+            query?: never;
+            header?: never;
+            path: {
+                id: string;
+                action: "suspend" | "resume" | "end";
+            };
+            cookie?: never;
+        };
+        requestBody: {
+            content: {
+                "application/json": components["schemas"]["PromoCodeActionInput"];
+            };
+        };
+        responses: {
+            /** @description Succès */
+            200: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["PromoCode"];
+                };
+            };
+            /** @description Erreur (voir `code`) */
+            default: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["Error"];
+                };
+            };
+        };
+    };
+    getAdminCouponSettings: {
+        parameters: {
+            query?: never;
+            header?: never;
+            path?: never;
+            cookie?: never;
+        };
+        requestBody?: never;
+        responses: {
+            /** @description Succès */
+            200: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["CouponSettings"];
+                };
+            };
+            /** @description Erreur (voir `code`) */
+            default: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["Error"];
+                };
+            };
+        };
+    };
+    putAdminCouponSettings: {
+        parameters: {
+            query?: never;
+            header?: never;
+            path?: never;
+            cookie?: never;
+        };
+        requestBody: {
+            content: {
+                "application/json": components["schemas"]["CouponSettings"];
+            };
+        };
+        responses: {
+            /** @description Succès */
+            200: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["CouponSettings"];
+                };
+            };
+            /** @description Erreur (voir `code`) */
+            default: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["Error"];
+                };
+            };
+        };
+    };
+    getOrderRating: {
+        parameters: {
+            query?: never;
+            header?: never;
+            path: {
+                id: string;
+            };
+            cookie?: never;
+        };
+        requestBody?: never;
+        responses: {
+            /** @description Succès */
+            200: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["OrderRating"];
+                };
+            };
+            /** @description Erreur (voir `code`) */
+            default: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["Error"];
+                };
+            };
+        };
+    };
+    postOrderRating: {
+        parameters: {
+            query?: never;
+            header?: never;
+            path: {
+                id: string;
+            };
+            cookie?: never;
+        };
+        requestBody: {
+            content: {
+                "application/json": components["schemas"]["RatingInput"];
+            };
+        };
+        responses: {
+            /** @description Succès */
+            201: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["DeliveryRating"];
+                };
+            };
+            /** @description Erreur (voir `code`) */
+            default: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["Error"];
+                };
+            };
+        };
+    };
+    getSellerDriverRating: {
+        parameters: {
+            query?: never;
+            header?: never;
+            path: {
+                id: string;
+            };
+            cookie?: never;
+        };
+        requestBody?: never;
+        responses: {
+            /** @description Succès */
+            200: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["OrderRating"];
+                };
+            };
+            /** @description Erreur (voir `code`) */
+            default: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["Error"];
+                };
+            };
+        };
+    };
+    postSellerDriverRating: {
+        parameters: {
+            query?: never;
+            header?: never;
+            path: {
+                id: string;
+            };
+            cookie?: never;
+        };
+        requestBody: {
+            content: {
+                "application/json": components["schemas"]["RatingInput"];
+            };
+        };
+        responses: {
+            /** @description Succès */
+            201: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["DeliveryRating"];
+                };
+            };
+            /** @description Erreur (voir `code`) */
+            default: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["Error"];
+                };
+            };
+        };
+    };
+    postMeAppFeedback: {
+        parameters: {
+            query?: never;
+            header?: never;
+            path?: never;
+            cookie?: never;
+        };
+        requestBody: {
+            content: {
+                "application/json": components["schemas"]["AppFeedbackInput"];
+            };
+        };
+        responses: {
+            /** @description Succès */
+            201: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["AppFeedback"];
+                };
+            };
+            /** @description Erreur (voir `code`) */
+            default: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["Error"];
+                };
+            };
+        };
+    };
+    getDriverRating: {
+        parameters: {
+            query?: never;
+            header?: never;
+            path?: never;
+            cookie?: never;
+        };
+        requestBody?: never;
+        responses: {
+            /** @description Succès */
+            200: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": {
+                        average?: number;
+                        ratings?: number;
+                    };
+                };
+            };
+            /** @description Erreur (voir `code`) */
+            default: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["Error"];
+                };
+            };
+        };
+    };
+    getAdminRatings: {
+        parameters: {
+            query?: {
+                driver_id?: string;
+                limit?: number;
+                offset?: number;
+            };
+            header?: never;
+            path?: never;
+            cookie?: never;
+        };
+        requestBody?: never;
+        responses: {
+            /** @description Succès */
+            200: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": {
+                        items?: components["schemas"]["DeliveryRating"][];
+                        next_offset?: number | null;
+                    };
+                };
+            };
+            /** @description Erreur (voir `code`) */
+            default: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["Error"];
+                };
+            };
+        };
+    };
+    getAdminAppFeedback: {
+        parameters: {
+            query?: {
+                limit?: number;
+                offset?: number;
+            };
+            header?: never;
+            path?: never;
+            cookie?: never;
+        };
+        requestBody?: never;
+        responses: {
+            /** @description Succès */
+            200: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": {
+                        items?: components["schemas"]["AppFeedback"][];
+                        next_offset?: number | null;
+                    };
+                };
+            };
+            /** @description Erreur (voir `code`) */
+            default: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["Error"];
+                };
+            };
+        };
+    };
+    getAdminRatingScores: {
+        parameters: {
+            query?: never;
+            header?: never;
+            path?: never;
+            cookie?: never;
+        };
+        requestBody?: never;
+        responses: {
+            /** @description Succès */
+            200: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["RatingScores"];
+                };
+            };
+            /** @description Erreur (voir `code`) */
+            default: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["Error"];
+                };
+            };
+        };
+    };
+    getAdminFleet: {
+        parameters: {
+            query?: {
+                hours?: number;
+            };
+            header?: never;
+            path?: never;
+            cookie?: never;
+        };
+        requestBody?: never;
+        responses: {
+            /** @description Succès */
+            200: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": {
+                        items?: components["schemas"]["FleetDriver"][];
+                        /** Format: date-time */
+                        generated_at?: string;
+                    };
+                };
+            };
+            /** @description Erreur (voir `code`) */
+            default: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["Error"];
+                };
+            };
+        };
+    };
+    getAdminFleetTrail: {
+        parameters: {
+            query?: {
+                hours?: number;
+            };
+            header?: never;
+            path: {
+                id: string;
+            };
+            cookie?: never;
+        };
+        requestBody?: never;
+        responses: {
+            /** @description Succès */
+            200: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": {
+                        items?: components["schemas"]["TrailPoint"][];
+                    };
                 };
             };
             /** @description Erreur (voir `code`) */

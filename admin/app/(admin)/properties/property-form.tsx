@@ -120,7 +120,7 @@ export function PropertyForm({ property: p }: { property?: Schemas["AdminPropert
           rows={4}
           maxLength={2000}
           defaultValue={p?.description}
-          className="w-full rounded-field border border-border-input bg-surface px-4 py-3 text-[15px]"
+          className="w-full rounded-field border border-border-input bg-surface px-4 py-3 text-[14px]"
         />
       </Field>
       {p && p.photo_keys.length > 0 && (

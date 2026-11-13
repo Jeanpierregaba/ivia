@@ -19,6 +19,7 @@ import (
 	"ivia/backend/internal/business"
 	"ivia/backend/internal/cart"
 	"ivia/backend/internal/catalog"
+	"ivia/backend/internal/coupons"
 	"ivia/backend/internal/delivery"
 	"ivia/backend/internal/geo"
 	"ivia/backend/internal/mapping"
@@ -36,6 +37,7 @@ import (
 	"ivia/backend/internal/platform/storage"
 	"ivia/backend/internal/promo"
 	"ivia/backend/internal/properties"
+	"ivia/backend/internal/ratings"
 	"ivia/backend/internal/reports"
 	"ivia/backend/internal/search"
 	"ivia/backend/internal/settlements"
@@ -72,6 +74,8 @@ type App struct {
 	Delivery      *delivery.Service
 	Settlements   *settlements.Service
 	Promo         *promo.Service
+	Coupons       *coupons.Service
+	Ratings       *ratings.Service
 	Pharmacy      *pharmacy.Service
 	Properties    *properties.Service
 	Business      *business.Service
@@ -135,15 +139,18 @@ func New(cfg config.Config, logger *slog.Logger, pool *pgxpool.Pool, opts Option
 	a.Stock = stock.NewService(db)
 	a.Catalog = catalog.NewService(db, a.Shops, a.Stock, a.Uploads, a.Admin)
 	a.Cart = cart.NewService(db, a.Catalog, a.Shops)
+	a.Coupons = coupons.NewService(db, a.Shops, a.Admin)
 	a.Orders = orders.NewService(orders.Deps{
 		DB: db, Jobs: enq, Admin: a.Admin, Users: a.Users, Geo: a.Geo, Shops: a.Shops, Catalog: a.Catalog,
-		Stock: a.Stock, Cart: a.Cart, Notify: a.Notifications, Logger: logger,
+		Stock: a.Stock, Cart: a.Cart, Notify: a.Notifications, Logger: logger, Coupons: a.Coupons,
 	})
+	a.Coupons.SetOrderHistory(a.Orders)
 	a.Payments = payments.NewService(db, enq, provider, a.Orders, a.Admin, a.Notifications, logger)
 	a.Delivery = delivery.NewService(delivery.Deps{
 		DB: db, Jobs: enq, Admin: a.Admin, Users: a.Users, Geo: a.Geo, Shops: a.Shops, Orders: a.Orders,
 		Uploads: a.Uploads, Notify: a.Notifications, Logger: logger,
 	})
+	a.Ratings = ratings.NewService(db, a.Orders, a.Users, a.Delivery)
 	a.Settlements = settlements.NewService(db, a.Orders, a.Shops, a.Admin, a.Notifications)
 	a.Promo = promo.NewService(db, a.Uploads, a.Catalog, a.Orders, a.Admin)
 	a.Pharmacy = pharmacy.NewService(pharmacy.Deps{
@@ -214,6 +221,8 @@ func (a *App) routes() (http.Handler, []string) {
 	search.NewService(a.DB, a.Uploads).Register(rt)
 	cart.NewHandler(a.Cart).Register(rt)
 	orders.NewHandler(a.Orders).Register(rt)
+	coupons.NewHandler(a.Coupons).Register(rt)
+	a.Ratings.Register(rt)
 	payments.NewHandler(a.Payments, a.Logger, a.Config.DevToolsEnabled()).Register(rt)
 	delivery.NewHandler(a.Delivery).Register(rt)
 	settlements.NewHandler(a.Settlements).Register(rt)

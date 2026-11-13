@@ -56,7 +56,7 @@ export default async function SearchPage({ searchParams }: Props) {
           defaultValue={q}
           autoFocus
           placeholder="Numéro de commande, boutique, e-mail, téléphone, prénom…"
-          className="h-[54px] w-full max-w-[640px] rounded-[14px] bg-surface px-5 text-[16px] outline-none focus:shadow-[inset_0_0_0_2px_var(--color-primary)]"
+          className="h-[54px] w-full max-w-[640px] rounded-[14px] bg-surface px-5 text-[14px] outline-none focus:shadow-[inset_0_0_0_2px_var(--color-primary)]"
         />
       </form>
       {!q ? null : total === 0 ? (

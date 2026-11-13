@@ -3,7 +3,8 @@ INSERT INTO orders (
   buyer_id, shop_id, status, fulfillment, vehicle_type, parcel_size,
   subtotal_xof, delivery_fee_xof, total_xof, commission_rate_bp, commission_xof,
   delivery_distance_m, delivery_address_text, delivery_neighborhood, delivery_location, delivery_instructions,
-  handover_code, client_request_id, payment_deadline_at
+  handover_code, client_request_id, payment_deadline_at,
+  promo_code_id, promo_code, discount_xof, discount_funded_by
 ) VALUES (
   sqlc.arg(buyer_id), sqlc.arg(shop_id), 'pending_payment', sqlc.arg(fulfillment), sqlc.narg(vehicle_type), sqlc.arg(parcel_size),
   sqlc.arg(subtotal_xof), sqlc.arg(delivery_fee_xof), sqlc.arg(total_xof), sqlc.arg(commission_rate_bp), sqlc.arg(commission_xof),
@@ -11,7 +12,8 @@ INSERT INTO orders (
   CASE WHEN sqlc.narg(delivery_lat)::float8 IS NULL THEN NULL
        ELSE ST_SetSRID(ST_MakePoint(sqlc.narg(delivery_lng)::float8, sqlc.narg(delivery_lat)::float8), 4326)::geography END,
   sqlc.narg(delivery_instructions),
-  sqlc.arg(handover_code), sqlc.narg(client_request_id), sqlc.arg(payment_deadline_at)
+  sqlc.arg(handover_code), sqlc.narg(client_request_id), sqlc.arg(payment_deadline_at),
+  sqlc.narg(promo_code_id), sqlc.narg(promo_code), sqlc.arg(discount_xof), sqlc.narg(discount_funded_by)
 )
 RETURNING id;
 
@@ -32,7 +34,8 @@ SELECT o.id, o.number, o.buyer_id, o.shop_id, o.status, o.fulfillment, o.vehicle
        coalesce(ST_X(o.delivery_location::geometry), 0)::float8 AS delivery_lng,
        o.handover_code, o.handover_attempts, o.stock_released, o.cancel_reason, o.refund_due_xof,
        o.payment_deadline_at, o.seller_deadline_at, o.paid_at, o.accepted_at, o.ready_at, o.picked_up_at,
-       o.completed_at, o.cancelled_at, o.refunded_at, o.created_at, o.updated_at
+       o.completed_at, o.cancelled_at, o.refunded_at, o.created_at, o.updated_at,
+       o.promo_code, o.discount_xof, o.discount_funded_by
 FROM orders o
 WHERE o.id = $1;
 
@@ -45,7 +48,8 @@ SELECT o.id, o.number, o.buyer_id, o.shop_id, o.status, o.fulfillment, o.vehicle
        coalesce(ST_X(o.delivery_location::geometry), 0)::float8 AS delivery_lng,
        o.handover_code, o.handover_attempts, o.stock_released, o.cancel_reason, o.refund_due_xof,
        o.payment_deadline_at, o.seller_deadline_at, o.paid_at, o.accepted_at, o.ready_at, o.picked_up_at,
-       o.completed_at, o.cancelled_at, o.refunded_at, o.created_at, o.updated_at
+       o.completed_at, o.cancelled_at, o.refunded_at, o.created_at, o.updated_at,
+       o.promo_code, o.discount_xof, o.discount_funded_by
 FROM orders o
 WHERE o.id = ANY($1::uuid[]);
 
@@ -152,7 +156,10 @@ WHERE shop_id = ANY(sqlc.arg(shop_ids)::uuid[])
 
 -- name: CompletedForShop :many
 -- Commandes remises (retrait ou livraison) dans une période, pour les relevés marchands.
-SELECT id, number, completed_at, subtotal_xof, commission_xof FROM orders
+-- Réduction d'un code de boutique : retirée de ce que reçoit le marchand (spec 034).
+SELECT id, number, completed_at,
+       (subtotal_xof - CASE WHEN discount_funded_by = 'shop' THEN discount_xof ELSE 0 END)::bigint AS subtotal_xof,
+       commission_xof FROM orders
 WHERE shop_id = sqlc.arg(shop_id)
   AND status IN ('completed', 'delivered')
   AND completed_at >= sqlc.arg(from_time)::timestamptz AND completed_at < sqlc.arg(to_time)::timestamptz
@@ -218,3 +225,6 @@ JOIN orders o ON o.id = i.order_id
 WHERE i.product_id = ANY(sqlc.arg(product_ids)::uuid[])
   AND o.paid_at >= sqlc.arg(from_time)::timestamptz AND o.paid_at < sqlc.arg(to_time)::timestamptz
 GROUP BY i.product_id;
+
+-- name: HasPaidOrder :one
+SELECT EXISTS (SELECT 1 FROM orders WHERE buyer_id = $1 AND paid_at IS NOT NULL)::boolean;

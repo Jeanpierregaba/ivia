@@ -27,7 +27,13 @@ class Invoice {
     required this.totalXof,
     required this.paymentNote,
     this.closedLabel,
+    this.discountXof = 0,
+    this.promoCode,
   });
+
+  /// Réduction d'un code promo (déjà retirée du total).
+  final int discountXof;
+  final String? promoCode;
 
   /// Commande annulée, expirée ou remboursée : un récapitulatif, pas un reçu
   /// de paiement.
@@ -60,6 +66,8 @@ class Invoice {
     subtotalXof: o.subtotalXof,
     deliveryXof: o.deliveryFeeXof,
     totalXof: o.totalXof,
+    discountXof: o.discountXof,
+    promoCode: o.promoCode,
     closedLabel: switch (o.status) {
       OrderStatus.cancelled => 'Commande annulée',
       OrderStatus.expired => 'Commande expirée',
@@ -305,6 +313,8 @@ class Invoice {
                     for (final (label, value) in [
                       ('Sous-total', subtotalXof),
                       if (deliveryXof > 0) ('Livraison', deliveryXof),
+                      if (discountXof > 0)
+                        ('Réduction (${promoCode ?? ''})', -discountXof),
                     ])
                       pw.Row(
                         mainAxisAlignment: pw.MainAxisAlignment.spaceBetween,

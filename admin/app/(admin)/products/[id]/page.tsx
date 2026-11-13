@@ -13,7 +13,7 @@ export const metadata = { title: "Produit" };
 type Props = { params: Promise<{ id: string }> };
 
 const textareaClass =
-  "w-full rounded-field border border-border-input bg-surface px-4 py-2 text-[15px] outline-none focus:border-2 focus:border-primary";
+  "w-full rounded-field border border-border-input bg-surface px-4 py-2 text-[14px] outline-none focus:border-2 focus:border-primary";
 
 export default async function ProductPage({ params }: Props) {
   const { id } = await params;

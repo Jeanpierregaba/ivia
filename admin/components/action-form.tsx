@@ -75,7 +75,7 @@ export function ActionForm({ action, label, variant = "primary", confirm, reason
         className="soft-dialog m-auto w-[min(480px,calc(100vw-2rem))] rounded-card p-6 backdrop:bg-tertiary/40 backdrop:backdrop-blur-[2px]"
       >
         <form action={formAction} onSubmit={() => dialog.current?.close()}>
-          <h2 className="text-[22px] font-bold leading-7">{confirm?.title ?? label}</h2>
+          <h2 className="text-[18px] font-bold leading-7">{confirm?.title ?? label}</h2>
           {confirm && <p className="mt-2 text-text-secondary">{confirm.body}</p>}
           {fields}
           <div className="mt-6 flex justify-end gap-2">

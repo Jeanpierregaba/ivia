@@ -75,15 +75,15 @@ export function CodeForm({ email, method }: { email: string; method: "email" | "
       <form action={restart}>
         <button
           type="submit"
-          className="mb-6 inline-flex items-center gap-1.5 text-[15px] font-bold text-text-secondary hover:text-text"
+          className="mb-6 inline-flex items-center gap-1.5 text-[14px] font-bold text-text-secondary hover:text-text"
         >
           <ArrowLeft size={17} aria-hidden="true" /> Changer d&apos;e-mail
         </button>
       </form>
-      <h1 className="text-[40px] font-extrabold leading-[44px] tracking-[-0.03em]">
+      <h1 className="text-[40px] font-extrabold leading-[34px] tracking-[-0.03em]">
         {recovery ? "Code de secours" : "Code de vérification"}
       </h1>
-      <p className="mt-3 text-[16px] text-text-secondary">
+      <p className="mt-3 text-[14px] text-text-secondary">
         {recovery ? (
           <>
             Saisissez l&apos;un de vos 10 codes de secours (format XXXX-XXXX). Chacun ne sert qu&apos;une
@@ -113,7 +113,7 @@ export function CodeForm({ email, method }: { email: string; method: "email" | "
               autoComplete="off"
               spellCheck={false}
               placeholder="XXXX-XXXX"
-              className="h-[64px] w-full rounded-[14px] bg-background px-5 text-center font-mono text-[28px] font-extrabold tracking-[0.2em] outline-none focus:bg-surface focus:shadow-[inset_0_0_0_2px_var(--color-primary)]"
+              className="h-[64px] w-full rounded-[14px] bg-background px-5 text-center font-mono text-[24px] font-extrabold tracking-[0.2em] outline-none focus:bg-surface focus:shadow-[inset_0_0_0_2px_var(--color-primary)]"
             />
           </label>
         ) : (
@@ -154,7 +154,7 @@ export function CodeForm({ email, method }: { email: string; method: "email" | "
         )}
 
         {totp ? (
-          <div className="mt-4 flex justify-between text-[15px] text-text-secondary">
+          <div className="mt-4 flex justify-between text-[14px] text-text-secondary">
             <button
               type="button"
               onClick={() => setRecovery((r) => !r)}
@@ -165,7 +165,7 @@ export function CodeForm({ email, method }: { email: string; method: "email" | "
             {!recovery && <span>Nouveau code toutes les 30 s</span>}
           </div>
         ) : (
-          <div className="mt-4 flex justify-between text-[15px] text-text-secondary">
+          <div className="mt-4 flex justify-between text-[14px] text-text-secondary">
             {left > 0 ? (
               <span aria-live="polite">
                 Renvoyer le code dans{" "}
@@ -186,7 +186,7 @@ export function CodeForm({ email, method }: { email: string; method: "email" | "
         )}
         {resent.info && <p className="mt-2 text-[13px] text-success">{resent.info}</p>}
 
-        <label className="mt-7 flex cursor-pointer items-center gap-3 text-[16px]">
+        <label className="mt-7 flex cursor-pointer items-center gap-3 text-[14px]">
           <input type="checkbox" name="remember" defaultChecked className="peer sr-only" />
           <span className="grid size-[24px] place-items-center rounded-[7px] border-2 border-border-input bg-surface text-white peer-checked:border-tertiary peer-checked:bg-tertiary peer-focus-visible:outline-2 peer-focus-visible:outline-secondary">
             <Check size={16} strokeWidth={3} aria-hidden="true" />
@@ -204,7 +204,7 @@ export function CodeForm({ email, method }: { email: string; method: "email" | "
         <button
           type="submit"
           disabled={pending || !ready}
-          className={buttonClass("imperial", "mt-7 !h-[56px] w-full !rounded-[14px] text-[17px]")}
+          className={buttonClass("imperial", "mt-7 !h-[56px] w-full !rounded-[14px] text-[15px]")}
         >
           {pending ? "Vérification…" : "Se connecter"}
         </button>

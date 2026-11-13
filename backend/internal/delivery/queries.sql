@@ -439,3 +439,30 @@ DELETE FROM driver_incidents WHERE driver_id = $1;
 -- name: SetDocumentExpiry :execrows
 UPDATE driver_documents SET expires_on = sqlc.narg(expires_on)
 WHERE id = sqlc.arg(id) AND driver_id = sqlc.arg(driver_id);
+
+-- ---------------------------------------------------------------- carte de la flotte (back-office)
+
+-- name: Fleet :many
+-- Livreurs validés vus depuis moins de [hours] heures, avec leur mission en cours.
+SELECT d.user_id, d.availability, d.vehicle_type, d.vehicle_plate, (d.suspended_at IS NOT NULL)::boolean AS suspended,
+       ST_Y(d.last_location::geometry)::float8 AS lat, ST_X(d.last_location::geometry)::float8 AS lng,
+       d.last_location_at::timestamptz AS located_at,
+       coalesce(m.order_id::text, '')::text AS mission_order_id, coalesce(m.status, '')::text AS mission_status
+FROM drivers d
+LEFT JOIN LATERAL (
+  SELECT x.order_id, x.status FROM deliveries x
+  WHERE x.driver_id = d.user_id AND x.status IN ('assigned', 'at_shop', 'picked_up', 'at_customer', 'returning')
+  LIMIT 1
+) m ON true
+WHERE d.review_status = 'approved' AND d.last_location IS NOT NULL AND d.last_location_at IS NOT NULL
+  AND d.last_location_at > now() - make_interval(hours => sqlc.arg(hours)::int)
+ORDER BY d.last_location_at DESC
+LIMIT 500;
+
+-- name: DriverTrail :many
+-- Trajet récent d'un livreur (positions envoyées en ligne, gardées 30 jours).
+SELECT ST_Y(location::geometry)::float8 AS lat, ST_X(location::geometry)::float8 AS lng, recorded_at
+FROM driver_positions
+WHERE driver_id = $1 AND recorded_at > now() - make_interval(hours => sqlc.arg(hours)::int)
+ORDER BY recorded_at
+LIMIT 3000;

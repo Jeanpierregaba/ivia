@@ -37,7 +37,7 @@ export function CheckPill({ label, color = "bg-tertiary" }: { label: string; col
       <span className={cx("grid size-[26px] place-items-center rounded-full text-white", color)}>
         <Check size={16} strokeWidth={3} aria-hidden="true" />
       </span>
-      <span className="text-[15px] font-semibold text-text">{label}</span>
+      <span className="text-[14px] font-semibold text-text">{label}</span>
     </span>
   );
 }
@@ -87,7 +87,7 @@ export function MosaicTile({
         {icon && <span className="opacity-85">{icon}</span>}
       </span>
       <span className="mt-auto">
-        <span className="block text-[40px] font-bold leading-[44px] tracking-[-0.02em]">{value}</span>
+        <span className="block text-[40px] font-bold leading-[34px] tracking-[-0.02em]">{value}</span>
         {detail && <span className="mt-1 block text-[13px] leading-[18px] opacity-85">{detail}</span>}
       </span>
     </>

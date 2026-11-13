@@ -11,7 +11,7 @@ export default function AdminError({ reset }: { error: Error & { digest?: string
       <span className="mb-4 grid size-14 place-items-center rounded-full bg-primary-soft text-error">
         <AlertTriangle size={26} aria-hidden="true" />
       </span>
-      <h1 className="text-[22px] font-bold">Une erreur inattendue est survenue</h1>
+      <h1 className="text-[18px] font-bold">Une erreur inattendue est survenue</h1>
       <p className="mt-2 max-w-md text-text-secondary">
         Réessayez dans un instant. Si le problème continue, prévenez l&apos;équipe technique.
       </p>

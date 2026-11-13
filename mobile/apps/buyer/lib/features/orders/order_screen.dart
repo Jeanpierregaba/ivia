@@ -323,6 +323,11 @@ class _OrderScreenState extends ConsumerState<OrderScreen> {
                     amount: formatXof(item.lineTotalXof),
                   ),
                 const Divider(height: IviaSpacing.xl),
+                if (order.discountXof > 0)
+                  IviaAmountRow(
+                    label: 'Réduction (${order.promoCode ?? ''})',
+                    amount: '− ${formatXof(order.discountXof)}',
+                  ),
                 IviaAmountRow(
                   label: 'Total',
                   amount: formatXof(order.totalXof),
