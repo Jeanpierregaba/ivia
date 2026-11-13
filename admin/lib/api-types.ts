@@ -1828,6 +1828,57 @@ export interface paths {
         patch?: never;
         trace?: never;
     };
+    "/v1/ws/events": {
+        parameters: {
+            query?: never;
+            header?: never;
+            path?: never;
+            cookie?: never;
+        };
+        /** WebSocket : événements en direct d'une app (notifications, étapes des courses). Navigateur : jeton dans le sous-protocole ivia-bearer */
+        get: operations["getWsEvents"];
+        put?: never;
+        post?: never;
+        delete?: never;
+        options?: never;
+        head?: never;
+        patch?: never;
+        trace?: never;
+    };
+    "/v1/admin/stream": {
+        parameters: {
+            query?: never;
+            header?: never;
+            path?: never;
+            cookie?: never;
+        };
+        /** Flux SSE du back-office : notifications, étapes des courses, positions des livreurs */
+        get: operations["getAdminStream"];
+        put?: never;
+        post?: never;
+        delete?: never;
+        options?: never;
+        head?: never;
+        patch?: never;
+        trace?: never;
+    };
+    "/v1/driver/missions/{id}/start": {
+        parameters: {
+            query?: never;
+            header?: never;
+            path?: never;
+            cookie?: never;
+        };
+        get?: never;
+        put?: never;
+        /** Démarrer ma course (en route vers la boutique) */
+        post: operations["postDriverMissionsByIdStart"];
+        delete?: never;
+        options?: never;
+        head?: never;
+        patch?: never;
+        trace?: never;
+    };
     "/v1/driver/me": {
         parameters: {
             query?: never;
@@ -3730,26 +3781,6 @@ export interface paths {
         put?: never;
         /** Simuler la réponse du faux prestataire (local et tests uniquement) */
         post: operations["postDevMedicinePaymentsByIdSimulate"];
-        delete?: never;
-        options?: never;
-        head?: never;
-        patch?: never;
-        trace?: never;
-    };
-    "/v1/dev/medicine-alerts/{id}/auto-respond": {
-        parameters: {
-            query?: never;
-            header?: never;
-            path?: never;
-            cookie?: never;
-        };
-        get?: never;
-        put?: never;
-        /**
-         * Faire répondre les pharmacies de démonstration (local et tests uniquement)
-         * @description Les pharmacies créées par `manage seed-demo` qui ont reçu l'alerte y répondent (tous les produits disponibles, prix de démonstration). Route absente hors local.
-         */
-        post: operations["postDevMedicineAlertsByIdAutoRespond"];
         delete?: never;
         options?: never;
         head?: never;
@@ -6987,6 +7018,8 @@ export interface components {
             };
         };
         Mission: {
+            /** Format: date-time */
+            started_at?: string | null;
             /** Format: uuid */
             id: string;
             /** Format: uuid */
@@ -7024,6 +7057,16 @@ export interface components {
             failure_reason: string;
         };
         DeliveryInfo: {
+            /** @enum {string} */
+            step?: "accepted" | "heading_to_shop" | "at_shop" | "heading_to_customer" | "at_customer" | "delivered" | "returning" | "ended";
+            /** Format: date-time */
+            started_at?: string | null;
+            /** Format: date-time */
+            arrived_shop_at?: string | null;
+            /** Format: date-time */
+            arrived_customer_at?: string | null;
+            /** Format: date-time */
+            delivered_at?: string | null;
             status: string;
             driver_first_name: string;
             vehicle_type: string;
@@ -12192,6 +12235,95 @@ export interface operations {
             };
         };
     };
+    getWsEvents: {
+        parameters: {
+            query?: {
+                app?: "buyer" | "seller" | "driver" | "admin" | "pharmacy";
+            };
+            header?: never;
+            path?: never;
+            cookie?: never;
+        };
+        requestBody?: never;
+        responses: {
+            /** @description Connexion WebSocket */
+            101: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content?: never;
+            };
+            /** @description Erreur (voir `code`) */
+            default: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["Error"];
+                };
+            };
+        };
+    };
+    getAdminStream: {
+        parameters: {
+            query?: never;
+            header?: never;
+            path?: never;
+            cookie?: never;
+        };
+        requestBody?: never;
+        responses: {
+            /** @description Flux text/event-stream */
+            200: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "text/event-stream": string;
+                };
+            };
+            /** @description Erreur (voir `code`) */
+            default: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["Error"];
+                };
+            };
+        };
+    };
+    postDriverMissionsByIdStart: {
+        parameters: {
+            query?: never;
+            header?: never;
+            path: {
+                id: string;
+            };
+            cookie?: never;
+        };
+        requestBody?: never;
+        responses: {
+            /** @description Succès */
+            200: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["Mission"];
+                };
+            };
+            /** @description Erreur (voir `code`) */
+            default: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["Error"];
+                };
+            };
+        };
+    };
     getDriverMe: {
         parameters: {
             query?: never;
@@ -16272,39 +16404,6 @@ export interface operations {
                 content: {
                     "application/json": {
                         status: string;
-                    };
-                };
-            };
-            /** @description Erreur (voir `code`) */
-            default: {
-                headers: {
-                    [name: string]: unknown;
-                };
-                content: {
-                    "application/json": components["schemas"]["Error"];
-                };
-            };
-        };
-    };
-    postDevMedicineAlertsByIdAutoRespond: {
-        parameters: {
-            query?: never;
-            header?: never;
-            path: {
-                id: string;
-            };
-            cookie?: never;
-        };
-        requestBody?: never;
-        responses: {
-            /** @description Succès */
-            200: {
-                headers: {
-                    [name: string]: unknown;
-                };
-                content: {
-                    "application/json": {
-                        responses: number;
                     };
                 };
             };

@@ -13,6 +13,7 @@ import (
 	"os"
 	"path/filepath"
 	"slices"
+	"strings"
 	"time"
 
 	"github.com/google/uuid"
@@ -81,6 +82,8 @@ type demoShop struct {
 		Phone string `json:"phone"`
 	} `json:"owner"`
 	Products []demoProduct `json:"products"`
+	// Venue : photo du lieu (restaurants), utilisée comme photo de la boutique.
+	Venue string `json:"venue,omitempty"`
 }
 
 // Sous-catégories de produits (catégorie parente → sous-catégories).
@@ -263,8 +266,16 @@ func (a *App) SeedDemo(ctx context.Context, logf func(format string, args ...any
 			Name: def.Name, Description: def.Description, Phone: def.Owner.Phone, AddressText: def.Address,
 			NeighborhoodID: &n.ID, Location: geo.Point{Lat: def.Lat, Lng: def.Lng}, CategoryID: &catID,
 		}
-		// Photo de la boutique : la première photo de ses articles.
+		// Photo de la boutique : celle du lieu (restaurant), sinon la première photo de ses articles.
 		shopLogo := func() *string {
+			if def.Venue != "" {
+				if data, err := demoPhotos.ReadFile("seedassets/demo/" + def.Venue); err == nil {
+					k := "shops/" + owner.ID.String() + "/venue-" + uuid.NewString() + ".jpg"
+					if a.LocalStore.Write(storage.Public, k, data) == nil {
+						return &k
+					}
+				}
+			}
 			for _, p := range def.Products {
 				for _, img := range p.Images {
 					if img.File == "" {
@@ -288,8 +299,12 @@ func (a *App) SeedDemo(ctx context.Context, logf func(format string, args ...any
 			return out, fmt.Errorf("boutique %s : %w", def.Name, err)
 		}
 		// Boutique d'un seed précédent : nom, présentation et photo du catalogue actuel.
-		if cur, err := a.Shops.Get(ctx, shopID); err == nil && (cur.Name != def.Name || cur.LogoURL == nil) {
-			if cur.LogoURL == nil {
+		// Restaurant d'un seed précédent dont la photo était un plat : photo du lieu.
+		oldPhoto := func(cur shops.Shop) bool {
+			return def.Venue != "" && (cur.LogoKey == nil || !strings.Contains(*cur.LogoKey, "/venue-"))
+		}
+		if cur, err := a.Shops.Get(ctx, shopID); err == nil && (cur.Name != def.Name || cur.LogoURL == nil || oldPhoto(cur)) {
+			if cur.LogoURL == nil || oldPhoto(cur) {
 				input.LogoKey = shopLogo()
 			}
 			if _, err := a.Shops.Update(ctx, owner.ID, shopID, input); err != nil {
@@ -698,12 +713,8 @@ func (a *App) SeedDemo(ctx context.Context, logf func(format string, args ...any
 		}
 	}
 
-	// Pharmacies de garde autour de Tokoin (alerte médicament).
-	n, err := a.seedDemoPharmacies(ctx)
-	if err != nil {
-		return out, err
-	}
-	logf("pharmacies de démonstration : %d", n)
+	// Aucune pharmacie de démonstration : les alertes médicament ne vont qu'aux vraies pharmacies,
+	// inscrites et validées depuis l'app Pharmacie (aucune réponse inventée).
 	np, err := a.seedDemoProperties(ctx, a.Properties)
 	if err != nil {
 		return out, err

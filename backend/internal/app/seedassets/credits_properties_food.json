@@ -96,5 +96,41 @@
   "source": "https://commons.wikimedia.org/wiki/File:P%C3%A2te_d%27ignames_(Fufu)_18.jpg",
   "license": "CC BY-SA 4.0",
   "author": "Ubkoumbogny"
+ },
+ "demo/venue-1.jpg": {
+  "title": "File:Intérieur d'un bar Restaurant a Cotonou au Bénin.jpg",
+  "source": "https://commons.wikimedia.org/wiki/File:Int%C3%A9rieur_d%27un_bar_Restaurant_a_Cotonou_au_B%C3%A9nin.jpg",
+  "license": "CC BY-SA 4.0",
+  "author": "Adoscam"
+ },
+ "demo/venue-2.jpg": {
+  "title": "File:Maquis ouaga.jpg",
+  "source": "https://commons.wikimedia.org/wiki/File:Maquis_ouaga.jpg",
+  "license": "CC BY-SA 3.0",
+  "author": "own work"
+ },
+ "demo/venue-3.jpg": {
+  "title": "File:Intérieur d'un bar Restaurant a Cotonou Bénin2.jpg",
+  "source": "https://commons.wikimedia.org/wiki/File:Int%C3%A9rieur_d%27un_bar_Restaurant_a_Cotonou_B%C3%A9nin2.jpg",
+  "license": "CC BY-SA 4.0",
+  "author": "Adoscam"
+ },
+ "demo/venue-4.jpg": {
+  "title": "File:Restaurant populaire Abidjan nourriture savoureuse gastronomie locale.jpg",
+  "source": "https://commons.wikimedia.org/wiki/File:Restaurant_populaire_Abidjan_nourriture_savoureuse_gastronomie_locale.jpg",
+  "license": "CC BY-SA 4.0",
+  "author": "Neskar30"
+ },
+ "demo/venue-5.jpg": {
+  "title": "File:RCI-Abidjan-Trecheville-Restaurants dans la journée.jpg",
+  "source": "https://commons.wikimedia.org/wiki/File:RCI-Abidjan-Trecheville-Restaurants_dans_la_journ%C3%A9e.jpg",
+  "license": "CC BY-SA 4.0",
+  "author": "WILLAV-FR"
+ },
+ "demo/venue-6.jpg": {
+  "title": "File:The Beach Restaurant Interior.jpg",
+  "source": "https://commons.wikimedia.org/wiki/File:The_Beach_Restaurant_Interior.jpg",
+  "license": "CC BY-SA 2.0",
+  "author": "https://www.flickr.com/photos/130649623@N05/"
  }
 }

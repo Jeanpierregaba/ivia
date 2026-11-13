@@ -103,9 +103,24 @@ class _AlertScreenState extends ConsumerState<AlertScreen> with LivePolling {
           ),
           const SizedBox(height: 8),
           Text(
-            'Nous vous prévenons dès qu\'une pharmacie confirme avoir vos produits.',
+            alert.notified == 0
+                ? 'Aucune pharmacie de garde n\'est joignable dans ce rayon pour le moment. Nous continuons à chercher.'
+                : 'Nous vous prévenons dès qu\'une pharmacie confirme avoir vos produits.',
             style: t.bodyLarge?.copyWith(color: Med.muted),
           ),
+          if (responded.isEmpty) ...[
+            const SizedBox(height: 14),
+            Row(
+              children: [
+                const Icon(Icons.hourglass_top_rounded, color: Med.muted),
+                const SizedBox(width: 8),
+                Text(
+                  'En attente de réponse',
+                  style: t.titleMedium?.copyWith(fontWeight: FontWeight.w700),
+                ),
+              ],
+            ),
+          ],
           const SizedBox(height: 18),
           Row(
             children: [
@@ -441,12 +456,6 @@ class _EndedViewState extends ConsumerState<_EndedView> {
     try {
       final api = ref.read(apiClientProvider);
       final next = await api.relaunchAlert(widget.alert.id, _next);
-      if (ref.read(devPaymentsProvider)) {
-        Timer(
-          const Duration(seconds: 8),
-          () => api.devAutoRespond(next.id).catchError((_) {}),
-        );
-      }
       ref.invalidate(myAlertsProvider);
       if (mounted) context.go(Routes.medAlert(next.id));
     } on ApiException catch (e) {

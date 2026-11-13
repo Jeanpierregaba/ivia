@@ -247,7 +247,6 @@ func (a *App) routes() (http.Handler, []string) {
 		if a.LocalStore != nil {
 			rt.Raw("/dev/storage/", a.LocalStore.Handler())
 		}
-		rt.Auth("POST /v1/dev/medicine-alerts/{id}/auto-respond", a.devAutoRespond)
 		if a.DevOTP != nil {
 			// Dernier code envoyé à une adresse : automatisation des tests des apps en local.
 			// POST : l'adresse ne doit jamais apparaître dans une URL.

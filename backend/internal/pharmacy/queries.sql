@@ -636,17 +636,6 @@ SELECT
 UPDATE pharmacy_alert_photos SET alert_id = sqlc.arg(to_alert)
 WHERE alert_id = sqlc.arg(from_alert) AND object_key IS NOT NULL;
 
--- name: DevUpsertPharmacy :one
--- Démonstration locale uniquement (manage seed-demo) : pharmacie validée, ouverte et de garde.
-INSERT INTO pharmacies (owner_id, name, license_number, phone, address_text, location, is_open, on_duty,
-                        review_status, reviewed_at)
-VALUES (sqlc.arg(owner_id), sqlc.arg(name), sqlc.arg(license_number), sqlc.arg(phone), sqlc.arg(address_text),
-        ST_SetSRID(ST_MakePoint(sqlc.arg(lng)::float8, sqlc.arg(lat)::float8), 4326)::geography,
-        true, true, 'approved', now())
-ON CONFLICT (owner_id) DO UPDATE SET is_open = true, on_duty = true, review_status = 'approved',
-  suspended_at = NULL, updated_at = now()
-RETURNING id;
-
 -- name: PharmacyDossier :one
 SELECT p.submitted_at, p.payout_operator, p.payout_phone, p.payout_holder, p.email,
        coalesce(p.night_from_hour, st.night_from_hour)::int AS night_from,

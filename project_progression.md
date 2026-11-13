@@ -18,6 +18,7 @@
 
 ## Dernières avancées (2026-11-13)
 
+- **Alertes médicament 100 % réelles** : plus aucune réponse inventée (le mécanisme de démonstration est supprimé) ; seules les vraies pharmacies du rayon reçoivent l'alerte et y répondent ; « En attente de réponse » sinon.
 - **Tout en direct** : paiement reçu, nouvelle course, étapes du livreur arrivent aussitôt dans les apps et au back-office, sans recharger (WebSocket et flux du back-office) ; l'app Livreur reste en ligne après un rechargement.
 - **Livreur au glissement** : « démarrer ma course », « arrivée », « démarrer ma course vers le client » ; la carte suit sa position et recalcule l'itinéraire.
 - **Suivi du livreur** par le client et le marchand (étapes et carte en direct), et au back-office (bulles, carte de la flotte en direct).

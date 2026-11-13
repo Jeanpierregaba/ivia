@@ -10,7 +10,6 @@ import 'package:ivia_ui/ivia_ui.dart';
 import '../../app/buyer_area.dart';
 import '../../app/router.dart';
 import '../home/area_sheet.dart';
-import '../payment/payment_providers.dart';
 import 'med_draft.dart';
 import 'med_ui.dart';
 import 'pharmacy_state.dart';
@@ -930,14 +929,6 @@ class _AlertLaunchScreenState extends ConsumerState<AlertLaunchScreen> {
         genericAccepted: draft.generic,
         note: draft.note.trim(),
       );
-      // Démonstration locale sans app pharmacie : les pharmacies de démo
-      // répondent d'elles-mêmes quelques secondes plus tard.
-      if (ref.read(devPaymentsProvider)) {
-        Timer(
-          const Duration(seconds: 8),
-          () => api.devAutoRespond(alert.id).catchError((_) {}),
-        );
-      }
       ref
         ..invalidate(myAlertsProvider)
         ..read(medDraftProvider.notifier).reset();

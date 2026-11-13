@@ -24,6 +24,10 @@ var (
 	dishIgname   = demoDish{"Foufou d'igname sauce gombo", "Foufou maison, sauce gombo et poisson.", 2500, "05a51781ff57ed41.jpg", "Ubkoumbogny", "CC BY-SA 4.0", "https://commons.wikimedia.org/wiki/File:P%C3%A2te_d%27ignames_(Fufu)_18.jpg"}
 )
 
+// Photos des lieux (salle, terrasse, façade) : la photo de la boutique ; les plats se voient en
+// entrant dans le restaurant. Wikimedia Commons, crédits dans credits_properties_food.json.
+var demoRestaurantVenues = []string{"venue-1.jpg", "venue-2.jpg", "venue-3.jpg", "venue-4.jpg", "venue-5.jpg", "venue-6.jpg"}
+
 var demoRestaurantDefs = []struct {
 	name, desc, hood, addr string
 	lat, lng               float64
@@ -47,6 +51,9 @@ func withDemoRestaurants(shops []demoShop) []demoShop {
 		d.Owner.Email = fmt.Sprintf("restaurant%d@ivia.local", i+1)
 		d.Owner.Phone = fmt.Sprintf("+2289171%04d", 2000+i)
 		d.Owner.First, d.Owner.Last = "Chef", r.name
+		if i < len(demoRestaurantVenues) {
+			d.Venue = demoRestaurantVenues[i]
+		}
 		for j, dish := range r.dishes {
 			stock := int32(30)
 			d.Products = append(d.Products, demoProduct{

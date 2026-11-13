@@ -8508,40 +8508,6 @@ paths:
             application/json:
               schema:
                 "$ref": "#/components/schemas/Error"
-  "/v1/dev/medicine-alerts/{id}/auto-respond":
-    post:
-      summary: "Faire répondre les pharmacies de démonstration (local et tests uniquement)"
-      tags:
-        - Développement
-      operationId: postDevMedicineAlertsByIdAutoRespond
-      description: "Les pharmacies créées par `manage seed-demo` qui ont reçu l'alerte y répondent (tous les produits disponibles, prix de démonstration). Route absente hors local."
-      parameters:
-        - name: id
-          in: path
-          required: true
-          schema:
-            type: string
-            format: uuid
-      x-roles:
-        - any
-      responses:
-        "200":
-          description: "Succès"
-          content:
-            application/json:
-              schema:
-                type: object
-                properties:
-                  responses:
-                    type: integer
-                required:
-                  - responses
-        default:
-          description: "Erreur (voir `code`)"
-          content:
-            application/json:
-              schema:
-                "$ref": "#/components/schemas/Error"
   "/v1/properties":
     get:
       summary: "Biens immobiliers à vendre ou à louer"

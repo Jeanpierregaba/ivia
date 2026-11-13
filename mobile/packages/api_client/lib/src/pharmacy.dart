@@ -451,10 +451,6 @@ extension PharmacyApi on IviaApiClient {
     data: {'outcome': success ? 'succeeded' : 'failed'},
   );
 
-  /// Développement seulement : les pharmacies de démonstration répondent.
-  Future<void> devAutoRespond(String alertId) =>
-      _send('POST', '/v1/dev/medicine-alerts/$alertId/auto-respond');
-
   Future<List<BuyerAddress>> addresses() async {
     final j = await _send('GET', '/v1/me/addresses');
     return [for (final i in _list(j['items'])) BuyerAddress.fromJson(i)];
