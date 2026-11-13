@@ -13,5 +13,8 @@ func AcceptWebSocket(w http.ResponseWriter, r *http.Request) (*websocket.Conn, e
 	rc := http.NewResponseController(w)
 	_ = rc.SetWriteDeadline(time.Time{})
 	_ = rc.SetReadDeadline(time.Time{})
-	return websocket.Accept(w, r, &websocket.AcceptOptions{Subprotocols: []string{WSProtocol}})
+	// Origine non vérifiée : l'authentification passe par le jeton (en-tête ou sous-protocole),
+	// jamais par un cookie ; une autre page ne peut donc pas détourner la connexion. Les apps web
+	// sont servies sur une autre origine que l'API.
+	return websocket.Accept(w, r, &websocket.AcceptOptions{Subprotocols: []string{WSProtocol}, InsecureSkipVerify: true})
 }

@@ -7,7 +7,9 @@ import http.server
 import json
 import os
 import re
+import socket
 import sys
+import threading
 import urllib.error
 import urllib.request
 
@@ -76,7 +78,44 @@ class Handler(http.server.SimpleHTTPRequestHandler):
     def log_message(self, *args):  # pas de journal (jetons dans les en-têtes)
         pass
 
+    def _tunnel(self):
+        """WebSocket (temps réel) : tunnel brut vers l'API, dans les deux sens."""
+        try:
+            up = socket.create_connection(("127.0.0.1", 8080), timeout=10)
+        except OSError:
+            return self.send_error(502)
+        up.settimeout(None)
+        lines = ["%s %s HTTP/1.1\r\n" % (self.command, self.path)]
+        for k, v in self.headers.items():
+            lines.append("%s: %s\r\n" % (k, "localhost:8080" if k.lower() == "host" else v))
+        up.sendall(("".join(lines) + "\r\n").encode("latin-1"))
+        client = self.connection
+
+        def pump(src, dst):
+            try:
+                while True:
+                    b = src.recv(65536)
+                    if not b:
+                        break
+                    dst.sendall(b)
+            except OSError:
+                pass
+            finally:
+                try:
+                    dst.shutdown(socket.SHUT_WR)
+                except OSError:
+                    pass
+
+        t = threading.Thread(target=pump, args=(up, client), daemon=True)
+        t.start()
+        pump(client, up)
+        t.join()
+        up.close()
+        self.close_connection = True
+
     def _proxy(self):
+        if self.headers.get("Upgrade", "").lower() == "websocket":
+            return self._tunnel()
         length = int(self.headers.get("Content-Length") or 0)
         body = self.rfile.read(length) if length else None
         headers = {k: v for k, v in self.headers.items() if k.lower() not in ("host", "content-length", "connection")}
