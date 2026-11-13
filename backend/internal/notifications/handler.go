@@ -23,6 +23,8 @@ func (h *Handler) Register(rt *httpapi.Router) {
 	rt.Auth("POST /v1/notifications/read-all", h.markAllRead)
 	rt.Auth("DELETE /v1/notifications/{id}", h.delete)
 	rt.Auth("DELETE /v1/notifications", h.deleteAll)
+	rt.Auth("GET /v1/ws/events", h.events)
+	rt.Roles("GET /v1/admin/stream", h.adminStream, identity.RoleAdmin)
 }
 
 // appParam lit l'app concernée et vérifie que l'utilisateur a le rôle correspondant.

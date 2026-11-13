@@ -66,6 +66,7 @@ class _OrderScreenState extends ConsumerState<OrderScreen> {
   @override
   void dispose() {
     _stop();
+    unawaited(_live?.cancel());
     _lifecycle.dispose();
     super.dispose();
   }
@@ -73,7 +74,15 @@ class _OrderScreenState extends ConsumerState<OrderScreen> {
   void _start() {
     _timer?.cancel();
     _timer = Timer.periodic(orderRefreshInterval, (_) => _tick());
+    // Temps réel (spec 036) : la commande est relue dès qu'elle change.
+    _live ??= ref.read(iviaRealtimeProvider('buyer')).events.listen((e) {
+      if (e.orderId == widget.orderId || e.kind == RealtimeEvent.reconnected) {
+        _reload();
+      }
+    });
   }
+
+  StreamSubscription<RealtimeEvent>? _live;
 
   void _stop() {
     _timer?.cancel();
@@ -286,9 +295,15 @@ class _OrderScreenState extends ConsumerState<OrderScreen> {
           IviaSpacing.xxl,
         ),
         children: [
-          if (order.status == OrderStatus.driverAssigned ||
-              order.status == OrderStatus.pickedUp)
-            LiveTrackingMap(orderId: order.id),
+          if (order.fulfillment == Fulfillment.delivery &&
+              (order.status == OrderStatus.driverAssigned ||
+                  order.status == OrderStatus.pickedUp))
+            DeliveryProgress(
+              key: ValueKey('livraison-${order.id}'),
+              orderId: order.id,
+              app: 'buyer',
+              load: (api, id) => api.orderDelivery(id),
+            ),
           Align(
             alignment: Alignment.centerLeft,
             child: IviaBackButton(onPressed: () => context.pop()),

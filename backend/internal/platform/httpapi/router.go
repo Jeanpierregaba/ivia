@@ -154,7 +154,19 @@ func adminOnly(roles []identity.Role) bool {
 	return len(roles) == 1 && roles[0] == identity.RoleAdmin
 }
 
+// WSProtocol : sous-protocole WebSocket qui porte le jeton depuis un navigateur, qui ne peut pas
+// envoyer d'en-tête Authorization : `new WebSocket(url, ["ivia-bearer", jeton])`. Le jeton ne passe
+// jamais dans l'URL (journaux).
+const WSProtocol = "ivia-bearer"
+
 func bearerToken(r *http.Request) (string, bool) {
+	if r.Header.Get("Authorization") == "" && strings.EqualFold(r.Header.Get("Upgrade"), "websocket") {
+		parts := strings.Split(r.Header.Get("Sec-WebSocket-Protocol"), ",")
+		if len(parts) == 2 && strings.TrimSpace(parts[0]) == WSProtocol {
+			token := strings.TrimSpace(parts[1])
+			return token, token != ""
+		}
+	}
 	h := r.Header.Get("Authorization")
 	const prefix = "Bearer "
 	if len(h) <= len(prefix) || !strings.EqualFold(h[:len(prefix)], prefix) {

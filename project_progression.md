@@ -18,6 +18,9 @@
 
 ## Dernières avancées (2026-11-13)
 
+- **Tout en direct** : paiement reçu, nouvelle course, étapes du livreur arrivent aussitôt dans les apps et au back-office, sans recharger (WebSocket et flux du back-office) ; l'app Livreur reste en ligne après un rechargement.
+- **Livreur au glissement** : « démarrer ma course », « arrivée », « démarrer ma course vers le client » ; la carte suit sa position et recalcule l'itinéraire.
+- **Suivi du livreur** par le client et le marchand (étapes et carte en direct), et au back-office (bulles, carte de la flotte en direct).
 - **Codes promo** : le marchand crée ses codes dans Ivia Business (à ses frais) ; ivia crée ceux de la boutique IVI et le coupon de bienvenue au back-office (à ses frais). Le client saisit le code au paiement ; « Mes coupons » dans le profil.
 - **Avis** : le client note le livreur après la livraison (le marchand aussi s'il le veut) ; avis sur l'application ; tout est visible au back-office (page Avis), et la note du livreur dans son profil.
 - **Carte de la flotte** (back-office) : livreurs en direct sur la carte, course en cours, trajet et point de départ. Le blocage des motos à distance viendra avec les boîtiers GPS.

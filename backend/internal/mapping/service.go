@@ -53,7 +53,16 @@ type Service struct {
 	cache   cacheStore
 	hub     *hub
 	cfg     Config
+	events  AdminEvents
 }
+
+// AdminEvents pousse un événement aux back-offices ouverts (module notifications).
+type AdminEvents interface {
+	PublishAdmins(kind string, data map[string]string)
+}
+
+// SetEvents branche la diffusion en direct vers le back-office (positions des livreurs).
+func (s *Service) SetEvents(e AdminEvents) { s.events = e }
 
 // New assemble le service selon la configuration.
 func New(db *database.DB, audit *admin.Service, logger *slog.Logger, cfg Config) (*Service, error) {

@@ -2,7 +2,9 @@ package delivery
 
 import (
 	"context"
+	"errors"
 	"fmt"
+	"ivia/backend/internal/notifications"
 	"slices"
 	"time"
 
@@ -34,6 +36,7 @@ type Mission struct {
 	// Customer n'est renseigné que pendant la mission (jusqu'à la remise ou l'échec).
 	Customer          *MissionPOI `json:"customer"`
 	AssignedAt        time.Time   `json:"assigned_at"`
+	StartedAt         *time.Time  `json:"started_at"`
 	ArrivedShopAt     *time.Time  `json:"arrived_shop_at"`
 	PickedUpAt        *time.Time  `json:"picked_up_at"`
 	ArrivedCustomerAt *time.Time  `json:"arrived_customer_at"`
@@ -60,6 +63,35 @@ type DeliveryInfo struct {
 	VehiclePlate    string     `json:"vehicle_plate"`
 	AssignedAt      time.Time  `json:"assigned_at"`
 	PickedUpAt      *time.Time `json:"picked_up_at"`
+	// Étapes de la course (spec 036), vues en direct par le client et le marchand.
+	Step              string     `json:"step"`
+	StartedAt         *time.Time `json:"started_at"`
+	ArrivedShopAt     *time.Time `json:"arrived_shop_at"`
+	ArrivedCustomerAt *time.Time `json:"arrived_customer_at"`
+	DeliveredAt       *time.Time `json:"delivered_at"`
+}
+
+// stepOf traduit la mission en étape lisible par les apps : accepted, heading_to_shop, at_shop,
+// heading_to_customer, at_customer, delivered, returning, ended.
+func stepOf(m store.Delivery) string {
+	switch m.Status {
+	case "assigned":
+		if m.StartedAt != nil {
+			return "heading_to_shop"
+		}
+		return "accepted"
+	case "at_shop":
+		return "at_shop"
+	case "picked_up":
+		return "heading_to_customer"
+	case "at_customer":
+		return "at_customer"
+	case "delivered":
+		return "delivered"
+	case "returning":
+		return "returning"
+	}
+	return "ended"
 }
 
 func (s *Service) missionView(ctx context.Context, deliveryID uuid.UUID) (Mission, error) {
@@ -82,7 +114,7 @@ func (s *Service) missionView(ctx context.Context, deliveryID uuid.UUID) (Missio
 			Name: shop.Name, Phone: shop.Phone, AddressText: shop.AddressText,
 			Neighborhood: shop.NeighborhoodName, Location: shop.Location,
 		},
-		AssignedAt: m.AssignedAt, ArrivedShopAt: m.ArrivedShopAt, PickedUpAt: m.PickedUpAt,
+		AssignedAt: m.AssignedAt, StartedAt: m.StartedAt, ArrivedShopAt: m.ArrivedShopAt, PickedUpAt: m.PickedUpAt,
 		ArrivedCustomerAt: m.ArrivedCustomerAt, DeliveredAt: m.DeliveredAt, FailedAt: m.FailedAt,
 		FailureReason: m.FailureReason,
 	}
@@ -166,12 +198,51 @@ func (s *Service) missionStep(ctx context.Context, driverID, deliveryID uuid.UUI
 		if err != nil {
 			return err
 		}
-		return fn(ctx, m)
+		if err := fn(ctx, m); err != nil {
+			return err
+		}
+		return s.signalStep(ctx, deliveryID)
 	})
 	if err != nil {
 		return Mission{}, err
 	}
 	return s.missionView(ctx, deliveryID)
+}
+
+// signalStep pousse l'étape de la course au client, au marchand et au back-office, après la
+// transaction (spec 036) : leurs écrans se mettent à jour sans relecture.
+func (s *Service) signalStep(ctx context.Context, deliveryID uuid.UUID) error {
+	m, err := store.New(s.db.Conn(ctx)).GetDelivery(ctx, deliveryID)
+	if err != nil {
+		return fmt.Errorf("lecture de la mission : %w", err)
+	}
+	order, err := s.orders.ForDelivery(ctx, m.OrderID)
+	if err != nil {
+		return err
+	}
+	shop, err := s.shops.Get(ctx, order.ShopID)
+	if err != nil {
+		return err
+	}
+	data := map[string]string{
+		"order_id": m.OrderID.String(), "delivery_id": m.ID.String(), "driver_id": m.DriverID.String(), "step": stepOf(m),
+	}
+	return errors.Join(
+		s.notify.Signal(ctx, order.BuyerID, notifications.AppBuyer, "delivery_step", data),
+		s.notify.Signal(ctx, shop.OwnerID, notifications.AppSeller, "delivery_step", data),
+		s.notify.SignalAdmins(ctx, "delivery_step", data),
+	)
+}
+
+// Start : « Glisser pour démarrer ma course », en route vers la boutique (sans effet si déjà fait).
+func (s *Service) Start(ctx context.Context, driverID, deliveryID uuid.UUID) (Mission, error) {
+	return s.missionStep(ctx, driverID, deliveryID, func(ctx context.Context, m store.Delivery) error {
+		if m.Status != "assigned" {
+			return apperr.Conflict("invalid_mission_step", "Étape impossible : la mission est « "+m.Status+" ».")
+		}
+		_, err := store.New(s.db.Conn(ctx)).StartDelivery(ctx, m.ID)
+		return err
+	})
 }
 
 // ArrivedAtShop : le livreur est à la boutique.
@@ -340,5 +411,7 @@ func (s *Service) info(ctx context.Context, orderID uuid.UUID) (*DeliveryInfo, e
 	return &DeliveryInfo{
 		Status: m.Status, DriverFirstName: c.FirstName, VehicleType: d.VehicleType, VehiclePlate: d.VehiclePlate,
 		AssignedAt: m.AssignedAt, PickedUpAt: m.PickedUpAt,
+		Step: stepOf(m), StartedAt: m.StartedAt, ArrivedShopAt: m.ArrivedShopAt,
+		ArrivedCustomerAt: m.ArrivedCustomerAt, DeliveredAt: m.DeliveredAt,
 	}, nil
 }

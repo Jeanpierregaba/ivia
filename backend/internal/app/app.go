@@ -168,6 +168,8 @@ func New(cfg config.Config, logger *slog.Logger, pool *pgxpool.Pool, opts Option
 	}
 	// Arrivée estimée du livreur chez la pharmacie (spec 032).
 	a.Pharmacy.SetRouter(a.Mapping)
+	// Positions des livreurs en direct sur la carte du back-office (spec 036).
+	a.Mapping.SetEvents(a.Notifications)
 	// Zones de travail proposées au dossier livreur (spec 033).
 	a.Delivery.SetZones(workZones{a.Mapping})
 	a.Delivery.SetPharmacyEarnings(a.Pharmacy)

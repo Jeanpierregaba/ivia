@@ -5,6 +5,7 @@ import { usePathname } from "next/navigation";
 import { useEffect, useState } from "react";
 
 import { LogoTile } from "./brand";
+import { LiveEvents } from "./live-events";
 import { Sidebar, type SidebarCounts } from "./sidebar";
 import { cx } from "./ui";
 
@@ -124,6 +125,7 @@ export function AdminShell({
       </div>
 
       <main className="min-w-0 px-4 pb-16 pt-6 sm:px-6 lg:px-10 lg:pt-9 2xl:px-12">{children}</main>
+      <LiveEvents />
     </div>
   );
 }

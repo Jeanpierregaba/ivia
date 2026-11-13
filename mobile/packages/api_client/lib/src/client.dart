@@ -2,7 +2,9 @@ import 'package:dio/dio.dart';
 import 'package:flutter/foundation.dart';
 import 'package:web_socket_channel/web_socket_channel.dart';
 
-import 'ws_connect_stub.dart' if (dart.library.io) 'ws_connect_io.dart';
+import 'ws_connect_stub.dart'
+    if (dart.library.io) 'ws_connect_io.dart'
+    if (dart.library.js_interop) 'ws_connect_web.dart';
 
 import 'api_config.dart';
 import 'api_exception.dart';
@@ -11,6 +13,7 @@ import 'promo.dart';
 
 part 'business.dart';
 part 'coupons.dart';
+part 'delivery_live.dart';
 part 'ratings.dart';
 part 'geo.dart';
 part 'notifications.dart';

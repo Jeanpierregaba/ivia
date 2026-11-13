@@ -116,3 +116,17 @@ export async function apiRaw(path: string, query: Record<string, string>): Promi
   if (res.status === 401) redirect("/logout");
   return res;
 }
+
+/**
+ * Flux continu (événements en direct du back-office) : même jeton, sans délai, fermé quand le
+ * navigateur se déconnecte (signal). Réservé au Route Handler qui le relaie.
+ */
+export async function apiStream(path: string, signal: AbortSignal): Promise<Response> {
+  const token = await sessionToken();
+  if (!token) return new Response(null, { status: 401 });
+  return fetch(baseUrl() + path, {
+    headers: { Authorization: `Bearer ${token}`, Accept: "text/event-stream" },
+    cache: "no-store",
+    signal,
+  });
+}

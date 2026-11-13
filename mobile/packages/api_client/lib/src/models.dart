@@ -453,6 +453,9 @@ enum DriverReview {
 /// Dossier du livreur connecté (schéma `Driver`). Les documents ne sont
 /// connus que par leur type : leur lien est réservé aux admins.
 class DriverDossier {
+  /// Disponibilité vue par le serveur : `available`, `busy`, `offline` (ou `suspended`).
+  final String availability;
+
   const DriverDossier({
     required this.review,
     required this.reviewNote,
@@ -463,9 +466,14 @@ class DriverDossier {
     required this.documents,
     this.delivery,
     this.payout,
+    this.availability = 'offline',
   });
 
   factory DriverDossier.fromJson(Map<String, dynamic> json) => DriverDossier(
+    availability:
+        json['availability'] as String? ??
+        json['status'] as String? ??
+        'offline',
     review: DriverReview.parse(json['review_status'] as String),
     reviewNote: json['review_note'] as String? ?? '',
     suspended: json['status'] == 'suspended',

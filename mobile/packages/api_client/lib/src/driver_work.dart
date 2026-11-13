@@ -79,6 +79,7 @@ class WorkMission {
           ? null
           : MissionPlace.fromJson(j['customer'] as Map<String, dynamic>),
       assignedAt = DateTime.parse(j['assigned_at'] as String),
+      startedAt = _d(j['started_at']),
       arrivedPickupAt = _d(j['arrived_shop_at']),
       pickedUpAt = _d(j['picked_up_at']),
       arrivedClientAt = _d(j['arrived_customer_at']),
@@ -106,6 +107,8 @@ class WorkMission {
           ? null
           : MissionPlace.fromJson(j['client'] as Map<String, dynamic>),
       assignedAt = DateTime.parse(j['assigned_at'] as String),
+      // Course pharmacie : démarrée dès l'acceptation.
+      startedAt = DateTime.parse(j['assigned_at'] as String),
       arrivedPickupAt = null,
       pickedUpAt = _d(j['picked_up_at']),
       arrivedClientAt = null,
@@ -128,6 +131,9 @@ class WorkMission {
   final MissionPlace pickup;
   final MissionPlace? client;
   final DateTime assignedAt;
+
+  /// « Glisser pour démarrer ma course » fait : en route vers le point de retrait.
+  final DateTime? startedAt;
   final DateTime? arrivedPickupAt,
       pickedUpAt,
       arrivedClientAt,
@@ -198,7 +204,7 @@ extension DriverWorkApi on IviaApiClient {
     return null;
   }
 
-  /// Étape d'une mission de boutique : arrived-at-shop, picked-up, arrived-at-customer.
+  /// Étape d'une mission de boutique : start, arrived-at-shop, picked-up, arrived-at-customer.
   Future<void> missionStep(WorkMission m, String step) => _send(
     'POST',
     m.pharmacy

@@ -13,7 +13,7 @@ import (
 )
 
 const activeDeliveryForDriver = `-- name: ActiveDeliveryForDriver :one
-SELECT id, order_id, driver_id, offer_id, status, fee_xof, assigned_at, arrived_shop_at, picked_up_at, arrived_customer_at, delivered_at, failed_at, failure_reason, call_attempts, ended_at, created_at, updated_at FROM deliveries
+SELECT id, order_id, driver_id, offer_id, status, fee_xof, assigned_at, arrived_shop_at, picked_up_at, arrived_customer_at, delivered_at, failed_at, failure_reason, call_attempts, ended_at, created_at, updated_at, started_at FROM deliveries
 WHERE driver_id = $1 AND status IN ('assigned', 'at_shop', 'picked_up', 'at_customer', 'returning')
 `
 
@@ -38,12 +38,13 @@ func (q *Queries) ActiveDeliveryForDriver(ctx context.Context, driverID uuid.UUI
 		&i.EndedAt,
 		&i.CreatedAt,
 		&i.UpdatedAt,
+		&i.StartedAt,
 	)
 	return i, err
 }
 
 const activeDeliveryForOrder = `-- name: ActiveDeliveryForOrder :one
-SELECT id, order_id, driver_id, offer_id, status, fee_xof, assigned_at, arrived_shop_at, picked_up_at, arrived_customer_at, delivered_at, failed_at, failure_reason, call_attempts, ended_at, created_at, updated_at FROM deliveries
+SELECT id, order_id, driver_id, offer_id, status, fee_xof, assigned_at, arrived_shop_at, picked_up_at, arrived_customer_at, delivered_at, failed_at, failure_reason, call_attempts, ended_at, created_at, updated_at, started_at FROM deliveries
 WHERE order_id = $1 AND status IN ('assigned', 'at_shop', 'picked_up', 'at_customer', 'returning')
 `
 
@@ -68,6 +69,7 @@ func (q *Queries) ActiveDeliveryForOrder(ctx context.Context, orderID uuid.UUID)
 		&i.EndedAt,
 		&i.CreatedAt,
 		&i.UpdatedAt,
+		&i.StartedAt,
 	)
 	return i, err
 }
@@ -155,7 +157,7 @@ const createDelivery = `-- name: CreateDelivery :one
 
 INSERT INTO deliveries (order_id, driver_id, offer_id, fee_xof)
 VALUES ($1, $2, $3, $4)
-RETURNING id, order_id, driver_id, offer_id, status, fee_xof, assigned_at, arrived_shop_at, picked_up_at, arrived_customer_at, delivered_at, failed_at, failure_reason, call_attempts, ended_at, created_at, updated_at
+RETURNING id, order_id, driver_id, offer_id, status, fee_xof, assigned_at, arrived_shop_at, picked_up_at, arrived_customer_at, delivered_at, failed_at, failure_reason, call_attempts, ended_at, created_at, updated_at, started_at
 `
 
 type CreateDeliveryParams struct {
@@ -192,6 +194,7 @@ func (q *Queries) CreateDelivery(ctx context.Context, arg CreateDeliveryParams) 
 		&i.EndedAt,
 		&i.CreatedAt,
 		&i.UpdatedAt,
+		&i.StartedAt,
 	)
 	return i, err
 }
@@ -764,7 +767,7 @@ func (q *Queries) ForgetLocation(ctx context.Context, userID uuid.UUID) error {
 }
 
 const getDelivery = `-- name: GetDelivery :one
-SELECT id, order_id, driver_id, offer_id, status, fee_xof, assigned_at, arrived_shop_at, picked_up_at, arrived_customer_at, delivered_at, failed_at, failure_reason, call_attempts, ended_at, created_at, updated_at FROM deliveries WHERE id = $1
+SELECT id, order_id, driver_id, offer_id, status, fee_xof, assigned_at, arrived_shop_at, picked_up_at, arrived_customer_at, delivered_at, failed_at, failure_reason, call_attempts, ended_at, created_at, updated_at, started_at FROM deliveries WHERE id = $1
 `
 
 func (q *Queries) GetDelivery(ctx context.Context, id uuid.UUID) (Delivery, error) {
@@ -788,6 +791,7 @@ func (q *Queries) GetDelivery(ctx context.Context, id uuid.UUID) (Delivery, erro
 		&i.EndedAt,
 		&i.CreatedAt,
 		&i.UpdatedAt,
+		&i.StartedAt,
 	)
 	return i, err
 }
@@ -1069,7 +1073,7 @@ func (q *Queries) InsertPosition(ctx context.Context, arg InsertPositionParams) 
 }
 
 const latestDeliveryForOrder = `-- name: LatestDeliveryForOrder :one
-SELECT id, order_id, driver_id, offer_id, status, fee_xof, assigned_at, arrived_shop_at, picked_up_at, arrived_customer_at, delivered_at, failed_at, failure_reason, call_attempts, ended_at, created_at, updated_at FROM deliveries WHERE order_id = $1 ORDER BY created_at DESC LIMIT 1
+SELECT id, order_id, driver_id, offer_id, status, fee_xof, assigned_at, arrived_shop_at, picked_up_at, arrived_customer_at, delivered_at, failed_at, failure_reason, call_attempts, ended_at, created_at, updated_at, started_at FROM deliveries WHERE order_id = $1 ORDER BY created_at DESC LIMIT 1
 `
 
 func (q *Queries) LatestDeliveryForOrder(ctx context.Context, orderID uuid.UUID) (Delivery, error) {
@@ -1093,6 +1097,7 @@ func (q *Queries) LatestDeliveryForOrder(ctx context.Context, orderID uuid.UUID)
 		&i.EndedAt,
 		&i.CreatedAt,
 		&i.UpdatedAt,
+		&i.StartedAt,
 	)
 	return i, err
 }
@@ -1224,7 +1229,7 @@ func (q *Queries) ListDocuments(ctx context.Context, driverID uuid.UUID) ([]Driv
 }
 
 const listDriverDeliveries = `-- name: ListDriverDeliveries :many
-SELECT id, order_id, driver_id, offer_id, status, fee_xof, assigned_at, arrived_shop_at, picked_up_at, arrived_customer_at, delivered_at, failed_at, failure_reason, call_attempts, ended_at, created_at, updated_at FROM deliveries WHERE driver_id = $1
+SELECT id, order_id, driver_id, offer_id, status, fee_xof, assigned_at, arrived_shop_at, picked_up_at, arrived_customer_at, delivered_at, failed_at, failure_reason, call_attempts, ended_at, created_at, updated_at, started_at FROM deliveries WHERE driver_id = $1
 ORDER BY created_at DESC
 LIMIT $3 OFFSET $2
 `
@@ -1262,6 +1267,7 @@ func (q *Queries) ListDriverDeliveries(ctx context.Context, arg ListDriverDelive
 			&i.EndedAt,
 			&i.CreatedAt,
 			&i.UpdatedAt,
+			&i.StartedAt,
 		); err != nil {
 			return nil, err
 		}
@@ -1472,7 +1478,7 @@ func (q *Queries) LockAssignment(ctx context.Context, orderID uuid.UUID) (Assign
 }
 
 const lockDelivery = `-- name: LockDelivery :one
-SELECT id, order_id, driver_id, offer_id, status, fee_xof, assigned_at, arrived_shop_at, picked_up_at, arrived_customer_at, delivered_at, failed_at, failure_reason, call_attempts, ended_at, created_at, updated_at FROM deliveries WHERE id = $1 FOR UPDATE
+SELECT id, order_id, driver_id, offer_id, status, fee_xof, assigned_at, arrived_shop_at, picked_up_at, arrived_customer_at, delivered_at, failed_at, failure_reason, call_attempts, ended_at, created_at, updated_at, started_at FROM deliveries WHERE id = $1 FOR UPDATE
 `
 
 func (q *Queries) LockDelivery(ctx context.Context, id uuid.UUID) (Delivery, error) {
@@ -1496,6 +1502,7 @@ func (q *Queries) LockDelivery(ctx context.Context, id uuid.UUID) (Delivery, err
 		&i.EndedAt,
 		&i.CreatedAt,
 		&i.UpdatedAt,
+		&i.StartedAt,
 	)
 	return i, err
 }
@@ -1885,6 +1892,20 @@ func (q *Queries) StartAssignment(ctx context.Context, orderID uuid.UUID) (Assig
 		&i.ClosedAt,
 	)
 	return i, err
+}
+
+const startDelivery = `-- name: StartDelivery :execrows
+UPDATE deliveries SET started_at = now(), updated_at = now()
+WHERE id = $1 AND status = 'assigned' AND started_at IS NULL
+`
+
+// « Démarrer ma course » : en route vers la boutique (une fois).
+func (q *Queries) StartDelivery(ctx context.Context, id uuid.UUID) (int64, error) {
+	result, err := q.db.Exec(ctx, startDelivery, id)
+	if err != nil {
+		return 0, err
+	}
+	return result.RowsAffected(), nil
 }
 
 const suspend = `-- name: Suspend :execrows

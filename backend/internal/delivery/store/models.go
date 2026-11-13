@@ -36,6 +36,7 @@ type Delivery struct {
 	EndedAt           *time.Time
 	CreatedAt         time.Time
 	UpdatedAt         time.Time
+	StartedAt         *time.Time
 }
 
 type DeliveryOffer struct {

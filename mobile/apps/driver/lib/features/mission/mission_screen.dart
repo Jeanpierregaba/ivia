@@ -74,11 +74,25 @@ class _MissionScreenState extends ConsumerState<MissionScreen> {
         mission: m,
         toClient: phase == MissionPhase.toClient,
         onArrived: () => _arrive(m, phase),
+        onStart: () => _start(m),
       ),
       MissionPhase.atPickup => PickupView(mission: m),
       MissionPhase.atClient => ProofView(mission: m),
       MissionPhase.returning => ReturnView(mission: m),
     };
+  }
+
+  /// « Glisser pour démarrer ma course » : en route vers la boutique ; le
+  /// client et la boutique le voient aussitôt.
+  Future<void> _start(WorkMission m) async {
+    final error = await ref
+        .read(workProvider.notifier)
+        .run((api) => api.missionStep(m, 'start'));
+    if (error != null && mounted) {
+      announce(context, error);
+      ScaffoldMessenger.of(context)
+          .showSnackBar(SnackBar(content: Text(error)));
+    }
   }
 
   /// « Glisser à l'arrivée » : étape du serveur (boutique) ou de l'app
@@ -112,10 +126,15 @@ class _RouteView extends ConsumerStatefulWidget {
     required this.mission,
     required this.toClient,
     required this.onArrived,
+    required this.onStart,
   });
   final WorkMission mission;
   final bool toClient;
   final Future<void> Function() onArrived;
+
+  /// Course pas encore démarrée : la glissière la démarre (en route vers la
+  /// boutique), puis devient « Glisser à l'arrivée ».
+  final Future<void> Function() onStart;
 
   @override
   ConsumerState<_RouteView> createState() => _RouteViewState();
@@ -132,7 +151,8 @@ class _RouteViewState extends ConsumerState<_RouteView> {
   @override
   void initState() {
     super.initState();
-    // Itinéraire relu à la minute (la position avance entre-temps).
+    // Itinéraire relu à la minute, et plus tôt si le livreur s'écarte (voir
+    // build) : il suit ses déplacements réels.
     _refresh = Timer.periodic(const Duration(minutes: 1), (_) {
       _routedFrom = null;
       if (mounted) setState(() {});
@@ -189,7 +209,11 @@ class _RouteViewState extends ConsumerState<_RouteView> {
         ref.watch(driverDossierProvider).value?.vehicleType ??
         VehicleType.motorbike;
     final to = target?.location;
-    if (here != null && to != null && _routedFrom == null) {
+    final from = _routedFrom;
+    // Écart de plus de 150 m depuis le dernier calcul : nouvel itinéraire.
+    final drifted =
+        from != null && here != null && straightMeters(from, here) > 150;
+    if (here != null && to != null && (from == null || drifted)) {
       unawaited(_fetchRoute(here, to, vehicle));
     }
     final leg = here != null && to != null
@@ -200,6 +224,7 @@ class _RouteViewState extends ConsumerState<_RouteView> {
           )
         : null;
     final navApp = ref.watch(navAppProvider).value ?? NavApp.google;
+    final notStarted = !widget.toClient && !m.pharmacy && m.startedAt == null;
     return LayoutBuilder(
       builder: (context, box) => Column(
         children: [
@@ -276,10 +301,21 @@ class _RouteViewState extends ConsumerState<_RouteView> {
                             navApp: navApp,
                           ),
                         const SizedBox(height: 16),
-                        DSlide(
-                          label: "Glisser à l'arrivée",
-                          dark: true,
-                          onConfirmed: widget.onArrived,
+                        AnimatedSwitcher(
+                          duration: IviaMotion.medium,
+                          child: notStarted
+                              ? DSlide(
+                                  key: const ValueKey('start'),
+                                  label: 'Glisser pour démarrer ma course',
+                                  dark: true,
+                                  onConfirmed: widget.onStart,
+                                )
+                              : DSlide(
+                                  key: const ValueKey('arrive'),
+                                  label: "Glisser à l'arrivée",
+                                  dark: true,
+                                  onConfirmed: widget.onArrived,
+                                ),
                         ),
                         ProblemButton(
                           mission: m,

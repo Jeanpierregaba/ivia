@@ -6,6 +6,7 @@ import { Bike, Car, Crosshair, Lock, MapPin, Phone, Route, Search } from "lucide
 import Link from "next/link";
 import { useEffect, useMemo, useRef, useState } from "react";
 
+import { LIVE_EVENT, type LiveEvent } from "@/components/live-events";
 import { cx } from "@/components/ui";
 import { createEngine, type MapEngine } from "./map-engines";
 
@@ -25,7 +26,7 @@ export type FleetDriver = {
 };
 type TrailPoint = { lat: number; lng: number; recorded_at: string };
 
-const REFRESH_MS = 10_000;
+const REFRESH_MS = 30_000;
 const STALE_MS = 10 * 60_000;
 
 const time = new Intl.DateTimeFormat("fr-FR", {
@@ -46,7 +47,7 @@ function lookOf(d: FleetDriver, now: number): Look {
 }
 
 const MISSION: Record<string, string> = {
-  assigned: "vers la boutique",
+  assigned: "course acceptée, vers la boutique",
   at_shop: "à la boutique",
   picked_up: "vers le client",
   at_customer: "chez le client",
@@ -98,6 +99,24 @@ export function FleetMap({
   const [trail, setTrail] = useState<TrailPoint[] | null>(null);
   const [trailHours, setTrailHours] = useState(6);
   const [error, setError] = useState<string | null>(null);
+  const driversRef = useRef(drivers);
+  const selectedRef = useRef(selected);
+  useEffect(() => {
+    driversRef.current = drivers;
+    selectedRef.current = selected;
+  }, [drivers, selected]);
+
+  const refreshFleet = async () => {
+    try {
+      const res = await fetch("/fleet/data?hours=24", { cache: "no-store" });
+      if (!res.ok) throw new Error();
+      setDrivers(((await res.json()) as { items: FleetDriver[] }).items);
+      setNow(Date.now());
+      setError(null);
+    } catch {
+      setError("Connexion perdue, nouvel essai dans quelques secondes…");
+    }
+  };
 
   // Carte créée une fois, côté navigateur : Google Maps, ou OpenStreetMap en secours.
   useEffect(() => {
@@ -117,7 +136,54 @@ export function FleetMap({
     };
   }, [googleKey]);
 
-  // Rafraîchissement en direct tant que l'onglet est visible.
+  // Positions et étapes poussées par le serveur (flux du back-office, spec 036) : le marqueur
+  // avance aussitôt ; une étape ou un statut relit la flotte.
+  useEffect(() => {
+    let reload: ReturnType<typeof setTimeout> | undefined;
+    const onLive = (ev: Event) => {
+      const e = (ev as CustomEvent<LiveEvent>).detail;
+      if (e.kind === "driver_position") {
+        const lat = Number(e.data.lat);
+        const lng = Number(e.data.lng);
+        if (!Number.isFinite(lat) || !Number.isFinite(lng)) return;
+        setDrivers((list) =>
+          list.map((d) =>
+            d.id === e.data.driver_id
+              ? {
+                  ...d,
+                  lat,
+                  lng,
+                  located_at: e.at,
+                  availability: e.data.status ?? d.availability,
+                  mission_order_id: e.data.order_id ?? d.mission_order_id,
+                }
+              : d,
+          ),
+        );
+        setNow(Date.now());
+        // Livreur pas encore sur la carte : relire la flotte.
+        if (!driversRef.current.some((d) => d.id === e.data.driver_id)) {
+          clearTimeout(reload);
+          reload = setTimeout(() => void refreshFleet(), 500);
+        }
+        if (e.data.driver_id === selectedRef.current) {
+          setTrail((t) => (t ? [...t, { lat, lng, recorded_at: e.at }] : t));
+        }
+        return;
+      }
+      if (e.kind === "delivery_step" || e.kind === "order_status") {
+        clearTimeout(reload);
+        reload = setTimeout(() => void refreshFleet(), 400);
+      }
+    };
+    window.addEventListener(LIVE_EVENT, onLive);
+    return () => {
+      clearTimeout(reload);
+      window.removeEventListener(LIVE_EVENT, onLive);
+    };
+  }, []);
+
+  // Relecture de secours tant que l'onglet est visible.
   useEffect(() => {
     const tick = async () => {
       if (document.visibilityState !== "visible") return;

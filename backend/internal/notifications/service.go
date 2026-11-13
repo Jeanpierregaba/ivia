@@ -87,11 +87,12 @@ type Service struct {
 	devices Devices
 	push    PushSender
 	logger  *slog.Logger
+	bus     *Bus
 }
 
 // NewService crée le service.
 func NewService(db *database.DB, enq jobs.Enqueuer, devices Devices, push PushSender, logger *slog.Logger) *Service {
-	return &Service{db: db, jobs: enq, devices: devices, push: push, logger: logger}
+	return &Service{db: db, jobs: enq, devices: devices, push: push, logger: logger, bus: newBus()}
 }
 
 // Notify enregistre la notification et planifie son envoi push.
@@ -111,9 +112,7 @@ func (s *Service) Notify(ctx context.Context, m Message) error {
 		if err != nil {
 			return fmt.Errorf("création de la notification : %w", err)
 		}
-		if m.App == AppAdmin {
-			return nil // le back-office n'a pas de push : la liste suffit.
-		}
+		// Back-office : pas de push, seulement la publication en direct (même tâche).
 		return s.jobs.Enqueue(ctx, SendPushArgs{NotificationID: id}, nil)
 	})
 }
@@ -211,6 +210,11 @@ func (s *Service) sendPush(ctx context.Context, id uuid.UUID) error {
 	if n.PushSentAt != nil {
 		return nil // déjà envoyée (tâche rejouée)
 	}
+	// App ouverte : l'événement arrive tout de suite, avant même le push.
+	s.publishNotification(toNotification(n), n.UserID)
+	if App(n.App) == AppAdmin {
+		return q.MarkPushSent(ctx, n.ID)
+	}
 	tokens, err := s.devices.PushDevices(ctx, n.UserID, n.App)
 	if err != nil {
 		return err
@@ -273,4 +277,5 @@ func (w *sendPushWorker) Work(ctx context.Context, job *river.Job[SendPushArgs])
 // RegisterJobs déclare les tâches de fond du module.
 func (s *Service) RegisterJobs(reg *jobs.Registry) {
 	river.AddWorker(reg.Workers, &sendPushWorker{svc: s})
+	river.AddWorker(reg.Workers, &signalWorker{svc: s})
 }

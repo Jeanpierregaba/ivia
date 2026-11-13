@@ -2314,6 +2314,32 @@ void main() {
       expect(find.textContaining('a été annulée'), findsNothing);
     });
 
+    testWidgets(
+      'course acceptée : « Glisser pour démarrer ma course », puis arrivée',
+      (tester) async {
+        var started = 0;
+        await withMission(tester, driverMissionBody(started: false));
+        server.on('POST', '/v1/driver/missions/mission-1/start', (_) {
+          started++;
+          server.on(
+            'GET',
+            '/v1/driver/missions/current',
+            (_) => FakeResponse.json(200, {'mission': driverMissionBody()}),
+          );
+          return FakeResponse.json(200, driverMissionBody());
+        });
+        expect(find.text('Glisser pour démarrer ma course'), findsOneWidget);
+        expect(find.text("Glisser à l'arrivée"), findsNothing);
+        await slideToEnd(tester);
+        for (var i = 0; i < 8; i++) {
+          await tester.pump(const Duration(milliseconds: 300));
+        }
+        expect(started, 1);
+        expect(find.text('Glisser pour démarrer ma course'), findsNothing);
+        expect(find.text("Glisser à l'arrivée"), findsOneWidget);
+      },
+    );
+
     testWidgets('commande annulée pendant le trajet : message, accueil', (
       tester,
     ) async {

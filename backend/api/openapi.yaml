@@ -4091,6 +4091,74 @@ paths:
             application/json:
               schema:
                 "$ref": "#/components/schemas/Error"
+  "/v1/ws/events":
+    get:
+      summary: "WebSocket : événements en direct d'une app (notifications, étapes des courses). Navigateur : jeton dans le sous-protocole ivia-bearer"
+      tags:
+        - Compte
+      operationId: getWsEvents
+      parameters:
+        - {name: app, in: query, required: false, schema: {type: string, enum: [buyer, seller, driver, admin, pharmacy]}}
+      x-roles:
+        - any
+      responses:
+        "101":
+          description: "Connexion WebSocket"
+        default:
+          description: "Erreur (voir `code`)"
+          content:
+            application/json:
+              schema:
+                "$ref": "#/components/schemas/Error"
+  "/v1/admin/stream":
+    get:
+      summary: "Flux SSE du back-office : notifications, étapes des courses, positions des livreurs"
+      tags:
+        - Admin
+      operationId: getAdminStream
+      x-roles:
+        - admin
+      responses:
+        "200":
+          description: "Flux text/event-stream"
+          content:
+            text/event-stream:
+              schema:
+                type: string
+        default:
+          description: "Erreur (voir `code`)"
+          content:
+            application/json:
+              schema:
+                "$ref": "#/components/schemas/Error"
+  "/v1/driver/missions/{id}/start":
+    post:
+      summary: "Démarrer ma course (en route vers la boutique)"
+      tags:
+        - Livreur
+      operationId: postDriverMissionsByIdStart
+      parameters:
+        - name: id
+          in: path
+          required: true
+          schema:
+            type: string
+            format: uuid
+      x-roles:
+        - driver
+      responses:
+        "200":
+          description: "Succès"
+          content:
+            application/json:
+              schema:
+                "$ref": "#/components/schemas/Mission"
+        default:
+          description: "Erreur (voir `code`)"
+          content:
+            application/json:
+              schema:
+                "$ref": "#/components/schemas/Error"
   "/v1/driver/me":
     get:
       summary: "Mon dossier de livreur"
@@ -15354,6 +15422,11 @@ components:
     Mission:
       type: object
       properties:
+        started_at:
+          type:
+            - string
+            - "null"
+          format: date-time
         id:
           type: string
           format: uuid
@@ -15452,6 +15525,29 @@ components:
     DeliveryInfo:
       type: object
       properties:
+        step:
+          type: string
+          enum: [accepted, heading_to_shop, at_shop, heading_to_customer, at_customer, delivered, returning, ended]
+        started_at:
+          type:
+            - string
+            - "null"
+          format: date-time
+        arrived_shop_at:
+          type:
+            - string
+            - "null"
+          format: date-time
+        arrived_customer_at:
+          type:
+            - string
+            - "null"
+          format: date-time
+        delivered_at:
+          type:
+            - string
+            - "null"
+          format: date-time
         status:
           type: string
         driver_first_name:

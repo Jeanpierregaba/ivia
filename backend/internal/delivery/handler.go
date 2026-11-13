@@ -50,6 +50,7 @@ func (h *Handler) Register(rt *httpapi.Router) {
 	rt.Roles("GET /v1/driver/missions/current", h.currentMission, identity.RoleDriver)
 	rt.Roles("GET /v1/driver/missions", h.history, identity.RoleDriver)
 	rt.Roles("GET /v1/driver/summary", h.summary, identity.RoleDriver)
+	rt.Roles("POST /v1/driver/missions/{id}/start", h.step(h.svc.Start), identity.RoleDriver)
 	rt.Roles("POST /v1/driver/missions/{id}/arrived-at-shop", h.step(h.svc.ArrivedAtShop), identity.RoleDriver)
 	rt.Roles("POST /v1/driver/missions/{id}/picked-up", h.step(h.svc.PickedUp), identity.RoleDriver)
 	rt.Roles("POST /v1/driver/missions/{id}/arrived-at-customer", h.step(h.svc.ArrivedAtCustomer), identity.RoleDriver)

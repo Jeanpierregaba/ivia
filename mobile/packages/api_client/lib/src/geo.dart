@@ -160,15 +160,16 @@ extension GeoApi on IviaApiClient {
     },
   );
 
-  /// Connexion temps réel ; `null` dans un navigateur, qui ne peut pas envoyer le jeton en en-tête
-  /// (il ne doit jamais passer dans l'URL).
-  WebSocketChannel? openSocket(String path) {
+  /// Connexion temps réel (jeton en en-tête sur téléphone, en sous-protocole dans un navigateur ;
+  /// jamais dans l'URL). `null` : pas connecté.
+  WebSocketChannel? openSocket(String path, {Map<String, String>? query}) {
     final t = token;
     if (t == null) return null;
     final base = Uri.parse(_dio.options.baseUrl);
     final uri = base.replace(
       scheme: base.scheme == 'https' ? 'wss' : 'ws',
       path: path,
+      queryParameters: query,
     );
     return connectWebSocket(uri, t);
   }

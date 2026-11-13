@@ -449,6 +449,7 @@ Map<String, dynamic> driverOfferBody({
 /// Mission boutique en cours (schéma `Mission`) : Chez Afi (Tokoin), puis
 /// Awa M. à Bè Kpota. Les étapes passées sont datées.
 Map<String, dynamic> driverMissionBody({
+  bool started = true,
   bool arrivedShop = false,
   bool pickedUp = false,
   bool arrivedCustomer = false,
@@ -478,6 +479,7 @@ Map<String, dynamic> driverMissionBody({
       'location': {'lat': 6.1600, 'lng': 1.2400},
     },
     'assigned_at': at,
+    'started_at': started || arrivedShop || pickedUp ? at : null,
     'arrived_shop_at': arrivedShop ? at : null,
     'picked_up_at': pickedUp ? at : null,
     'arrived_customer_at': arrivedCustomer ? at : null,

@@ -2,6 +2,7 @@ package mapping
 
 import (
 	"context"
+	"fmt"
 	"net/http"
 	"sync"
 	"time"
@@ -331,7 +332,7 @@ func (s *Service) registerWS(rt *httpapi.Router, drivers *delivery.Service) {
 		if err != nil {
 			return err
 		}
-		conn, err := websocket.Accept(w, r, nil)
+		conn, err := httpapi.AcceptWebSocket(w, r)
 		if err != nil {
 			return nil // réponse déjà écrite par Accept
 		}
@@ -384,6 +385,17 @@ func (s *Service) registerWS(rt *httpapi.Router, drivers *delivery.Service) {
 			if err := s.drivers.Upsert(ctx, pos); err != nil {
 				s.logger.Warn("position temps réel", "err", err)
 			}
+			if s.events != nil {
+				// Back-office : position en direct sur la carte de la flotte.
+				ev := map[string]string{
+					"driver_id": userID.String(), "lat": fmt.Sprint(m.Lat), "lng": fmt.Sprint(m.Lng),
+					"heading": fmt.Sprint(m.Heading), "status": status,
+				}
+				if order != uuid.Nil {
+					ev["order_id"] = order.String()
+				}
+				s.events.PublishAdmins("driver_position", ev)
+			}
 			if trip != uuid.Nil {
 				now := time.Now()
 				speed, heading := float32(m.Speed), float32(m.Heading)
@@ -401,14 +413,19 @@ func (s *Service) registerWS(rt *httpapi.Router, drivers *delivery.Service) {
 		if err != nil {
 			return err
 		}
-		info, err := drivers.InfoForBuyer(r.Context(), who(r).UserID, id)
+		// Acheteur de la commande, ou marchand de la boutique (spec 036).
+		p := who(r)
+		info, err := drivers.InfoForBuyer(r.Context(), p.UserID, id)
+		if apperr.IsCode(err, "order_not_found") && p.HasRole(identity.RoleSeller) {
+			info, err = drivers.InfoForSeller(r.Context(), p.UserID, id)
+		}
 		if err != nil {
 			return err
 		}
 		if info == nil {
 			return apperr.NotFound("delivery_not_found", "Pas de livraison en cours.")
 		}
-		conn, err := websocket.Accept(w, r, nil)
+		conn, err := httpapi.AcceptWebSocket(w, r)
 		if err != nil {
 			return nil
 		}

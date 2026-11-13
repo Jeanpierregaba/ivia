@@ -71,6 +71,7 @@ class _SellerShellState extends ConsumerState<SellerShell> {
   @override
   void dispose() {
     _stop();
+    unawaited(_live?.cancel());
     unawaited(_ringer.stop());
     _lifecycle.dispose();
     super.dispose();
@@ -79,7 +80,13 @@ class _SellerShellState extends ConsumerState<SellerShell> {
   void _start() {
     _timer?.cancel();
     _timer = Timer.periodic(ordersRefreshInterval, (_) => _poll());
+    // Temps réel (spec 036) : un paiement reçu fait apparaître la commande aussitôt.
+    _live ??= ref.read(iviaRealtimeProvider('seller')).events.listen((e) {
+      if (e.orderId != null || e.kind == RealtimeEvent.reconnected) _poll();
+    });
   }
+
+  StreamSubscription<RealtimeEvent>? _live;
 
   /// Relecture légère toutes les 30 s : les nouvelles commandes seulement.
   void _poll() {

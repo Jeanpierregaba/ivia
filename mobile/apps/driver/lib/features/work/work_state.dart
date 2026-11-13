@@ -79,8 +79,19 @@ class WorkController extends Notifier<WorkState> {
       _poll?.cancel();
       _gps?.cancel();
     });
-    _poll = Timer.periodic(const Duration(seconds: 4), (_) => refresh());
+    // Temps réel (spec 036) : une proposition ou un changement de mission arrive aussitôt ; la
+    // relecture régulière ne sert plus que de secours (plus espacée quand la connexion tient).
+    final live = ref.read(iviaRealtimeProvider('driver'));
+    final sub = live.events.listen((_) => unawaited(refresh()));
+    ref.onDispose(sub.cancel);
+    _poll = Timer.periodic(const Duration(seconds: 4), (_) {
+      final quiet = DateTime.now().difference(_lastRefresh);
+      if (!live.connected || quiet > const Duration(seconds: 20)) {
+        unawaited(refresh());
+      }
+    });
     unawaited(refresh());
+    unawaited(_restoreOnline());
     return const WorkState();
   }
 
@@ -140,7 +151,29 @@ class WorkController extends Notifier<WorkState> {
   static const cancelledMessage =
       'La commande a été annulée : la mission est terminée.';
 
+  var _lastRefresh = DateTime.fromMillisecondsSinceEpoch(0);
+
+  /// App relancée (ou page rechargée) alors que le serveur la voit en ligne : l'app reprend en
+  /// ligne (positions, propositions) au lieu de se croire hors ligne.
+  Future<void> _restoreOnline() async {
+    try {
+      final me = await _api.driverMe();
+      final online =
+          me?.availability == 'available' || me?.availability == 'busy';
+      if (!online || state.online) return;
+      state = state.copy(online: true);
+      _gps ??= Timer.periodic(
+        const Duration(seconds: 5),
+        (_) => _sendLocation(),
+      );
+      await refresh();
+    } on ApiException {
+      // Relu au prochain lancement.
+    }
+  }
+
   Future<void> refresh() async {
+    _lastRefresh = DateTime.now();
     final generation = _generation;
     try {
       final mission = await _api.currentWorkMission();
@@ -286,5 +319,6 @@ final herePositionProvider = StreamProvider.autoDispose<GeoPoint?>((
   }
 
   yield await read();
-  yield* Stream.periodic(const Duration(seconds: 10)).asyncMap((_) => read());
+  // Position relue toutes les 4 s : le marqueur avance avec le livreur (spec 036).
+  yield* Stream.periodic(const Duration(seconds: 4)).asyncMap((_) => read());
 });

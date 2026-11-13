@@ -48,8 +48,16 @@ class _NotificationWatcherState extends ConsumerState<NotificationWatcher>
             .read(iviaPushProvider('buyer'))
             .start(onOpen: _openTarget, onReceived: (_) => _poll()),
       );
+      // Temps réel (spec 036) : la cloche se met à jour dès l'événement.
+      _live = ref.read(iviaRealtimeProvider('buyer')).events.listen((e) {
+        if (e.isNotification || e.kind == RealtimeEvent.reconnected) {
+          unawaited(_poll());
+        }
+      });
     }
   }
+
+  StreamSubscription<RealtimeEvent>? _live;
 
   void _openTarget(Map<String, String> d) {
     final target = switch (d) {
@@ -77,6 +85,7 @@ class _NotificationWatcherState extends ConsumerState<NotificationWatcher>
   }
 
   Future<void> _poll() async {
+    unawaited(_live?.cancel());
     if (_busy || ref.read(authControllerProvider) is! AuthSignedIn) return;
     _busy = true;
     try {

@@ -466,3 +466,8 @@ FROM driver_positions
 WHERE driver_id = $1 AND recorded_at > now() - make_interval(hours => sqlc.arg(hours)::int)
 ORDER BY recorded_at
 LIMIT 3000;
+
+-- name: StartDelivery :execrows
+-- « Démarrer ma course » : en route vers la boutique (une fois).
+UPDATE deliveries SET started_at = now(), updated_at = now()
+WHERE id = $1 AND status = 'assigned' AND started_at IS NULL;

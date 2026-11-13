@@ -230,7 +230,7 @@ class _PickupViewState extends ConsumerState<PickupView> {
               children: [
                 if (!byCode)
                   DSlide(
-                    label: 'Glisser : colis récupéré',
+                    label: 'Glisser pour démarrer ma course vers le client',
                     dark: true,
                     onConfirmed: ready && !busy ? _pickedUp : null,
                   ),

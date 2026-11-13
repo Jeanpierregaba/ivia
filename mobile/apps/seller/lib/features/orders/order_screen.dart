@@ -56,6 +56,7 @@ class _OrderScreenState extends ConsumerState<OrderScreen> {
   @override
   void dispose() {
     _stop();
+    unawaited(_live?.cancel());
     _lifecycle.dispose();
     super.dispose();
   }
@@ -63,7 +64,15 @@ class _OrderScreenState extends ConsumerState<OrderScreen> {
   void _start() {
     _timer?.cancel();
     _timer = Timer.periodic(ordersRefreshInterval, (_) => _tick());
+    // Temps réel (spec 036) : la commande est relue dès qu'elle change.
+    _live ??= ref.read(iviaRealtimeProvider('seller')).events.listen((e) {
+      if (e.orderId == widget.orderId || e.kind == RealtimeEvent.reconnected) {
+        _reload();
+      }
+    });
   }
+
+  StreamSubscription<RealtimeEvent>? _live;
 
   void _stop() {
     _timer?.cancel();
@@ -218,6 +227,16 @@ class _OrderScreenState extends ConsumerState<OrderScreen> {
                 const SizedBox(height: IviaSpacing.lg),
                 _Header(order: order, onExpired: _onExpired),
                 const SizedBox(height: IviaSpacing.lg),
+                if (order.fulfillment == Fulfillment.delivery &&
+                    (order.status == OrderStatus.driverAssigned ||
+                        order.status == OrderStatus.pickedUp))
+                  DeliveryProgress(
+                    key: ValueKey('livraison-${order.id}'),
+                    orderId: order.id,
+                    app: 'seller',
+                    customerView: false,
+                    load: (api, id) => api.sellerOrderDelivery(id),
+                  ),
                 _Items(order: order),
                 const SizedBox(height: IviaSpacing.lg),
                 _Amounts(order: order),

@@ -146,6 +146,10 @@ func (s *Service) effects(ctx context.Context, before, o Order) error {
 	}
 	ref := o.Reference
 	both := func(errs ...error) error { return errors.Join(errs...) }
+	// Back-office ouvert : le changement de statut s'affiche aussitôt (spec 036).
+	if err := s.notify.SignalAdmins(ctx, "order_status", map[string]string{"order_id": o.ID.String(), "status": string(o.Status)}); err != nil {
+		return err
+	}
 
 	switch o.Status {
 	case StatusAwaitingSeller:
@@ -185,7 +189,10 @@ func (s *Service) effects(ctx context.Context, before, o Order) error {
 			seller("driver_assigned", "Livreur en route", "Un livreur arrive pour la commande "+ref+"."),
 		)
 	case StatusPickedUp:
-		return buyer("order_picked_up", "Commande en route", "Votre commande "+ref+" est en cours de livraison. Préparez votre code de remise.")
+		return both(
+			buyer("order_picked_up", "Commande en route", "Votre commande "+ref+" est en cours de livraison. Préparez votre code de remise."),
+			seller("order_picked_up", "Colis récupéré", "Le livreur a récupéré la commande "+ref+" et part chez le client."),
+		)
 	case StatusDelivered, StatusCompleted:
 		return both(
 			buyer("order_completed", "Commande remise", "Votre commande "+ref+" vous a été remise. Merci !"),
