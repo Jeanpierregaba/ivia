@@ -109,7 +109,7 @@ func (q *Queries) DeleteMerchantDocumentsOf(ctx context.Context, ownerID uuid.UU
 
 const getShop = `-- name: GetShop :one
 SELECT s.id, s.owner_id, s.name, s.description, s.phone, s.address_text, s.neighborhood_id, s.logo_key,
-       s.status, s.status_reason, s.accepting_orders, s.reviewed_at, s.reviewed_by, s.created_at, s.updated_at,
+       s.status, s.status_reason, s.accepting_orders, s.managed_by_platform, s.reviewed_at, s.reviewed_by, s.created_at, s.updated_at,
        ST_Y(s.location::geometry)::float8 AS lat,
        ST_X(s.location::geometry)::float8 AS lng,
        s.category_id, coalesce(c.name, '')::text AS category_name
@@ -119,25 +119,26 @@ WHERE s.id = $1
 `
 
 type GetShopRow struct {
-	ID              uuid.UUID
-	OwnerID         uuid.UUID
-	Name            string
-	Description     string
-	Phone           string
-	AddressText     string
-	NeighborhoodID  *uuid.UUID
-	LogoKey         *string
-	Status          string
-	StatusReason    string
-	AcceptingOrders bool
-	ReviewedAt      *time.Time
-	ReviewedBy      *uuid.UUID
-	CreatedAt       time.Time
-	UpdatedAt       time.Time
-	Lat             float64
-	Lng             float64
-	CategoryID      *uuid.UUID
-	CategoryName    string
+	ID                uuid.UUID
+	OwnerID           uuid.UUID
+	Name              string
+	Description       string
+	Phone             string
+	AddressText       string
+	NeighborhoodID    *uuid.UUID
+	LogoKey           *string
+	Status            string
+	StatusReason      string
+	AcceptingOrders   bool
+	ManagedByPlatform bool
+	ReviewedAt        *time.Time
+	ReviewedBy        *uuid.UUID
+	CreatedAt         time.Time
+	UpdatedAt         time.Time
+	Lat               float64
+	Lng               float64
+	CategoryID        *uuid.UUID
+	CategoryName      string
 }
 
 func (q *Queries) GetShop(ctx context.Context, id uuid.UUID) (GetShopRow, error) {
@@ -155,6 +156,7 @@ func (q *Queries) GetShop(ctx context.Context, id uuid.UUID) (GetShopRow, error)
 		&i.Status,
 		&i.StatusReason,
 		&i.AcceptingOrders,
+		&i.ManagedByPlatform,
 		&i.ReviewedAt,
 		&i.ReviewedBy,
 		&i.CreatedAt,
@@ -266,6 +268,30 @@ func (q *Queries) ListAllShopCategories(ctx context.Context) ([]ShopCategory, er
 	return items, nil
 }
 
+const listManagedShopIDs = `-- name: ListManagedShopIDs :many
+SELECT id FROM shops WHERE managed_by_platform ORDER BY created_at
+`
+
+func (q *Queries) ListManagedShopIDs(ctx context.Context) ([]uuid.UUID, error) {
+	rows, err := q.db.Query(ctx, listManagedShopIDs)
+	if err != nil {
+		return nil, err
+	}
+	defer rows.Close()
+	items := []uuid.UUID{}
+	for rows.Next() {
+		var id uuid.UUID
+		if err := rows.Scan(&id); err != nil {
+			return nil, err
+		}
+		items = append(items, id)
+	}
+	if err := rows.Err(); err != nil {
+		return nil, err
+	}
+	return items, nil
+}
+
 const listMerchantDocuments = `-- name: ListMerchantDocuments :many
 SELECT id, owner_id, kind, object_key, created_at FROM merchant_documents WHERE owner_id = $1 ORDER BY created_at
 `
@@ -322,7 +348,7 @@ func (q *Queries) ListShopIDsByOwner(ctx context.Context, ownerID uuid.UUID) ([]
 
 const listShopsByOwner = `-- name: ListShopsByOwner :many
 SELECT s.id, s.owner_id, s.name, s.description, s.phone, s.address_text, s.neighborhood_id, s.logo_key,
-       s.status, s.status_reason, s.accepting_orders, s.reviewed_at, s.reviewed_by, s.created_at, s.updated_at,
+       s.status, s.status_reason, s.accepting_orders, s.managed_by_platform, s.reviewed_at, s.reviewed_by, s.created_at, s.updated_at,
        ST_Y(s.location::geometry)::float8 AS lat,
        ST_X(s.location::geometry)::float8 AS lng,
        s.category_id, coalesce(c.name, '')::text AS category_name
@@ -333,25 +359,26 @@ ORDER BY s.created_at
 `
 
 type ListShopsByOwnerRow struct {
-	ID              uuid.UUID
-	OwnerID         uuid.UUID
-	Name            string
-	Description     string
-	Phone           string
-	AddressText     string
-	NeighborhoodID  *uuid.UUID
-	LogoKey         *string
-	Status          string
-	StatusReason    string
-	AcceptingOrders bool
-	ReviewedAt      *time.Time
-	ReviewedBy      *uuid.UUID
-	CreatedAt       time.Time
-	UpdatedAt       time.Time
-	Lat             float64
-	Lng             float64
-	CategoryID      *uuid.UUID
-	CategoryName    string
+	ID                uuid.UUID
+	OwnerID           uuid.UUID
+	Name              string
+	Description       string
+	Phone             string
+	AddressText       string
+	NeighborhoodID    *uuid.UUID
+	LogoKey           *string
+	Status            string
+	StatusReason      string
+	AcceptingOrders   bool
+	ManagedByPlatform bool
+	ReviewedAt        *time.Time
+	ReviewedBy        *uuid.UUID
+	CreatedAt         time.Time
+	UpdatedAt         time.Time
+	Lat               float64
+	Lng               float64
+	CategoryID        *uuid.UUID
+	CategoryName      string
 }
 
 func (q *Queries) ListShopsByOwner(ctx context.Context, ownerID uuid.UUID) ([]ListShopsByOwnerRow, error) {
@@ -375,6 +402,7 @@ func (q *Queries) ListShopsByOwner(ctx context.Context, ownerID uuid.UUID) ([]Li
 			&i.Status,
 			&i.StatusReason,
 			&i.AcceptingOrders,
+			&i.ManagedByPlatform,
 			&i.ReviewedAt,
 			&i.ReviewedBy,
 			&i.CreatedAt,
@@ -396,7 +424,7 @@ func (q *Queries) ListShopsByOwner(ctx context.Context, ownerID uuid.UUID) ([]Li
 
 const listShopsByStatus = `-- name: ListShopsByStatus :many
 SELECT s.id, s.owner_id, s.name, s.description, s.phone, s.address_text, s.neighborhood_id, s.logo_key,
-       s.status, s.status_reason, s.accepting_orders, s.reviewed_at, s.reviewed_by, s.created_at, s.updated_at,
+       s.status, s.status_reason, s.accepting_orders, s.managed_by_platform, s.reviewed_at, s.reviewed_by, s.created_at, s.updated_at,
        ST_Y(s.location::geometry)::float8 AS lat,
        ST_X(s.location::geometry)::float8 AS lng,
        s.category_id, coalesce(c.name, '')::text AS category_name
@@ -416,25 +444,26 @@ type ListShopsByStatusParams struct {
 }
 
 type ListShopsByStatusRow struct {
-	ID              uuid.UUID
-	OwnerID         uuid.UUID
-	Name            string
-	Description     string
-	Phone           string
-	AddressText     string
-	NeighborhoodID  *uuid.UUID
-	LogoKey         *string
-	Status          string
-	StatusReason    string
-	AcceptingOrders bool
-	ReviewedAt      *time.Time
-	ReviewedBy      *uuid.UUID
-	CreatedAt       time.Time
-	UpdatedAt       time.Time
-	Lat             float64
-	Lng             float64
-	CategoryID      *uuid.UUID
-	CategoryName    string
+	ID                uuid.UUID
+	OwnerID           uuid.UUID
+	Name              string
+	Description       string
+	Phone             string
+	AddressText       string
+	NeighborhoodID    *uuid.UUID
+	LogoKey           *string
+	Status            string
+	StatusReason      string
+	AcceptingOrders   bool
+	ManagedByPlatform bool
+	ReviewedAt        *time.Time
+	ReviewedBy        *uuid.UUID
+	CreatedAt         time.Time
+	UpdatedAt         time.Time
+	Lat               float64
+	Lng               float64
+	CategoryID        *uuid.UUID
+	CategoryName      string
 }
 
 func (q *Queries) ListShopsByStatus(ctx context.Context, arg ListShopsByStatusParams) ([]ListShopsByStatusRow, error) {
@@ -463,6 +492,7 @@ func (q *Queries) ListShopsByStatus(ctx context.Context, arg ListShopsByStatusPa
 			&i.Status,
 			&i.StatusReason,
 			&i.AcceptingOrders,
+			&i.ManagedByPlatform,
 			&i.ReviewedAt,
 			&i.ReviewedBy,
 			&i.CreatedAt,
@@ -523,6 +553,23 @@ func (q *Queries) PendingShopsOverview(ctx context.Context) (PendingShopsOvervie
 	var i PendingShopsOverviewRow
 	err := row.Scan(&i.N, &i.Oldest)
 	return i, err
+}
+
+const setManagedByPlatform = `-- name: SetManagedByPlatform :execrows
+UPDATE shops SET managed_by_platform = $1, updated_at = now() WHERE id = $2
+`
+
+type SetManagedByPlatformParams struct {
+	Managed bool
+	ID      uuid.UUID
+}
+
+func (q *Queries) SetManagedByPlatform(ctx context.Context, arg SetManagedByPlatformParams) (int64, error) {
+	result, err := q.db.Exec(ctx, setManagedByPlatform, arg.Managed, arg.ID)
+	if err != nil {
+		return 0, err
+	}
+	return result.RowsAffected(), nil
 }
 
 const setShopStatus = `-- name: SetShopStatus :execrows

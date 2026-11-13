@@ -152,9 +152,16 @@ func (s *Service) effects(ctx context.Context, before, o Order) error {
 		if err := s.jobs.Enqueue(ctx, SellerTimeoutArgs{OrderID: o.ID}, atTime(*o.SellerDeadlineAt)); err != nil {
 			return err
 		}
+		var platform error
+		if shop.ManagedByPlatform {
+			// Boutique gérée par ivia : la commande arrive au back-office.
+			platform = s.notify.NotifyAdmins(ctx, "platform_order_new", "Nouvelle commande "+shop.Name+" "+ref,
+				"À accepter ou refuser dans les 15 minutes (Commandes IVI).", data)
+		}
 		return both(
 			buyer("order_paid", "Paiement reçu", "Commande "+ref+" payée. "+shop.Name+" va la confirmer."),
 			seller("order_new", "Nouvelle commande "+ref, "Acceptez-la ou refusez-la dans les 15 minutes."),
+			platform,
 		)
 	case StatusExpired:
 		return buyer("order_expired", "Commande expirée", "Le paiement de la commande "+ref+" n'a pas été reçu à temps.")

@@ -22,6 +22,8 @@
 - **Avis** : le client note le livreur après la livraison (le marchand aussi s'il le veut) ; avis sur l'application ; tout est visible au back-office (page Avis), et la note du livreur dans son profil.
 - **Carte de la flotte** (back-office) : livreurs en direct sur la carte, course en cours, trajet et point de départ. Le blocage des motos à distance viendra avec les boîtiers GPS.
 - **Back-office** : textes et cartes réduits, plus rien ne dépasse.
+- **Commandes IVI** : les commandes des produits IVI arrivent au back-office (page Commandes IVI), qui les accepte, les prépare et les remet comme un marchand.
+- **Carte de la flotte sur Google Maps**, comme dans les apps.
 - **Back-office plein écran et fluide** : le contenu occupe toute la largeur ; barre latérale repliable (bouton en haut, réglage gardé), tiroir avec voile sur téléphone ; transition douce à chaque page, cartes qui arrivent l'une après l'autre, fenêtres de confirmation qui s'ouvrent en douceur ; écran d'ouverture animé (logo qui rebondit) au premier chargement.
 - **Responsivité** : grilles du back-office qui passent de 1 à 6 colonnes selon l'écran, tableaux défilants ; apps mobiles centrées en colonne sur grand écran, texte agrandi borné sur petit téléphone.
 - **Sonneries** : boucle seulement à la Pharmacie ; Livreur et Business : une sonnerie et une alerte bien visible.

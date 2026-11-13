@@ -10,7 +10,7 @@ RETURNING id;
 
 -- name: GetShop :one
 SELECT s.id, s.owner_id, s.name, s.description, s.phone, s.address_text, s.neighborhood_id, s.logo_key,
-       s.status, s.status_reason, s.accepting_orders, s.reviewed_at, s.reviewed_by, s.created_at, s.updated_at,
+       s.status, s.status_reason, s.accepting_orders, s.managed_by_platform, s.reviewed_at, s.reviewed_by, s.created_at, s.updated_at,
        ST_Y(s.location::geometry)::float8 AS lat,
        ST_X(s.location::geometry)::float8 AS lng,
        s.category_id, coalesce(c.name, '')::text AS category_name
@@ -20,7 +20,7 @@ WHERE s.id = $1;
 
 -- name: ListShopsByOwner :many
 SELECT s.id, s.owner_id, s.name, s.description, s.phone, s.address_text, s.neighborhood_id, s.logo_key,
-       s.status, s.status_reason, s.accepting_orders, s.reviewed_at, s.reviewed_by, s.created_at, s.updated_at,
+       s.status, s.status_reason, s.accepting_orders, s.managed_by_platform, s.reviewed_at, s.reviewed_by, s.created_at, s.updated_at,
        ST_Y(s.location::geometry)::float8 AS lat,
        ST_X(s.location::geometry)::float8 AS lng,
        s.category_id, coalesce(c.name, '')::text AS category_name
@@ -34,7 +34,7 @@ SELECT count(*) FROM shops WHERE owner_id = $1;
 
 -- name: ListShopsByStatus :many
 SELECT s.id, s.owner_id, s.name, s.description, s.phone, s.address_text, s.neighborhood_id, s.logo_key,
-       s.status, s.status_reason, s.accepting_orders, s.reviewed_at, s.reviewed_by, s.created_at, s.updated_at,
+       s.status, s.status_reason, s.accepting_orders, s.managed_by_platform, s.reviewed_at, s.reviewed_by, s.created_at, s.updated_at,
        ST_Y(s.location::geometry)::float8 AS lat,
        ST_X(s.location::geometry)::float8 AS lng,
        s.category_id, coalesce(c.name, '')::text AS category_name
@@ -112,3 +112,9 @@ SELECT object_key FROM merchant_documents WHERE object_key = ANY(sqlc.arg(keys):
 -- Boutiques à valider et date de la plus ancienne (tableau de bord).
 SELECT count(*)::bigint AS n, coalesce(min(created_at), now())::timestamptz AS oldest
 FROM shops WHERE status = 'pending_review';
+
+-- name: SetManagedByPlatform :execrows
+UPDATE shops SET managed_by_platform = sqlc.arg(managed), updated_at = now() WHERE id = sqlc.arg(id);
+
+-- name: ListManagedShopIDs :many
+SELECT id FROM shops WHERE managed_by_platform ORDER BY created_at;

@@ -31,6 +31,7 @@ func (h *Handler) Register(rt *httpapi.Router) {
 	rt.Roles("PATCH /v1/admin/shop-categories/{id}", h.adminUpdateCategory, identity.RoleAdmin)
 	rt.Roles("GET /v1/admin/shops", h.adminList, identity.RoleAdmin)
 	rt.Roles("GET /v1/admin/shops/{id}", h.adminGet, identity.RoleAdmin)
+	rt.Roles("POST /v1/admin/shops/{id}/platform-managed", h.setPlatformManaged, identity.RoleAdmin)
 	for _, d := range []string{"approve", "reject", "suspend", "reinstate"} {
 		rt.Roles("POST /v1/admin/shops/{id}/"+d, h.review(d), identity.RoleAdmin)
 	}

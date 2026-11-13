@@ -1777,6 +1777,57 @@ export interface paths {
         patch?: never;
         trace?: never;
     };
+    "/v1/admin/platform-orders": {
+        parameters: {
+            query?: never;
+            header?: never;
+            path?: never;
+            cookie?: never;
+        };
+        /** Commandes des boutiques gérées par ivia (boutique IVI), traitées au back-office */
+        get: operations["getAdminPlatformOrders"];
+        put?: never;
+        post?: never;
+        delete?: never;
+        options?: never;
+        head?: never;
+        patch?: never;
+        trace?: never;
+    };
+    "/v1/admin/platform-orders/{id}/{action}": {
+        parameters: {
+            query?: never;
+            header?: never;
+            path?: never;
+            cookie?: never;
+        };
+        get?: never;
+        put?: never;
+        /** Traiter une commande IVI : accepter, refuser, préparer, prête, remise (code), retour */
+        post: operations["postAdminPlatformOrderAction"];
+        delete?: never;
+        options?: never;
+        head?: never;
+        patch?: never;
+        trace?: never;
+    };
+    "/v1/admin/shops/{id}/platform-managed": {
+        parameters: {
+            query?: never;
+            header?: never;
+            path?: never;
+            cookie?: never;
+        };
+        get?: never;
+        put?: never;
+        /** Confier une boutique au back-office (ses commandes y sont traitées) */
+        post: operations["postAdminShopPlatformManaged"];
+        delete?: never;
+        options?: never;
+        head?: never;
+        patch?: never;
+        trace?: never;
+    };
     "/v1/driver/me": {
         parameters: {
             query?: never;
@@ -5804,6 +5855,8 @@ export interface components {
             category_name: string;
         };
         Shop: {
+            /** @description Boutique gérée par ivia : commandes traitées au back-office. */
+            managed_by_platform?: boolean;
             /** Format: uuid */
             id: string;
             /** Format: uuid */
@@ -12014,6 +12067,118 @@ export interface operations {
                     "application/json": {
                         items?: components["schemas"]["TrailPoint"][];
                     };
+                };
+            };
+            /** @description Erreur (voir `code`) */
+            default: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["Error"];
+                };
+            };
+        };
+    };
+    getAdminPlatformOrders: {
+        parameters: {
+            query?: {
+                group?: "new" | "active" | "done";
+                limit?: number;
+                offset?: number;
+            };
+            header?: never;
+            path?: never;
+            cookie?: never;
+        };
+        requestBody?: never;
+        responses: {
+            /** @description Succès */
+            200: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": {
+                        items?: components["schemas"]["SellerOrder"][];
+                        next_offset?: number | null;
+                    };
+                };
+            };
+            /** @description Erreur (voir `code`) */
+            default: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["Error"];
+                };
+            };
+        };
+    };
+    postAdminPlatformOrderAction: {
+        parameters: {
+            query?: never;
+            header?: never;
+            path: {
+                id: string;
+                action: "accept" | "reject" | "preparing" | "ready" | "handover" | "confirm-return";
+            };
+            cookie?: never;
+        };
+        requestBody?: {
+            content: {
+                "application/json": {
+                    reason?: string;
+                    code?: string;
+                };
+            };
+        };
+        responses: {
+            /** @description Succès */
+            200: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["SellerOrder"];
+                };
+            };
+            /** @description Erreur (voir `code`) */
+            default: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["Error"];
+                };
+            };
+        };
+    };
+    postAdminShopPlatformManaged: {
+        parameters: {
+            query?: never;
+            header?: never;
+            path: {
+                id: string;
+            };
+            cookie?: never;
+        };
+        requestBody: {
+            content: {
+                "application/json": {
+                    managed: boolean;
+                };
+            };
+        };
+        responses: {
+            /** @description Succès */
+            200: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["Shop"];
                 };
             };
             /** @description Erreur (voir `code`) */

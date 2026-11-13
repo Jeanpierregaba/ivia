@@ -56,9 +56,11 @@ type Shop struct {
 	Status           Status     `json:"status"`
 	StatusReason     string     `json:"status_reason"`
 	AcceptingOrders  bool       `json:"accepting_orders"`
-	ReviewedAt       *time.Time `json:"reviewed_at"`
-	CreatedAt        time.Time  `json:"created_at"`
-	UpdatedAt        time.Time  `json:"updated_at"`
+	// ManagedByPlatform : boutique gérée par ivia (IVI) ; ses commandes sont traitées au back-office.
+	ManagedByPlatform bool       `json:"managed_by_platform"`
+	ReviewedAt        *time.Time `json:"reviewed_at"`
+	CreatedAt         time.Time  `json:"created_at"`
+	UpdatedAt         time.Time  `json:"updated_at"`
 	// MerchantDocuments : pièces du marchand, renseignées pour le propriétaire et l'admin (WithDocuments).
 	MerchantDocuments []Document `json:"merchant_documents"`
 }
@@ -489,7 +491,7 @@ func (s *Service) fromRow(ctx context.Context, r store.GetShopRow) (Shop, error)
 		ID: r.ID, OwnerID: r.OwnerID, Name: r.Name, Description: r.Description, Phone: r.Phone,
 		AddressText: r.AddressText, NeighborhoodID: r.NeighborhoodID, Location: geo.Point{Lat: r.Lat, Lng: r.Lng},
 		LogoKey: r.LogoKey, Status: Status(r.Status), StatusReason: r.StatusReason, AcceptingOrders: r.AcceptingOrders,
-		ReviewedAt: r.ReviewedAt, CreatedAt: r.CreatedAt, UpdatedAt: r.UpdatedAt,
+		ManagedByPlatform: r.ManagedByPlatform, ReviewedAt: r.ReviewedAt, CreatedAt: r.CreatedAt, UpdatedAt: r.UpdatedAt,
 		CategoryID: r.CategoryID, CategoryName: r.CategoryName,
 	}
 	if r.LogoKey != nil {

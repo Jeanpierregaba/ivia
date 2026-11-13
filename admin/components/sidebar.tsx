@@ -31,6 +31,7 @@ import {
   Users,
   X,
   Radar,
+  Droplets,
   Star,
 } from "lucide-react";
 import Link from "next/link";
@@ -55,6 +56,7 @@ const sections: { title: string; items: Item[] }[] = [
     title: "Opérations",
     items: [
       { href: "/orders", label: "Commandes", icon: ClipboardList, count: "orders" },
+      { href: "/ivi-orders", label: "Commandes IVI", icon: Droplets },
       { href: "/payments", label: "Paiements", icon: CreditCard },
       { href: "/refunds", label: "Remboursements", icon: Banknote, count: "refunds", urgent: true },
     ],

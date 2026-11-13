@@ -48,6 +48,8 @@ func (h *Handler) Register(rt *httpapi.Router) {
 	rt.Roles("POST /v1/admin/orders/{id}/unlock-handover", h.adminUnlock, identity.RoleAdmin)
 	rt.Roles("POST /v1/admin/orders/{id}/confirm-return", h.adminConfirmReturn, identity.RoleAdmin)
 	rt.Roles("GET /v1/admin/refund-queue", h.refundQueue, identity.RoleAdmin)
+	rt.Roles("GET /v1/admin/platform-orders", h.platformList, identity.RoleAdmin)
+	rt.Roles("POST /v1/admin/platform-orders/{id}/{action}", h.platformAction, identity.RoleAdmin)
 }
 
 func uid(r *http.Request) identity.Principal { return identity.MustFromContext(r.Context()) }

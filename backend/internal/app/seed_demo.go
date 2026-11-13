@@ -843,6 +843,10 @@ func (a *App) seedIVI(ctx context.Context, adminID uuid.UUID, hood map[string]ge
 		return nil, err
 	}
 	out.Shops++
+	// Boutique gérée par ivia : ses commandes arrivent au back-office (Commandes IVI).
+	if _, err := a.Shops.SetManagedByPlatform(ctx, adminID, shopID, true); err != nil {
+		return nil, err
+	}
 	existing, err := a.Catalog.AdminList(ctx, &shopID, "", 100, 0)
 	if err != nil {
 		return nil, err

@@ -1,10 +1,12 @@
-import { AlertTriangle, ChevronLeft, FileText, Gavel, Store } from "lucide-react";
+import { AlertTriangle, Building2, ChevronLeft, FileText, Gavel, Store } from "lucide-react";
 import Link from "next/link";
 import { notFound } from "next/navigation";
 
 import { Avatar, Card, CardTitle, DefinitionList, ErrorState, StatusBadge } from "@/components/ui";
 import { api, ApiError, type Schemas } from "@/lib/api";
 import { DOCUMENT_KIND, formatDateTime, formatPhone, SHOP_STATUS, statusOf } from "@/lib/format";
+import { ActionForm } from "@/components/action-form";
+import { setManaged } from "../../ivi-orders/actions";
 import { missingMerchantDocuments, ShopActions } from "../shop-actions";
 
 export const metadata = { title: "Dossier boutique" };
@@ -117,6 +119,38 @@ export default async function ShopPage({ params }: { params: Promise<{ id: strin
       <Card className="mt-4">
         <CardTitle icon={<Gavel size={18} aria-hidden="true" />}>Décision</CardTitle>
         <ShopActions shop={s} />
+      </Card>
+
+      <Card className="mt-4">
+        <CardTitle icon={<Building2 size={18} aria-hidden="true" />}>Gestion par ivia</CardTitle>
+        <p className="mb-3 text-text-secondary">
+          {s.managed_by_platform
+            ? "Boutique gérée par ivia : ses commandes arrivent dans Commandes IVI, où le back-office les traite."
+            : "Boutique officielle d'ivia (IVI) ? Confiez-la au back-office : ses commandes y seront reçues et traitées."}
+        </p>
+        <div className="flex flex-wrap items-center gap-3">
+          <ActionForm
+            action={setManaged}
+            label={
+              s.managed_by_platform
+                ? "Rendre la boutique à son marchand"
+                : "Gérer cette boutique au back-office"
+            }
+            variant={s.managed_by_platform ? "outline" : "primary"}
+            hidden={{ id: s.id, managed: s.managed_by_platform ? "false" : "true" }}
+            confirm={{
+              title: s.managed_by_platform ? "Rendre la boutique ?" : "Gérer au back-office ?",
+              body: s.managed_by_platform
+                ? "Ses commandes ne seront plus listées dans Commandes IVI."
+                : "Ses commandes seront reçues et traitées dans Commandes IVI (action journalisée).",
+            }}
+          />
+          {s.managed_by_platform && (
+            <Link href="/ivi-orders" className="font-semibold text-secondary hover:underline">
+              Voir les commandes IVI
+            </Link>
+          )}
+        </div>
       </Card>
     </>
   );

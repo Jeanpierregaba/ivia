@@ -3951,6 +3951,146 @@ paths:
             application/json:
               schema:
                 "$ref": "#/components/schemas/Error"
+  "/v1/admin/platform-orders":
+    get:
+      summary: "Commandes des boutiques gérées par ivia (boutique IVI), traitées au back-office"
+      tags:
+        - Admin
+      operationId: getAdminPlatformOrders
+      parameters:
+        - name: group
+          in: query
+          required: false
+          schema:
+            type: string
+            enum:
+              - new
+              - active
+              - done
+        - name: limit
+          in: query
+          required: false
+          schema:
+            type: integer
+        - name: offset
+          in: query
+          required: false
+          schema:
+            type: integer
+      x-roles:
+        - admin
+      responses:
+        "200":
+          description: "Succès"
+          content:
+            application/json:
+              schema:
+                type: object
+                properties:
+                  items:
+                    type: array
+                    items:
+                      "$ref": "#/components/schemas/SellerOrder"
+                  next_offset:
+                    type:
+                      - integer
+                      - "null"
+        default:
+          description: "Erreur (voir `code`)"
+          content:
+            application/json:
+              schema:
+                "$ref": "#/components/schemas/Error"
+  "/v1/admin/platform-orders/{id}/{action}":
+    post:
+      summary: "Traiter une commande IVI : accepter, refuser, préparer, prête, remise (code), retour"
+      tags:
+        - Admin
+      operationId: postAdminPlatformOrderAction
+      parameters:
+        - name: id
+          in: path
+          required: true
+          schema:
+            type: string
+            format: uuid
+        - name: action
+          in: path
+          required: true
+          schema:
+            type: string
+            enum:
+              - accept
+              - reject
+              - preparing
+              - ready
+              - handover
+              - confirm-return
+      x-roles:
+        - admin
+      requestBody:
+        required: false
+        content:
+          application/json:
+            schema:
+              type: object
+              properties:
+                reason:
+                  type: string
+                code:
+                  type: string
+      responses:
+        "200":
+          description: "Succès"
+          content:
+            application/json:
+              schema:
+                "$ref": "#/components/schemas/SellerOrder"
+        default:
+          description: "Erreur (voir `code`)"
+          content:
+            application/json:
+              schema:
+                "$ref": "#/components/schemas/Error"
+  "/v1/admin/shops/{id}/platform-managed":
+    post:
+      summary: "Confier une boutique au back-office (ses commandes y sont traitées)"
+      tags:
+        - Admin
+      operationId: postAdminShopPlatformManaged
+      parameters:
+        - name: id
+          in: path
+          required: true
+          schema:
+            type: string
+            format: uuid
+      x-roles:
+        - admin
+      requestBody:
+        required: true
+        content:
+          application/json:
+            schema:
+              type: object
+              properties:
+                managed:
+                  type: boolean
+              required:
+                - managed
+      responses:
+        "200":
+          description: "Succès"
+          content:
+            application/json:
+              schema:
+                "$ref": "#/components/schemas/Shop"
+        default:
+          description: "Erreur (voir `code`)"
+          content:
+            application/json:
+              schema:
+                "$ref": "#/components/schemas/Error"
   "/v1/driver/me":
     get:
       summary: "Mon dossier de livreur"
@@ -12543,6 +12683,9 @@ components:
     Shop:
       type: object
       properties:
+        managed_by_platform:
+          type: boolean
+          description: "Boutique gérée par ivia : commandes traitées au back-office."
         id:
           type: string
           format: uuid
