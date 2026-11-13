@@ -26,3 +26,4 @@ export 'src/step_list.dart';
 export 'src/theme.dart';
 export 'src/tokens.dart';
 export 'src/typography.dart';
+export 'src/whatsapp_logo.dart';

@@ -409,6 +409,7 @@ class PropertyScreen extends ConsumerWidget {
         onTap: () => callNumber(p.contactPhone),
         secondary: MedOutlineButton(
           label: 'WhatsApp',
+          leading: const IviaWhatsAppLogo(size: 26),
           onTap: () => launchUrl(
             Uri.parse(
               'https://wa.me/$digits?text=${Uri.encodeComponent('Bonjour, je suis intéressé(e) par « ${p.title} » vu sur ivia.')}',

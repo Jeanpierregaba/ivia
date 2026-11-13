@@ -267,9 +267,17 @@ class MedBottomButton extends StatelessWidget {
 }
 
 class MedOutlineButton extends StatelessWidget {
-  const MedOutlineButton({super.key, required this.label, required this.onTap});
+  const MedOutlineButton({
+    super.key,
+    required this.label,
+    required this.onTap,
+    this.leading,
+  });
   final String label;
   final VoidCallback? onTap;
+
+  /// Pictogramme avant le libellé (logo WhatsApp…).
+  final Widget? leading;
 
   @override
   Widget build(BuildContext context) => SizedBox(
@@ -284,7 +292,12 @@ class MedOutlineButton extends StatelessWidget {
             ?.copyWith(fontWeight: FontWeight.w800),
       ),
       onPressed: onTap,
-      child: Text(label),
+      child: leading == null
+          ? Text(label)
+          : Row(
+              mainAxisSize: MainAxisSize.min,
+              children: [leading!, const SizedBox(width: 10), Text(label)],
+            ),
     ),
   );
 }

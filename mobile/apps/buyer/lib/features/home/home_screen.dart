@@ -801,6 +801,19 @@ class _ServiceTile extends StatelessWidget {
 }
 
 /// « Tous les services » : la liste complète, dans une feuille.
+/// Phrase sous chaque service de la liste complète.
+const _serviceHints = {
+  'Pharmacie': 'Trouver un médicament, pharmacies de garde',
+  'Alimentation': 'Courses et produits du quotidien',
+  'Restaurant': 'Plats des restaurants, livrés chauds',
+  'Taxi': 'Une course en ville, au juste prix',
+  'E-Bazar': 'Les boutiques de Lomé',
+  'Immobilier': 'Maisons et appartements à louer ou à vendre',
+  'Conciergerie': 'On s’occupe de vos démarches',
+};
+
+/// « Tous les services » : liste verticale qui défile (d'autres services
+/// viendront s'y ajouter), chaque ligne apparaît en douceur.
 Future<void> _showAllServices(BuildContext context, List<_Service> all) =>
     showModalBottomSheet<void>(
       context: context,
@@ -811,45 +824,96 @@ Future<void> _showAllServices(BuildContext context, List<_Service> all) =>
       shape: const RoundedRectangleBorder(
         borderRadius: BorderRadius.vertical(top: Radius.circular(28)),
       ),
-      builder: (sheet) => SafeArea(
-        child: Padding(
-          padding: const EdgeInsets.fromLTRB(
-            IviaSpacing.screen,
-            0,
-            IviaSpacing.screen,
-            IviaSpacing.xl,
-          ),
-          child: Column(
-            mainAxisSize: MainAxisSize.min,
-            crossAxisAlignment: CrossAxisAlignment.start,
-            children: [
-              Text(
-                'Tous les services',
-                style: Theme.of(sheet).textTheme.titleLarge
-                    ?.copyWith(fontWeight: FontWeight.w700),
-              ),
-              const SizedBox(height: IviaSpacing.lg),
-              _ServiceTiles(
-                tiles: [
-                  for (final (i, (icon, label, bg, fg, onTap)) in all.indexed)
-                    _ServiceTile(
-                      index: i,
-                      service: (
-                        icon,
-                        label,
-                        bg,
-                        fg,
-                        () {
-                          Navigator.of(sheet).pop();
-                          onTap();
-                        },
+      builder: (sheet) => DraggableScrollableSheet(
+        expand: false,
+        initialChildSize: 0.62,
+        minChildSize: 0.4,
+        maxChildSize: 0.92,
+        builder: (sheet, scroll) {
+          final t = Theme.of(sheet).textTheme;
+          return ListView.separated(
+            controller: scroll,
+            padding: EdgeInsets.fromLTRB(
+              IviaSpacing.screen,
+              0,
+              IviaSpacing.screen,
+              IviaSpacing.xl + MediaQuery.paddingOf(sheet).bottom,
+            ),
+            itemCount: all.length + 1,
+            separatorBuilder: (_, i) =>
+                SizedBox(height: i == 0 ? IviaSpacing.md : IviaSpacing.sm),
+            itemBuilder: (sheet, i) {
+              if (i == 0) {
+                return Semantics(
+                  header: true,
+                  child: Text(
+                    'Tous les services',
+                    style: t.titleLarge?.copyWith(fontWeight: FontWeight.w700),
+                  ),
+                );
+              }
+              final (icon, label, bg, fg, onTap) = all[i - 1];
+              final hint = _serviceHints[label];
+              return IviaReveal(
+                index: i - 1,
+                child: IviaPressable(
+                  child: Material(
+                    color: IviaColors.surface,
+                    borderRadius: BorderRadius.circular(IviaRadius.large),
+                    child: InkWell(
+                      borderRadius: BorderRadius.circular(IviaRadius.large),
+                      onTap: () {
+                        Navigator.of(sheet).pop();
+                        onTap();
+                      },
+                      child: Padding(
+                        padding: const EdgeInsets.all(IviaSpacing.md),
+                        child: Row(
+                          children: [
+                            Container(
+                              width: 48,
+                              height: 48,
+                              decoration: BoxDecoration(
+                                color: bg,
+                                borderRadius: BorderRadius.circular(14),
+                              ),
+                              child: Icon(icon, color: fg),
+                            ),
+                            const SizedBox(width: IviaSpacing.md),
+                            Expanded(
+                              child: Column(
+                                crossAxisAlignment: CrossAxisAlignment.start,
+                                children: [
+                                  Text(
+                                    label,
+                                    style: t.titleSmall?.copyWith(
+                                      fontWeight: FontWeight.w700,
+                                    ),
+                                  ),
+                                  if (hint != null)
+                                    Text(
+                                      hint,
+                                      style: t.bodySmall,
+                                      maxLines: 2,
+                                      overflow: TextOverflow.ellipsis,
+                                    ),
+                                ],
+                              ),
+                            ),
+                            const Icon(
+                              Icons.chevron_right_rounded,
+                              color: IviaColors.textMuted,
+                            ),
+                          ],
+                        ),
                       ),
                     ),
-                ],
-              ),
-            ],
-          ),
-        ),
+                  ),
+                ),
+              );
+            },
+          );
+        },
       ),
     );
 
