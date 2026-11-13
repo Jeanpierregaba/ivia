@@ -260,7 +260,7 @@ class _PharmacyAppState extends ConsumerState<PharmacyApp> {
     routerConfig: ref.watch(routerProvider),
     builder: (context, child) => AnnotatedRegion<SystemUiOverlayStyle>(
       value: SystemUiOverlayStyle.dark,
-      child: child!,
+      child: IviaResponsiveFrame(child: child!),
     ),
   );
 }

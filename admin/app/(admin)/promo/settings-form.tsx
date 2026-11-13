@@ -16,7 +16,7 @@ const SWITCHES = [
 export function PromoSettingsForm({ settings }: { settings: Schemas["PromoSettings"] }) {
   return (
     <ServerForm action={saveSettings} submitLabel="Enregistrer les réglages" variant="imperial">
-      <div className="grid grid-cols-4 gap-4">
+      <div className="grid grid-cols-2 lg:grid-cols-4 gap-4">
         {SWITCHES.map((s) => (
           <label key={s.name} className="flex items-start gap-3 rounded-field border border-border p-4">
             <input
@@ -32,7 +32,7 @@ export function PromoSettingsForm({ settings }: { settings: Schemas["PromoSettin
           </label>
         ))}
       </div>
-      <div className="grid grid-cols-4 gap-4">
+      <div className="grid grid-cols-2 lg:grid-cols-4 gap-4">
         <Field label="Première fenêtre après (s)" hint="Délai après l'ouverture de l'app">
           <input
             name="first_delay_seconds"
@@ -74,7 +74,7 @@ export function PromoSettingsForm({ settings }: { settings: Schemas["PromoSettin
           />
         </Field>
       </div>
-      <div className="grid grid-cols-2 gap-4">
+      <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
         <Field label="Rotation des visuels">
           <select name="rotation" defaultValue={settings.rotation} className={fieldClass}>
             {Object.entries(ROTATIONS).map(([v, l]) => (

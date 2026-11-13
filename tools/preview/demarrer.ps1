@@ -1,4 +1,4 @@
-# Aperçu local de toute la plateforme ivia, sans émulateur (peu de mémoire).
+﻿# Aperçu local de toute la plateforme ivia, sans émulateur (peu de mémoire).
 #
 #   API          http://localhost:8080
 #   ivia         http://localhost:3001
@@ -51,11 +51,11 @@ $env:DATABASE_URL = 'postgres://ivia@127.0.0.1:5434/ivia?sslmode=disable'
 $env:PORT = '8080'
 $env:LOCAL_STORAGE_DIR = './var/uploads'
 $backend = Join-Path $root 'backend'
-# Notifications push réelles (Firebase) si la clé du serveur est en place (backend\secretscm.json,
+# Notifications push réelles (Firebase) si la clé du serveur est en place (backend\secrets\fcm.json,
 # jamais commitée) ; sinon, push écrits dans le journal.
-if (Test-Path (Join-Path $backend 'secretscm.json')) {
+if (Test-Path (Join-Path $backend 'secrets\fcm.json')) {
   $env:PUSH_SENDER = 'fcm'
-  $env:FCM_CREDENTIALS_FILE = 'secretscm.json'
+  $env:FCM_CREDENTIALS_FILE = 'secrets\fcm.json'
 }
 $api =Start-Process -FilePath (Join-Path $backend 'bin\api.exe') -WorkingDirectory $backend -WindowStyle Hidden `
   -RedirectStandardOutput (Join-Path $backend 'var\api.log') -RedirectStandardError (Join-Path $backend 'var\api.err.log') -PassThru

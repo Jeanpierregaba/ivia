@@ -55,12 +55,12 @@ export default async function ProductPage({ params }: Props) {
         }
       />
 
-      <div className="grid grid-cols-[1.25fr_1fr] gap-6">
+      <div className="grid grid-cols-1 lg:grid-cols-[1.25fr_1fr] gap-6">
         <Card>
           <CardTitle icon={<Package size={18} />}>Fiche produit</CardTitle>
           <ServerForm action={saveProduct} submitLabel="Enregistrer la fiche" variant="imperial">
             <input type="hidden" name="id" value={p.id} />
-            <div className="grid grid-cols-3 gap-3">
+            <div className="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-3 gap-3">
               {p.images.map((img) => (
                 <label
                   key={img.object_key}
@@ -113,7 +113,7 @@ export default async function ProductPage({ params }: Props) {
                 className={textareaClass}
               />
             </Field>
-            <div className="grid grid-cols-3 gap-4">
+            <div className="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-3 gap-4">
               <Field
                 label="Prix (FCFA)"
                 hint={needsPrice ? "À renseigner avant la mise en vente" : undefined}
@@ -170,7 +170,7 @@ export default async function ProductPage({ params }: Props) {
                   className={fieldClass}
                 />
               </Field>
-              <div className="grid grid-cols-2 gap-4">
+              <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
                 <Field label="Début" hint="Vide : tout de suite">
                   <input
                     name="promo_starts_at"
@@ -190,7 +190,7 @@ export default async function ProductPage({ params }: Props) {
               </div>
               <fieldset>
                 <legend className="mb-2 text-[13px] font-semibold text-text-secondary">Badges</legend>
-                <div className="grid grid-cols-2 gap-2">
+                <div className="grid grid-cols-1 md:grid-cols-2 gap-2">
                   {Object.entries(BADGES).map(([value, label]) => (
                     <label
                       key={value}

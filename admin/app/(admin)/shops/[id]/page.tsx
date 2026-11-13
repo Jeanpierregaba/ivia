@@ -48,7 +48,7 @@ export default async function ShopPage({ params }: { params: Promise<{ id: strin
         </span>
       </header>
 
-      <div className="grid grid-cols-2 gap-4">
+      <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
         <Card>
           <CardTitle icon={<Store size={18} aria-hidden="true" />}>Boutique</CardTitle>
           <DefinitionList

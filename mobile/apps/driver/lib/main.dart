@@ -49,7 +49,7 @@ class DriverApp extends ConsumerWidget {
       // (fond Cobalt) la repasse en clair.
       builder: (context, child) => AnnotatedRegion<SystemUiOverlayStyle>(
         value: SystemUiOverlayStyle.dark,
-        child: child!,
+        child: IviaResponsiveFrame(child: child!),
       ),
     );
   }

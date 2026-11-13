@@ -37,7 +37,7 @@ export default async function PharmacySettingsPage() {
       />
       <Card>
         <ServerForm action={savePharmacySettings} submitLabel="Enregistrer les réglages" variant="imperial">
-          <div className="grid grid-cols-2 gap-4">
+          <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
             <label className="flex items-start gap-3 rounded-field border border-border p-4">
               <input
                 type="checkbox"
@@ -65,7 +65,7 @@ export default async function PharmacySettingsPage() {
               </span>
             </label>
           </div>
-          <div className="grid grid-cols-4 gap-4">
+          <div className="grid grid-cols-2 lg:grid-cols-4 gap-4">
             {num("unlock_fee_xof", "Forfait de déblocage (FCFA)", "Par pharmacie débloquée")}
             {num("product_commission_bp", "Commission produits (points de base)", "100 = 1 %")}
             {num("search_radius_m", "Rayon par défaut (m)")}

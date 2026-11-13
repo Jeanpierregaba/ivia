@@ -75,7 +75,7 @@ export default async function PharmacyPage({ params }: { params: Promise<{ id: s
         </span>
       </header>
 
-      <div className="grid grid-cols-2 gap-4">
+      <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
         <Card>
           <CardTitle icon={<Store size={18} aria-hidden="true" />}>Officine</CardTitle>
           <DefinitionList
@@ -225,7 +225,7 @@ export default async function PharmacyPage({ params }: { params: Promise<{ id: s
         </div>
       </Card>
 
-      <div className="mt-4 grid grid-cols-2 gap-4">
+      <div className="mt-4 grid grid-cols-1 md:grid-cols-2 gap-4">
         <Card>
           <CardTitle icon={<CalendarClock size={18} aria-hidden="true" />}>Planning de garde</CardTitle>
           {shifts.length === 0 ? (
@@ -254,7 +254,7 @@ export default async function PharmacyPage({ params }: { params: Promise<{ id: s
           )}
           <ServerForm action={addDutyShift} submitLabel="Ajouter la garde" variant="outline">
             <input type="hidden" name="id" value={p.id} />
-            <div className="grid grid-cols-2 gap-3">
+            <div className="grid grid-cols-1 md:grid-cols-2 gap-3">
               <Field label="Début (heure de Lomé)">
                 <input type="datetime-local" name="starts_at" required className={fieldClass} />
               </Field>
@@ -294,7 +294,7 @@ export default async function PharmacyPage({ params }: { params: Promise<{ id: s
             className="mt-4"
           >
             <input type="hidden" name="id" value={p.id} />
-            <div className="grid grid-cols-2 gap-3">
+            <div className="grid grid-cols-1 md:grid-cols-2 gap-3">
               <Field label="Montant (FCFA)">
                 <input name="amount_xof" inputMode="numeric" required className={fieldClass} />
               </Field>

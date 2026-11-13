@@ -69,7 +69,10 @@ export default async function NewSettlementPage({ searchParams }: Props) {
       />
 
       <Card className="mb-6">
-        <form action="/settlements/new" className="grid grid-cols-[2fr_1fr_1fr_auto] items-end gap-3">
+        <form
+          action="/settlements/new"
+          className="grid grid-cols-1 lg:grid-cols-[2fr_1fr_1fr_auto] items-end gap-3"
+        >
           <Field label="Boutique">
             <select name="shop_id" defaultValue={shopId} required className={fieldClass}>
               <option value="" disabled>
@@ -103,7 +106,7 @@ export default async function NewSettlementPage({ searchParams }: Props) {
           />
         ) : (
           <>
-            <div className="mb-4 grid grid-cols-4 gap-2">
+            <div className="mb-4 grid grid-cols-2 lg:grid-cols-4 gap-2">
               <Total label="Commandes" value={String(preview.orders_count)} corner="tl" />
               <Total label="Produits encaissés" value={formatXOF(preview.gross_xof)} />
               <Total label="Commission ivia" value={formatXOF(preview.commission_xof)} />

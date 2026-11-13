@@ -34,7 +34,7 @@ export default async function MedicineAlertPage({ params }: { params: Promise<{ 
         <ChevronLeft size={16} aria-hidden="true" /> Alertes médicament
       </Link>
       <PageHeader overline="Santé" title="Détail de l'alerte" highlight="alerte" />
-      <div className="grid grid-cols-2 gap-4">
+      <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
         <Card>
           <CardTitle icon={<Pill size={18} aria-hidden="true" />}>Demande</CardTitle>
           <div className="mb-3">

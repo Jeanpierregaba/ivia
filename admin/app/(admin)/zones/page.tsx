@@ -46,7 +46,7 @@ export default async function ZonesPage() {
       <Card className="mb-4">
         <CardTitle icon={<Hexagon size={18} aria-hidden="true" />}>Ajouter une zone</CardTitle>
         <ServerForm action={saveZone} submitLabel="Ajouter" variant="imperial">
-          <div className="grid grid-cols-2 gap-3">
+          <div className="grid grid-cols-1 md:grid-cols-2 gap-3">
             <Field label="Nom">
               <input name="name" required maxLength={120} className={fieldClass} />
             </Field>
@@ -60,7 +60,7 @@ export default async function ZonesPage() {
               </select>
             </Field>
           </div>
-          <div className="grid grid-cols-4 gap-3">
+          <div className="grid grid-cols-2 lg:grid-cols-4 gap-3">
             <Field label="Prise en charge (FCFA)">
               <input name="base_xof" type="number" min={0} className={fieldClass} />
             </Field>

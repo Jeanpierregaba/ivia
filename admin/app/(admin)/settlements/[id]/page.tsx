@@ -60,7 +60,7 @@ export default async function SettlementPage({ params }: { params: Promise<{ id:
         </span>
       </header>
 
-      <div className="grid grid-cols-[minmax(0,1.4fr)_minmax(0,1fr)] gap-4">
+      <div className="grid grid-cols-1 lg:grid-cols-[minmax(0,1.4fr)_minmax(0,1fr)] gap-4">
         <Card>
           <CardTitle icon={<ReceiptText size={18} aria-hidden="true" />}>Montants</CardTitle>
           <DefinitionList

@@ -74,7 +74,7 @@ export default async function DriverPage({ params }: { params: Promise<{ id: str
         </span>
       </header>
 
-      <div className="grid grid-cols-2 gap-4">
+      <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
         <Card>
           <CardTitle icon={<IdCard size={18} aria-hidden="true" />}>Identité</CardTitle>
           <DefinitionList
@@ -114,7 +114,7 @@ export default async function DriverPage({ params }: { params: Promise<{ id: str
         {d.documents.length === 0 ? (
           <p className="text-text-secondary">Aucun document déposé.</p>
         ) : (
-          <ul className="grid grid-cols-2 gap-2">
+          <ul className="grid grid-cols-1 md:grid-cols-2 gap-2">
             {d.documents.map((doc) => (
               <li key={doc.id} className="rounded-card bg-background px-4 py-3">
                 <div className="flex items-center justify-between">
@@ -224,7 +224,7 @@ function ActivityCard({
       >
         {label}
       </CardTitle>
-      <div className="grid grid-cols-2 gap-6">
+      <div className="grid grid-cols-1 md:grid-cols-2 gap-6">
         <DefinitionList
           items={[
             ["Véhicule", [VEHICLE[v.type] ?? v.type, v.brand, v.model, v.color].filter(Boolean).join(" · ")],

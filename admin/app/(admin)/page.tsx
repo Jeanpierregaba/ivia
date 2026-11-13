@@ -89,7 +89,7 @@ export default async function DashboardPage({ searchParams }: Props) {
       <h2 className="mb-3 text-[14px] font-extrabold uppercase tracking-[0.12em] text-text-secondary">
         À traiter
       </h2>
-      <div className="mb-4 grid grid-cols-5 gap-4 max-[1400px]:grid-cols-3">
+      <div className="mb-4 grid grid-cols-1 gap-4 sm:grid-cols-2 lg:grid-cols-3 2xl:grid-cols-5">
         <TodoCard
           tone="#ED1C2F"
           value={o.todo.refunds}
@@ -158,7 +158,7 @@ export default async function DashboardPage({ searchParams }: Props) {
       </div>
 
       {/* Indicateurs */}
-      <div className="mb-4 grid grid-cols-5 gap-4 max-[1400px]:grid-cols-3">
+      <div className="mb-4 grid grid-cols-1 gap-4 sm:grid-cols-2 lg:grid-cols-3 2xl:grid-cols-5">
         <KpiCard label="Commandes payées">
           <BigValue>
             <AnimatedNumber value={k.paid_orders} />
@@ -221,17 +221,17 @@ function LiveRefreshHeader(props: {
   unread: number;
 }) {
   return (
-    <header className="animate-rise mb-7 flex items-start justify-between gap-6">
+    <header className="animate-rise mb-7 flex flex-wrap items-start justify-between gap-6">
       <div>
-        <h1 className="text-[44px] font-extrabold leading-[48px] tracking-[-0.03em]">
+        <h1 className="text-[32px] font-extrabold leading-[38px] tracking-[-0.03em] sm:text-[44px] sm:leading-[48px]">
           Bonjour {props.firstName}
         </h1>
         <p className="mt-2 text-[17px] text-text-secondary">
           {props.date} · Lomé · <LiveRefresh generatedAt={props.generatedAt} />
         </p>
       </div>
-      <div className="flex items-center gap-3">
-        <form action="/search" role="search" className="relative">
+      <div className="flex w-full flex-wrap items-center gap-3 sm:w-auto">
+        <form action="/search" role="search" className="relative min-w-0 flex-1 sm:flex-none">
           <Search
             size={19}
             aria-hidden="true"
@@ -244,7 +244,7 @@ function LiveRefreshHeader(props: {
             id="global-search"
             name="q"
             placeholder="Commande, boutique, livreur, téléphone…"
-            className="h-[54px] w-[380px] rounded-[14px] bg-surface pl-12 pr-4 text-[15px] outline-none focus:shadow-[inset_0_0_0_2px_var(--color-primary)] max-[1400px]:w-[260px]"
+            className="h-[54px] w-full rounded-[14px] bg-surface pl-12 pr-4 text-[15px] outline-none transition-shadow duration-300 focus:shadow-[inset_0_0_0_2px_var(--color-primary)] sm:w-[260px] 2xl:w-[380px]"
           />
         </form>
         <PeriodMenu current={props.period} options={props.periodOptions} />

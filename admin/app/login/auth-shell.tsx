@@ -34,7 +34,7 @@ export function AuthShell({ children }: { children: React.ReactNode }) {
         </div>
       </section>
 
-      <section className="flex flex-col justify-center px-[78px] py-12 max-[1023px]:px-6">
+      <section className="flex flex-col justify-center px-[78px] py-12 max-[1279px]:px-12 max-[1023px]:px-6">
         <div className="mx-auto w-full max-w-[430px]">
           <div className="mb-10 hidden items-center gap-3 max-[1023px]:flex">
             <LogoTile size={40} />

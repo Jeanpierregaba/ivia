@@ -54,7 +54,7 @@ export default async function PlacesPage({
       <Card className="mb-4">
         <CardTitle icon={<MapPin size={18} aria-hidden="true" />}>Ajouter un lieu</CardTitle>
         <ServerForm action={savePlace} submitLabel="Ajouter" variant="imperial">
-          <div className="grid grid-cols-3 gap-3">
+          <div className="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-3 gap-3">
             <Field label="Nom">
               <input name="name" required maxLength={160} className={fieldClass} />
             </Field>

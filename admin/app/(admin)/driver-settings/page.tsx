@@ -31,7 +31,7 @@ export default async function DriverSettingsPage() {
       />
       <Card>
         <ServerForm action={saveDriverSettings} submitLabel="Enregistrer les réglages">
-          <fieldset className="grid grid-cols-3 gap-4">
+          <fieldset className="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-3 gap-4">
             <legend className="mb-2 font-semibold">Taxi VTC</legend>
             {Object.entries(VTC_MODE).map(([value, label]) => (
               <label key={value} className="flex items-start gap-3 rounded-field border border-border p-4">

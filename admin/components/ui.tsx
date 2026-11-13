@@ -33,7 +33,7 @@ export type ButtonVariant = keyof typeof buttonVariants;
 
 export function buttonClass(variant: ButtonVariant = "primary", extra?: string): string {
   return cx(
-    "inline-flex h-11 items-center justify-center gap-2 rounded-full px-6 text-[15px] font-bold transition-colors",
+    "inline-flex h-11 items-center justify-center gap-2 rounded-full px-6 text-[15px] font-bold transition-[background-color,color,transform,box-shadow] duration-300 ease-[cubic-bezier(0.16,1,0.3,1)] hover:-translate-y-px active:translate-y-0 active:scale-[0.97]",
     "disabled:cursor-not-allowed disabled:bg-border disabled:text-text-muted",
     buttonVariants[variant],
     extra,
@@ -41,7 +41,9 @@ export function buttonClass(variant: ButtonVariant = "primary", extra?: string):
 }
 
 export function Card({ children, className }: { children: React.ReactNode; className?: string }) {
-  return <section className={cx("rounded-field bg-surface p-6", className)}>{children}</section>;
+  return (
+    <section className={cx("card-soft rounded-field bg-surface p-5 sm:p-6", className)}>{children}</section>
+  );
 }
 
 /** Titre de section de carte, avec pictogramme sur pastille pâle (comme les apps). */
@@ -88,14 +90,14 @@ export function PageHeader({
 }) {
   const at = highlight ? title.indexOf(highlight) : -1;
   return (
-    <header className="mb-8 flex items-end justify-between gap-6">
+    <header className="animate-rise mb-8 flex flex-wrap items-end justify-between gap-x-6 gap-y-4">
       <div className="max-w-[720px]">
         {overline && (
           <p className="mb-1.5 text-[12px] font-semibold uppercase leading-4 tracking-[0.08em] text-secondary">
             {overline}
           </p>
         )}
-        <h1 className="text-[34px] font-bold leading-[38px] tracking-[-0.02em]">
+        <h1 className="text-[28px] font-bold leading-[32px] tracking-[-0.02em] sm:text-[34px] sm:leading-[38px]">
           {at >= 0 && highlight ? (
             <>
               {title.slice(0, at)}
@@ -148,7 +150,7 @@ export function StatusBadge({ label, tone }: { label: string; tone: Tone }) {
 export function Table({ head, children }: { head: string[]; children: React.ReactNode }) {
   return (
     <div className="overflow-x-auto rounded-field bg-surface">
-      <table className="w-full text-left text-[15px]">
+      <table className="w-full min-w-[640px] text-left text-[15px]">
         <thead>
           <tr className="border-b border-border">
             {head.map((h, i) => (
@@ -235,7 +237,7 @@ export function FilterTabs({
             href={t.href}
             aria-current={active ? "page" : undefined}
             className={cx(
-              "inline-flex h-10 items-center rounded-full px-4 text-[13px] font-semibold transition-colors",
+              "inline-flex h-10 items-center rounded-full px-4 text-[13px] font-semibold transition-[background-color,color,transform] duration-300 active:scale-95",
               active
                 ? "bg-tertiary text-white"
                 : "bg-surface text-text-secondary hover:bg-secondary-soft hover:text-tertiary",
@@ -290,7 +292,7 @@ export function DefinitionList({ items }: { items: [string, React.ReactNode][] }
   return (
     <dl className="divide-y divide-border">
       {items.map(([k, v]) => (
-        <div key={k} className="flex justify-between gap-6 py-3 first:pt-0 last:pb-0">
+        <div key={k} className="flex flex-wrap justify-between gap-x-6 gap-y-1 py-3 first:pt-0 last:pb-0">
           <dt className="text-text-muted">{k}</dt>
           <dd className="text-right font-semibold">{v}</dd>
         </div>

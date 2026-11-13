@@ -84,7 +84,7 @@ class SellerApp extends ConsumerWidget {
       // (fond Berkeley) la repasse en clair.
       builder: (context, child) => AnnotatedRegion<SystemUiOverlayStyle>(
         value: SystemUiOverlayStyle.dark,
-        child: child!,
+        child: IviaResponsiveFrame(maxWidth: 720, child: child!),
       ),
     );
   }

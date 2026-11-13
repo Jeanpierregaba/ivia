@@ -1,19 +1,12 @@
 # Progression du projet ivia
 
-> Fichier tenu à jour à chaque étape. Dernière mise à jour : **2026-11-12**.
+> Fichier tenu à jour à chaque étape. Dernière mise à jour : **2026-11-13**.
 > Détail des tâches : [`TASKS.md`](TASKS.md) · journal des sessions : [`docs/SESSION-LOG.md`](docs/SESSION-LOG.md).
 
 ## En un coup d'œil
 
 | Partie                      | Avancement | État                                                                       |
-| ## Dernières avancées (2026-11-12)
-
-- **Apps plus fluides** : chaque page s'ouvre avec une transition douce (avant, beaucoup apparaissaient d'un coup) ; changement d'onglet en fondu.
-- **Notifications** : cloche avec compteur sur l'accueil d'ivia, écran Notifications (glisser pour lire, ouverture de la commande) ; vraies notifications push prêtes, en attente des clés Firebase.
-- **Reçu** : image partageable (WhatsApp…) ou enregistrée dans la galerie ; une commande annulée affiche un récapitulatif, plus un reçu.
-- **Carte** : fond Google Maps dans les apps, calculs toujours sur OpenStreetMap (gratuit).
-
---------------------------- | :--------: | -------------------------------------------------------------------------- |
+|--------------------------- | :--------: | -------------------------------------------------------------------------- |
 | Backend (API Go)            |  **~95 %** | Complet pour le MVP ; manque le vrai prestataire de paiement (016)         |
 | Back-office web (Next.js)   |  **~95 %** | Tous les écrans du MVP faits ; restent les tests navigateur (Playwright)   |
 | Apps mobiles (Flutter)      |  **~50 %** | Acheteur jusqu'à la commande en retrait, catalogue marchand, dossier livreur ; paiement et livraison à faire |
@@ -22,6 +15,20 @@
 | Module pharmacie (029)      |  **~70 %** | Backend fait ; app acheteur P01–P14 faite (alerte, réponses, déblocage, retrait ou livreur ivia, paiement) ; app pharmacie, app livreur et écrans du back-office faits |
 | Connexion v2 (001, ADR 0012) | **~95 %** | Tout est codé (changement de numéro compris) ; reste la mise en service WhatsApp (voir docs/whatsapp-mise-en-service.md) et le fournisseur SMS |
 | Démarches hors code         |  **~10 %** | Société, agrégateur de paiement, Play Store, Meta, domaine                 |
+
+## Dernières avancées (2026-11-13)
+
+- **Back-office plein écran et fluide** : le contenu occupe toute la largeur ; barre latérale repliable (bouton en haut, réglage gardé), tiroir avec voile sur téléphone ; transition douce à chaque page, cartes qui arrivent l'une après l'autre, fenêtres de confirmation qui s'ouvrent en douceur ; écran d'ouverture animé (logo qui rebondit) au premier chargement.
+- **Responsivité** : grilles du back-office qui passent de 1 à 6 colonnes selon l'écran, tableaux défilants ; apps mobiles centrées en colonne sur grand écran, texte agrandi borné sur petit téléphone.
+- **Sonneries** : boucle seulement à la Pharmacie ; Livreur et Business : une sonnerie et une alerte bien visible.
+- **Push serveur** : chemin de la clé Firebase corrigé dans le script d'aperçu (un caractère invisible l'empêchait d'être trouvée).
+
+## Avancées du 2026-11-12
+
+- **Apps plus fluides** : chaque page s'ouvre avec une transition douce (avant, beaucoup apparaissaient d'un coup) ; changement d'onglet en fondu.
+- **Notifications** : cloche avec compteur sur l'accueil d'ivia, écran Notifications (glisser pour lire, ouverture de la commande) ; vraies notifications push prêtes, en attente des clés Firebase.
+- **Reçu** : image partageable (WhatsApp…) ou enregistrée dans la galerie ; une commande annulée affiche un récapitulatif, plus un reçu.
+- **Carte** : fond Google Maps dans les apps, calculs toujours sur OpenStreetMap (gratuit).
 
 ---
 

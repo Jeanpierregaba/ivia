@@ -62,7 +62,7 @@ export function SettingsForm({ settings }: { settings: Schemas["Settings"] }) {
           <legend className="mb-4 text-[12px] font-semibold uppercase tracking-[0.08em] text-secondary">
             {g.title}
           </legend>
-          <div className="grid grid-cols-3 gap-4">
+          <div className="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-3 gap-4">
             {g.fields.map((f) => (
               <label key={f.name} className="block">
                 <span className="mb-2 block text-[13px] font-semibold text-text-secondary">{f.label}</span>

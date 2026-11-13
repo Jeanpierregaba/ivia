@@ -722,14 +722,22 @@ class _ServiceTiles extends StatelessWidget {
   Widget build(BuildContext context) => LayoutBuilder(
     builder: (context, constraints) {
       final columns = constraints.maxWidth >= 600 ? 8 : 4;
-      final large = MediaQuery.textScalerOf(context).scale(1) > 1.3;
-      return GridView.count(
-        crossAxisCount: columns,
+      // Hauteur calculée d'après le texte réel (police agrandie, petit
+      // écran) : pastille, marges et une ligne de libellé, sans débordement.
+      final label = Theme.of(context).textTheme.labelMedium?.fontSize ?? 12;
+      final text = MediaQuery.textScalerOf(context).scale(label) * 1.2;
+      final height = 46 + IviaSpacing.sm * 3 + text + 6;
+      final width =
+          (constraints.maxWidth - IviaSpacing.sm * (columns - 1)) / columns;
+      return GridView(
         shrinkWrap: true,
         physics: const NeverScrollableScrollPhysics(),
-        mainAxisSpacing: IviaSpacing.sm,
-        crossAxisSpacing: IviaSpacing.sm,
-        childAspectRatio: large ? 0.6 : 0.82,
+        gridDelegate: SliverGridDelegateWithFixedCrossAxisCount(
+          crossAxisCount: columns,
+          mainAxisSpacing: IviaSpacing.sm,
+          crossAxisSpacing: IviaSpacing.sm,
+          mainAxisExtent: height < width / 0.82 ? width / 0.82 : height,
+        ),
         children: tiles,
       );
     },

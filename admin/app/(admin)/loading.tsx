@@ -4,7 +4,7 @@ export default function Loading() {
     <div aria-busy="true" aria-label="Chargement" className="animate-pulse">
       <div className="mb-2 h-3 w-28 rounded-full bg-border" />
       <div className="mb-8 h-9 w-96 rounded-full bg-border" />
-      <div className="mb-4 grid grid-cols-4 gap-2">
+      <div className="mb-4 grid grid-cols-2 lg:grid-cols-4 gap-2">
         <div className="h-36 rounded-tile rounded-tl-[18px] bg-surface" />
         <div className="h-36 rounded-tile bg-surface" />
         <div className="h-36 rounded-tile bg-surface" />

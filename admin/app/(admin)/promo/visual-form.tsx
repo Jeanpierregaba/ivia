@@ -25,7 +25,7 @@ export function VisualForm({ visual, products, officialURL }: Props) {
     <ServerForm action={saveVisual} submitLabel={v ? "Enregistrer" : "Publier le visuel"} variant="imperial">
       {v && <input type="hidden" name="id" value={v.id} />}
       {v && <input type="hidden" name="image_key" value={v.image_key} />}
-      <div className="grid grid-cols-[1.1fr_1fr] gap-8">
+      <div className="grid grid-cols-1 lg:grid-cols-[1.1fr_1fr] gap-8">
         <div className="space-y-4">
           <label className="group relative grid aspect-[16/9] cursor-pointer place-items-center overflow-hidden rounded-field border-2 border-dashed border-border-input bg-background-alt">
             {preview ? (
@@ -60,7 +60,7 @@ export function VisualForm({ visual, products, officialURL }: Props) {
             <legend className="mb-2 text-[13px] font-semibold text-text-secondary">
               Emplacements dans les apps
             </legend>
-            <div className="grid grid-cols-2 gap-2">
+            <div className="grid grid-cols-1 md:grid-cols-2 gap-2">
               {Object.entries(PLACEMENTS).map(([value, label]) => (
                 <label
                   key={value}
@@ -145,7 +145,7 @@ export function VisualForm({ visual, products, officialURL }: Props) {
               ))}
             </select>
           </Field>
-          <div className="grid grid-cols-2 gap-4">
+          <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
             <Field label="Texte du bouton">
               <input
                 name="cta_label"
@@ -163,7 +163,7 @@ export function VisualForm({ visual, products, officialURL }: Props) {
               />
             </Field>
           </div>
-          <div className="grid grid-cols-2 gap-4">
+          <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
             <Field label="Priorité (0 à 100)" hint="Les plus hautes passent d'abord">
               <input
                 name="priority"
@@ -185,7 +185,7 @@ export function VisualForm({ visual, products, officialURL }: Props) {
               />
             </Field>
           </div>
-          <div className="grid grid-cols-2 gap-4">
+          <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
             <Field label="Début (heure de Lomé)" hint="Vide : tout de suite">
               <input
                 name="starts_at"

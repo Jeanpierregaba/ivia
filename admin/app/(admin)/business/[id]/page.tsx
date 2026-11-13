@@ -45,7 +45,7 @@ export default async function BusinessSpacePage({ params }: { params: Promise<{ 
       <div className="mb-4">
         <StatusBadge {...statusOf(BUSINESS_STATUS, s.status)} />
       </div>
-      <div className="grid grid-cols-2 gap-4">
+      <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
         <Card>
           <CardTitle icon={<Store size={18} aria-hidden="true" />}>Activité</CardTitle>
           <DefinitionList

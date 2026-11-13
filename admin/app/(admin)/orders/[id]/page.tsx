@@ -55,7 +55,7 @@ export default async function OrderPage({ params }: { params: Promise<{ id: stri
         </span>
       </header>
 
-      <div className="grid grid-cols-2 gap-4">
+      <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
         <Card>
           <CardTitle icon={<Receipt size={18} aria-hidden="true" />}>Détail</CardTitle>
           <DefinitionList

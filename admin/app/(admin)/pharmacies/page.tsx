@@ -71,7 +71,7 @@ export default async function PharmaciesPage({ searchParams }: Props) {
         highlight="pharmacies"
         description="Une pharmacie ne reçoit d'alertes qu'après validation de ses trois pièces."
       />
-      <div className="mb-4 grid grid-cols-6 gap-3">
+      <div className="mb-4 grid grid-cols-2 md:grid-cols-3 xl:grid-cols-6 gap-3">
         {tiles.map(([label, value]) => (
           <Card key={label}>
             <p className="text-[22px] font-bold leading-7">{value}</p>

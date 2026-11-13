@@ -70,7 +70,7 @@ export default async function PromoPage() {
         </p>
       )}
 
-      <div className="mb-8 grid grid-cols-5 gap-4">
+      <div className="mb-8 grid grid-cols-2 md:grid-cols-3 2xl:grid-cols-5 gap-4">
         {[
           {
             icon: Eye,
@@ -153,7 +153,7 @@ export default async function PromoPage() {
           message="Publiez une affiche, une bannière ou un visuel de bienvenue."
         />
       ) : (
-        <div className="mb-10 grid grid-cols-3 gap-5">
+        <div className="mb-10 grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-3 gap-5">
           {visuals.map((v, i) => {
             const s = perVisual.get(v.id);
             return (

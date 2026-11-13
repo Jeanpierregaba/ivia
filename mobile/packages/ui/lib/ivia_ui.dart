@@ -20,6 +20,7 @@ export 'src/notification_banner.dart';
 export 'src/onboarding.dart';
 export 'src/order_views.dart';
 export 'src/pharmacy_colors.dart';
+export 'src/responsive.dart';
 export 'src/segmented_tabs.dart';
 export 'src/step_list.dart';
 export 'src/theme.dart';

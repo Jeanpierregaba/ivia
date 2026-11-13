@@ -13,8 +13,8 @@ export function PropertyForm({ property: p }: { property?: Schemas["AdminPropert
       variant="imperial"
     >
       {p && <input type="hidden" name="id" value={p.id} />}
-      <div className="grid grid-cols-4 gap-4">
-        <div className="col-span-2">
+      <div className="grid grid-cols-2 lg:grid-cols-4 gap-4">
+        <div className="md:col-span-2">
           <Field label="Titre">
             <input
               name="title"
@@ -81,7 +81,7 @@ export function PropertyForm({ property: p }: { property?: Schemas["AdminPropert
             className={fieldClass}
           />
         </Field>
-        <div className="col-span-2">
+        <div className="md:col-span-2">
           <Field label="Adresse">
             <input
               name="address_text"
@@ -97,12 +97,12 @@ export function PropertyForm({ property: p }: { property?: Schemas["AdminPropert
         <Field label="Longitude" hint="Ex. 1,2131">
           <input name="lng" inputMode="decimal" required defaultValue={p?.lng} className={fieldClass} />
         </Field>
-        <div className="col-span-2">
+        <div className="md:col-span-2">
           <Field label="Nom du contact">
             <input name="contact_name" maxLength={80} defaultValue={p?.contact_name} className={fieldClass} />
           </Field>
         </div>
-        <div className="col-span-2">
+        <div className="md:col-span-2">
           <Field label="Téléphone du contact" hint="Affiché dans l'app acheteur">
             <input
               name="contact_phone"

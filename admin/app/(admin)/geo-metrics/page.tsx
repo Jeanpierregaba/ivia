@@ -25,7 +25,7 @@ export default async function GeoMetricsPage() {
         highlight="coûts"
         description="Objectif : plus de 70 % des recherches résolues sans appeler Google."
       />
-      <div className="grid grid-cols-2 gap-4">
+      <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
         <Card>
           <CardTitle>Recherche de lieux</CardTitle>
           <DefinitionList

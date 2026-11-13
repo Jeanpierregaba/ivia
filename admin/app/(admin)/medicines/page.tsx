@@ -49,7 +49,7 @@ export default async function MedicinesPage({
       <Card className="mb-4">
         <CardTitle icon={<Plus size={18} aria-hidden="true" />}>Ajouter un médicament</CardTitle>
         <ServerForm action={createMedicine} submitLabel="Ajouter" variant="imperial">
-          <div className="grid grid-cols-4 gap-3">
+          <div className="grid grid-cols-2 lg:grid-cols-4 gap-3">
             <Field label="Nom">
               <input name="name" required maxLength={120} className={fieldClass} placeholder="Paracétamol" />
             </Field>

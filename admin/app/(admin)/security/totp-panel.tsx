@@ -46,7 +46,7 @@ function RecoveryList({ codes }: { codes: string[] }) {
         Chacun ne sert qu&apos;une fois, si vous perdez votre téléphone. Gardez-les hors de cet ordinateur
         (papier, coffre-fort de mots de passe) : ils ne seront plus jamais affichés.
       </p>
-      <ol className="mt-4 grid grid-cols-2 gap-2 font-mono text-[17px] font-bold">
+      <ol className="mt-4 grid grid-cols-1 md:grid-cols-2 gap-2 font-mono text-[17px] font-bold">
         {codes.map((c) => (
           <li key={c} className="rounded-[10px] bg-background px-3 py-2 text-center">
             {c}

@@ -104,3 +104,219 @@ body {
   outline: 2px solid var(--color-secondary);
   outline-offset: 2px;
 }
+
+/* ---------- Mouvement « moelleux » du back-office ---------- */
+
+html {
+  scroll-behavior: smooth;
+}
+
+/* Entrée de page : fondu, glissement et netteté qui revient. */
+.page-enter {
+  animation: page-enter 620ms cubic-bezier(0.16, 1, 0.3, 1) both;
+}
+@keyframes page-enter {
+  from {
+    opacity: 0;
+    transform: translateY(14px) scale(0.995);
+    filter: blur(4px);
+  }
+  to {
+    opacity: 1;
+    transform: none;
+    filter: none;
+  }
+}
+
+/* Cartes : chaque bloc de la page arrive l'un après l'autre. */
+.page-enter > * > .card-soft,
+.page-enter .card-soft {
+  animation: rise 520ms cubic-bezier(0.16, 1, 0.3, 1) both;
+  transition:
+    box-shadow 400ms cubic-bezier(0.16, 1, 0.3, 1),
+    transform 400ms cubic-bezier(0.16, 1, 0.3, 1);
+}
+.page-enter .card-soft:nth-of-type(2) {
+  animation-delay: 60ms;
+}
+.page-enter .card-soft:nth-of-type(3) {
+  animation-delay: 120ms;
+}
+.page-enter .card-soft:nth-of-type(n + 4) {
+  animation-delay: 180ms;
+}
+.card-soft:hover {
+  box-shadow: 0 18px 40px -28px rgba(14, 46, 84, 0.45);
+}
+
+/* Lignes de tableau : survol doux. */
+tbody tr {
+  transition: background-color 250ms ease;
+}
+tbody tr:hover {
+  background-color: var(--color-background-alt);
+}
+
+/* Liens de la barre latérale : glissement de l'icône au survol. */
+.nav-item {
+  transition:
+    background-color 320ms cubic-bezier(0.16, 1, 0.3, 1),
+    color 320ms ease,
+    box-shadow 420ms ease,
+    padding 500ms cubic-bezier(0.16, 1, 0.3, 1);
+}
+.nav-item .nav-icon {
+  transition: transform 420ms cubic-bezier(0.34, 1.56, 0.64, 1);
+}
+.nav-item:hover .nav-icon {
+  transform: translateX(2px) scale(1.12);
+}
+.nav-item:active {
+  transform: scale(0.97);
+}
+.nav-item[aria-current="page"] .nav-icon {
+  animation: nav-pop 520ms cubic-bezier(0.34, 1.56, 0.64, 1);
+}
+@keyframes nav-pop {
+  0% {
+    transform: scale(0.7);
+  }
+  60% {
+    transform: scale(1.18);
+  }
+  100% {
+    transform: none;
+  }
+}
+
+/* Défilement fin dans la barre latérale. */
+.sidebar-scroll {
+  scrollbar-width: thin;
+  scrollbar-color: rgba(255, 255, 255, 0.18) transparent;
+}
+
+/* Fenêtres de confirmation : ouverture en douceur. */
+.soft-dialog[open] {
+  animation: dialog-in 420ms cubic-bezier(0.16, 1, 0.3, 1) both;
+}
+.soft-dialog[open]::backdrop {
+  animation: fade-in 320ms ease both;
+}
+@keyframes dialog-in {
+  from {
+    opacity: 0;
+    transform: translateY(16px) scale(0.96);
+  }
+  to {
+    opacity: 1;
+    transform: none;
+  }
+}
+@keyframes fade-in {
+  from {
+    opacity: 0;
+  }
+}
+
+/* ---------- Splash du premier chargement ---------- */
+
+.splash {
+  position: fixed;
+  inset: 0;
+  z-index: 100;
+  display: grid;
+  place-content: center;
+  justify-items: center;
+  gap: 18px;
+  overflow: hidden;
+  background: radial-gradient(120% 90% at 50% 40%, #16365f 0%, var(--color-tertiary) 60%, #0a2242 100%);
+  animation: splash-out 650ms cubic-bezier(0.7, 0, 0.84, 0) 1650ms forwards;
+}
+.splash-seen .splash {
+  display: none;
+}
+.splash-logo {
+  animation: splash-bounce 1100ms cubic-bezier(0.34, 1.56, 0.64, 1) both;
+  filter: drop-shadow(0 22px 34px rgba(0, 0, 0, 0.35));
+}
+.splash-title {
+  color: rgba(255, 255, 255, 0.85);
+  font-size: 18px;
+  font-weight: 700;
+  letter-spacing: 0.18em;
+  text-transform: uppercase;
+  animation: rise 700ms cubic-bezier(0.16, 1, 0.3, 1) 450ms both;
+}
+.splash-bar {
+  position: relative;
+  width: 140px;
+  height: 4px;
+  overflow: hidden;
+  border-radius: 999px;
+  background: rgba(255, 255, 255, 0.14);
+  animation: fade-in 400ms ease 600ms both;
+}
+.splash-bar > span {
+  position: absolute;
+  inset: 0;
+  border-radius: inherit;
+  background: var(--color-primary);
+  transform-origin: left;
+  animation: splash-load 1100ms cubic-bezier(0.65, 0, 0.35, 1) 600ms both;
+}
+.splash-mosaic {
+  position: absolute;
+  right: -70px;
+  top: 50%;
+  display: grid;
+  grid-template-columns: 150px 150px;
+  gap: 12px;
+  transform: translateY(-60%);
+  opacity: 0.22;
+}
+.splash-mosaic > span {
+  height: 150px;
+  border-radius: 18px;
+  animation: tile-in 900ms cubic-bezier(0.2, 0.8, 0.2, 1) both;
+}
+.splash-mosaic > span:first-child {
+  border-top-left-radius: 46px;
+}
+.splash-mosaic > span:nth-child(3) {
+  border-bottom-left-radius: 46px;
+}
+@keyframes splash-bounce {
+  0% {
+    opacity: 0;
+    transform: translateY(40px) scale(0.3) rotate(-12deg);
+  }
+  45% {
+    opacity: 1;
+    transform: translateY(-14px) scale(1.12) rotate(4deg);
+  }
+  65% {
+    transform: translateY(4px) scale(0.95) rotate(-2deg);
+  }
+  82% {
+    transform: translateY(-3px) scale(1.03);
+  }
+  100% {
+    transform: none;
+  }
+}
+@keyframes splash-load {
+  from {
+    transform: scaleX(0);
+  }
+  to {
+    transform: scaleX(1);
+  }
+}
+@keyframes splash-out {
+  to {
+    opacity: 0;
+    visibility: hidden;
+    transform: scale(1.06);
+    filter: blur(6px);
+  }
+}

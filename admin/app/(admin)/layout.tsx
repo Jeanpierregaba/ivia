@@ -1,6 +1,7 @@
 import { redirect } from "next/navigation";
 
-import { Sidebar, type SidebarCounts } from "@/components/sidebar";
+import { AdminShell } from "@/components/admin-shell";
+import { type SidebarCounts } from "@/components/sidebar";
 import { api, ApiError, type Schemas } from "@/lib/api";
 
 // Toutes les pages de l'espace admin : la session est vérifiée auprès de l'API à chaque
@@ -23,11 +24,8 @@ export default async function AdminLayout({ children }: { children: React.ReactN
   }
 
   return (
-    <div className="grid min-h-screen grid-cols-[300px_minmax(0,1fr)]">
-      <Sidebar firstName={me.first_name} lastName={me.last_name} email={me.email ?? ""} counts={counts} />
-      <main className="min-w-0 px-11 pb-16 pt-9">
-        <div className="mx-auto max-w-[1440px]">{children}</div>
-      </main>
-    </div>
+    <AdminShell firstName={me.first_name} lastName={me.last_name} email={me.email ?? ""} counts={counts}>
+      {children}
+    </AdminShell>
   );
 }
