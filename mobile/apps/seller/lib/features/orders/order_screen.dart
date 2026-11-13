@@ -221,6 +221,10 @@ class _OrderScreenState extends ConsumerState<OrderScreen> {
                 _Items(order: order),
                 const SizedBox(height: IviaSpacing.lg),
                 _Amounts(order: order),
+                if (order.status == OrderStatus.delivered) ...[
+                  const SizedBox(height: IviaSpacing.lg),
+                  _DriverRating(orderId: order.id),
+                ],
               ],
             ),
           ),
@@ -462,6 +466,89 @@ class _Items extends StatelessWidget {
 }
 
 /// Montants : produits, commission ivia, « Vous recevez ».
+/// Note du livreur par le marchand (facultative), une fois la commande livrée.
+final _driverRatingProvider = FutureProvider.autoDispose
+    .family<OrderRating, String>(
+      (ref, id) => ref.read(apiClientProvider).sellerDriverRating(id),
+    );
+
+class _DriverRating extends ConsumerWidget {
+  const _DriverRating({required this.orderId});
+
+  final String orderId;
+
+  Future<void> _rate(BuildContext context, WidgetRef ref) async {
+    final client = ref.read(apiClientProvider);
+    final ok = await showRatingSheet(
+      context,
+      title: 'Comment était le livreur ?',
+      subtitle: 'Ponctualité, soin du colis, politesse…',
+      leading: const CircleAvatar(
+        radius: 30,
+        backgroundColor: IviaColors.secondarySoft,
+        child: Icon(
+          Icons.delivery_dining_rounded,
+          color: IviaColors.secondary,
+          size: 32,
+        ),
+      ),
+      praiseTags: driverPraiseTags,
+      issueTags: driverIssueTags,
+      onSubmit: (r) async {
+        try {
+          await client.rateDriverAsSeller(
+            orderId,
+            stars: r.stars,
+            tags: r.tags,
+            comment: r.comment,
+          );
+          return null;
+        } on ApiException catch (e) {
+          return e.message;
+        }
+      },
+    );
+    if (ok) ref.invalidate(_driverRatingProvider(orderId));
+  }
+
+  @override
+  Widget build(BuildContext context, WidgetRef ref) {
+    final state = ref.watch(_driverRatingProvider(orderId)).value;
+    if (state == null || (!state.canRate && state.rating == null)) {
+      return const SizedBox.shrink();
+    }
+    final stars = state.rating?.stars ?? 0;
+    return _Card(
+      child: InkWell(
+        onTap: state.canRate ? () => _rate(context, ref) : null,
+        child: Row(
+          children: [
+            const Icon(
+              Icons.delivery_dining_rounded,
+              color: IviaColors.secondary,
+            ),
+            const SizedBox(width: IviaSpacing.md),
+            Expanded(
+              child: Text(
+                state.canRate ? 'Noter le livreur' : 'Livreur noté, merci !',
+                style: Theme.of(context).textTheme.titleSmall,
+              ),
+            ),
+            for (var i = 1; i <= 5; i++)
+              Icon(
+                i <= stars ? Icons.star_rounded : Icons.star_outline_rounded,
+                size: 20,
+                color: i <= stars
+                    ? const Color(0xFFF5B301)
+                    : IviaColors.textMuted,
+              ),
+          ],
+        ),
+      ),
+    );
+  }
+}
+
 class _Amounts extends StatelessWidget {
   const _Amounts({required this.order});
 
@@ -473,6 +560,11 @@ class _Amounts extends StatelessWidget {
       crossAxisAlignment: CrossAxisAlignment.stretch,
       children: [
         IviaAmountRow(label: 'Produits', amount: formatXof(order.subtotalXof)),
+        if (order.discountPaidByShop)
+          IviaAmountRow(
+            label: 'Code promo (${order.promoCode ?? ''})',
+            amount: '− ${formatXof(order.discountXof)}',
+          ),
         IviaAmountRow(
           label: 'Commission ivia',
           amount: '− ${formatXof(order.commissionXof)}',

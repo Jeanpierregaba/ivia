@@ -14,6 +14,7 @@ import 'order_labels.dart';
 import 'invoice.dart';
 import 'receipt_screen.dart';
 import 'order_parts.dart';
+import 'rating_card.dart';
 import 'orders_providers.dart';
 
 /// Intervalle de relecture d'une commande en cours affichée.
@@ -303,6 +304,10 @@ class _OrderScreenState extends ConsumerState<OrderScreen> {
           const SizedBox(height: IviaSpacing.lg),
           _Header(order: order, onPay: _opening ? null : _pay),
           const SizedBox(height: IviaSpacing.lg),
+          if (order.status == OrderStatus.delivered) ...[
+            DeliveryRatingCard(orderId: order.id),
+            const SizedBox(height: IviaSpacing.lg),
+          ],
           _ShopTile(shop: order.shop),
           const SizedBox(height: IviaSpacing.lg),
           OrderCard(child: IviaTimeline(steps: timelineOf(order))),

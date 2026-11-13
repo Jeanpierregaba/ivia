@@ -19,6 +19,7 @@
     "gen:api": "openapi-typescript ../backend/api/openapi.yaml -o lib/api-types.ts"
   },
   "dependencies": {
+    "leaflet": "1.9.4",
     "lucide-react": "1.66.0",
     "next": "16.4.3",
     "qrcode": "1.5.4",
@@ -28,6 +29,7 @@
   },
   "devDependencies": {
     "@tailwindcss/postcss": "4.3.3",
+    "@types/leaflet": "1.9.22",
     "@types/node": "24.19.2",
     "@types/qrcode": "1.5.5",
     "@types/react": "19.3.0",

@@ -30,6 +30,8 @@ import {
   Truck,
   Users,
   X,
+  Radar,
+  Star,
 } from "lucide-react";
 import Link from "next/link";
 import { usePathname } from "next/navigation";
@@ -63,6 +65,8 @@ const sections: { title: string; items: Item[] }[] = [
       { href: "/business", label: "Ivia Business", icon: Briefcase },
       { href: "/shops", label: "Boutiques", icon: Store, count: "shops" },
       { href: "/drivers", label: "Livreurs", icon: Truck, count: "drivers" },
+      { href: "/fleet", label: "Carte de la flotte", icon: Radar },
+      { href: "/ratings", label: "Avis", icon: Star },
       { href: "/driver-incidents", label: "Signalements livreurs", icon: TriangleAlert },
       { href: "/driver-settings", label: "Réglages partenaires", icon: SlidersHorizontal },
       { href: "/properties", label: "Immobilier", icon: Building2 },

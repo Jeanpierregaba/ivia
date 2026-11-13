@@ -32,5 +32,6 @@ export 'src/navigation_screen.dart';
 export 'src/providers.dart';
 export 'src/push.dart';
 export 'src/review_screens.dart';
+export 'src/rating_sheet.dart';
 export 'src/ringer.dart';
 export 'src/route_screen.dart';

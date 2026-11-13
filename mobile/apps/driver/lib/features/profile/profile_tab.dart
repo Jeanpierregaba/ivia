@@ -33,6 +33,12 @@ List<NavApp> navAppsFor(TargetPlatform platform) => [
 /// application de navigation, sonnerie des missions, aide, déconnexion.
 /// Une activité validée ne se modifie plus dans l'app (le serveur la
 /// verrouille) : « Modifier » explique comment passer par le support.
+/// Note moyenne donnée par les clients et les marchands (spec 035).
+final _myRatingProvider =
+    FutureProvider.autoDispose<({double average, int ratings})>(
+      (ref) => ref.read(apiClientProvider).myDriverRating(),
+    );
+
 class ProfileTab extends ConsumerWidget {
   const ProfileTab({super.key});
 
@@ -109,6 +115,18 @@ class ProfileTab extends ConsumerWidget {
                           bg: Colors.white,
                           fg: D.ink,
                           iconColor: D.blue,
+                        ),
+                      if (ref.watch(_myRatingProvider).value
+                          case (:final average, :final ratings)
+                          when ratings > 0)
+                        _Badge(
+                          icon: Icons.star_rounded,
+                          text:
+                              '${average.toStringAsFixed(1).replaceAll('.', ',')}'
+                              ' · $ratings avis',
+                          bg: Colors.white,
+                          fg: D.ink,
+                          iconColor: const Color(0xFFF5B301),
                         ),
                       if (dossier?.review == DriverReview.approved)
                         const _Badge(

@@ -1567,6 +1567,8 @@ class SellerOrder {
     required this.updatedAt,
     required this.handoverAttempts,
     required this.items,
+    this.promoCode,
+    this.discountXof = 0,
   });
 
   factory SellerOrder.fromJson(Map<String, dynamic> json) => SellerOrder(
@@ -1590,9 +1592,20 @@ class SellerOrder {
       for (final item in json['items'] as List? ?? const [])
         OrderItem.fromJson(item as Map<String, dynamic>),
     ],
+    promoCode: json['promo_code'] as String?,
+    discountXof: json['discount_xof'] as int? ?? 0,
   );
 
   final String id;
+
+  /// Code promo du client et réduction ; à la charge de la boutique si elle
+  /// est retirée de [netXof], sinon offerte par ivia.
+  final String? promoCode;
+  final int discountXof;
+
+  /// Réduction prise sur ce que reçoit la boutique (code de la boutique).
+  bool get discountPaidByShop =>
+      discountXof > 0 && subtotalXof - commissionXof - netXof == discountXof;
 
   /// Numéro lisible (« #1042 »).
   final int number;
