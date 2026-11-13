@@ -2,12 +2,12 @@
 
 import "leaflet/dist/leaflet.css";
 
-import type { LatLngExpression, Map as LMap, Marker, Polyline } from "leaflet";
 import { Bike, Car, Crosshair, Lock, MapPin, Phone, Route, Search } from "lucide-react";
 import Link from "next/link";
 import { useEffect, useMemo, useRef, useState } from "react";
 
 import { cx } from "@/components/ui";
+import { createEngine, type MapEngine } from "./map-engines";
 
 export type FleetDriver = {
   id: string;
@@ -25,7 +25,6 @@ export type FleetDriver = {
 };
 type TrailPoint = { lat: number; lng: number; recorded_at: string };
 
-const LOME: LatLngExpression = [6.1725, 1.2314];
 const REFRESH_MS = 10_000;
 const STALE_MS = 10 * 60_000;
 
@@ -79,13 +78,18 @@ function markerHtml(d: FleetDriver, look: Look, selected: boolean) {
  * 10 s, déplacement animé), filtres, fiche du livreur et trajet récent (point de départ marqué).
  * Les boîtiers GPS des engins (suivi et blocage à distance) viendront compléter cette carte.
  */
-export function FleetMap({ initial, generatedAt }: { initial: FleetDriver[]; generatedAt: string }) {
+export function FleetMap({
+  initial,
+  generatedAt,
+  googleKey,
+}: {
+  initial: FleetDriver[];
+  generatedAt: string;
+  googleKey?: string;
+}) {
   const box = useRef<HTMLDivElement>(null);
-  const map = useRef<LMap | null>(null);
-  const L = useRef<typeof import("leaflet") | null>(null);
-  const markers = useRef(new Map<string, Marker>());
-  const trailLine = useRef<Polyline | null>(null);
-  const trailStart = useRef<Marker | null>(null);
+  const engine = useRef<MapEngine | null>(null);
+  const [engineKind, setEngineKind] = useState<MapEngine["kind"] | null>(null);
   const [drivers, setDrivers] = useState(initial);
   const [now, setNow] = useState(() => new Date(generatedAt).getTime());
   const [filter, setFilter] = useState<"all" | "available" | "busy" | "offline">("all");
@@ -95,33 +99,23 @@ export function FleetMap({ initial, generatedAt }: { initial: FleetDriver[]; gen
   const [trailHours, setTrailHours] = useState(6);
   const [error, setError] = useState<string | null>(null);
 
-  // Carte créée une fois, côté navigateur seulement.
+  // Carte créée une fois, côté navigateur : Google Maps, ou OpenStreetMap en secours.
   useEffect(() => {
     let cancelled = false;
-    const pins = markers.current;
-    void import("leaflet").then((mod) => {
-      if (cancelled || !box.current || map.current) return;
-      L.current = mod;
-      const m = mod.map(box.current, { zoomControl: false, attributionControl: true }).setView(LOME, 13);
-      mod
-        .tileLayer("https://{s}.basemaps.cartocdn.com/rastertiles/voyager/{z}/{x}/{y}{r}.png", {
-          maxZoom: 19,
-          subdomains: "abcd",
-          attribution:
-            '&copy; <a href="https://www.openstreetmap.org/copyright">OpenStreetMap</a> &copy; CARTO',
-        })
-        .addTo(m);
-      mod.control.zoom({ position: "bottomright" }).addTo(m);
-      map.current = m;
-      setNow(Date.now());
-    });
+    const use = (p: Promise<MapEngine>) =>
+      void p.then((e) => {
+        if (cancelled) return e.destroy();
+        engine.current?.destroy();
+        engine.current = e;
+        setEngineKind(e.kind);
+      });
+    if (box.current) use(createEngine(box.current, googleKey, use));
     return () => {
       cancelled = true;
-      map.current?.remove();
-      map.current = null;
-      pins.clear();
+      engine.current?.destroy();
+      engine.current = null;
     };
-  }, []);
+  }, [googleKey]);
 
   // Rafraîchissement en direct tant que l'onglet est visible.
   useEffect(() => {
@@ -148,38 +142,17 @@ export function FleetMap({ initial, generatedAt }: { initial: FleetDriver[]; gen
 
   // Marqueurs : ajoutés, déplacés en douceur, retirés.
   useEffect(() => {
-    const mod = L.current;
-    const m = map.current;
-    if (!mod || !m) return;
+    const e = engine.current;
+    if (!e) return;
     const seen = new Set<string>();
     for (const d of drivers) {
       seen.add(d.id);
-      const look = lookOf(d, now);
-      const icon = mod.divIcon({
-        html: markerHtml(d, look, d.id === selected),
-        className: "",
-        iconSize: [44, 44],
-        iconAnchor: [22, 22],
-      });
-      const existing = markers.current.get(d.id);
-      if (!existing) {
-        const mk = mod
-          .marker([d.lat, d.lng], { icon, riseOnHover: true, title: d.first_name })
-          .addTo(m)
-          .on("click", () => setSelected(d.id));
-        markers.current.set(d.id, mk);
-      } else {
-        existing.setIcon(icon);
-        slide(existing, d.lat, d.lng);
-      }
+      e.upsert(d.id, { lat: d.lat, lng: d.lng }, markerHtml(d, lookOf(d, now), d.id === selected), () =>
+        setSelected(d.id),
+      );
     }
-    for (const [id, mk] of markers.current) {
-      if (!seen.has(id)) {
-        mk.remove();
-        markers.current.delete(id);
-      }
-    }
-  }, [drivers, now, selected]);
+    for (const id of e.ids()) if (!seen.has(id)) e.remove(id);
+  }, [drivers, now, selected, engineKind]);
 
   // Trajet du livreur choisi.
   useEffect(() => {
@@ -197,34 +170,13 @@ export function FleetMap({ initial, generatedAt }: { initial: FleetDriver[]; gen
   }, [selected, trailHours]);
 
   useEffect(() => {
-    const mod = L.current;
-    const m = map.current;
-    trailLine.current?.remove();
-    trailStart.current?.remove();
-    trailLine.current = null;
-    trailStart.current = null;
-    if (!mod || !m || !trail || trail.length < 2) return;
-    const pts = trail.map((p) => [p.lat, p.lng] as [number, number]);
-    trailLine.current = mod
-      .polyline(pts, { color: "#004da8", weight: 5, opacity: 0.85, lineCap: "round", lineJoin: "round" })
-      .addTo(m);
-    trailStart.current = mod
-      .marker(pts[0]!, {
-        icon: mod.divIcon({
-          html: '<div class="fleet-origin">Départ</div>',
-          className: "",
-          iconSize: [64, 26],
-          iconAnchor: [32, 13],
-        }),
-      })
-      .addTo(m);
-    m.flyToBounds(trailLine.current.getBounds(), { padding: [60, 60], duration: 1.1 });
-  }, [trail]);
+    engine.current?.trail(trail);
+  }, [trail, engineKind]);
 
   const focus = (d: FleetDriver) => {
     if (d.id !== selected) setTrail(null);
     setSelected(d.id);
-    map.current?.flyTo([d.lat, d.lng], 16, { duration: 1.1 });
+    engine.current?.focus({ lat: d.lat, lng: d.lng }, 16);
   };
 
   const counts = useMemo(() => {
@@ -276,8 +228,13 @@ export function FleetMap({ initial, generatedAt }: { initial: FleetDriver[]; gen
             </button>
           ))}
         </div>
+        {engineKind && (
+          <span className="pointer-events-none absolute bottom-4 left-4 z-[500] rounded-full bg-white/90 px-3 py-1 text-[11px] font-semibold text-text-muted shadow">
+            {engineKind === "google" ? "Google Maps" : "OpenStreetMap"}
+          </span>
+        )}
         {error && (
-          <p className="absolute bottom-4 left-4 z-[500] rounded-full bg-primary-soft px-4 py-2 text-[13px] font-semibold text-error shadow">
+          <p className="absolute bottom-12 left-4 z-[500] rounded-full bg-primary-soft px-4 py-2 text-[13px] font-semibold text-error shadow">
             {error}
           </p>
         )}
@@ -443,19 +400,4 @@ export function FleetMap({ initial, generatedAt }: { initial: FleetDriver[]; gen
       </aside>
     </div>
   );
-}
-
-/** Déplace un marqueur en douceur vers sa nouvelle position. */
-function slide(marker: Marker, lat: number, lng: number) {
-  const from = marker.getLatLng();
-  if (Math.abs(from.lat - lat) < 1e-7 && Math.abs(from.lng - lng) < 1e-7) return;
-  const start = performance.now();
-  const dur = 1200;
-  const step = (t: number) => {
-    const k = Math.min(1, (t - start) / dur);
-    const e = 1 - Math.pow(1 - k, 3);
-    marker.setLatLng([from.lat + (lat - from.lat) * e, from.lng + (lng - from.lng) * e]);
-    if (k < 1) requestAnimationFrame(step);
-  };
-  requestAnimationFrame(step);
 }
