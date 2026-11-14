@@ -1,4 +1,4 @@
-// Point d'entrée du serveur API.
+// Point d'entrée du serveur API (routes HTTP + tâches de fond River dans le même processus).
 package main
 
 import (
@@ -11,8 +11,9 @@ import (
 	"syscall"
 	"time"
 
+	"ivia/backend/internal/app"
+	"ivia/backend/internal/platform/config"
 	"ivia/backend/internal/platform/database"
-	"ivia/backend/internal/platform/httpapi"
 )
 
 func main() {
@@ -24,40 +25,46 @@ func main() {
 }
 
 func run(logger *slog.Logger) error {
-	port := os.Getenv("PORT")
-	if port == "" {
-		port = "8080"
+	cfg, err := config.Load(os.Getenv)
+	if err != nil {
+		return err
 	}
-	databaseURL := os.Getenv("DATABASE_URL")
-	if databaseURL == "" {
-		return errors.New("DATABASE_URL non définie (voir .env.example)")
-	}
+	logger = slog.New(slog.NewJSONHandler(os.Stdout, &slog.HandlerOptions{Level: parseLevel(cfg.LogLevel)}))
 
 	ctx, stop := signal.NotifyContext(context.Background(), os.Interrupt, syscall.SIGTERM)
 	defer stop()
 
-	db, err := database.Open(ctx, databaseURL)
+	pool, err := database.Open(ctx, cfg.DatabaseURL)
 	if err != nil {
 		return err
 	}
-	defer db.Close()
+	defer pool.Close()
 
-	if err := database.Migrate(ctx, db); err != nil {
+	if err := database.Migrate(ctx, pool); err != nil {
+		return err
+	}
+
+	a, err := app.New(cfg, logger, pool, app.Options{})
+	if err != nil {
+		return err
+	}
+	if err := a.Start(ctx); err != nil {
 		return err
 	}
 
 	srv := &http.Server{
-		Addr:              ":" + port,
-		Handler:           httpapi.New(logger, db),
+		Addr:              ":" + cfg.Port,
+		Handler:           a.Handler,
 		ReadHeaderTimeout: 5 * time.Second,
-		ReadTimeout:       10 * time.Second,
-		WriteTimeout:      10 * time.Second,
+		ReadTimeout:       15 * time.Second,
+		WriteTimeout:      30 * time.Second,
 		IdleTimeout:       60 * time.Second,
 	}
 
 	errCh := make(chan error, 1)
 	go func() {
-		logger.Info("serveur démarré", "addr", srv.Addr)
+		logger.Info("serveur démarré", "addr", srv.Addr, "env", cfg.Env, "version", cfg.Version,
+			"workers", cfg.RunWorkers, "sentry", cfg.SentryDSN != "")
 		if err := srv.ListenAndServe(); err != nil && !errors.Is(err, http.ErrServerClosed) {
 			errCh <- err
 		}
@@ -72,8 +79,18 @@ func run(logger *slog.Logger) error {
 	// Rétablit le comportement par défaut : un second signal force l'arrêt immédiat.
 	stop()
 
-	shutdownCtx, cancel := context.WithTimeout(context.Background(), 10*time.Second)
+	shutdownCtx, cancel := context.WithTimeout(context.Background(), 20*time.Second)
 	defer cancel()
 	logger.Info("arrêt en cours")
-	return srv.Shutdown(shutdownCtx)
+	httpErr := srv.Shutdown(shutdownCtx)
+	jobsErr := a.Stop(shutdownCtx)
+	return errors.Join(httpErr, jobsErr)
+}
+
+func parseLevel(s string) slog.Level {
+	var l slog.Level
+	if err := l.UnmarshalText([]byte(s)); err != nil {
+		return slog.LevelInfo
+	}
+	return l
 }

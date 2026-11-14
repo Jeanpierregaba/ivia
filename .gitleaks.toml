@@ -1,0 +1,14 @@
+# Détection de secrets (CI, job « secrets ») : règles par défaut de gitleaks, plus ces exceptions.
+# N'ajouter une exception que pour une fausse valeur de test, jamais pour un vrai secret : un vrai
+# secret commité est considéré comme compromis et se change (infra/README.md, « Changer un secret »).
+[extend]
+useDefault = true
+
+[allowlist]
+description = "Modèles sans valeur et faux secrets des tests"
+paths = [
+  '''(^|/)\.env\.example$''',
+  '''(^|/)backend/internal/platform/config/secrets_test\.go$''',
+  # Mots de passe fictifs des tests de connexion (« nouveau-mot-de-passe-2026 »…).
+  '''(^|/)backend/internal/app/auth_password_test\.go$''',
+]

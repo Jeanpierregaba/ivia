@@ -31,3 +31,32 @@ Thumbs.db
 
 # Go
 backend/bin/
+# Fichiers envoyés en local (STORAGE=local)
+backend/var/
+
+# Secrets du serveur (compte de service Firebase…)
+infra/secrets/
+infra/deploy-history.log
+
+# Back-office
+admin/next-env.d.ts
+*.tsbuildinfo
+
+# Sources brutes de la stratégie de communication IVI (≈ 20 Mo) : les versions allégées
+# utilisées par les apps sont dans backend/internal/app/seedassets/ivi.
+admin/public/communications strategy/
+
+# Binaires compilés en local
+*.exe
+
+# Données de carte, préparées par tools/geo/
+geo-data/
+places.csv
+# Clé Google du fond de carte de l'aperçu web (locale)
+tools/preview/maps-web-key.txt
+
+# Firebase (push) : fichiers de configuration locaux, jamais commités
+**/android/app/google-services.json
+**/ios/Runner/GoogleService-Info.plist
+backend/secrets/
+tools/preview/firebase-web.txt

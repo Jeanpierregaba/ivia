@@ -11,7 +11,7 @@ Il est rempli par la skill /cadrage (ou à la main en suivant les commentaires).
 
 ## Statut du cadrage
 
-**FAIT (2026-10-30)** — reste le squelette back-office, voir `TASKS.md`.
+**FAIT (2026-10-30)** — backend MVP, squelette mobile (3 apps) et back-office en place, voir `TASKS.md`.
 
 
 > Tant que le statut est « NON FAIT » : si l'utilisateur demande de coder une fonctionnalité,
@@ -37,12 +37,15 @@ Détail et versions : `docs/ARCHITECTURE.md`.
 ## Structure du dépôt
 
 - `backend/` — API Go (module `ivia/backend`)
-  - `cmd/api/` — point d'entrée (API + workers River)
-  - `internal/<module>/` — un dossier par domaine (auth, users, shops, catalog, orders, payments, delivery…)
-  - `internal/platform/` — config, base, middlewares HTTP, stockage
+  - `cmd/api/` — point d'entrée (API + workers River) · `cmd/manage/` — administration (grant-admin, seed-dev)
+  - `internal/<module>/` — un dossier par domaine : `queries.sql` (sqlc → `store/`), `service.go`, `handler.go`, `jobs.go`
+  - `internal/app/` — assemblage des modules + tests de bout en bout par HTTP
+  - `internal/platform/` — config, base (transactions par contexte), HTTP, River, stockage, erreurs, validation
   - `db/migrations/` — migrations goose · `api/openapi.yaml` — contrat de l'API
-- `mobile/` — pub workspace : `apps/buyer`, `apps/seller`, `apps/driver`, `packages/api_client`, `packages/ui`
-- `admin/` — back-office Next.js
+- `mobile/` — pub workspace : `apps/buyer`, `apps/seller`, `apps/driver`, `packages/api_client`,
+  `packages/app_core` (session, connexion, champs communs), `packages/ui`
+- `admin/` — back-office Next.js (`app/(admin)/` pages, `lib/api.ts` client serveur de l'API,
+  `lib/api-types.ts` généré, `components/`) : voir `admin/README.md`
 - `infra/` — déploiement (Compose de production, Caddy, sauvegardes)
 - `docker-compose.yml` — services locaux (PostGIS)
 
@@ -53,23 +56,47 @@ Base de données (depuis la racine) :
 - Démarrer : `docker compose up -d --wait` · Arrêter : `docker compose stop`
 - Console SQL : `docker compose exec postgres psql -U ivia -d ivia`
 
-Backend (depuis `backend/`) — `DATABASE_URL` doit être exportée (valeur locale dans `.env.example`) :
-- Installer : `go mod download`
-- Démarrer en local : `go run ./cmd/api` (port `PORT`, 8080 par défaut)
-- Lint : `gofmt -l .` (doit être vide) et `go vet ./...`
+Backend (depuis `backend/`) — `APP_ENV=local` et `DATABASE_URL` doivent être exportées (voir `.env.example`) :
+- Installer : `go mod download` · outil : sqlc 1.31 (`go install github.com/sqlc-dev/sqlc/cmd/sqlc@v1.31.1`)
+- Démarrer en local : `go run ./cmd/api` (port `PORT`, 8080 par défaut ; codes OTP dans les journaux)
+- Données de démonstration : `go run ./cmd/manage seed-dev` · premier admin : `go run ./cmd/manage grant-admin <email>`
+- Code SQL généré : `sqlc generate` après toute modification d'un `queries.sql` ou d'une migration (commité)
+- Lint : `gofmt -l .` (doit être vide), `go vet ./...`, `sqlc diff` (doit être vide)
 - Typecheck : `go build ./...`
-- Tests : `go test ./...` (`TestOpen` est ignoré sans `DATABASE_URL`)
+- Tests : `go test ./...` (contre PostGIS ; sans `DATABASE_URL`, les tests qui en ont besoin sont ignorés)
+- Sécurité : `go run golang.org/x/vuln/cmd/govulncheck@v1.9.0 ./...`
 - Build : `go build -o bin/api ./cmd/api`
+
+Back-office (depuis `admin/`, pnpm 10, Node 20.9+ ; Node 24 en CI) :
+- Installer : `pnpm install`
+- Démarrer en local : `API_BASE_URL=http://localhost:8080 pnpm dev` (http://localhost:3000 ; compte
+  `admin@ivia.local` créé par `seed-dev`)
+- Types de l'API : `pnpm gen:api` après toute modification d'`openapi.yaml` (fichier commité)
+- Lint : `pnpm format:check` et `pnpm lint` · Typecheck : `pnpm typecheck`
+- Tests : `pnpm test` · Build : `pnpm build`
 
 Mobile (pub workspace, depuis `mobile/` sauf mention) :
 - Installer : `flutter pub get` (un seul `pubspec.lock` pour tout le workspace)
-- Démarrer en local : depuis `apps/<buyer|seller|driver>`, `flutter run`
-  (`--dart-define=API_BASE_URL=http://…:8080` hors émulateur Android)
+- Démarrer en local : depuis `apps/<buyer|seller|driver|pharmacy>`, `flutter run`
+  (`--dart-define=API_BASE_URL=http://…:8080` hors émulateur Android ; simulateur iOS :
+  `http://localhost:<PORT>`). Connexion par numéro (ADR 0012) : numéros des comptes de
+  `seed-dev` / `seed-demo` (ex. acheteur `90 00 01 02`). Code (WhatsApp ou SMS, rien n'est
+  envoyé en local) : journaux de l'API ou `POST /v1/dev/otp` ; avec
+  `--dart-define=IVIA_DEV_OTP=true` (build debug, API locale), l'app le lit et le saisit seule.
+  Jamais en release : la route n'existe qu'en local et en test. App acheteur :
+  `--dart-define=IVIA_DEV_PAYMENT=true` ajoute « Simuler la validation » et « Simuler un refus »
+  à l'attente du paiement (faux prestataire du serveur, debug seulement)
 - Lint : `dart format --output=none --set-exit-if-changed .`
 - Lint / typecheck : `flutter analyze` (tout le workspace)
 - Tests : `flutter test` dans chaque membre, ou d'un coup :
   `ok=0; for m in apps/* packages/*; do (cd "$m" && flutter test) || ok=1; done; [ $ok -eq 0 ]`
 - Build : depuis `apps/<app>`, `flutter build apk` / `flutter build ios --no-codesign`
+- Carte Google Maps (app marchand) : clés restreintes, jamais committées — Android :
+  `MAPS_API_KEY=…` dans `apps/seller/android/local.properties` ; iOS : `MAPS_API_KEY = …` dans
+  `apps/seller/ios/Flutter/Maps.xcconfig` ; puis `--dart-define=GOOGLE_MAPS=true`. Sans clé :
+  aperçu sans fond de carte
+- Splash natif : après modification de `apps/<app>/flutter_native_splash.yaml` ou de ses images,
+  depuis `apps/<app>`, `dart run flutter_native_splash:create` (fichiers Android et iOS générés, commités)
 
 ## Règles d'architecture non négociables
 
@@ -97,7 +124,7 @@ Mobile (pub workspace, depuis `mobile/` sauf mention) :
 - **Identifiants** : `uuid` générés par la base.
 - **API** : JSON en `snake_case` ; erreurs au format `{"error": {"code": "...", "message": "..."}}`,
   `code` stable en anglais, `message` en français lisible par l'utilisateur. Toute route est décrite
-  dans `backend/api/openapi.yaml` **dans le même commit**.
+  dans `backend/api/openapi.yaml` **dans le même commit** (`TestOpenAPICoversAllRoutes` le vérifie).
 - **Go** : erreurs enveloppées (`fmt.Errorf("contexte : %w", err)`), `context.Context` en premier
   argument, pas de variable globale mutable, `slog` pour les logs (jamais de code OTP, jeton,
   numéro complet ni donnée de paiement).

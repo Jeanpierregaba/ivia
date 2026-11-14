@@ -1,0 +1,129 @@
+import 'package:flutter/services.dart';
+import 'package:flutter_test/flutter_test.dart';
+import 'package:ivia_api_client/ivia_api_client.dart';
+import 'package:ivia_app_core/ivia_app_core.dart';
+
+/// Espaces typographiques remplacés par des espaces simples, pour lire les
+/// attentes.
+String plain(String s) => s.replaceAll(' ', ' ').replaceAll(' ', ' ');
+
+void main() {
+  test('prix groupés par milliers, espace insécable avant F', () {
+    expect(plain(formatXof(450)), '450 F');
+    expect(plain(formatXof(4500)), '4 500 F');
+    expect(plain(formatXof(100000000)), '100 000 000 F');
+    expect(formatXof(4500), contains(' F'));
+  });
+
+  test('prix saisi : séparateurs ignorés, vide refusé', () {
+    expect(parseXof('4 500'), 4500);
+    expect(parseXof('4.500'), 4500);
+    expect(parseXof('4 500'), 4500);
+    expect(parseXof(''), isNull);
+    expect(parseXof('abc'), isNull);
+  });
+
+  group('saisie du prix', () {
+    final formatter = XofInputFormatter();
+    TextEditingValue type(String old, String text, [int? cursor]) =>
+        formatter.formatEditUpdate(
+          TextEditingValue(text: old),
+          TextEditingValue(
+            text: text,
+            selection: TextSelection.collapsed(offset: cursor ?? text.length),
+          ),
+        );
+
+    test('groupée pendant la frappe, curseur en fin', () {
+      final v = type('450', '4500');
+      expect(plain(v.text), '4 500');
+      expect(v.selection.end, v.text.length);
+    });
+
+    test('lettres et zéros de tête retirés', () {
+      expect(plain(type('', '0012a5').text), '125');
+      expect(type('', '0').text, '0');
+    });
+
+    test('au-delà de 100 000 000 F : frappe ignorée', () {
+      final v = type('99\u202F999\u202F999', '999999999');
+      expect(plain(v.text), '99 999 999');
+      expect(plain(type('', '100000000').text), '100 000 000');
+    });
+
+    test('au-delà de 9 chiffres : frappe ignorée', () {
+      final v = type('100 000 000', '1000000000');
+      expect(plain(v.text), '100 000 000');
+    });
+
+    test('correction au milieu : curseur après le même chiffre', () {
+      // « 4 500 » → insertion de 2 après le 4 : « 42 500 ».
+      final v = type('4 500', '42 500', 2);
+      expect(plain(v.text), '42 500');
+      expect(v.selection.end, 2);
+    });
+  });
+
+  group('dates courtes', () {
+    final now = DateTime.utc(2026, 10, 31, 15);
+
+    test("aujourd'hui, hier, puis jour et mois", () {
+      expect(shortDate(DateTime.utc(2026, 10, 31, 1), now: now), "aujourd'hui");
+      expect(shortDate(DateTime.utc(2026, 10, 30, 23), now: now), 'hier');
+      expect(shortDate(DateTime.utc(2026, 10, 24), now: now), '24 oct.');
+      expect(shortDate(DateTime.utc(2026, 2, 1), now: now), '1 févr.');
+      expect(shortDate(DateTime.utc(2025, 12, 9), now: now), '9 déc. 2025');
+    });
+
+    test('heure de Lomé (UTC) même pour une date locale', () {
+      final local = DateTime.utc(2026, 10, 24, 23, 30).toLocal();
+      expect(shortDate(local, now: now), '24 oct.');
+    });
+
+    test('« le » devant une date, pas devant aujourd\'hui ni hier', () {
+      expect(onDate(DateTime.utc(2026, 10, 24), now: now), 'le 24 oct.');
+      expect(onDate(DateTime.utc(2026, 10, 31), now: now), "aujourd'hui");
+    });
+  });
+
+  test('distances : mètres sous 1 km, puis kilomètres à la virgule', () {
+    expect(plain(formatDistance(3)), '10 m');
+    expect(plain(formatDistance(347)), '350 m');
+    expect(plain(formatDistance(994)), '990 m');
+    expect(plain(formatDistance(996)), '1 km', reason: 'jamais « 1000 m »');
+    expect(plain(formatDistance(1150)), '1,2 km');
+    expect(plain(formatDistance(2000)), '2 km');
+    expect(plain(formatDistance(9960)), '10 km');
+    expect(plain(formatDistance(12400)), '12 km');
+    expect(formatDistance(350), contains('\u00A0'));
+  });
+
+  test('distance entre deux points de Lomé', () {
+    const tokoin = GeoPoint(lat: 6.1375, lng: 1.2123);
+    expect(distanceMeters(tokoin, tokoin), 0);
+    // 0,003° de latitude ≈ 334 m.
+    expect(
+      distanceMeters(tokoin, const GeoPoint(lat: 6.1405, lng: 1.2123)),
+      inInclusiveRange(330, 338),
+    );
+  });
+
+  test('heure à Lomé : « 09:52 », depuis une date UTC ou locale', () {
+    expect(timeOfDay(DateTime.utc(2026, 11, 2, 9, 52)), '09:52');
+    expect(timeOfDay(DateTime.utc(2026, 11, 2, 23, 5)), '23:05');
+    expect(timeOfDay(DateTime.parse('2026-11-02T14:32:10.5+01:00')), '13:32');
+  });
+
+  test('temps restant : « 14:32 », jamais négatif, lu en toutes lettres', () {
+    expect(countdown(const Duration(minutes: 14, seconds: 32)), '14:32');
+    expect(countdown(const Duration(seconds: 5, milliseconds: 900)), '00:05');
+    expect(countdown(const Duration(seconds: -3)), '00:00');
+    expect(
+      countdownLabel(const Duration(minutes: 14, seconds: 32)),
+      '14 minutes 32 secondes',
+    );
+    expect(countdownLabel(const Duration(minutes: 1)), '1 minute');
+    expect(countdownLabel(const Duration(seconds: 1)), '1 seconde');
+    expect(countdownLabel(const Duration(seconds: -1)), '0 seconde');
+  });
+}

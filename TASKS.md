@@ -8,54 +8,133 @@ docs/specs/NNN-nom/tasks.md. Les petites tâches isolées (bug, retouche) peuven
 
 ## En cours
 
-Fin du squelette (étapes 8-9 du cadrage), à terminer avant la 001 :
+- [x] 041 — Codes promo par produit ([spec](docs/specs/041-promo-par-produit/spec.md), 2026-11-14, migration 00050) : toute la boutique, certains produits ou un seul ; réduction sur les lignes visées ; Business (sélecteur, « Code promo pour ce produit »), back-office, Mes coupons
+- [ ] 040 — Refonte d'Ivia Business, lot 1 ([spec](docs/specs/040-refonte-business/spec.md), 2026-11-14) : charte d'origine (B00-B25), barre en pilule avec « + », Accueil (accepter/refuser sur place, stock bas), Produits (filtre catégorie, grille, glissements, sélection multiple), Nouveau produit sur une page, bibliothèque de photos (`GET /v1/seller/shops/{id}/media`) ; Commandes faites ; reste « Modifier » et code-barres
+- [ ] 039 — Comptes admin à rôles ([spec](docs/specs/039-roles-admin/spec.md), 2026-11-13, migration 00049) : super admin et 7 rôles par domaine, droits vérifiés par le serveur, menu par rôle, page Comptes admin, journal filtré par admin ; tableau de bord restylé
+- [ ] 037 — Messagerie de la course ([spec](docs/specs/037-messagerie-course/spec.md), 2026-11-13, migration 00048) : client ↔ livreur, livreur ↔ boutique, en direct, accusés de lecture, lecture seule après la course
+- [x] 038 — Audit des simulations ([rapport](docs/specs/038-suppression-simulations/spec.md), 2026-11-13) : réponses automatiques des pharmacies supprimées à la source (route, service, app), pharmacies de démonstration retirées du jeu de démo et suspendues dans la base locale, « En attente de réponse » ; test réel avec 3 pharmacies
+- [ ] 036 — Temps réel et parcours de livraison ([spec](docs/specs/036-temps-reel-livraison/spec.md), 2026-11-13, migration 00047) : événements en direct (WebSocket des apps, SSE du back-office), glissements du livreur (démarrer, arrivée, démarrer vers le client), suivi du livreur par le client, le marchand et le back-office ; reste le suivi en arrière-plan sur téléphone (service Android avec les builds natifs)
+- [ ] 034 — Codes promo et coupons ([spec](docs/specs/034-codes-promo/spec.md), 2026-11-13) : serveur (migration 00044, module `coupons`, tests de calcul, de cycle de vie et de concurrence), apps (champ Code promo, Mes coupons, Codes promo de Business) et back-office faits ; reste la vérification sur l'aperçu et la relecture
+- [ ] 035 — Avis et carte de la flotte ([spec](docs/specs/035-avis-et-flotte/spec.md), 2026-11-13) : note du livreur (client, marchand), avis sur l'app, moyennes ; carte en direct au back-office (positions, course, trajet) ; reste : boîtiers GPS des engins (fournisseur à choisir) pour le suivi et le blocage à distance ; carte sur Google Maps (OpenStreetMap en secours)
+- [ ] Commandes IVI au back-office (2026-11-13, migration 00046) : boutique « gérée par ivia » (bouton sur la fiche boutique, boutique IVI de la démo), commandes reçues (notification des admins) et traitées au back-office (accepter, refuser, préparer, prête, remise avec le code, retour) ; test Go du parcours
+- [ ] Finition premium des apps (2026-11-12, Gedeon ; 2026-11-13 : back-office plein écran, barre latérale repliable, transitions de page, splash animé, grilles adaptatives ; apps mobiles en colonne sur grand écran) : transitions sur toutes les pages des 4 apps (go_router créait des pages sans animation), onglets en fondu (état gardé), cloche de notifications et écran Notifications (ivia), push Firebase branché (ivia, Business, Livreur ; navigateur via l'aperçu, migration 00043 `platform = web`), reçu en image (partage, galerie), récapitulatif pour une commande annulée, carte Google en affichage (secours OpenStreetMap si le script ne charge pas)  ; faits ensuite : clés Firebase, OSRM et itinéraire suivi dans l'app, sonneries (boucle seulement à la Pharmacie)
+- [ ] Workflow partenaire livreur et taxi VTC (BPMN du 2026-11-07, migration 00039) : serveur et back-office faits (Gedeon) ; tests Go du parcours à ajouter ; les courses VTC n'existent pas encore
+- [ ] 032 — Pharmacie : manques côté serveur et paiement en espèces par le livreur ([spec](docs/specs/032-pharmacie-serveur/spec.md), [ADR 0014](docs/decisions/0014-pharmacie-paiement-especes-livreur.md)) : spec, plan et tâches validés (2026-11-07) ; serveur fait, migration 00038 relue (2026-11-08 : additive, rien à reprendre) ; restent les écrans et le back-office (tâches 12 à 22)
+- [ ] 031 — Écrans de l'app pharmacie d'après les maquettes F00 à F23 ([spec](docs/specs/031-ecrans-pharmacie/spec.md)) : 24 écrans faits, testés (88 tests, police à 200 % sur 320 dp), vérifiés sur le simulateur iPhone, relus (2026-11-07). Reste : sur un vrai Android, alerte plein écran, sonnerie forte ou coupée, capture bloquée sur l'ordonnance ; manques serveur listés plus bas (Gedeon)
+- [ ] **ADR 0011 — connexion par mot de passe** (2026-11-03) : backend fait (création de compte par code puis mot de passe, connexion, verrou après 10 échecs, mot de passe oublié, changement de mot de passe, Google, double vérification des admins, migration 00024, tests). Back-office fait (maquettes B01, B02, B03 : mot de passe puis code, tableau de bord dynamique). Apps mobiles : passées à la connexion par numéro (ADR 0012), la 029 (e-mail, mot de passe, Google) en est retirée (2026-11-06). Reste : suppression côté serveur des routes de connexion par e-mail et par Google des apps (Gedeon) une fois les apps publiées
+- [ ] 018 — Espace livreur : lancement, connexion, dossier de candidature ([spec](docs/specs/018-espace-livreur/spec.md)) : relu et corrigé ; appareil photo à vérifier sur un vrai téléphone
+- [ ] 004 — Espace marchand : lancement, connexion, création de la boutique ([spec](docs/specs/004-espace-marchand/spec.md)) : relu et corrigé ; reste les clés Google Maps (vérification de la carte)
+- [ ] 027 — Splash et présentation des 3 apps ([spec](docs/specs/027-splash-onboarding/spec.md)) : reste la vérification sur Android, la validation des textes et des couleurs par le designer
+- [ ] 030 — vérifier sur un émulateur ou un téléphone Android (fenêtre du système, refus définitif ⇒ réglages, barre de navigation)
+- [ ] Position par défaut silencieuse : si la localisation est refusée, le dossier pharmacie et l'ajout d'une adresse acheteur envoient un point fixe de Lomé (6.1480, 1.2150) ; demander plutôt la position sur une carte ou le quartier
+- [ ] **Mobile / Gedeon** (vu en remettant les tests à jour pour Ivia Business, 2026-11-06) : les anciens écrans de boutique du marchand (création `ShopFormScreen`, en attente et pièces 028, bloquée) ne s'atteignent plus que si un espace boutique actif a une boutique non publiée (boutiques reprises par la migration 00032) : les garder ou les retirer ; les écrans Business (inscription d'un espace, dossier, versement, modules agence et artisan) n'ont pas encore de tests d'écran (seules les redirections sont testées)
+
+Fin du squelette (étapes 8-9 du cadrage) :
 - [x] Mobile (frontend) — convertir `mobile/` en pub workspace : `apps/buyer`, `apps/seller`, `apps/driver`, `packages/api_client`, `packages/ui` (ADR 0002) ; mettre à jour les commandes Mobile d'`AGENTS.md` et le job `mobile` de la CI
-- [ ] Back-office (frontend) — créer `admin/` avec Next.js 16, TypeScript, Tailwind, pnpm (ADR 0003) ; ajouter ses commandes à `AGENTS.md` et un job `admin` à la CI
-- [ ] Outillage — hook de formatage par extension (`gofmt`, `dart format`, `prettier`), Dependabot (gomod, pub, npm), `govulncheck` et gitleaks en CI, variables dans `.env.example`, section « Démarrer » du `README.md`
-- [ ] Backend — `sqlc.yaml` et River à brancher avec la première fonctionnalité qui en a besoin (001)
+- [x] Back-office (frontend) — créer `admin/` avec Next.js 16, TypeScript, Tailwind, pnpm (ADR 0003) ; ajouter ses commandes à `AGENTS.md`, un job `admin` à la CI et `prettier` au hook de formatage
+- [x] Outillage — gitleaks en CI (job `secrets`, 2026-11-02) ; secrets de production en fichiers (`infra/init-secrets.sh`)
 
 ## À faire
 
-Ordre : dépendances d'abord, puis valeur. Chaque ligne devient une spec (`/spec`) au moment de la
-commencer. Les phases 1 et 2 forment la version « retrait seulement », lançable vers le 4e mois
-si la livraison prend du retard (voir `docs/PRD.md`).
+Le **backend du MVP est implémenté** (voir « Terminé ») : chaque fonctionnalité ci-dessous n'a plus
+que sa partie interface (apps Flutter, back-office), sauf mention « backend ». Contrat de l'API :
+`backend/api/openapi.yaml`. Ordre : dépendances d'abord, puis valeur ; les phases 1 et 2 forment la
+version « retrait seulement » (voir `docs/PRD.md`).
+
+### Pharmacie (031) — manques côté serveur
+Partie serveur faite par la spec 032 (tâches 3 à 11, vérifié le 2026-11-08) ; restent les deux derniers points et les écrans de la 032 (tâches 12 à 22) :
+- [x] **Backend** : numéro court d'alerte (« #A-3107 ») ; l'app affiche l'heure de réception
+- [x] Sans objet (spec 032, point 6 : plus de versement aux pharmacies) : opérateur du compte de versement dans `GET /v1/pharmacy/me`
+- [x] **Backend** : code du livreur à la remise en pharmacie (F17) ; l'app indique que le livreur confirme dans son app
+- [x] **Backend** : heure d'arrivée estimée et heure de récupération par le livreur (F17, F19)
+- [x] Sans objet (spec 032, point 6 : le relevé devient « Encaissements ») : période du relevé et date du prochain versement
+- [x] **Backend** : origine « planning officiel importé » des gardes, et date d'import
+- [x] **Backend** : quartier du client dans l'alerte (« Tokoin »), sans adresse précise
+- [x] **Backend** : montant du forfait remboursé à l'annulation (« 100 F »)
+- [x] **Backend** : adresse de la photo de devanture (photo de profil de la pharmacie) ; l'app affiche une tuile
+- [x] **Backend** : compteurs du jour (alertes reçues, répondues, confirmées) ; l'app les calcule sur les 50 dernières alertes
+- [x] **Backend** : pièces du dossier en PDF : le serveur les accepte déjà ; le choix du fichier dans l'app est la tâche 19 de la 032
+- [x] **Backend** : push d'alerte iOS sans son imposé (`aps.sound`), pour que « Sonnerie coupée » s'applique aussi sur iPhone ; le réglage n'est proposé que sur Android
+- [ ] **Backend** : règlement des livreurs chaque lundi (décidé le 2026-11-12), dont les espèces avancées aux pharmacies (ADR 0014) : le montant est estimé dans `GET /v1/driver/summary`, reste l'enregistrement des versements au back-office
+- [ ] **Mobile** (antérieur à la 031) : si la lecture de la pharmacie échoue au lancement, une pharmacie validée voit le formulaire de création au lieu d'un écran « réessayer »
+
+### Ivia Driver (033) — manques côté serveur
+L'app livreur calcule ou masque en attendant (tableau « calculé ou masqué » de la
+[spec 033](docs/specs/033-ivia-driver/spec.md)) :
+- [x] **Backend** : notification push de chaque proposition (boutique et pharmacie), prioritaire, jamais affichée une fois expirée (Gedeon, 2026-11-12)
+- [ ] **Mobile** : enregistrer le jeton push de l'app livreur (`PUT /v1/me/devices`, `firebase_messaging`) pour recevoir les propositions app fermée
+- [x] **Backend** : `shop_location` et `client_area` (client arrondi à environ 1 km, adresse exacte après acceptation) dans la proposition (Gedeon, 2026-11-12)
+- [x] **Backend** : `items` (nom et quantité) dans la mission de boutique (Gedeon, 2026-11-12)
+- [x] **Backend** : `arrived-at-pharmacy` et `arrived-at-customer` des courses pharmacie (Gedeon, 2026-11-12)
+- [x] **Backend** : client injoignable sur une course pharmacie (`fail` après 10 min et 2 appels, puis `returned`) : produits rendus à la pharmacie, client remboursé hors frais de livraison, espèces avancées dues au livreur (Gedeon, 2026-11-12)
+- [x] **Backend** : signalements avec photo, position et mission (`POST /v1/driver/incidents`), page « Signalements livreurs » au back-office (Gedeon, 2026-11-12)
+- [x] **Backend** : km parcourus et temps en ligne du jour, de la semaine et du mois (`GET /v1/driver/summary`) (Gedeon, 2026-11-12)
+- [ ] **Produit** : note du livreur (aucun système de notation), demande par quartier, objectif du jour (D08, D09, D18, D19) : à définir
+- [x] **Backend** : prochain versement estimé dans `GET /v1/driver/summary` (chaque lundi pour la semaine écoulée, espèces avancées comprises) (Gedeon, 2026-11-12)
+- [x] **Backend** : totaux de gains jour, semaine et mois, boutique et pharmacie (`GET /v1/driver/summary`) (Gedeon, 2026-11-12)
+- [x] **Backend** : `expires_on` des pièces, saisie par l'admin à la vérification (fiche du livreur au back-office) (Gedeon, 2026-11-12)
+- [ ] **Backend** : modification du véhicule ou de la zone d'un livreur validé (aujourd'hui `application_locked`, l'app renvoie au support) — à décider
+- [ ] **Backend** : messagerie avec la boutique ou le client (D11, D13) : seul l'appel est proposé
+- [x] **Backend** : zones de travail de `GET /v1/driver/options` relues (Gedeon, 2026-11-08) : seules les zones desservies actives sont acceptées ; sans zone saisie au back-office, le dossier n'est plus bloqué (`seed-demo` n'en crée pas)
+- [ ] **Produit** : numéro du support livreurs à fournir (retiré du code le 2026-11-08) ; à donner à la compilation : `--dart-define=IVIA_DRIVER_SUPPORT_PHONE=...`. D'ici là, les appels au support, dont « Accident ou urgence », affichent « bientôt disponible »
+
+### Ivia Driver (033) — suites de la relecture (2026-11-08)
+Points 1 à 5 et mineurs corrigés (retour à la boutique, relectures dépassées, écran de mission
+gardé entre onglets, « Position inconnue », boutons de D13, chiffres du volet D11, proposition sur
+un autre onglet, liens d'appel, déconnexion hors ligne, désistement confirmé, ombre partagée,
+situations de D16 en boutons, test des gains en milieu de semaine, fichiers CocoaPods de l'app
+livreur commités comme pour l'app marchand). Reste :
+- [ ] **Mobile** (avant toute version publiée) : clé Google Maps de l'app livreur (Android et iPhone, `GMSServices` absent côté iOS, `#include? "Maps.xcconfig"` à ajouter comme pour l'app marchand) ; sans clé, `IviaMap` charge les tuiles publiques d'OpenStreetMap au lieu d'un fond neutre — prévoir un fond neutre ou un échec de build release sans `IVIA_GOOGLE_MAPS` / `IVIA_TILES_URL`
+- [ ] **Mobile / pharmacie** : paramètre `alertSound` de `registerPushToken` encore inutilisé : il sera branché par la tâche 18 de la [spec 032](docs/specs/032-pharmacie-serveur/tasks.md)
+- [ ] **Mobile** : `apps/buyer/ios/Podfile` non suivi (créé par une compilation) : à commiter avec l'intégration CocoaPods de l'app acheteur, ou à supprimer
 
 ### Phase 1 — Comptes et catalogue
-- [ ] 001 — Connexion par OTP e-mail, sessions et rôles (backend + écrans de connexion dans les 3 apps)
-- [ ] 002 — Profil, carnet d'adresses et quartiers de Lomé ; suppression du compte
-- [ ] 003 — Back-office : connexion admin, journal des actions admin
-- [ ] 004 — Boutiques : création par le marchand, validation / suspension par l'admin
-- [ ] 005 — Catalogue : catégories, produits, photos (R2), taille de colis
-- [ ] 006 — Stock suivi et non suivi
-- [ ] 007 — Recherche : texte, catégorie, prix, quartier, « autour de moi »
+- [x] 001 — Écrans de connexion par OTP e-mail dans les 3 apps
+- [ ] 002 — Profil, carnet d'adresses (choix du point sur la carte), suppression du compte
+- [x] 003 — Back-office : connexion admin (cookie httpOnly côté serveur Next.js), journal des actions
+- [ ] 004 — Boutiques : création côté marchand en cours (validation / suspension dans le back-office : faite)
+- [x] 005 — Catalogue : produits et photos (redimensionnées, sans métadonnées GPS, avant envoi) : écrans marchand faits (voir « Terminé »)
+- [ ] 006 — Stock : journal des mouvements et alertes de réapprovisionnement (saisie et ajustement de la quantité faits dans 005)
+- [ ] **Backend** : clé d'idempotence à la création d'un produit (et des autres créations rejouables depuis les apps), pour qu'un nouvel essai après une coupure ne crée pas de doublon
+- [x] **Backend** (pour Gedeon, fait en 010, relu le 2026-11-03) : `POST /v1/payments/{id}/cancel`, revérification des demandes annulées et « Vérifier maintenant » : conformes (propriétaire vérifié, idempotent, validation tardive appliquée puis doublon à rembourser). Corrigé : la limite de 10 demandes par heure (acheteur, numéro) était gardée en mémoire et repartait à zéro à chaque redémarrage ou déploiement ; elle est désormais comptée dans la table `payments` (migration 00023, index), `Limiter.Cancel` retiré. Reste à revoir avec le vrai prestataire (016) s'il permet d'annuler une demande
+- [x] **Backend** (pour Gedeon, vu en 009, fait le 2026-11-03) : `GET /v1/orders?group=active|done` renvoie tout un onglet (mêmes groupes que `OrderStatus.isActive`) ; l'app peut lire ce filtre au lieu de répartir les 50 dernières commandes
+- [x] **Backend** (pour Gedeon, vu en 008, fait le 2026-11-02 : `issue_code` et `stock_left`) : ajouter à `CartItem` le stock restant en chiffre (`available_quantity`, `null` si non suivi) ; l'app lit aujourd'hui le nombre dans le texte de `issue` (« Plus que 2 en stock. ») pour proposer « Ajuster à 2 »
+- [x] **Backend** (pour Gedeon, vu en 028, fait le 2026-11-03) : fichiers orphelins du compartiment privé : la suppression du compte efface tout le dossier `merchants/<id>/` et `drivers/<id>/` (rattaché ou non, même sans candidature) ; tâche quotidienne `uploads.purge_orphans` qui supprime les fichiers privés non rattachés de plus de 24 h ; `ObjectStore.List` (local et R2, pages suivies)
+- [x] **Backend** (pour Gedeon, vu en 011, fait le 2026-11-03) : motif de refus limité à 200 caractères (`validation_failed`) ; `GET /v1/seller/orders?group=new|active|done` (mêmes groupes que `tabOf`) ; `Accept` et `Reject` vérifient `seller_deadline_at` : après le délai, 409 `seller_deadline_passed` et la commande est annulée sur-le-champ (acheteur remboursé) sans attendre `SellerTimeout`. À faire côté app : lire `group` au lieu de répartir les 100 dernières commandes, afficher `seller_deadline_passed`
+- [x] **Backend** (pour Gedeon, vu en 029, fait le 2026-11-08) : « mot de passe oublié » : mêmes limites par adresse et par minute et par jour, que le compte existe ou non ; `POST /v1/me/password` renvoie l'erreur sur `new_password`
+- [x] **Backend** (pour Gedeon, vu à la relecture de la 011 et en préparant la 013, fait le 2026-11-08) : `ListForSeller` charge la page en 5 requêtes au lieu d'environ 400 pour 100 commandes ; `cannot_cancel` donne un message selon le vrai statut
+- [ ] **Mobile** (suite de 009 et 011) : lire le filtre `group` du serveur (`GET /v1/orders?group=active|done` côté acheteur, `GET /v1/seller/orders?group=new|active|done` côté marchand) au lieu de répartir les 50 / 100 dernières commandes ; afficher le refus `seller_deadline_passed` (aujourd'hui message du serveur et commande relue)
+- [ ] **Mobile** (vu en 011) : libellé de l'onglet actif « Commandes » coupé (« Comman… ») dans la barre du bas de l'app marchand ; une nouvelle commande dont le délai expire reste « Délai dépassé » jusqu'à 30 s (relecture suivante)
+- [x] **Backend** (pour Gedeon, vu en 007, fait le 2026-11-03) : recherche de produits par début du dernier mot (« pag » trouve « pagne », requête `mot1 & mot2:*` construite côté serveur avec lettres et chiffres seulement) ; `%`, `_` et `\` échappés dans le `LIKE` de `SearchShops`. À faire côté app : le faux serveur `FakeSearch` doit suivre (début de mot)
+- [x] 007 — Recherche : texte, catégorie, prix, quartier, « autour de moi » : écrans acheteur faits (voir « Terminé »)
 
 ### Phase 2 — Commande et paiement (retrait en boutique)
-- [ ] 008 — Panier mono-boutique
-- [ ] 009 — Commande en retrait : machine à états, historique, réservation du stock
-- [ ] 010 — Paiement : interface, faux prestataire, webhook, expiration, paiement tardif
-- [ ] 011 — Marchand : acceptation / refus sous 15 min, préparation, remise par code
-- [ ] 012 — Notifications push (FCM) et liste des notifications
-- [ ] 013 — Suivi de commande et annulation par l'acheteur
-- [ ] 014 — Back-office : supervision des commandes et paiements, file de remboursement
-- [ ] 015 — Paramètres admin : commission, barème et coefficient de distance, délais, catégories
-- [ ] 016 — Intégration du vrai prestataire de paiement (dépend de l'ADR 0007 accepté)
-- [ ] 017 — Déploiement : VPS de production et de staging, Caddy, sauvegardes testées, Sentry
+- [x] 008 — Panier mono-boutique : écrans acheteur faits (voir « Terminé »)
+- [x] 009 — Commande en retrait et suivi : écrans acheteur faits (voir « Terminé »)
+- [x] 010 — Écrans de paiement (attente de validation sur le téléphone, interrogation du statut) : faits (voir « Terminé »)
+- [x] 011 — Marchand : acceptation / refus sous 15 min, préparation, remise par code : écrans marchand faits (voir « Terminé »)
+- [ ] 012 — Notifications push (`firebase_messaging`, enregistrement `PUT /v1/me/devices`) et liste ; dont la notification de validation promise par les écrans d'attente (boutique, dossier livreur)
+- [x] 013 — Suivi de commande et annulation par l'acheteur : suivi fait (009), annulation faite (voir « Terminé »)
+- [x] 014 — Back-office : supervision des paiements (liste filtrée, doublons, revérification, remboursement d'un doublon), commandes, actions admin et file de remboursement (2026-11-02)
+- [x] 015 — Back-office : référentiels (catégories de produits et de boutique, quartiers), comptes et droits admin, paramètres (2026-11-02)
+- [ ] 016 — **Backend** : intégrer le vrai prestataire de paiement derrière `payments.Provider` (dépend de l'ADR 0007 accepté) ; tester ses webhooks réels en staging
+- [ ] 017 — **Infra** : préparation faite (2026-11-03) : `infra/MISE-EN-LIGNE.md` (procédure du jour J), `bootstrap-server.sh` (durcissement du VPS, Docker), `preflight.sh` (vérifications sans afficher les secrets), `deploy.sh` (déploiement avec retour arrière automatique), images publiées aussi depuis `develop` (staging). Reste : louer le VPS, DNS, comptes R2 / Brevo / Firebase / Sentry, suivre la procédure ; production après 016
 
 ### Phase 3 — Livraison
-- [ ] 018 — Livreurs : inscription, documents, validation / suspension par l'admin
-- [ ] 019 — Disponibilité et position du livreur (service de premier plan Android)
-- [ ] 020 — Commande en livraison : adresse, véhicule compatible, frais
-- [ ] 021 — Attribution automatique des missions (45 s, livreur suivant, alerte admin)
-- [ ] 022 — Déroulé de mission : récupération, livraison par code, échec et retour en boutique
+- [ ] 018 — Livreurs : inscription et envoi des documents (app livreur, faits et restylés dans la 033) ; validation du dossier dans le back-office : faite ; reste l'appareil photo sur un vrai téléphone
+- [ ] 019 — Disponibilité et position du livreur : faites app ouverte dans la 033 (en ligne / Pause, position toutes les 5 s en mouvement par WebSocket avec repli HTTP, propositions relues toutes les 4 s, alerte « Position inconnue ») ; reste le service de premier plan Android (position et propositions app en arrière-plan) et le push des livreurs (012)
+- [ ] 020 — Commande en livraison : adresse, véhicule compatible, frais (écrans)
+- [ ] 021 — Attribution : écran de proposition fait dans la 033 (gain, compte à rebours, trajet, « Glisser pour accepter », « Refuser », sonnerie et vibration) ; reste les alertes dans le back-office
+- [x] 022 — Déroulé de mission : fait dans la 033 (itinéraire dans Google Maps, Waze ou Plans, arrivée, récupération, code du client, client injoignable et retour à la boutique, désistement)
 
 ### Phase 4 — Finances et lancement
-- [ ] 023 — Relevés marchands et marquage « réglé »
-- [ ] 024 — Export des livraisons par livreur et par période
-- [ ] 025 — Indicateurs métier dans le back-office
+- [ ] 023 — Relevés marchands : back-office fait (aperçu, création, « réglé » avec référence, suppression d'un relevé ouvert, 2026-11-02) ; reste les relevés dans l'app marchand
+- [x] 024 — Back-office : livraisons par livreur sur une période, total, export CSV pour la paie (2026-11-02)
+- [x] 025 — Back-office : indicateurs métier (`GET /v1/admin/metrics`), tableau de bord
 - [ ] 026 — Publication Play Store des 3 apps (fiches, politique de confidentialité, déclarations de localisation)
 
 ### Après le MVP (dès que Meta valide)
-- [ ] OTP par WhatsApp, puis SMS en secours ; vérification des numéros existants
+- [ ] OTP par WhatsApp, puis SMS en secours : envoi WhatsApp codé (ADR 0012) ; reste la mise en service (identifiants Meta) et le choix puis l'intégration du fournisseur SMS
 
 ### Démarches hors code (porteur du projet)
 À lancer tout de suite : plusieurs ont des délais de plusieurs semaines.
@@ -72,5 +151,38 @@ si la livraison prend du retard (voir `docs/PRD.md`).
 - [ ] Boutiques et livreurs pilotes pour les tests terrain
 
 ## Terminé
+- [x] 033 — Ivia Driver ([spec](docs/specs/033-ivia-driver/spec.md), 2026-11-08) : nouveau nom (ex-ivia Livreur) et 20 écrans d'après les maquettes D00 à D19 (accueil hors ligne et en ligne, proposition, trajets, retrait boutique et pharmacie avec code de retrait, preuve de remise, livraison terminée, « Un problème ? », retour à la boutique, Missions, Gains, Profil) ; 133 tests, police à 200 % sur 320 dp, vérifiés sur le simulateur iPhone avec l'API locale ; relue et corrigée ; reprend la tâche 20 de la 032. Reste : clé Google Maps avant publication et manques serveur (sections « Ivia Driver (033) » plus haut)
+- [x] 030 — Écran d'autorisation de la localisation, 4 apps ([spec](docs/specs/030-autorisation-localisation/spec.md), 2026-11-06) : écran des maquettes (panneau de la couleur de l'app, illustration, « Autoriser la localisation » et « Refuser ») juste après le splash, une fois, sauf position déjà autorisée ; même écran avant les actions qui ont besoin de la position (acheteur : « Utiliser ma position », alerte médicament, adresse ; marchand : épingle ; livreur : passage en ligne ; pharmacie : dossier) ; la lecture de la position ne demande plus jamais rien ; refus définitif (mémorisé sur Android) ⇒ réglages ; permissions natives de la pharmacie (iOS, Android, et `INTERNET` qui manquait) et du livreur (Android) ; premiers tests de la pharmacie ; vérifié sur simulateur iOS ; relu et corrigé
+- [x] 029 — Connexion par mot de passe et Google dans les 3 apps ([spec](docs/specs/029-connexion-mot-de-passe/spec.md), 2026-11-04) : connexion e-mail et mot de passe (aide « Créez votre mot de passe » pour les comptes de l'ancienne connexion par code, compte bloqué), création de compte et mot de passe oublié (e-mail, 6 cases, mot de passe), Google (bouton masqué sans identifiants), changement de mot de passe dans chaque app ; écrans communs dans `app_core`, ancienne connexion par code retirée des apps ; FakeAuth testé d'abord (79 tests) ; vérifié sur simulateur contre l'API locale. **Remplacée** par la connexion par numéro (ADR 0012) : code retiré des apps et d'`api_client` le 2026-11-06
+- [x] 013 — Annulation par l'acheteur ([spec](docs/specs/013-annulation-acheteur/spec.md), 2026-11-04) : « Annuler la commande » sur le suivi tant que la boutique n'a pas accepté ; feuille avec « Vos produits seront libérés. » ou le montant remboursé ; demande de paiement en attente annulée d'abord ; payée entre-temps : feuille rouverte avec le montant ; refus avec un message selon le vrai statut ; liste à jour même si le suivi est quitté ; `IviaAmountRow` commun (montants sans débordement) ; vérifié sur simulateur contre l'API locale
+- [x] 011 — Commandes du marchand ([spec](docs/specs/011-commandes-marchand/spec.md), 2026-11-03) : Accueil (nouvelles à accepter avec le temps restant, en cours) ; onglet Commandes (Nouvelles / En cours / Terminées, comptes à rebours, « Afficher plus ») ; détail (articles, stock non suivi, net « Vous recevez », accepter / refuser avec motif / préparer / prête) ; remise par le code de l'acheteur (essais restants, blocage au 5e) ; nouvelles relues toutes les 30 s app ouverte, pastille de l'onglet ; `IviaCountdown`, pastille d'onglet, libellés et `showMessage` communs ; vérifié sur simulateur contre l'API locale
+- [x] 008 suite — Panier de l'acheteur (2026-11-02) : `issue_code` et `stock_left` des lignes lus (`CartItem.issueCode`, `stockLeft`) au lieu d'analyser le texte de `issue`, affiché tel quel ; faux serveur mobile à jour
+- [x] 028 — Pièces du marchand ([spec](docs/specs/028-pieces-marchand/spec.md), 2026-11-02) : « Vérifions votre identité » après la création de la boutique (pièce d'identité obligatoire, RCCM facultatif, en photo, URL signée privée puis rattachement, nouvel essai sans doublon) ; étape « Pièce d'identité » et « Ajouter ma pièce d'identité » sur l'écran en attente ; ligne de document partagée avec le livreur (`DocumentPhotoRow` dans `app_core`) ; « 004 bis » demandé par Gedeon
+- [x] 010 — Paiement Mobile Money ([spec](docs/specs/010-paiement/spec.md), 2026-11-02) : écran Paiement (montant, Flooz / T-Money, numéro du profil), attente « Validez le paiement sur votre téléphone » (temps restant à l'heure du serveur, relecture toutes les 3 s, succès vers le suivi avec le code, échec et « Réessayer », « Je n'ai rien reçu », « Annuler le paiement »), simulation locale (`IVIA_DEV_PAYMENT`) ; backend : `POST /v1/payments/{id}/cancel`, limites par acheteur et par numéro, revérification des demandes annulées, à faire relire par Gedeon
+- [x] 009 — Commande en retrait et suivi ([spec](docs/specs/009-commande-retrait/spec.md), 2026-11-02) : écran Commande (retrait, récapitulatif du serveur, « Payer » idempotent), onglet Commandes (en cours / terminées, « Récemment »), suivi (en-tête par statut, code de remise, frise horodatée, relecture toutes les 20 s)
+- [x] 008 — Panier de l'acheteur ([spec](docs/specs/008-panier/spec.md), 2026-11-02) : panier d'une boutique gardé sur le serveur, ajout cumulé depuis la fiche produit, « + » des cartes et de la fiche boutique, « Vider le panier ? » pour une autre boutique, icône à pastille, barre « Voir le panier », écran Panier (quantités, retrait avec « Annuler », lignes en erreur, vidage) ; « Commander » annonce la 009 ; test backend des raisons relu par Gedeon le 2026-11-02 (champs structurés `issue_code` et `stock_left` ajoutés, voir « En cours »)
+- [x] 007 — Accueil et recherche de l'acheteur ([spec](docs/specs/007-accueil-recherche-acheteur/spec.md), 2026-11-01) : barre du bas, zone (position approximative ou quartier), accueil, onglet Recherche avec filtres et tri, fiches boutique et produit ; position arrondie dans l'URL ([ADR 0010](docs/decisions/0010-position-arrondie-dans-les-recherches.md))
+- [x] 005 — Catalogue marchand ([spec](docs/specs/005-catalogue-marchand/spec.md), 2026-11-01) : barre du bas, catalogue par onglets avec recherche et compteurs serveur, création en deux étapes, aperçu, brouillons, modification, retrait et remise en vente, stock ; migration 00021 (états de publication) relue par Gedeon le 2026-11-02 : conforme
+- [x] Back-office `admin/` (2026-11-01) : Next.js 16, TypeScript strict, Tailwind 4, pnpm ;
+  connexion admin par code (cookie httpOnly), tableau de bord, boutiques, livreurs (dossier et
+  activation), commandes (détail et actions admin), remboursements, paramètres, journal ; types
+  générés depuis `openapi.yaml` ; image Docker, CI, Compose de production et Caddy (`admin/README.md`)
+- [x] Backend (2026-11-01) : activation des livreurs par l'admin sur dossier complet (pièce
+  d'identité et permis obligatoires) ; correction d'un dossier refusé (plantait) ; test du
+  parcours complet d'activation
+- [x] Backend (2026-10-31) : catégories de boutique complètes (gestion admin, fiche publique,
+  filtres de recherche) ; suivi des erreurs Sentry (sans donnée personnelle) ; image Docker de
+  l'API, `infra/` (Compose de production, Caddy, sauvegarde et restauration vers R2), publication
+  de l'image par la CI sur `main`
+- [x] Corrections de la revue du 2026-10-30 : `APP_ENV` obligatoire, code de remise compté avant
+  comparaison, confirmation du retour par l'admin, machine à états testée exhaustivement, accès aux
+  ressources d'autrui testés sur toutes les routes, paiement incohérent en échec, commandes non
+  payées masquées au marchand, adresses de livraison effacées à la suppression du compte, plafonds IP relevés
+- [x] Backend du MVP (2026-10-30) : schéma complet (16 migrations), 16 modules (connexion OTP et
+  sessions, comptes et adresses, quartiers, boutiques, catalogue, stock, recherche, panier,
+  commandes et machine à états, paiements avec faux prestataire, webhooks, remboursements,
+  livraison et attribution automatique, notifications push FCM, relevés, indicateurs, paramètres
+  et journal admin), 124 routes décrites dans `openapi.yaml`, tests de bout en bout sur PostGIS,
+  `cmd/manage` (premier admin, données de démonstration), CI (sqlc, govulncheck, contrat)
 - [x] Squelette backend Go, app Flutter, PostgreSQL en local (2026-10-29/30)
 - [x] Cadrage : PRD, architecture et ADR, garde-fous, backlog (2026-10-30)
