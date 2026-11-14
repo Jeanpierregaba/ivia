@@ -12,7 +12,7 @@ import 'package:ivia_api_client/testing.dart';
 import 'package:ivia_app_core/ivia_app_core.dart';
 import 'package:ivia_app_core/testing.dart';
 import 'package:ivia_ui/ivia_ui.dart';
-import 'package:ivia_seller/features/business/pro_ui.dart';
+import 'package:ivia_seller/features/business/biz_ui.dart';
 import 'package:ivia_seller/app/device_services.dart';
 import 'package:ivia_seller/app/identity.dart';
 import 'package:ivia_seller/app/router.dart';
@@ -64,17 +64,17 @@ void main() {
 
   /// Onglet de la barre du bas (l'icône peut aussi figurer dans l'écran).
   Finder dockTab(IconData icon) =>
-      find.descendant(of: find.byType(ProDock), matching: find.byIcon(icon));
+      find.descendant(of: find.byType(BizDock), matching: find.byIcon(icon));
 
   /// Libellé lu d'un onglet de la barre du bas (pastille comprise).
   Finder dockLabel(String label) => find.descendant(
-    of: find.byType(ProDock),
+    of: find.byType(BizDock),
     matching: find.bySemanticsLabel(label),
   );
 
   /// Texte affiché dans la barre du bas (pastille).
   Finder dockText(String text) =>
-      find.descendant(of: find.byType(ProDock), matching: find.text(text));
+      find.descendant(of: find.byType(BizDock), matching: find.text(text));
 
   Future<void> launch(WidgetTester tester, {bool settle = true}) async {
     // Animations réduites : le point « en direct » du pilotage s'arrête.
@@ -1001,16 +1001,8 @@ void main() {
       await tester.tap(dockTab(Icons.space_dashboard_outlined));
       await tester.pumpAndSettle();
       // Liste restée défilée : retour à la carte la plus urgente.
-      await tester.scrollUntilVisible(
-        find.text('#1043 · Koffi'),
-        -200,
-        scrollable: find
-            .descendant(
-              of: find.byType(RefreshIndicator),
-              matching: find.byType(Scrollable),
-            )
-            .first,
-      );
+      await tester.ensureVisible(find.text('#1043 · Koffi'));
+      await tester.pumpAndSettle();
       await tester.tap(find.text('#1043 · Koffi'));
       await tester.pumpAndSettle();
       expect(find.text('Commande #1043'), findsOneWidget);
@@ -1050,13 +1042,26 @@ void main() {
       },
     );
 
+    testWidgets('« Accepter » sur l\'Accueil, puis « Préparer »', (
+      tester,
+    ) async {
+      orders.add();
+      await launch(tester);
+      await tapText(tester, 'Accepter');
+      expect(find.text('Commande #1042 acceptée'), findsOneWidget);
+      expect(find.text('NOUVELLE COMMANDE PAYÉE'), findsNothing);
+      await tapText(tester, 'Préparer');
+      expect(find.text('Préparation de #1042 commencée'), findsOneWidget);
+      expect(find.text('Prête ?'), findsOneWidget);
+    });
+
     testWidgets('rien à traiter (terminées seulement)', (tester) async {
       orders.add(status: 'completed');
       await launch(tester);
       expect(find.text('Tout est à jour'), findsOneWidget);
       expect(find.text('NOUVELLE COMMANDE PAYÉE'), findsNothing);
       await tapText(tester, 'Gérer mon catalogue');
-      expect(find.text('Catalogue'), findsWidgets);
+      expect(find.text('Produits'), findsWidgets);
     });
 
     testWidgets('mis à jour par la relecture toutes les 30 s', (tester) async {

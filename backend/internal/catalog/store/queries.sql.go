@@ -458,17 +458,22 @@ WHERE shop_id = $1
       END
   AND ($3::text = ''
        OR immutable_unaccent(lower(name)) LIKE '%' || immutable_unaccent(lower($3::text)) || '%' ESCAPE '\')
+  -- category_id : la catégorie ou l'une de ses sous-catégories ; NULL : toutes.
+  AND ($4::uuid IS NULL
+       OR category_id = $4::uuid
+       OR category_id IN (SELECT c.id FROM categories c WHERE c.parent_id = $4::uuid))
 ORDER BY CASE WHEN $2::text = 'withdrawn' THEN withdrawn_at END DESC NULLS LAST,
          created_at DESC, id
-LIMIT $5 OFFSET $4
+LIMIT $6 OFFSET $5
 `
 
 type ListSellerProductsParams struct {
-	ShopID uuid.UUID
-	Status string
-	Q      string
-	Off    int32
-	Lim    int32
+	ShopID     uuid.UUID
+	Status     string
+	Q          string
+	CategoryID *uuid.UUID
+	Off        int32
+	Lim        int32
 }
 
 // Produits d'une boutique pour son marchand. status : vide (tous), active, draft ou withdrawn.
@@ -478,6 +483,7 @@ func (q *Queries) ListSellerProducts(ctx context.Context, arg ListSellerProducts
 		arg.ShopID,
 		arg.Status,
 		arg.Q,
+		arg.CategoryID,
 		arg.Off,
 		arg.Lim,
 	)
@@ -510,6 +516,43 @@ func (q *Queries) ListSellerProducts(ctx context.Context, arg ListSellerProducts
 			&i.FeaturedRank,
 			&i.Features,
 		); err != nil {
+			return nil, err
+		}
+		items = append(items, i)
+	}
+	if err := rows.Err(); err != nil {
+		return nil, err
+	}
+	return items, nil
+}
+
+const listShopMedia = `-- name: ListShopMedia :many
+SELECT pi.object_key, max(pi.created_at)::timestamptz AS last_used
+FROM product_images pi
+JOIN products p ON p.id = pi.product_id
+WHERE p.shop_id = $1
+GROUP BY pi.object_key
+ORDER BY last_used DESC, pi.object_key
+LIMIT 120
+`
+
+type ListShopMediaRow struct {
+	ObjectKey string
+	LastUsed  time.Time
+}
+
+// Photos déjà utilisées par les produits d'une boutique (bibliothèque du marchand), la plus
+// récente d'abord, sans doublon.
+func (q *Queries) ListShopMedia(ctx context.Context, shopID uuid.UUID) ([]ListShopMediaRow, error) {
+	rows, err := q.db.Query(ctx, listShopMedia, shopID)
+	if err != nil {
+		return nil, err
+	}
+	defer rows.Close()
+	items := []ListShopMediaRow{}
+	for rows.Next() {
+		var i ListShopMediaRow
+		if err := rows.Scan(&i.ObjectKey, &i.LastUsed); err != nil {
 			return nil, err
 		}
 		items = append(items, i)

@@ -139,6 +139,12 @@ func (s *Service) Check(ctx context.Context, purpose Purpose, userID uuid.UUID, 
 	return nil
 }
 
+// Owns dit si une clé a été délivrée à cet utilisateur pour cet usage (sans lire le stockage).
+func (s *Service) Owns(purpose Purpose, userID uuid.UUID, key string) bool {
+	rest, ok := strings.CutPrefix(key, rules[purpose].prefix+"/"+userID.String()+"/")
+	return ok && rest != "" && !strings.ContainsAny(rest, "/\\") && len(rest) <= 64
+}
+
 // PublicURL retourne l'URL d'un fichier public (photo, logo).
 func (s *Service) PublicURL(key string) string { return s.store.PublicURL(key) }
 

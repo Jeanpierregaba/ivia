@@ -1,20 +1,20 @@
-import 'dart:ui' as ui;
-
 import 'package:flutter/material.dart';
 import 'package:flutter_riverpod/flutter_riverpod.dart';
 import 'package:ivia_api_client/ivia_api_client.dart';
 import 'package:ivia_app_core/ivia_app_core.dart';
 import 'package:ivia_ui/ivia_ui.dart';
 
+import '../business/biz_ui.dart';
 import 'catalog_labels.dart';
 import 'catalog_providers.dart';
+import 'media_sheet.dart';
 import 'product_form.dart';
 import 'product_sheets.dart';
 
-/// Photos du produit : 1 à 5, la première est la principale. Grande
-/// mosaïque à la création, rangée de vignettes ([compact]) à la
-/// modification.
-class PhotosField extends ConsumerStatefulWidget {
+/// Photos du produit : 1 à 5, la première est la principale. Vides : grande
+/// carte « Ajouter des photos » ; sinon bande de vignettes à réordonner par
+/// appui long et glisser. L'ajout ouvre la bibliothèque de la boutique.
+class PhotosField extends ConsumerWidget {
   const PhotosField({
     super.key,
     required this.photos,
@@ -28,299 +28,280 @@ class PhotosField extends ConsumerStatefulWidget {
   final ValueChanged<List<EditorPhoto>> onChanged;
   final bool enabled;
   final String? errorText;
+
+  /// Vignettes plus petites (écran « Modifier »).
   final bool compact;
 
-  @override
-  ConsumerState<PhotosField> createState() => _PhotosFieldState();
-}
-
-class _PhotosFieldState extends ConsumerState<PhotosField> {
-  String? _error;
-
-  Future<void> _add() async {
-    final source = await showModalBottomSheet<PhotoSource>(
-      context: context,
-      // Défilable : police agrandie sur un petit écran.
-      isScrollControlled: true,
-      builder: (context) => SafeArea(
-        child: SingleChildScrollView(
-          child: Column(
-            mainAxisSize: MainAxisSize.min,
-            children: [
-              ListTile(
-                leading: const Icon(Icons.photo_camera_outlined),
-                title: const Text('Prendre une photo'),
-                onTap: () => Navigator.pop(context, PhotoSource.camera),
-              ),
-              ListTile(
-                leading: const Icon(Icons.photo_library_outlined),
-                title: const Text('Choisir une photo'),
-                onTap: () => Navigator.pop(context, PhotoSource.gallery),
-              ),
-            ],
-          ),
-        ),
-      ),
-    );
-    if (source == null || !mounted) return;
-    try {
-      // 1600 px : net sur un téléphone, léger à envoyer en 3G.
-      final bytes = await ref
-          .read(photoPickerProvider)
-          .pick(source: source, maxSide: 1600);
-      if (bytes == null || !mounted) return;
-      if (bytes.length > maxUploadBytes) {
-        setState(() => _error = 'Photo trop lourde (5 Mo au plus).');
-        return;
-      }
-      setState(() => _error = null);
-      widget.onChanged([...widget.photos, EditorPhoto.local(bytes)]);
-    } on Exception {
-      if (mounted) {
-        setState(
-          () => _error =
-              'Photo impossible à utiliser. Vérifiez les autorisations '
-              "de l'appareil photo et des photos.",
-        );
-      }
-    }
+  Future<void> _add(BuildContext context) async {
+    final picked = await showMediaSheet(context, current: photos);
+    if (picked != null) onChanged(picked);
   }
 
-  Future<void> _actions(int index) async {
+  Future<void> _actions(BuildContext context, int index) async {
     final action = await showPhotoActions(context, isMain: index == 0);
     if (action == null) return;
-    final photos = [...widget.photos];
-    final photo = photos.removeAt(index);
-    if (action == PhotoAction.makeMain) photos.insert(0, photo);
-    widget.onChanged(photos);
+    final next = [...photos];
+    final photo = next.removeAt(index);
+    if (action == PhotoAction.makeMain) next.insert(0, photo);
+    onChanged(next);
   }
 
   @override
-  Widget build(BuildContext context) {
-    final textTheme = Theme.of(context).textTheme;
-    final error = _error ?? widget.errorText;
-    final count = widget.photos.length;
+  Widget build(BuildContext context, WidgetRef ref) {
+    final t = Theme.of(context).textTheme;
+    final count = photos.length;
+    final size = compact ? 76.0 : 104.0;
+    final error = errorText;
     return Column(
       crossAxisAlignment: CrossAxisAlignment.stretch,
       children: [
-        if (!widget.compact) ...[
-          Wrap(
-            alignment: WrapAlignment.spaceBetween,
-            spacing: IviaSpacing.sm,
-            children: [
-              Semantics(
-                header: true,
-                child: Text('Photos', style: textTheme.labelLarge),
-              ),
-              Text(
-                '1 à $maxPhotos · la 1re est la principale',
-                style: textTheme.bodySmall,
-              ),
-            ],
-          ),
-          const SizedBox(height: IviaSpacing.sm),
-        ],
-        if (widget.compact)
-          Wrap(
-            spacing: IviaSpacing.sm,
-            runSpacing: IviaSpacing.sm,
-            children: [
-              for (var i = 0; i < count; i++)
-                SizedBox.square(dimension: 72, child: _photo(i)),
-              if (count < maxPhotos)
-                SizedBox.square(dimension: 72, child: _addTile(small: true)),
-            ],
-          )
-        else
-          Row(
-            crossAxisAlignment: CrossAxisAlignment.start,
-            children: [
-              Expanded(child: AspectRatio(aspectRatio: 1, child: _slot(0))),
-              const SizedBox(width: IviaSpacing.sm),
-              Expanded(
-                child: Column(
-                  children: [
-                    for (final row in const [
-                      [1, 2],
-                      [3, 4],
-                    ]) ...[
-                      if (row.first == 3)
-                        const SizedBox(height: IviaSpacing.sm),
-                      Row(
-                        children: [
-                          for (final i in row) ...[
-                            if (i.isEven) const SizedBox(width: IviaSpacing.sm),
-                            Expanded(
-                              child: AspectRatio(
-                                aspectRatio: 1,
-                                child: _slot(i),
-                              ),
+        AnimatedSwitcher(
+          duration: Biz.medium,
+          child: count == 0
+              ? _EmptyMedia(
+                  key: const ValueKey('empty'),
+                  enabled: enabled,
+                  error: error != null,
+                  onTap: () => _add(context),
+                )
+              : SizedBox(
+                  key: const ValueKey('strip'),
+                  height: size + 8,
+                  child: ReorderableListView.builder(
+                    scrollDirection: Axis.horizontal,
+                    buildDefaultDragHandles: false,
+                    proxyDecorator: (child, _, animation) => ScaleTransition(
+                      scale: Tween(begin: 1.0, end: 1.06).animate(animation),
+                      child: Material(color: Colors.transparent, child: child),
+                    ),
+                    itemCount: count,
+                    onReorderItem: (from, to) {
+                      final next = [...photos];
+                      final p = next.removeAt(from);
+                      next.insert(to, p);
+                      Biz.tick();
+                      onChanged(next);
+                    },
+                    footer: count < maxPhotos
+                        ? Padding(
+                            padding: const EdgeInsets.only(left: 2, top: 4),
+                            child: _AddTile(
+                              size: size,
+                              enabled: enabled,
+                              onTap: () => _add(context),
                             ),
-                          ],
-                        ],
+                          )
+                        : null,
+                    itemBuilder: (context, i) => Padding(
+                      key: ObjectKey(photos[i]),
+                      padding: const EdgeInsets.only(right: 10, top: 4),
+                      child: ReorderableDelayedDragStartListener(
+                        index: i,
+                        enabled: enabled,
+                        child: _PhotoTile(
+                          photo: photos[i],
+                          size: size,
+                          main: i == 0,
+                          label: i == 0
+                              ? 'Photo principale'
+                              : 'Photo ${i + 1} sur $count',
+                          onTap: enabled ? () => _actions(context, i) : null,
+                        ),
                       ),
-                    ],
-                  ],
+                    ),
+                  ),
                 ),
-              ),
-            ],
+        ),
+        if (count > 0)
+          Padding(
+            padding: const EdgeInsets.only(top: 6),
+            child: Text(
+              '${photosLabel(count)} · appui long pour réordonner',
+              style: t.bodySmall?.copyWith(color: Biz.muted),
+            ),
           ),
         if (error != null)
           Padding(
-            padding: const EdgeInsets.only(top: IviaSpacing.xs),
+            padding: const EdgeInsets.only(top: 4),
             child: Semantics(
               liveRegion: true,
               child: Text(
                 error,
-                style: textTheme.bodySmall?.copyWith(color: IviaColors.error),
+                style: t.bodySmall?.copyWith(color: IviaColors.error),
               ),
             ),
           ),
       ],
     );
   }
+}
 
-  Widget _slot(int i) {
-    final count = widget.photos.length;
-    if (i < count) return _photo(i);
-    if (i == count) return _addTile(small: i > 0);
-    return const _DashedBox(faint: true);
-  }
+class _EmptyMedia extends StatelessWidget {
+  const _EmptyMedia({
+    super.key,
+    required this.enabled,
+    required this.error,
+    required this.onTap,
+  });
+  final bool enabled, error;
+  final VoidCallback onTap;
 
-  Widget _photo(int i) {
-    final photo = widget.photos[i];
+  @override
+  Widget build(BuildContext context) {
+    final t = Theme.of(context).textTheme;
     return Semantics(
+      container: true,
       button: true,
-      label: i == 0
-          ? 'Photo principale'
-          : 'Photo ${i + 1} sur ${widget.photos.length}',
+      label: 'Ajouter une photo',
       excludeSemantics: true,
-      onTap: widget.enabled ? () => _actions(i) : null,
-      child: GestureDetector(
-        onTap: widget.enabled ? () => _actions(i) : null,
+      onTap: enabled ? onTap : null,
+      child: BizCard(
+        onTap: enabled ? onTap : null,
+        border: error ? IviaColors.error : null,
+        padding: const EdgeInsets.all(14),
+        child: Row(
+          children: [
+            // Grande police : tout l'espace pour le texte.
+            if (MediaQuery.textScalerOf(context).scale(10) <= 13) ...[
+              Container(
+                width: 52,
+                height: 52,
+                decoration: BoxDecoration(
+                  color: Biz.page,
+                  borderRadius: BorderRadius.circular(16),
+                ),
+                child: const Icon(
+                  Icons.add_photo_alternate_outlined,
+                  color: Biz.navy,
+                ),
+              ),
+              const SizedBox(width: 14),
+            ],
+            Expanded(
+              child: Column(
+                crossAxisAlignment: CrossAxisAlignment.start,
+                children: [
+                  Text(
+                    'Ajouter des photos',
+                    style: t.titleSmall?.copyWith(fontWeight: FontWeight.w800),
+                  ),
+                  Text(
+                    'Bibliothèque ou appareil photo · $maxPhotos au plus',
+                    style: t.bodySmall?.copyWith(color: Biz.muted),
+                  ),
+                ],
+              ),
+            ),
+            const Icon(Icons.chevron_right_rounded, color: Biz.muted),
+          ],
+        ),
+      ),
+    );
+  }
+}
+
+class _AddTile extends StatelessWidget {
+  const _AddTile({
+    required this.size,
+    required this.enabled,
+    required this.onTap,
+  });
+  final double size;
+  final bool enabled;
+  final VoidCallback onTap;
+
+  @override
+  Widget build(BuildContext context) => Semantics(
+    container: true,
+    button: true,
+    label: 'Ajouter une photo',
+    excludeSemantics: true,
+    onTap: enabled ? onTap : null,
+    child: BizPressable(
+      onTap: enabled ? onTap : null,
+      scale: 0.92,
+      child: Container(
+        width: size,
+        height: size,
+        decoration: BoxDecoration(
+          color: Colors.white,
+          borderRadius: BorderRadius.circular(18),
+          border: Border.all(color: IviaColors.borderInput, width: 1.4),
+        ),
+        child: const Icon(Icons.add_rounded, color: Biz.navy, size: 30),
+      ),
+    ),
+  );
+}
+
+class _PhotoTile extends StatelessWidget {
+  const _PhotoTile({
+    required this.photo,
+    required this.size,
+    required this.main,
+    required this.label,
+    required this.onTap,
+  });
+  final EditorPhoto photo;
+  final double size;
+  final bool main;
+  final String label;
+  final VoidCallback? onTap;
+
+  @override
+  Widget build(BuildContext context) => Semantics(
+    container: true,
+    button: true,
+    label: label,
+    excludeSemantics: true,
+    onTap: onTap,
+    child: BizPressable(
+      onTap: onTap,
+      scale: 0.94,
+      child: SizedBox.square(
+        dimension: size,
         child: Stack(
           fit: StackFit.expand,
           children: [
-            LayoutBuilder(
-              builder: (context, c) => ProductThumb(
+            Container(
+              decoration: BoxDecoration(
+                borderRadius: BorderRadius.circular(18),
+                border: main ? Border.all(color: Biz.navy, width: 2.5) : null,
+              ),
+              padding: EdgeInsets.all(main ? 2 : 0),
+              child: ProductThumb(
                 url: photo.url,
                 bytes: photo.bytes,
-                size: c.maxWidth,
+                size: size,
               ),
             ),
-            if (i == 0 && !widget.compact)
+            if (main)
               Positioned(
-                left: IviaSpacing.sm,
-                bottom: IviaSpacing.sm,
+                left: 6,
+                bottom: 6,
                 child: Container(
                   padding: const EdgeInsets.symmetric(
-                    horizontal: IviaSpacing.md,
-                    vertical: IviaSpacing.xs,
+                    horizontal: 7,
+                    vertical: 2,
                   ),
-                  decoration: ShapeDecoration(
-                    color: IviaAppBrand.of(context).action,
-                    shape: const StadiumBorder(),
+                  decoration: BoxDecoration(
+                    color: Biz.navy,
+                    borderRadius: BorderRadius.circular(99),
                   ),
                   child: Text(
                     'Principale',
-                    style: Theme.of(context).textTheme.labelMedium
-                        ?.copyWith(color: Colors.white),
+                    style: Theme.of(context).textTheme.labelSmall?.copyWith(
+                      color: Colors.white,
+                      fontWeight: FontWeight.w800,
+                    ),
                   ),
                 ),
               ),
           ],
         ),
       ),
-    );
-  }
-
-  Widget _addTile({required bool small}) {
-    final textTheme = Theme.of(context).textTheme;
-    return Semantics(
-      button: true,
-      label: 'Ajouter une photo',
-      excludeSemantics: true,
-      onTap: widget.enabled ? _add : null,
-      child: InkWell(
-        borderRadius: BorderRadius.circular(IviaRadius.button),
-        onTap: widget.enabled ? _add : null,
-        child: _DashedBox(
-          // Réduit dans sa case avec une police très agrandie : le nom
-          // reste lu par le lecteur d'écran.
-          child: Padding(
-            padding: const EdgeInsets.all(IviaSpacing.xs),
-            child: FittedBox(
-              fit: BoxFit.scaleDown,
-              child: Column(
-                mainAxisSize: MainAxisSize.min,
-                children: [
-                  const Icon(Icons.add, color: IviaColors.text),
-                  if (!widget.compact)
-                    Text(
-                      small ? 'Ajouter' : 'Ajouter une photo',
-                      textAlign: TextAlign.center,
-                      maxLines: 2,
-                      overflow: TextOverflow.ellipsis,
-                      style: textTheme.titleSmall,
-                    ),
-                ],
-              ),
-            ),
-          ),
-        ),
-      ),
-    );
-  }
-}
-
-/// Emplacement de photo à bordure en tirets.
-class _DashedBox extends StatelessWidget {
-  const _DashedBox({this.child, this.faint = false});
-
-  final Widget? child;
-  final bool faint;
-
-  @override
-  Widget build(BuildContext context) {
-    return CustomPaint(
-      painter: _DashedPainter(
-        color: faint ? IviaColors.border : IviaColors.borderInput,
-      ),
-      child: Container(
-        decoration: BoxDecoration(
-          color: faint ? null : IviaColors.surface,
-          borderRadius: BorderRadius.circular(IviaRadius.button),
-        ),
-        child: Center(child: child),
-      ),
-    );
-  }
-}
-
-class _DashedPainter extends CustomPainter {
-  const _DashedPainter({required this.color});
-
-  final Color color;
-
-  @override
-  void paint(Canvas canvas, Size size) {
-    final rect = RRect.fromRectAndRadius(
-      Offset.zero & size,
-      const Radius.circular(IviaRadius.button),
-    ).deflate(1);
-    final paint = Paint()
-      ..color = color
-      ..style = PaintingStyle.stroke
-      ..strokeWidth = 2;
-    for (final metric in (ui.Path()..addRRect(rect)).computeMetrics()) {
-      for (var d = 0.0; d < metric.length; d += 10) {
-        canvas.drawPath(metric.extractPath(d, d + 6), paint);
-      }
-    }
-  }
-
-  @override
-  bool shouldRepaint(_DashedPainter old) => old.color != color;
+    ),
+  );
 }
 
 /// Prix en FCFA, groupé par milliers pendant la saisie.

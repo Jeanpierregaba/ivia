@@ -11,7 +11,7 @@ import 'package:ivia_api_client/ivia_api_client.dart';
 import 'package:ivia_api_client/testing.dart';
 import 'package:ivia_app_core/ivia_app_core.dart';
 import 'package:ivia_app_core/testing.dart';
-import 'package:ivia_seller/features/business/pro_ui.dart';
+import 'package:ivia_seller/features/business/biz_ui.dart';
 import 'package:ivia_seller/app/device_services.dart';
 import 'package:ivia_seller/app/identity.dart';
 import 'package:ivia_seller/features/catalog/catalog_screen.dart';
@@ -122,7 +122,7 @@ void main() {
 
   /// Onglet de la barre du bas (l'icône peut aussi figurer dans l'écran).
   Finder dockTab(IconData icon) =>
-      find.descendant(of: find.byType(ProDock), matching: find.byIcon(icon));
+      find.descendant(of: find.byType(BizDock), matching: find.byIcon(icon));
 
   Future<void> tapText(WidgetTester tester, String text) async {
     FocusManager.instance.primaryFocus?.unfocus();
@@ -146,27 +146,48 @@ void main() {
     matching: find.byType(TextField),
   );
 
+  /// Catégorie choisie dans la feuille (ligne « Catégorie · + Ajouter »).
   Future<void> chooseCategory(WidgetTester tester, String item) async {
-    final select = find.byType(DropdownButtonFormField<String>);
-    await tester.ensureVisible(select);
+    final row = find.bySemanticsLabel(RegExp('^Catégorie, '));
+    await tester.ensureVisible(row);
     await tester.pumpAndSettle();
-    await tester.tap(select);
+    await tester.tap(row);
     await tester.pumpAndSettle();
     await tester.tap(find.text(item).last);
     await tester.pumpAndSettle();
   }
 
-  Future<void> addPhoto(WidgetTester tester) async {
+  /// Ouvre « Ajouter des photos », onglet Importer, choisit une photo de
+  /// la galerie ; [validate] : puis « Valider ».
+  Future<void> addPhoto(WidgetTester tester, {bool validate = true}) async {
     final add = find.bySemanticsLabel('Ajouter une photo').first;
     await tester.ensureVisible(add);
     await tester.pumpAndSettle();
     await tester.tap(add);
     await tester.pumpAndSettle();
+    await tester.tap(find.text('Importer'));
+    await tester.pumpAndSettle();
+    // Petit écran, grande police : la tuile peut être plus bas.
+    await tester.scrollUntilVisible(
+      find.text('Choisir une photo'),
+      120,
+      scrollable: find
+          .descendant(
+            of: find.byType(CustomScrollView).last,
+            matching: find.byType(Scrollable),
+          )
+          .first,
+    );
+    await tester.pumpAndSettle();
     await tester.tap(find.text('Choisir une photo'));
     await tester.pumpAndSettle();
+    if (validate) {
+      await tester.tap(find.text('Valider'));
+      await tester.pumpAndSettle();
+    }
   }
 
-  /// Étape 1 remplie, puis « Continuer ».
+  /// Photo, nom, prix et catégorie remplis.
   Future<void> fillDetails(
     WidgetTester tester, {
     bool photo = true,
@@ -176,7 +197,6 @@ void main() {
     await tester.enterText(field('Nom du produit'), name);
     await tester.enterText(field('Prix'), '4500');
     await chooseCategory(tester, 'Alimentation');
-    await tapText(tester, 'Continuer');
   }
 
   /// Dernière lecture de la liste.
@@ -206,7 +226,7 @@ void main() {
       expect(find.text('Épuisé · à réapprovisionner'), findsOneWidget);
       expect(find.text('Huile 1 L'), findsNothing);
       // Catalogue choisi dans la barre du bas.
-      expect(find.byType(ProDock), findsOneWidget);
+      expect(find.byType(BizDock), findsOneWidget);
       expect(lastList().query['status'], 'active');
 
       await tester.tap(find.textContaining('Brouillons'));
@@ -268,9 +288,11 @@ void main() {
       tester,
     ) async {
       catalog.seed(name: 'Riz parfumé 5 kg');
+      await launch(tester);
       catalog.failures['GET /v1/seller/shops/$shopId/products'] =
           FakeResponse.networkError();
-      await openCatalog(tester);
+      await tester.tap(dockTab(Icons.inventory_2_outlined));
+      await tester.pumpAndSettle();
       expect(
         find.text(
           'Impossible de charger vos produits. Vérifiez votre connexion.',
@@ -382,34 +404,119 @@ void main() {
         ..seed(name: 'Bissap', status: 'withdrawn');
       await openCatalog(tester);
       expect(tester.takeException(), isNull);
+      await tester.ensureVisible(find.textContaining('Retirés'));
+      await tester.pumpAndSettle();
       await tester.tap(find.textContaining('Retirés'));
       await tester.pumpAndSettle();
       expect(tester.takeException(), isNull);
     });
   });
 
+  group('produits : filtres et gestes', () {
+    testWidgets('catégorie : filtre envoyé au serveur, puis retiré', (
+      tester,
+    ) async {
+      catalog.seed(name: 'Riz parfumé 5 kg');
+      await openCatalog(tester);
+      await tester.tap(find.byTooltip('Filtrer par catégorie'));
+      await tester.pumpAndSettle();
+      await tester.tap(find.text('Boissons'));
+      await tester.pumpAndSettle();
+      expect(
+        lastList().query['category_id'],
+        'c1000000-0000-4000-8000-000000000003',
+      );
+      expect(find.text('Aucun produit dans cette catégorie.'), findsOneWidget);
+      // La puce porte le nom de la catégorie ; un appui la retire.
+      await tester.tap(find.text('Boissons'));
+      await tester.pumpAndSettle();
+      expect(lastList().query.containsKey('category_id'), isFalse);
+      expect(find.text('Riz parfumé 5 kg'), findsOneWidget);
+    });
+
+    testWidgets('sélection multiple : retrait groupé', (tester) async {
+      catalog
+        ..seed(name: 'Riz parfumé 5 kg')
+        ..seed(name: 'Sucre 1 kg');
+      await openCatalog(tester);
+      await tester.longPress(find.text('Riz parfumé 5 kg'));
+      await tester.pumpAndSettle();
+      expect(find.text('1 sélectionné'), findsOneWidget);
+      await tester.tap(find.text('Sucre 1 kg'));
+      await tester.pumpAndSettle();
+      expect(find.text('2 sélectionnés'), findsOneWidget);
+      await tester.tap(find.widgetWithText(BizButton, 'Retirer'));
+      await tester.pumpAndSettle();
+      expect(find.text('Retirer 2 produits de la vente ?'), findsOneWidget);
+      await tester.tap(find.widgetWithText(FilledButton, 'Retirer'));
+      await tester.pumpAndSettle();
+      expect(
+        catalog.products.map((p) => p['status']),
+        everyElement('withdrawn'),
+      );
+      expect(find.text('2 produits retirés'), findsOneWidget);
+      expect(find.bySemanticsLabel('Retirés, 2'), findsOneWidget);
+    });
+
+    testWidgets('glisser vers la gauche : ajuster le stock', (tester) async {
+      catalog.seed(name: 'Riz parfumé 5 kg');
+      await openCatalog(tester);
+      await tester.drag(find.text('Riz parfumé 5 kg'), const Offset(-500, 0));
+      await tester.pumpAndSettle();
+      expect(find.byTooltip('Ajouter 1'), findsOneWidget);
+      // La ligne est revenue à sa place.
+      expect(find.text('Riz parfumé 5 kg'), findsWidgets);
+    });
+
+    testWidgets('affichage en grille', (tester) async {
+      catalog.seed(name: 'Riz parfumé 5 kg');
+      await openCatalog(tester);
+      await tester.tap(find.byTooltip('Afficher en grille'));
+      await tester.pumpAndSettle();
+      expect(find.byTooltip('Afficher en liste'), findsOneWidget);
+      expect(find.text('Riz parfumé 5 kg'), findsOneWidget);
+    });
+
+    testWidgets('« + » de la barre : menu de création', (tester) async {
+      await launch(tester);
+      await tester.tap(find.byTooltip('Créer'));
+      await tester.pumpAndSettle();
+      expect(find.text('Créer et gérer'), findsOneWidget);
+      await tester.tap(find.text('Nouveau produit'));
+      await tester.pumpAndSettle();
+      expect(find.text('0 sur 5'), findsOneWidget);
+    });
+  });
+
   group('nouveau produit', () {
-    testWidgets('deux étapes, aperçu, publication avec photo', (tester) async {
+    testWidgets('une page, aperçu, publication avec photo', (tester) async {
       await openCatalog(tester);
       await tester.tap(find.bySemanticsLabel('Ajouter un produit').first);
       await tester.pumpAndSettle();
       expect(find.text('Nouveau produit'), findsOneWidget);
-      expect(find.text('1 sur 2'), findsOneWidget);
+      expect(find.text('0 sur 5'), findsOneWidget);
 
       await fillDetails(tester);
       expect(picker.lastMaxSide, 1600);
-      expect(find.text('Livraison et stock'), findsOneWidget);
+      expect(find.text('4 sur 5'), findsOneWidget);
       await tapText(tester, 'Moyen');
-      await tester.tap(find.byTooltip('Ajouter 1'));
+      expect(find.text('Prêt'), findsOneWidget);
+      final more = find.byTooltip('Ajouter 1');
+      await tester.ensureVisible(more);
+      await tester.pumpAndSettle();
+      await tester.tap(more);
       await tester.pump();
-      await tapText(tester, "Voir l'aperçu");
 
-      expect(find.text('Aperçu'), findsOneWidget);
+      await tester.tap(find.byTooltip('Aperçu'));
+      await tester.pumpAndSettle();
+      expect(find.text('Aperçu acheteur'), findsOneWidget);
       expect(find.text('1 photo'), findsOneWidget);
-      expect(find.text('Prix et catégorie'), findsOneWidget);
+      expect(find.text('Prix et catégorie'), findsWidgets);
       expect(find.text('Stock suivi : 2'), findsOneWidget);
       expect(find.text('Colis moyen'), findsOneWidget);
       expect(find.textContaining('Chez Afi · Tokoin'), findsOneWidget);
+      await tester.tap(find.byTooltip('Fermer'));
+      await tester.pumpAndSettle();
       expect(server.calls('POST', '/v1/uploads'), isEmpty);
 
       await tapText(tester, 'Publier');
@@ -443,23 +550,25 @@ void main() {
       expect(find.bySemanticsLabel('En vente, 1'), findsOneWidget);
     });
 
-    testWidgets('validations des deux étapes', (tester) async {
+    testWidgets('validations : tout est signalé, rien n\'est envoyé', (
+      tester,
+    ) async {
       await openCatalog(tester);
       await tester.tap(find.bySemanticsLabel('Ajouter un produit').first);
       await tester.pumpAndSettle();
-      await tapText(tester, 'Continuer');
+      await tapText(tester, 'Publier');
       expect(find.text('Le nom compte de 2 à 150 caractères.'), findsOneWidget);
       expect(find.text('Prix entre 1 et 100 000 000 FCFA.'), findsOneWidget);
       expect(find.text('Choisissez une catégorie.'), findsOneWidget);
-      expect(find.text('Livraison et stock'), findsNothing);
+      expect(find.text('Choisissez la taille du colis.'), findsOneWidget);
+      expect(find.text('Ajoutez au moins une photo.'), findsOneWidget);
 
       await fillDetails(tester, photo: false);
-      await tapText(tester, "Voir l'aperçu");
-      expect(find.text('Choisissez la taille du colis.'), findsOneWidget);
       await tapText(tester, 'Petit');
-      await tapText(tester, "Voir l'aperçu");
+      await tapText(tester, 'Publier');
       expect(find.text('Ajoutez au moins une photo.'), findsOneWidget);
-      expect(find.text('Aperçu'), findsNothing);
+      expect(find.text('Choisissez une catégorie.'), findsNothing);
+      expect(creates(), isEmpty);
     });
 
     testWidgets('brouillon sans photo, puis reprise et publication', (
@@ -470,9 +579,13 @@ void main() {
       await tester.pumpAndSettle();
       await fillDetails(tester, photo: false);
       await tapText(tester, 'Grand');
-      await tester.tap(find.byType(Switch));
+      final stock = find.byType(Switch);
+      await tester.ensureVisible(stock);
+      await tester.pumpAndSettle();
+      await tester.tap(stock);
       await tester.pump();
-      await tapText(tester, 'Brouillon');
+      await tapText(tester, 'À terminer plus tard');
+      await tapText(tester, 'Enregistrer');
 
       final body = creates().single.body! as Map;
       expect(body['is_active'], isFalse);
@@ -491,10 +604,8 @@ void main() {
         'Riz parfumé 5 kg',
       );
       await addPhoto(tester);
-      await tapText(tester, 'Continuer');
       // Mode de stock figé après l'enregistrement.
       expect(tester.widget<Switch>(find.byType(Switch)).onChanged, isNull);
-      await tapText(tester, "Voir l'aperçu");
       await tapText(tester, 'Publier');
 
       expect(creates(), hasLength(1), reason: 'pas de second produit');
@@ -514,7 +625,6 @@ void main() {
       await tester.pumpAndSettle();
       await fillDetails(tester);
       await tapText(tester, 'Moyen');
-      await tapText(tester, "Voir l'aperçu");
       catalog.failures['POST /v1/seller/shops'] = FakeResponse.networkError();
       await tapText(tester, 'Publier');
       expect(find.text('Produit publié'), findsNothing);
@@ -535,9 +645,7 @@ void main() {
       await tester.pumpAndSettle();
       await fillDetails(tester);
       await tapText(tester, 'Moyen');
-      await tapText(tester, "Voir l'aperçu");
-      final publish = find.widgetWithText(FilledButton, 'Publier');
-      await tester.ensureVisible(publish);
+      final publish = find.widgetWithText(BizButton, 'Publier');
       await tester.tap(publish);
       await tester.tap(publish, warnIfMissed: false);
       await tester.pumpAndSettle();
@@ -554,7 +662,6 @@ void main() {
       await tester.pumpAndSettle();
       await fillDetails(tester);
       await tapText(tester, 'Petit');
-      await tapText(tester, "Voir l'aperçu");
       await tapText(tester, 'Publier');
       expect(
         find.text('Il sera visible dès que votre boutique sera validée.'),
@@ -577,7 +684,7 @@ void main() {
       await tester.pumpAndSettle();
       await tester.tap(find.text('Abandonner'));
       await tester.pumpAndSettle();
-      expect(find.text('Catalogue'), findsWidgets);
+      expect(find.text('Produits'), findsWidgets);
       expect(creates(), isEmpty);
     });
 
@@ -600,6 +707,35 @@ void main() {
       expect(find.bySemanticsLabel(RegExp('^Photo ')), findsOneWidget);
     });
 
+    testWidgets('bibliothèque : photo d\'un autre produit réutilisée', (
+      tester,
+    ) async {
+      final other = catalog.seed(name: 'Sucre 1 kg');
+      await openCatalog(tester);
+      await tester.tap(find.bySemanticsLabel('Ajouter un produit').first);
+      await tester.pumpAndSettle();
+      await tester.tap(find.bySemanticsLabel('Ajouter une photo').first);
+      await tester.pumpAndSettle();
+      // Bibliothèque ouverte d'abord : elle contient une photo.
+      expect(find.text('Sélectionnées'), findsOneWidget);
+      expect(find.text('0/5'), findsOneWidget);
+      await tester.tap(find.bySemanticsLabel('Photo 1 de la bibliothèque'));
+      await tester.pumpAndSettle();
+      expect(find.text('1/5'), findsOneWidget);
+      await tester.tap(find.text('Valider'));
+      await tester.pumpAndSettle();
+      expect(find.bySemanticsLabel('Photo principale'), findsOneWidget);
+
+      await fillDetails(tester, photo: false);
+      await tapText(tester, 'Moyen');
+      await tapText(tester, 'Publier');
+      // Photo reprise telle quelle : rien n'est renvoyé.
+      expect(server.calls('POST', '/v1/uploads'), isEmpty);
+      expect((creates().single.body! as Map)['image_keys'], [
+        'products/${other['id']}-0.jpg',
+      ]);
+    });
+
     testWidgets('police à 200 % sur 320 dp : formulaire sans débordement', (
       tester,
     ) async {
@@ -615,7 +751,8 @@ void main() {
       await fillDetails(tester);
       expect(tester.takeException(), isNull);
       await tapText(tester, 'Moyen');
-      await tapText(tester, "Voir l'aperçu");
+      await tester.tap(find.byTooltip('Aperçu'));
+      await tester.pumpAndSettle();
       expect(tester.takeException(), isNull);
     });
   });
@@ -686,7 +823,7 @@ void main() {
       await tester.pumpAndSettle();
       expect(catalog.products.single['status'], 'withdrawn');
       expect(find.bySemanticsLabel('Retirés, 1'), findsOneWidget);
-      expect(find.byType(ProDock), findsOneWidget);
+      expect(find.byType(BizDock), findsOneWidget);
     });
 
     testWidgets('produit retiré remis en vente par l\'interrupteur', (
@@ -844,7 +981,7 @@ void main() {
       expect(find.text('Enregistrer les modifications'), findsOneWidget);
     });
 
-    testWidgets('catégorie refusée à la création : retour à l\'étape 1', (
+    testWidgets('catégorie refusée à la création : message sur la ligne', (
       tester,
     ) async {
       catalog.inactiveCategories.add('c1000000-0000-4000-8000-000000000001');
@@ -853,9 +990,7 @@ void main() {
       await tester.pumpAndSettle();
       await fillDetails(tester);
       await tapText(tester, 'Moyen');
-      await tapText(tester, "Voir l'aperçu");
       await tapText(tester, 'Publier');
-      expect(find.text('1 sur 2'), findsOneWidget);
       expect(find.text('Catégorie inconnue.'), findsOneWidget);
       expect(catalog.products, isEmpty);
     });
@@ -987,8 +1122,11 @@ void main() {
       await tester.tap(find.bySemanticsLabel('Ajouter un produit').first);
       await tester.pumpAndSettle();
       picker.next = Uint8List(5 * 1024 * 1024 + 1);
-      await addPhoto(tester);
+      await addPhoto(tester, validate: false);
       expect(find.text('Photo trop lourde (5 Mo au plus).'), findsOneWidget);
+      expect(find.text('0/5'), findsOneWidget);
+      await tester.tap(find.text('Annuler').last);
+      await tester.pumpAndSettle();
       expect(
         find.bySemanticsLabel(RegExp(r'^Photo (principale|\d)')),
         findsNothing,
@@ -1004,7 +1142,6 @@ void main() {
       await tester.pumpAndSettle();
       await fillDetails(tester, photo: false);
       await tapText(tester, 'Moyen');
-      await tapText(tester, "Voir l'aperçu");
       await tapText(tester, 'Publier');
       // La photo rouge, devenue principale, est envoyée et listée en premier.
       final puts = server.requests.where(
@@ -1028,7 +1165,6 @@ void main() {
       await addPhoto(tester);
       await fillDetails(tester, photo: false);
       await tapText(tester, 'Moyen');
-      await tapText(tester, "Voir l'aperçu");
       catalog.failures['PUT /products/u2.jpg'] = FakeResponse.networkError();
       await tapText(tester, 'Publier');
       expect(find.text('Produit publié'), findsNothing);
@@ -1049,8 +1185,8 @@ void main() {
       await tester.pumpAndSettle();
       await fillDetails(tester, photo: false);
       await tapText(tester, 'Petit');
-      final draft = find.widgetWithText(OutlinedButton, 'Brouillon');
-      await tester.ensureVisible(draft);
+      await tapText(tester, 'À terminer plus tard');
+      final draft = find.widgetWithText(BizButton, 'Enregistrer');
       await tester.tap(draft);
       await tester.tap(draft, warnIfMissed: false);
       await tester.pumpAndSettle();

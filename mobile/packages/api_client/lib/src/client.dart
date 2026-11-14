@@ -301,6 +301,7 @@ class IviaApiClient {
     String shopId, {
     ProductStatus? status,
     String query = '',
+    String? categoryId,
     int offset = 0,
     int limit = 20,
   }) async {
@@ -310,6 +311,7 @@ class IviaApiClient {
       query: {
         'status': ?status?.code,
         if (query.trim().isNotEmpty) 'q': query.trim(),
+        'category_id': ?categoryId,
         'offset': '$offset',
         'limit': '$limit',
       },
@@ -321,6 +323,16 @@ class IviaApiClient {
       ],
       nextOffset: json['next_offset'] as int?,
     );
+  }
+
+  /// Bibliothèque de photos de la boutique : photos déjà utilisées par ses
+  /// produits, réutilisables telles quelles dans `image_keys`.
+  Future<List<ProductImage>> shopMedia(String shopId) async {
+    final json = await _send('GET', '/v1/seller/shops/$shopId/media');
+    return [
+      for (final item in json['items'] as List)
+        ProductImage.fromJson(item as Map<String, dynamic>),
+    ];
   }
 
   /// Nombre de produits de la boutique par état.

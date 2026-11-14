@@ -25,6 +25,7 @@ func (h *Handler) Register(rt *httpapi.Router) {
 
 	rt.Roles("GET /v1/seller/shops/{id}/products", h.sellerList, identity.RoleSeller)
 	rt.Roles("GET /v1/seller/shops/{id}/product-counts", h.sellerCounts, identity.RoleSeller)
+	rt.Roles("GET /v1/seller/shops/{id}/media", h.sellerMedia, identity.RoleSeller)
 	rt.Roles("POST /v1/seller/shops/{id}/products", h.create, identity.RoleSeller)
 	rt.Roles("GET /v1/seller/products/{id}", h.sellerGet, identity.RoleSeller)
 	rt.Roles("PATCH /v1/seller/products/{id}", h.update, identity.RoleSeller)
@@ -99,8 +100,9 @@ func (h *Handler) sellerList(w http.ResponseWriter, r *http.Request) error {
 	q := httpapi.NewQuery(r)
 	page := q.Page()
 	f := SellerFilter{
-		Status: Status(q.Enum("status", "", string(StatusActive), string(StatusDraft), string(StatusWithdrawn))),
-		Q:      validate.Clean(q.String("q", 100)),
+		Status:     Status(q.Enum("status", "", string(StatusActive), string(StatusDraft), string(StatusWithdrawn))),
+		Q:          validate.Clean(q.String("q", 100)),
+		CategoryID: q.UUID("category_id"),
 	}
 	if err := q.Err(); err != nil {
 		return err
@@ -110,6 +112,18 @@ func (h *Handler) sellerList(w http.ResponseWriter, r *http.Request) error {
 		return err
 	}
 	return httpapi.OK(w, httpapi.NewList(items, page))
+}
+
+func (h *Handler) sellerMedia(w http.ResponseWriter, r *http.Request) error {
+	id, err := httpapi.PathUUID(r, "id")
+	if err != nil {
+		return err
+	}
+	items, err := h.svc.MediaForSeller(r.Context(), principal(r).UserID, id)
+	if err != nil {
+		return err
+	}
+	return httpapi.OK(w, map[string]any{"items": items})
 }
 
 func (h *Handler) sellerCounts(w http.ResponseWriter, r *http.Request) error {

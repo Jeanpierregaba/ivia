@@ -1012,6 +1012,26 @@ export interface paths {
         patch?: never;
         trace?: never;
     };
+    "/v1/seller/shops/{id}/media": {
+        parameters: {
+            query?: never;
+            header?: never;
+            path?: never;
+            cookie?: never;
+        };
+        /**
+         * Bibliothèque de photos de ma boutique
+         * @description Photos déjà utilisées par mes produits (envoyées par moi), la plus récente d'abord, 120 au plus. Une photo se réutilise telle quelle dans `image_keys`.
+         */
+        get: operations["getSellerShopsByIdMedia"];
+        put?: never;
+        post?: never;
+        delete?: never;
+        options?: never;
+        head?: never;
+        patch?: never;
+        trace?: never;
+    };
     "/v1/seller/products/{id}": {
         parameters: {
             query?: never;
@@ -10479,6 +10499,8 @@ export interface operations {
                 status?: components["schemas"]["ProductStatus"];
                 /** @description Texte cherché dans le nom, sans tenir compte des accents ni des majuscules. */
                 q?: string;
+                /** @description Catégorie (ou l'une de ses sous-catégories). Absent : toutes. */
+                category_id?: string;
                 limit?: number;
                 offset?: number;
             };
@@ -10535,6 +10557,42 @@ export interface operations {
                 };
                 content: {
                     "application/json": components["schemas"]["Product"];
+                };
+            };
+            /** @description Erreur (voir `code`) */
+            default: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["Error"];
+                };
+            };
+        };
+    };
+    getSellerShopsByIdMedia: {
+        parameters: {
+            query?: never;
+            header?: never;
+            path: {
+                id: string;
+            };
+            cookie?: never;
+        };
+        requestBody?: never;
+        responses: {
+            /** @description Succès */
+            200: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": {
+                        items: {
+                            object_key: string;
+                            url: string;
+                        }[];
+                    };
                 };
             };
             /** @description Erreur (voir `code`) */

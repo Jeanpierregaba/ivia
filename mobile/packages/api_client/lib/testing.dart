@@ -651,6 +651,7 @@ class FakeCatalog {
       ..on('GET', '/v1/categories', (_) => _ok(productCategoriesBody))
       ..on('GET', '/v1/seller/shops/$shop/products', _list)
       ..on('GET', '/v1/seller/shops/$shop/product-counts', (_) => _ok(counts))
+      ..on('GET', '/v1/seller/shops/$shop/media', _media)
       ..on('POST', '/v1/seller/shops/$shop/products', _create)
       ..onPattern('GET', '/v1/seller/products/([^/]+)', _get)
       ..onPattern('PATCH', '/v1/seller/products/([^/]+)', _update)
@@ -762,12 +763,14 @@ class FakeCatalog {
     if (beforeList case final wait?) await wait(r);
     if (_failure(r) case final f?) return f;
     final status = r.query['status'];
+    final category = r.query['category_id'];
     final q = _fold(r.query['q']?.trim() ?? '');
     final offset = int.parse(r.query['offset'] ?? '0');
     final limit = int.parse(r.query['limit'] ?? '20');
     final items =
         products
             .where((p) => status == null || p['status'] == status)
+            .where((p) => category == null || p['category_id'] == category)
             .where((p) => q.isEmpty || _fold(p['name'] as String).contains(q))
             .toList()
           ..sort((a, b) {
@@ -783,6 +786,21 @@ class FakeCatalog {
     final page = items.skip(offset).take(limit).toList();
     final more = items.length > offset + limit;
     return _ok({'items': page, 'next_offset': more ? offset + limit : null});
+  }
+
+  /// Photos des produits, sans doublon, la plus récente d'abord.
+  FakeResponse _media(RecordedRequest r) {
+    if (_failure(r) case final f?) return f;
+    final seen = <String>{};
+    final items = <Map<String, dynamic>>[];
+    for (final p in products.reversed) {
+      for (final image in (p['images'] as List).cast<Map<String, dynamic>>()) {
+        if (seen.add(image['object_key'] as String)) {
+          items.add({'url': image['url'], 'object_key': image['object_key']});
+        }
+      }
+    }
+    return _ok({'items': items});
   }
 
   FakeResponse _get(RecordedRequest r) {

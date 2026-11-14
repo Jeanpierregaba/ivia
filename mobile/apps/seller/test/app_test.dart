@@ -1216,7 +1216,7 @@ void main() {
       FakeCatalog(server);
       await launchApp(tester);
       await tapText(tester, 'Préparer mes produits');
-      expect(find.text('Catalogue'), findsOneWidget);
+      expect(find.text('Produits'), findsOneWidget);
       expect(
         find.textContaining('dès que votre boutique sera'),
         findsOneWidget,

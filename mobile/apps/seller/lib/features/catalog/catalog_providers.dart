@@ -48,6 +48,43 @@ class CatalogQuery extends Notifier<String> {
   void set(String query) => state = query.trim();
 }
 
+/// Catégorie filtrée (elle ou ses sous-catégories) ; `null` : toutes.
+final catalogCategoryProvider = NotifierProvider<CatalogCategory, String?>(
+  CatalogCategory.new,
+);
+
+class CatalogCategory extends Notifier<String?> {
+  @override
+  String? build() {
+    _accountId(ref);
+    return null;
+  }
+
+  void select(String? id) => state = id;
+}
+
+/// Affichage du catalogue : liste (par défaut) ou grille de vignettes.
+final catalogGridProvider = NotifierProvider<CatalogGrid, bool>(
+  CatalogGrid.new,
+);
+
+class CatalogGrid extends Notifier<bool> {
+  @override
+  bool build() => false;
+
+  void toggle() => state = !state;
+}
+
+/// Filtre d'une liste : état, texte cherché, catégorie.
+typedef CatalogFilter = (ProductStatus, String, String?);
+
+/// Filtre affiché : onglet, recherche et catégorie choisis.
+CatalogFilter watchCatalogFilter(WidgetRef ref) => (
+  ref.watch(catalogTabProvider),
+  ref.watch(catalogQueryProvider),
+  ref.watch(catalogCategoryProvider),
+);
+
 /// Produits chargés d'un onglet et d'une recherche.
 class CatalogPage {
   const CatalogPage({
@@ -84,7 +121,7 @@ String? _shopId(Ref ref) =>
 /// Liste d'un onglet et d'une recherche, filtrée par le serveur, chargée
 /// page par page.
 final catalogListProvider = AsyncNotifierProvider.autoDispose
-    .family<CatalogList, CatalogPage, (ProductStatus, String)>(
+    .family<CatalogList, CatalogPage, CatalogFilter>(
       CatalogList.new,
       // Pas de nouvel essai automatique : l'écran propose « Réessayer ».
       retry: (_, _) => null,
@@ -93,7 +130,7 @@ final catalogListProvider = AsyncNotifierProvider.autoDispose
 class CatalogList extends AsyncNotifier<CatalogPage> {
   CatalogList(this.filter);
 
-  final (ProductStatus, String) filter;
+  final CatalogFilter filter;
 
   /// Incrémenté à chaque (re)chargement : une page de suite demandée avant
   /// un rechargement est ignorée (Riverpod garde la même instance du
@@ -111,6 +148,7 @@ class CatalogList extends AsyncNotifier<CatalogPage> {
           shopId,
           status: filter.$1,
           query: filter.$2,
+          categoryId: filter.$3,
           limit: catalogPageSize,
         );
     return CatalogPage(items: page.items, nextOffset: page.nextOffset);
@@ -139,6 +177,7 @@ class CatalogList extends AsyncNotifier<CatalogPage> {
             shopId,
             status: filter.$1,
             query: filter.$2,
+            categoryId: filter.$3,
             offset: offset,
             limit: catalogPageSize,
           );
@@ -179,13 +218,23 @@ final productCategoriesProvider =
       retry: (_, _) => null,
     );
 
+/// Bibliothèque de photos de la boutique (spec : refonte Ivia Business).
+final shopMediaProvider = FutureProvider.autoDispose<List<ProductImage>>((
+  ref,
+) async {
+  final shopId = _shopId(ref);
+  if (shopId == null) return const [];
+  return ref.read(apiClientProvider).shopMedia(shopId);
+}, retry: (_, _) => null);
+
 /// Recharge les listes et les compteurs après une modification. Prend le
 /// conteneur : l'écran qui a modifié peut déjà être fermé (« Annuler » d'un
 /// message).
 void refreshCatalog(ProviderContainer container) {
   container
     ..invalidate(catalogListProvider)
-    ..invalidate(catalogCountsProvider);
+    ..invalidate(catalogCountsProvider)
+    ..invalidate(shopMediaProvider);
 }
 
 /// Corps complet d'une modification, repris du produit enregistré :
@@ -199,3 +248,19 @@ ProductInput inputFrom(Product p, {required bool isActive}) => ProductInput(
   imageKeys: [for (final image in p.images) image.objectKey],
   isActive: isActive,
 );
+
+/// Produits en vente dont le stock suivi est bas (3 ou moins) : tuile
+/// « Stock bas » de l'Accueil. `null` : boutique pas encore connue.
+final lowStockProvider = FutureProvider.autoDispose<List<Product>?>((
+  ref,
+) async {
+  final shopId = _shopId(ref);
+  if (shopId == null) return null;
+  final page = await ref
+      .read(apiClientProvider)
+      .sellerProducts(shopId, status: ProductStatus.active, limit: 100);
+  return [
+    for (final p in page.items)
+      if (p.stockMode == StockMode.tracked && (p.stockQuantity ?? 0) <= 3) p,
+  ];
+}, retry: (_, _) => null);

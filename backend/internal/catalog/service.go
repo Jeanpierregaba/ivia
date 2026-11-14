@@ -63,6 +63,14 @@ const (
 type SellerFilter struct {
 	Status Status
 	Q      string
+	// CategoryID : la catégorie ou ses sous-catégories ; nil : toutes.
+	CategoryID *uuid.UUID
+}
+
+// Media est une photo de la bibliothèque d'une boutique, réutilisable dans un autre produit.
+type Media struct {
+	ObjectKey string `json:"object_key"`
+	URL       string `json:"url"`
 }
 
 // Counts est le nombre de produits d'une boutique par état.
@@ -351,12 +359,32 @@ func (s *Service) ListForSeller(ctx context.Context, ownerID, shopID uuid.UUID, 
 		return nil, err
 	}
 	rows, err := store.New(s.db.Conn(ctx)).ListSellerProducts(ctx, store.ListSellerProductsParams{
-		ShopID: shopID, Status: string(f.Status), Q: likeEscape(f.Q), Lim: limit, Off: offset,
+		ShopID: shopID, Status: string(f.Status), Q: likeEscape(f.Q), CategoryID: f.CategoryID, Lim: limit, Off: offset,
 	})
 	if err != nil {
 		return nil, fmt.Errorf("liste des produits du marchand : %w", err)
 	}
 	return s.enrich(ctx, rows)
+}
+
+// MediaForSeller retourne la bibliothèque de photos d'une boutique du marchand : les photos de ses
+// produits qu'il a lui-même envoyées (une photo envoyée par un admin ne peut pas être reprise).
+func (s *Service) MediaForSeller(ctx context.Context, ownerID, shopID uuid.UUID) ([]Media, error) {
+	if _, err := s.shops.RequireOwned(ctx, ownerID, shopID); err != nil {
+		return nil, err
+	}
+	rows, err := store.New(s.db.Conn(ctx)).ListShopMedia(ctx, shopID)
+	if err != nil {
+		return nil, fmt.Errorf("photos de la boutique : %w", err)
+	}
+	out := make([]Media, 0, len(rows))
+	for _, r := range rows {
+		if !s.uploads.Owns(uploads.ProductImage, ownerID, r.ObjectKey) {
+			continue
+		}
+		out = append(out, Media{ObjectKey: r.ObjectKey, URL: s.uploads.PublicURL(r.ObjectKey)})
+	}
+	return out, nil
 }
 
 // CountForSeller retourne le nombre de produits par état d'une boutique du marchand.

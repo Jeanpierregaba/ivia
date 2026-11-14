@@ -63,6 +63,10 @@ WHERE shop_id = sqlc.arg(shop_id)
       END
   AND (sqlc.arg(q)::text = ''
        OR immutable_unaccent(lower(name)) LIKE '%' || immutable_unaccent(lower(sqlc.arg(q)::text)) || '%' ESCAPE '\')
+  -- category_id : la catégorie ou l'une de ses sous-catégories ; NULL : toutes.
+  AND (sqlc.narg(category_id)::uuid IS NULL
+       OR category_id = sqlc.narg(category_id)::uuid
+       OR category_id IN (SELECT c.id FROM categories c WHERE c.parent_id = sqlc.narg(category_id)::uuid))
 ORDER BY CASE WHEN sqlc.arg(status)::text = 'withdrawn' THEN withdrawn_at END DESC NULLS LAST,
          created_at DESC, id
 LIMIT sqlc.arg(lim) OFFSET sqlc.arg(off);
@@ -76,6 +80,17 @@ WHERE shop_id = $1;
 
 -- name: GetProductsByIDs :many
 SELECT * FROM products WHERE id = ANY(sqlc.arg(ids)::uuid[]);
+
+-- name: ListShopMedia :many
+-- Photos déjà utilisées par les produits d'une boutique (bibliothèque du marchand), la plus
+-- récente d'abord, sans doublon.
+SELECT pi.object_key, max(pi.created_at)::timestamptz AS last_used
+FROM product_images pi
+JOIN products p ON p.id = pi.product_id
+WHERE p.shop_id = $1
+GROUP BY pi.object_key
+ORDER BY last_used DESC, pi.object_key
+LIMIT 120;
 
 -- name: ListImages :many
 SELECT * FROM product_images WHERE product_id = ANY(sqlc.arg(product_ids)::uuid[]) ORDER BY product_id, position;

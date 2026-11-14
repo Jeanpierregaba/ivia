@@ -1,6 +1,6 @@
 # Progression du projet ivia
 
-> Fichier tenu à jour à chaque étape. Dernière mise à jour : **2026-11-13**.
+> Fichier tenu à jour à chaque étape. Dernière mise à jour : **2026-11-14**.
 > Détail des tâches : [`TASKS.md`](TASKS.md) · journal des sessions : [`docs/SESSION-LOG.md`](docs/SESSION-LOG.md).
 
 ## En un coup d'œil
@@ -16,7 +16,21 @@
 | Connexion v2 (001, ADR 0012) | **~95 %** | Tout est codé (changement de numéro compris) ; reste la mise en service WhatsApp (voir docs/whatsapp-mise-en-service.md) et le fournisseur SMS |
 | Démarches hors code         |  **~10 %** | Société, agrégateur de paiement, Play Store, Meta, domaine                 |
 
-## Dernières avancées (2026-11-13)
+## Dernières avancées (2026-11-14)
+
+- **Ivia Business refait (lot 1)**, dans la charte d'origine (bleu nuit, cartes arrondies) :
+  - **Barre du bas** en pilule avec un bouton **+** : nouveau produit, code promo, commandes à accepter, revenus.
+  - **Accueil** : la commande payée s'accepte ou se refuse directement ; tuiles « En préparation · Prêtes · Stock bas » ; commandes en cours qui avancent d'un geste ; produits à réapprovisionner.
+  - **Produits** :
+    - recherche et filtre par catégorie ;
+    - liste ou grille ;
+    - glisser pour retirer ou ajuster le stock ;
+    - appui long pour sélectionner plusieurs produits ;
+    - pastilles d'état et point de stock coloré.
+  - **Nouveau produit sur une seule page** : jauge de progression, aperçu acheteur, toutes les erreurs signalées d'un coup.
+  - **Bibliothèque de photos** : réutiliser une photo déjà envoyée, sans la renvoyer ; sélection numérotée ; photos réordonnées au doigt.
+
+## Avancées du 2026-11-13
 
 - **Messagerie de la course** : le client écrit au livreur, le livreur au client et à la boutique, comme sur WhatsApp (en direct, lu / non lu, messages rapides).
 - **Admins à rôles** : un super admin crée les comptes admin (Opérations, Réseau, Santé, Marketing, Finances, Carte, Support) ; chacun ne voit que son domaine ; le super admin suit les actions de tous. Plus aucun compte client, marchand ou livreur ne peut devenir admin.

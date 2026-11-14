@@ -9,9 +9,10 @@ import 'package:ivia_ui/ivia_ui.dart';
 
 import '../../app/business_state.dart';
 import '../../app/seller_shop.dart';
-import '../business/pro_ui.dart';
+import '../business/biz_ui.dart';
 import '../orders/order_labels.dart';
 import '../orders/orders_providers.dart';
+import 'quick_create.dart';
 
 /// Onglets de l'app marchand, dans l'ordre des branches du routeur.
 const sellerTabs = [
@@ -130,6 +131,14 @@ class _SellerShellState extends ConsumerState<SellerShell> {
     );
   }
 
+  var _creating = false;
+
+  Future<void> _create(bool restaurant, int fresh) async {
+    setState(() => _creating = true);
+    await showQuickCreate(context, restaurant: restaurant, fresh: fresh);
+    if (mounted) setState(() => _creating = false);
+  }
+
   bool get _published =>
       ref.read(sellerShopProvider).value?.status == ShopStatus.published;
 
@@ -172,32 +181,33 @@ class _SellerShellState extends ConsumerState<SellerShell> {
     );
     final restaurant = sector == 'restaurant';
     return Scaffold(
-      backgroundColor: Pro.page,
+      backgroundColor: Biz.page,
       body: widget.shell,
       bottomNavigationBar: published
-          ? ProDock(
-              accent: Pro.accent(sector),
+          ? BizDock(
               current: widget.shell.currentIndex,
+              creating: _creating,
+              onCreate: () => _create(restaurant, fresh),
               // Onglet déjà ouvert : retour à son premier écran.
               onSelected: (i) => widget.shell.goBranch(
                 i,
                 initialLocation: i == widget.shell.currentIndex,
               ),
               items: [
-                const ProDockItem(Icons.space_dashboard_outlined, 'Pilotage'),
-                ProDockItem(
+                const BizDockItem(Icons.space_dashboard_outlined, 'Accueil'),
+                BizDockItem(
                   Icons.receipt_long_outlined,
                   'Commandes',
                   badge: fresh,
                   badgeLabel: fresh == 1 ? '1 nouvelle' : '$fresh nouvelles',
                 ),
-                ProDockItem(
+                BizDockItem(
                   restaurant
                       ? Icons.restaurant_menu_rounded
                       : Icons.inventory_2_outlined,
-                  restaurant ? 'Menu' : 'Catalogue',
+                  restaurant ? 'Menu' : 'Produits',
                 ),
-                const ProDockItem(Icons.person_outline, 'Profil'),
+                const BizDockItem(Icons.person_outline, 'Profil'),
               ],
             )
           : null,

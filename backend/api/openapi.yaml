@@ -2078,6 +2078,13 @@ paths:
           schema:
             type: string
             maxLength: 100
+        - name: category_id
+          in: query
+          required: false
+          description: "Catégorie (ou l'une de ses sous-catégories). Absent : toutes."
+          schema:
+            type: string
+            format: uuid
         - name: limit
           in: query
           required: false
@@ -2148,6 +2155,50 @@ paths:
             application/json:
               schema:
                 "$ref": "#/components/schemas/Product"
+        default:
+          description: "Erreur (voir `code`)"
+          content:
+            application/json:
+              schema:
+                "$ref": "#/components/schemas/Error"
+  "/v1/seller/shops/{id}/media":
+    get:
+      summary: "Bibliothèque de photos de ma boutique"
+      description: "Photos déjà utilisées par mes produits (envoyées par moi), la plus récente d'abord, 120 au plus. Une photo se réutilise telle quelle dans `image_keys`."
+      tags:
+        - Marchand
+      operationId: getSellerShopsByIdMedia
+      parameters:
+        - name: id
+          in: path
+          required: true
+          schema:
+            type: string
+            format: uuid
+      x-roles:
+        - seller
+      responses:
+        "200":
+          description: "Succès"
+          content:
+            application/json:
+              schema:
+                type: object
+                properties:
+                  items:
+                    type: array
+                    items:
+                      type: object
+                      properties:
+                        object_key:
+                          type: string
+                        url:
+                          type: string
+                      required:
+                        - object_key
+                        - url
+                required:
+                  - items
         default:
           description: "Erreur (voir `code`)"
           content:
