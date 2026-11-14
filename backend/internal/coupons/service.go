@@ -10,6 +10,7 @@ import (
 	"fmt"
 	"math/big"
 	"regexp"
+	"slices"
 	"strings"
 	"sync"
 	"time"
@@ -17,6 +18,7 @@ import (
 	"github.com/google/uuid"
 
 	"ivia/backend/internal/admin"
+	"ivia/backend/internal/catalog"
 	"ivia/backend/internal/coupons/store"
 	"ivia/backend/internal/platform/apperr"
 	"ivia/backend/internal/platform/database"
@@ -57,7 +59,26 @@ type Code struct {
 	UsedCount        int32      `json:"used_count"`
 	DiscountGivenXOF int64      `json:"discount_given_xof"`
 	CreatedAt        time.Time  `json:"created_at"`
+	// Scope : « shop » (tous les produits de la boutique) ou « products » (ceux de Products).
+	Scope    string       `json:"scope"`
+	Products []ProductRef `json:"products"`
 }
+
+// ProductRef est un produit visé par un code.
+type ProductRef struct {
+	ID   uuid.UUID `json:"id"`
+	Name string    `json:"name"`
+}
+
+// Line est une ligne de commande : la réduction d'un code limité à certains produits ne porte
+// que sur leurs lignes.
+type Line struct {
+	ProductID uuid.UUID
+	TotalXOF  int64
+}
+
+// MaxCodeProducts : produits au plus par code.
+const MaxCodeProducts = 100
 
 // Applied est un code accepté pour une commande.
 type Applied struct {
@@ -88,6 +109,8 @@ type Input struct {
 	MaxUses        *int32     `json:"max_uses"`
 	MaxUsesPerUser int32      `json:"max_uses_per_user"`
 	Visibility     string     `json:"visibility"`
+	// ProductIDs : produits de la boutique visés ; vide : toute la boutique.
+	ProductIDs []uuid.UUID `json:"product_ids"`
 }
 
 // OrderHistory dit si un compte a déjà une commande payée (coupon de bienvenue).
@@ -102,6 +125,7 @@ type Service struct {
 	admin   *admin.Service
 	history OrderHistory
 	fails   *failures
+	catalog *catalog.Service
 }
 
 // NewService crée le service.
@@ -111,6 +135,9 @@ func NewService(db *database.DB, sh *shops.Service, ad *admin.Service) *Service 
 
 // SetOrderHistory branche l'historique des commandes (évite une dépendance circulaire).
 func (s *Service) SetOrderHistory(h OrderHistory) { s.history = h }
+
+// SetCatalog branche le catalogue : produits visés par un code (boutique, nom).
+func (s *Service) SetCatalog(c *catalog.Service) { s.catalog = c }
 
 var codeRe = regexp.MustCompile(`^[A-Z0-9-]{3,24}$`)
 
@@ -166,6 +193,20 @@ func (s *Service) view(ctx context.Context, c store.PromoCode, used int32, given
 	} else {
 		out.ShopName = "Toutes les boutiques"
 	}
+	out.Scope, out.Products = "shop", []ProductRef{}
+	ids, err := store.New(s.db.Conn(ctx)).ListCodeProducts(ctx, c.ID)
+	if err == nil && len(ids) > 0 {
+		out.Scope = "products"
+		if s.catalog != nil {
+			if ps, err := s.catalog.ProductsByIDs(ctx, ids); err == nil {
+				for _, id := range ids {
+					if p, ok := ps[id]; ok {
+						out.Products = append(out.Products, ProductRef{ID: id, Name: p.Name})
+					}
+				}
+			}
+		}
+	}
 	return out
 }
 
@@ -175,18 +216,22 @@ func refuse(code, msg string) error { return apperr.Conflict(code, msg) }
 
 // Quote vérifie un code pour une commande et calcule la réduction, sans rien enregistrer.
 // Trop d'essais ratés : refus pendant une heure.
-func (s *Service) Quote(ctx context.Context, userID uuid.UUID, raw string, shopID uuid.UUID, subtotal int64) (Applied, error) {
+func (s *Service) Quote(ctx context.Context, userID uuid.UUID, raw string, shopID uuid.UUID, lines []Line) (Applied, error) {
 	if s.fails.blocked(userID) {
 		return Applied{}, apperr.TooManyRequests("promo_rate_limited", "Trop de codes essayés. Réessayez dans une heure.", 3600)
 	}
-	a, err := s.quote(ctx, userID, raw, shopID, subtotal)
+	a, err := s.quote(ctx, userID, raw, shopID, lines)
 	if err != nil && (apperr.IsCode(err, "promo_not_found") || apperr.IsCode(err, "promo_not_applicable")) {
 		s.fails.add(userID)
 	}
 	return a, err
 }
 
-func (s *Service) quote(ctx context.Context, userID uuid.UUID, raw string, shopID uuid.UUID, subtotal int64) (Applied, error) {
+func (s *Service) quote(ctx context.Context, userID uuid.UUID, raw string, shopID uuid.UUID, lines []Line) (Applied, error) {
+	var subtotal int64
+	for _, l := range lines {
+		subtotal += l.TotalXOF
+	}
 	if s.history != nil {
 		_ = s.ensureWelcome(ctx, userID)
 	}
@@ -238,7 +283,19 @@ func (s *Service) quote(ctx context.Context, userID uuid.UUID, raw string, shopI
 		return Applied{}, refuse("promo_min_not_reached",
 			fmt.Sprintf("Ce code demande au moins %s d'achats.", formatXOF(c.MinOrderXof)))
 	}
-	d := Discount(c.Kind, c.Value, c.MaxDiscountXof, subtotal)
+	// Code limité à certains produits : la réduction porte sur leurs lignes seulement.
+	base := subtotal
+	targets, err := st.ListCodeProducts(ctx, c.ID)
+	if err != nil {
+		return Applied{}, fmt.Errorf("produits du code : %w", err)
+	}
+	if len(targets) > 0 {
+		base = EligibleSubtotal(lines, targets)
+		if base == 0 {
+			return Applied{}, refuse("promo_not_applicable", "Ce code promo ne concerne aucun produit de votre panier.")
+		}
+	}
+	d := Discount(c.Kind, c.Value, c.MaxDiscountXof, base)
 	return Applied{CodeID: c.ID, Code: c.Code, DiscountXOF: d, FundedBy: c.FundedBy}, nil
 }
 
@@ -281,6 +338,17 @@ func (s *Service) Release(ctx context.Context, orderID uuid.UUID) error {
 	return st.DecrementUse(ctx, codeID)
 }
 
+// EligibleSubtotal additionne les lignes des produits visés.
+func EligibleSubtotal(lines []Line, targets []uuid.UUID) int64 {
+	var sum int64
+	for _, l := range lines {
+		if slices.Contains(targets, l.ProductID) {
+			sum += l.TotalXOF
+		}
+	}
+	return sum
+}
+
 // --- Création et gestion ---------------------------------------------------------------------
 
 func (s *Service) validate(in *Input) error {
@@ -313,24 +381,66 @@ func (s *Service) validate(in *Input) error {
 		in.StartsAt = &now
 	}
 	v.Check(in.EndsAt == nil || in.EndsAt.After(*in.StartsAt), "ends_at", "La fin doit suivre le début.")
+	v.Check(len(in.ProductIDs) <= MaxCodeProducts, "product_ids", fmt.Sprintf("%d produits au plus.", MaxCodeProducts))
+	seen := map[uuid.UUID]bool{}
+	for _, id := range in.ProductIDs {
+		v.Check(!seen[id], "product_ids", "Produit en double.")
+		seen[id] = true
+	}
 	return v.Err()
+}
+
+// checkProducts vérifie que chaque produit visé appartient à la boutique du code.
+func (s *Service) checkProducts(ctx context.Context, shopID uuid.UUID, ids []uuid.UUID) error {
+	if len(ids) == 0 {
+		return nil
+	}
+	if s.catalog == nil {
+		return fmt.Errorf("catalogue non branché")
+	}
+	ps, err := s.catalog.ProductsByIDs(ctx, ids)
+	if err != nil {
+		return err
+	}
+	for _, id := range ids {
+		if p, ok := ps[id]; !ok || p.ShopID != shopID {
+			return apperr.Validation(map[string]string{"product_ids": "Un des produits choisis n'est pas dans cette boutique."})
+		}
+	}
+	return nil
 }
 
 func (s *Service) create(ctx context.Context, in Input, shopID uuid.UUID, by uuid.UUID) (Code, error) {
 	if err := s.validate(&in); err != nil {
 		return Code{}, err
 	}
-	st := store.New(s.db.Conn(ctx))
-	id, err := st.CreateCode(ctx, store.CreateCodeParams{
-		Code: in.Code, ShopID: &shopID, FundedBy: FundedByShop, Kind: in.Kind, Value: in.Value,
-		MaxDiscountXof: in.MaxDiscountXOF, MinOrderXof: in.MinOrderXOF, StartsAt: *in.StartsAt, EndsAt: in.EndsAt,
-		MaxUses: in.MaxUses, MaxUsesPerUser: in.MaxUsesPerUser, Visibility: in.Visibility, CreatedBy: &by,
-	})
-	if database.IsUniqueViolation(err, "promo_codes_code_key") {
-		return Code{}, apperr.Conflict("promo_code_taken", "Ce code existe déjà. Choisissez-en un autre.")
+	if err := s.checkProducts(ctx, shopID, in.ProductIDs); err != nil {
+		return Code{}, err
 	}
+	var id uuid.UUID
+	err := s.db.InTx(ctx, func(ctx context.Context) error {
+		st := store.New(s.db.Conn(ctx))
+		var err error
+		id, err = st.CreateCode(ctx, store.CreateCodeParams{
+			Code: in.Code, ShopID: &shopID, FundedBy: FundedByShop, Kind: in.Kind, Value: in.Value,
+			MaxDiscountXof: in.MaxDiscountXOF, MinOrderXof: in.MinOrderXOF, StartsAt: *in.StartsAt, EndsAt: in.EndsAt,
+			MaxUses: in.MaxUses, MaxUsesPerUser: in.MaxUsesPerUser, Visibility: in.Visibility, CreatedBy: &by,
+		})
+		if database.IsUniqueViolation(err, "promo_codes_code_key") {
+			return apperr.Conflict("promo_code_taken", "Ce code existe déjà. Choisissez-en un autre.")
+		}
+		if err != nil {
+			return fmt.Errorf("création du code : %w", err)
+		}
+		for _, p := range in.ProductIDs {
+			if err := st.InsertCodeProduct(ctx, store.InsertCodeProductParams{CodeID: id, ProductID: p}); err != nil {
+				return fmt.Errorf("produits du code : %w", err)
+			}
+		}
+		return nil
+	})
 	if err != nil {
-		return Code{}, fmt.Errorf("création du code : %w", err)
+		return Code{}, err
 	}
 	return s.get(ctx, id)
 }
@@ -447,7 +557,7 @@ func (s *Service) AdminCreate(ctx context.Context, adminID uuid.UUID, in Input) 
 		}
 		return s.admin.Record(ctx, admin.AuditEntry{
 			AdminID: &adminID, Action: "promo_code.create", TargetType: "promo_code", TargetID: out.ID.String(),
-			After: map[string]any{"code": out.Code, "shop_id": out.ShopID, "kind": out.Kind, "value": out.Value},
+			After: map[string]any{"code": out.Code, "shop_id": out.ShopID, "kind": out.Kind, "value": out.Value, "product_ids": in.ProductIDs},
 		})
 	})
 	return out, err

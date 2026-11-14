@@ -26,7 +26,10 @@ export async function createCode(_: ActionResult | null, form: FormData): Promis
     max_uses_per_user: int(form, "max_uses_per_user") ?? 1,
     visibility: form.get("private") ? "private" : "public",
     ends_at: days ? new Date(Date.now() + days * 86_400_000).toISOString() : undefined,
+    product_ids: form.get("scope") === "products" ? form.getAll("product_ids").map(String) : undefined,
   };
+  if (form.get("scope") === "products" && !body.product_ids?.length)
+    return { ok: false, message: "Choisissez au moins un produit." };
   if (Object.values(body).some((v) => typeof v === "number" && Number.isNaN(v)))
     return { ok: false, message: "Nombres entiers uniquement." };
   let code: string;

@@ -147,6 +147,7 @@ func New(cfg config.Config, logger *slog.Logger, pool *pgxpool.Pool, opts Option
 		Stock: a.Stock, Cart: a.Cart, Notify: a.Notifications, Logger: logger, Coupons: a.Coupons,
 	})
 	a.Coupons.SetOrderHistory(a.Orders)
+	a.Coupons.SetCatalog(a.Catalog)
 	a.Payments = payments.NewService(db, enq, provider, a.Orders, a.Admin, a.Notifications, logger)
 	a.Delivery = delivery.NewService(delivery.Deps{
 		DB: db, Jobs: enq, Admin: a.Admin, Users: a.Users, Geo: a.Geo, Shops: a.Shops, Orders: a.Orders,

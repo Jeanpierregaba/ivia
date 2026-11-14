@@ -13758,6 +13758,25 @@ components:
         created_at:
           type: string
           format: date-time
+        scope:
+          type: string
+          enum:
+            - shop
+            - products
+          description: "shop : tous les produits de la boutique ; products : seulement ceux de `products`."
+        products:
+          type: array
+          items:
+            type: object
+            properties:
+              id:
+                type: string
+                format: uuid
+              name:
+                type: string
+            required:
+              - id
+              - name
       required:
         - id
         - code
@@ -13765,6 +13784,8 @@ components:
         - value
         - status
         - state
+        - scope
+        - products
     PromoCodeInput:
       type: object
       properties:
@@ -13813,6 +13834,13 @@ components:
           enum:
             - public
             - private
+        product_ids:
+          type: array
+          maxItems: 100
+          description: "Produits de la boutique visés (un ou plusieurs). Absent ou vide : toute la boutique. La réduction ne porte que sur leurs lignes."
+          items:
+            type: string
+            format: uuid
       required:
         - kind
         - value

@@ -24,7 +24,12 @@ class PromoCode {
       state = j['state'] as String? ?? 'active',
       suspensionReason = j['suspension_reason'] as String? ?? '',
       usedCount = _i(j['used_count']),
-      discountGivenXof = _i(j['discount_given_xof']);
+      discountGivenXof = _i(j['discount_given_xof']),
+      scope = j['scope'] as String? ?? 'shop',
+      products = [
+        for (final p in _list(j['products']))
+          (id: p['id'] as String, name: p['name'] as String? ?? ''),
+      ];
 
   final String id, code, shopName, fundedBy, kind, visibility, status, state;
   final String suspensionReason;
@@ -33,6 +38,13 @@ class PromoCode {
   final int? maxDiscountXof, maxUses;
   final DateTime? startsAt, endsAt;
   final bool welcome;
+
+  /// `shop` : tous les produits de la boutique ; `products` : ceux de [products].
+  final String scope;
+  final List<({String id, String name})> products;
+
+  /// Code limité à certains produits (spec 041).
+  bool get limitedToProducts => scope == 'products';
 
   bool get isPercent => kind == 'percent';
 
@@ -72,6 +84,9 @@ extension CouponsApi on IviaApiClient {
     int? maxUses,
     int maxUsesPerUser = 1,
     String visibility = 'public',
+
+    /// Produits visés ; vide : toute la boutique.
+    List<String> productIds = const [],
   }) async => PromoCode.fromJson(
     await _send(
       'POST',
@@ -87,6 +102,7 @@ extension CouponsApi on IviaApiClient {
         'max_uses': ?maxUses,
         'max_uses_per_user': maxUsesPerUser,
         'visibility': visibility,
+        if (productIds.isNotEmpty) 'product_ids': productIds,
       },
     ),
   );

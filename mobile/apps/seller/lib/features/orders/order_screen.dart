@@ -8,6 +8,7 @@ import 'package:ivia_app_core/ivia_app_core.dart';
 import 'package:ivia_ui/ivia_ui.dart';
 
 import '../../app/router.dart';
+import '../business/biz_ui.dart';
 import '../../app/seller_shop.dart';
 import 'handover_screen.dart';
 import 'order_labels.dart';
@@ -187,6 +188,7 @@ class _OrderScreenState extends ConsumerState<OrderScreen> {
   Widget build(BuildContext context) {
     final order = ref.watch(sellerOrderProvider(widget.orderId));
     return Scaffold(
+      backgroundColor: Biz.page,
       body: SafeArea(
         child: switch (order) {
           AsyncValue(value: final value?) => _content(value),
@@ -212,20 +214,32 @@ class _OrderScreenState extends ConsumerState<OrderScreen> {
               physics: const AlwaysScrollableScrollPhysics(),
               padding: const EdgeInsets.all(IviaSpacing.screen),
               children: [
-                Align(
-                  alignment: Alignment.centerLeft,
-                  child: IviaBackButton(onPressed: _back),
-                ),
-                const SizedBox(height: IviaSpacing.md),
-                Semantics(
-                  header: true,
-                  child: Text(
-                    'Commande #${order.number}',
-                    style: textTheme.headlineSmall,
-                  ),
+                Row(
+                  children: [
+                    IviaBackButton(onPressed: _back),
+                    const SizedBox(width: IviaSpacing.md),
+                    Expanded(
+                      child: Semantics(
+                        header: true,
+                        child: Text(
+                          'Commande #${order.number}',
+                          style: textTheme.headlineSmall?.copyWith(
+                            fontWeight: FontWeight.w800,
+                            color: Biz.navy,
+                          ),
+                        ),
+                      ),
+                    ),
+                  ],
                 ),
                 const SizedBox(height: IviaSpacing.lg),
-                _Header(order: order, onExpired: _onExpired),
+                BizReveal(
+                  child: _Header(order: order, onExpired: _onExpired),
+                ),
+                if (OrderSteps.of(order) case final steps?) ...[
+                  const SizedBox(height: IviaSpacing.md),
+                  BizReveal(index: 1, child: steps),
+                ],
                 const SizedBox(height: IviaSpacing.lg),
                 if (order.fulfillment == Fulfillment.delivery &&
                     (order.status == OrderStatus.driverAssigned ||
@@ -250,34 +264,74 @@ class _OrderScreenState extends ConsumerState<OrderScreen> {
           ),
         ),
         if (action != null || _error != null)
-          Padding(
-            padding: const EdgeInsets.fromLTRB(
-              IviaSpacing.screen,
-              IviaSpacing.sm,
-              IviaSpacing.screen,
-              IviaSpacing.lg,
-            ),
-            child: Column(
-              crossAxisAlignment: CrossAxisAlignment.stretch,
-              children: [
-                if (_error case final error?) ...[
-                  Semantics(
-                    liveRegion: true,
-                    child: Text(
-                      error,
-                      textAlign: TextAlign.center,
-                      style: textTheme.bodyMedium?.copyWith(
-                        color: IviaColors.error,
+          // Barre d'action fixe : boutons en pilule, rouge pour accepter.
+          Theme(
+            data: _actionTheme(context, order),
+            child: Container(
+              decoration: const BoxDecoration(
+                color: Colors.white,
+                border: Border(top: BorderSide(color: Biz.line)),
+              ),
+              padding: const EdgeInsets.fromLTRB(
+                IviaSpacing.screen,
+                IviaSpacing.md,
+                IviaSpacing.screen,
+                IviaSpacing.lg,
+              ),
+              child: Column(
+                crossAxisAlignment: CrossAxisAlignment.stretch,
+                children: [
+                  if (_error case final error?) ...[
+                    Semantics(
+                      liveRegion: true,
+                      child: Text(
+                        error,
+                        textAlign: TextAlign.center,
+                        style: textTheme.bodyMedium?.copyWith(
+                          color: IviaColors.error,
+                        ),
                       ),
                     ),
-                  ),
-                  if (action != null) const SizedBox(height: IviaSpacing.sm),
+                    if (action != null) const SizedBox(height: IviaSpacing.sm),
+                  ],
+                  ?action,
                 ],
-                ?action,
-              ],
+              ),
             ),
           ),
       ],
+    );
+  }
+
+  ThemeData _actionTheme(BuildContext context, SellerOrder order) {
+    final base = Theme.of(context);
+    final color = order.status == OrderStatus.awaitingSeller
+        ? Biz.red
+        : Biz.navy;
+    const shape = StadiumBorder();
+    return base.copyWith(
+      filledButtonTheme: FilledButtonThemeData(
+        style: FilledButton.styleFrom(
+          backgroundColor: color,
+          foregroundColor: Colors.white,
+          minimumSize: const Size.fromHeight(54),
+          shape: shape,
+          textStyle: base.textTheme.titleSmall?.copyWith(
+            fontWeight: FontWeight.w800,
+          ),
+        ),
+      ),
+      outlinedButtonTheme: OutlinedButtonThemeData(
+        style: OutlinedButton.styleFrom(
+          foregroundColor: Biz.navy,
+          minimumSize: const Size.fromHeight(52),
+          shape: shape,
+          side: const BorderSide(color: Biz.line, width: 1.5),
+          textStyle: base.textTheme.titleSmall?.copyWith(
+            fontWeight: FontWeight.w800,
+          ),
+        ),
+      ),
     );
   }
 
@@ -606,13 +660,146 @@ class _Card extends StatelessWidget {
   final Widget child;
 
   @override
-  Widget build(BuildContext context) => Container(
-    padding: const EdgeInsets.all(IviaSpacing.lg),
+  Widget build(BuildContext context) =>
+      BizCard(padding: const EdgeInsets.all(IviaSpacing.lg), child: child);
+}
+
+/// Frise des étapes d'une commande : payée, acceptée, en préparation,
+/// prête, puis retirée (retrait) ou livreur et livrée (livraison).
+class OrderSteps extends StatelessWidget {
+  const OrderSteps._({required this.labels, required this.current});
+
+  final List<String> labels;
+
+  /// Étape atteinte (0 : payée).
+  final int current;
+
+  /// `null` : commande hors parcours (annulée, remboursée, échec…).
+  static OrderSteps? of(SellerOrder order) {
+    final delivery = order.fulfillment == Fulfillment.delivery;
+    final labels = [
+      'Paiement',
+      'Accord',
+      'Préparation',
+      'Prête',
+      if (delivery) ...['Livreur', 'Livraison'] else 'Retrait',
+    ];
+    final i = switch (order.status) {
+      OrderStatus.awaitingSeller => 0,
+      OrderStatus.accepted => 1,
+      OrderStatus.preparing => 2,
+      OrderStatus.readyForPickup || OrderStatus.awaitingDriver => 3,
+      OrderStatus.driverAssigned || OrderStatus.pickedUp => 4,
+      OrderStatus.delivered || OrderStatus.completed => labels.length - 1,
+      _ => null,
+    };
+    return i == null ? null : OrderSteps._(labels: labels, current: i);
+  }
+
+  @override
+  Widget build(BuildContext context) {
+    final t = Theme.of(context).textTheme;
+    final done = current == labels.length - 1;
+    final color = done ? Biz.green : Biz.blue;
+    return Semantics(
+      container: true,
+      label: 'Étape ${current + 1} sur ${labels.length} : ${labels[current]}',
+      excludeSemantics: true,
+      child: BizCard(
+        padding: const EdgeInsets.fromLTRB(12, 16, 12, 14),
+        child: Column(
+          children: [
+            Row(
+              children: [
+                for (var i = 0; i < labels.length; i++) ...[
+                  if (i > 0)
+                    Expanded(
+                      child: TweenAnimationBuilder<double>(
+                        tween: Tween(end: i <= current ? 1 : 0),
+                        duration: Duration(milliseconds: 300 + 90 * i),
+                        curve: Curves.easeOutCubic,
+                        builder: (_, v, _) => Container(
+                          height: 3,
+                          decoration: BoxDecoration(
+                            borderRadius: BorderRadius.circular(2),
+                            gradient: LinearGradient(
+                              colors: [color, color, Biz.line, Biz.line],
+                              stops: [0, v, v, 1],
+                            ),
+                          ),
+                        ),
+                      ),
+                    ),
+                  _Dot(
+                    state: i < current
+                        ? _DotState.done
+                        : i == current
+                        ? _DotState.now
+                        : _DotState.todo,
+                    color: color,
+                  ),
+                ],
+              ],
+            ),
+            const SizedBox(height: 8),
+            Row(
+              children: [
+                for (var i = 0; i < labels.length; i++)
+                  Expanded(
+                    child: Text(
+                      labels[i],
+                      textAlign: i == 0
+                          ? TextAlign.start
+                          : i == labels.length - 1
+                          ? TextAlign.end
+                          : TextAlign.center,
+                      maxLines: 1,
+                      overflow: TextOverflow.ellipsis,
+                      textScaler: MediaQuery.textScalerOf(context)
+                          .clamp(maxScaleFactor: 1.2),
+                      style: t.labelSmall?.copyWith(
+                        color: i <= current ? Biz.navy : Biz.muted,
+                        fontWeight: i == current
+                            ? FontWeight.w800
+                            : FontWeight.w500,
+                      ),
+                    ),
+                  ),
+              ],
+            ),
+          ],
+        ),
+      ),
+    );
+  }
+}
+
+enum _DotState { done, now, todo }
+
+class _Dot extends StatelessWidget {
+  const _Dot({required this.state, required this.color});
+  final _DotState state;
+  final Color color;
+
+  @override
+  Widget build(BuildContext context) => AnimatedContainer(
+    duration: Biz.medium,
+    width: state == _DotState.now ? 22 : 16,
+    height: state == _DotState.now ? 22 : 16,
     decoration: BoxDecoration(
-      color: IviaColors.surface,
-      borderRadius: BorderRadius.circular(IviaRadius.large),
+      shape: BoxShape.circle,
+      color: state == _DotState.todo ? Colors.white : color,
+      border: Border.all(
+        color: state == _DotState.todo ? Biz.line : color,
+        width: 2,
+      ),
+      boxShadow: state == _DotState.now
+          ? [BoxShadow(color: color.withValues(alpha: 0.35), blurRadius: 10)]
+          : null,
     ),
-    child: child,
+    child: state == _DotState.done
+        ? const Icon(Icons.check_rounded, size: 11, color: Colors.white)
+        : null,
   );
 }
 

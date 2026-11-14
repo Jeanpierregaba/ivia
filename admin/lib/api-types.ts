@@ -6309,6 +6309,16 @@ export interface components {
             discount_given_xof?: number;
             /** Format: date-time */
             created_at?: string;
+            /**
+             * @description shop : tous les produits de la boutique ; products : seulement ceux de `products`.
+             * @enum {string}
+             */
+            scope: "shop" | "products";
+            products: {
+                /** Format: uuid */
+                id: string;
+                name: string;
+            }[];
         };
         PromoCodeInput: {
             /** @description Vide : code généré. */
@@ -6333,6 +6343,8 @@ export interface components {
             max_uses_per_user?: number;
             /** @enum {string} */
             visibility?: "public" | "private";
+            /** @description Produits de la boutique visés (un ou plusieurs). Absent ou vide : toute la boutique. La réduction ne porte que sur leurs lignes. */
+            product_ids?: string[];
         };
         PromoCodeActionInput: {
             /** @description Obligatoire pour suspendre. */

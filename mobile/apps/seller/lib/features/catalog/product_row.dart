@@ -3,11 +3,12 @@ import 'package:ivia_api_client/ivia_api_client.dart';
 import 'package:ivia_app_core/ivia_app_core.dart';
 import 'package:ivia_ui/ivia_ui.dart';
 
+import '../account/promo_codes_screen.dart';
 import '../business/biz_ui.dart';
 import 'catalog_labels.dart';
 import 'product_sheets.dart';
 
-enum _RowAction { edit, stock, withdraw }
+enum _RowAction { edit, stock, promo, withdraw }
 
 /// Pastille d'état d'un produit : en vente, épuisé, brouillon, retiré.
 class ProductStatusBadge extends StatelessWidget {
@@ -294,6 +295,10 @@ class ProductRow extends StatelessWidget {
     onSelected: (action) => switch (action) {
       _RowAction.edit => onOpen(),
       _RowAction.stock => onStock(),
+      _RowAction.promo => showPromoCreateSheet(
+        context,
+        products: [(id: product.id, name: product.name)],
+      ),
       _RowAction.withdraw => onWithdraw(),
     },
     itemBuilder: (context) => [
@@ -314,6 +319,14 @@ class ProductRow extends StatelessWidget {
             contentPadding: EdgeInsets.zero,
           ),
         ),
+      const PopupMenuItem(
+        value: _RowAction.promo,
+        child: ListTile(
+          leading: Icon(Icons.local_offer_outlined),
+          title: Text('Code promo pour ce produit'),
+          contentPadding: EdgeInsets.zero,
+        ),
+      ),
       const PopupMenuItem(
         value: _RowAction.withdraw,
         child: ListTile(

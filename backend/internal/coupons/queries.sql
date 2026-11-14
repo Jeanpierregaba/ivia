@@ -42,6 +42,13 @@ INSERT INTO promo_codes (
 )
 RETURNING id;
 
+-- name: InsertCodeProduct :exec
+INSERT INTO promo_code_products (code_id, product_id) VALUES ($1, $2);
+
+-- name: ListCodeProducts :many
+-- Produits visés par un code ; aucun : toute la boutique.
+SELECT product_id FROM promo_code_products WHERE code_id = $1 ORDER BY product_id;
+
 -- name: ListCodes :many
 -- Codes avec leurs utilisations confirmées et le montant offert. Filtre facultatif par boutique.
 SELECT c.*,

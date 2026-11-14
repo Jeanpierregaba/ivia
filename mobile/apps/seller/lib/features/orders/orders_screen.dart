@@ -6,6 +6,7 @@ import 'package:ivia_app_core/ivia_app_core.dart';
 import 'package:ivia_ui/ivia_ui.dart';
 
 import '../../app/router.dart';
+import '../business/biz_ui.dart';
 import 'order_labels.dart';
 import 'orders_providers.dart';
 
@@ -64,59 +65,86 @@ class _OrdersScreenState extends ConsumerState<OrdersScreen> {
 
   @override
   Widget build(BuildContext context) {
-    final textTheme = Theme.of(context).textTheme;
     final orders = ref.watch(sellerOrdersProvider);
     final value = orders.value;
-    return SafeArea(
-      bottom: false,
-      child: RefreshIndicator(
-        onRefresh: _refresh,
-        child: ListView(
-          physics: const AlwaysScrollableScrollPhysics(),
-          padding: const EdgeInsets.fromLTRB(
-            IviaSpacing.screen,
-            IviaSpacing.lg,
-            IviaSpacing.screen,
-            IviaSpacing.huge * 3,
+    final fresh = value?.count(OrderTab.fresh) ?? 0;
+    final active = value?.count(OrderTab.active) ?? 0;
+    return ColoredBox(
+      color: Biz.page,
+      child: SafeArea(
+        bottom: false,
+        child: RefreshIndicator(
+          onRefresh: _refresh,
+          color: Biz.navy,
+          child: ListView(
+            physics: const AlwaysScrollableScrollPhysics(),
+            padding: const EdgeInsets.fromLTRB(
+              IviaSpacing.screen,
+              IviaSpacing.lg,
+              IviaSpacing.screen,
+              IviaSpacing.huge * 3,
+            ),
+            children: [
+              BizHeader(
+                title: 'Commandes',
+                subtitle: value == null
+                    ? null
+                    : [
+                        if (fresh > 0)
+                          fresh == 1 ? '1 à accepter' : '$fresh à accepter',
+                        if (active > 0) '$active à suivre',
+                        if (fresh == 0 && active == 0) 'Rien à traiter',
+                      ].join(' · '),
+              ),
+              const SizedBox(height: IviaSpacing.lg),
+              // Trois onglets : à la ligne plutôt que hors de l'écran.
+              Wrap(
+                spacing: 8,
+                runSpacing: 8,
+                children: [
+                  for (final tab in OrderTab.values)
+                    BizFilterChip(
+                      label: tab.label,
+                      count: tab == OrderTab.done ? null : value?.count(tab),
+                      active: tab == _tab,
+                      onTap: () => _select(tab),
+                    ),
+                ],
+              ),
+              const SizedBox(height: IviaSpacing.lg),
+              ...switch (value) {
+                final v? => _list(v),
+                null when orders.hasError => [
+                  _Message(
+                    'Impossible de charger les commandes. Vérifiez votre '
+                    'connexion.',
+                    action: OutlinedButton(
+                      onPressed: () => ref.invalidate(sellerOrdersProvider),
+                      child: const Text('Réessayer'),
+                    ),
+                  ),
+                ],
+                null => [
+                  for (var i = 0; i < 4; i++)
+                    const Padding(
+                      padding: EdgeInsets.only(bottom: 10),
+                      child: BizCard(
+                        child: Column(
+                          crossAxisAlignment: CrossAxisAlignment.start,
+                          children: [
+                            BizSkeleton(width: 140, height: 18),
+                            SizedBox(height: 10),
+                            BizSkeleton(height: 14),
+                            SizedBox(height: 10),
+                            BizSkeleton(width: 90, height: 22, radius: 11),
+                          ],
+                        ),
+                      ),
+                    ),
+                ],
+              },
+            ],
           ),
-          children: [
-            Semantics(
-              header: true,
-              child: Text('Commandes', style: textTheme.headlineLarge),
-            ),
-            const SizedBox(height: IviaSpacing.lg),
-            IviaSegmentedTabs(
-              segments: [
-                for (final tab in OrderTab.values)
-                  IviaSegment(
-                    label: tab.label,
-                    count: tab == OrderTab.done ? null : value?.count(tab),
-                  ),
-              ],
-              selected: _tab.index,
-              onSelected: (i) => _select(OrderTab.values[i]),
-            ),
-            const SizedBox(height: IviaSpacing.lg),
-            ...switch (value) {
-              final v? => _list(v),
-              null when orders.hasError => [
-                _Message(
-                  'Impossible de charger les commandes. Vérifiez votre '
-                  'connexion.',
-                  action: OutlinedButton(
-                    onPressed: () => ref.invalidate(sellerOrdersProvider),
-                    child: const Text('Réessayer'),
-                  ),
-                ),
-              ],
-              null => const [
-                Padding(
-                  padding: EdgeInsets.all(IviaSpacing.xxl),
-                  child: Center(child: CircularProgressIndicator()),
-                ),
-              ],
-            },
-          ],
         ),
       ),
     );
@@ -151,27 +179,27 @@ class _OrdersScreenState extends ConsumerState<OrdersScreen> {
   }
 }
 
-/// Commandes dans une carte blanche, séparées par un trait.
+/// Commandes en cartes arrondies qui apparaissent en cascade.
 class _OrderList extends StatelessWidget {
   const _OrderList({required this.orders});
 
   final List<SellerOrder> orders;
 
   @override
-  Widget build(BuildContext context) => Material(
-    color: IviaColors.surface,
-    borderRadius: BorderRadius.circular(IviaRadius.large),
-    clipBehavior: Clip.antiAlias,
-    child: Column(
-      // Lignes sur toute la largeur (montant à droite).
-      crossAxisAlignment: CrossAxisAlignment.stretch,
-      children: [
-        for (final (i, order) in orders.indexed) ...[
-          if (i > 0) const Divider(height: 1),
-          OrderRow(key: ValueKey(order.id), order: order),
-        ],
-      ],
-    ),
+  Widget build(BuildContext context) => Column(
+    // Cartes sur toute la largeur (montant à droite).
+    crossAxisAlignment: CrossAxisAlignment.stretch,
+    children: [
+      for (final (i, order) in orders.indexed)
+        Padding(
+          key: ValueKey(order.id),
+          padding: const EdgeInsets.only(bottom: 10),
+          child: BizReveal(
+            index: i % 10,
+            child: OrderRow(order: order),
+          ),
+        ),
+    ],
   );
 }
 
@@ -217,73 +245,71 @@ class OrderRow extends ConsumerWidget {
         label,
       ].join(', '),
       onTap: open,
-      child: InkWell(
+      child: BizCard(
         onTap: open,
-        child: Padding(
-          padding: const EdgeInsets.all(IviaSpacing.lg),
-          child: Column(
-            crossAxisAlignment: CrossAxisAlignment.start,
-            children: [
-              // Montant à droite du titre, ou dessous s'il manque de place
-              // (police agrandie).
-              ExcludeSemantics(
-                // Sans largeur imposée, spaceBetween n'écarterait rien.
-                child: SizedBox(
-                  width: double.infinity,
-                  child: Wrap(
-                    alignment: WrapAlignment.spaceBetween,
-                    spacing: IviaSpacing.sm,
-                    children: [
-                      Text(
-                        title,
-                        style: textTheme.titleMedium?.copyWith(
-                          fontWeight: FontWeight.w700,
-                        ),
+        // Nouvelle commande : filet rouge, comme sur l'Accueil.
+        border: deadline != null ? Biz.red : null,
+        padding: const EdgeInsets.all(IviaSpacing.lg),
+        child: Column(
+          crossAxisAlignment: CrossAxisAlignment.start,
+          children: [
+            // Montant à droite du titre, ou dessous s'il manque de place
+            // (police agrandie).
+            ExcludeSemantics(
+              // Sans largeur imposée, spaceBetween n'écarterait rien.
+              child: SizedBox(
+                width: double.infinity,
+                child: Wrap(
+                  alignment: WrapAlignment.spaceBetween,
+                  spacing: IviaSpacing.sm,
+                  children: [
+                    Text(
+                      title,
+                      style: textTheme.titleMedium?.copyWith(
+                        fontWeight: FontWeight.w700,
                       ),
-                      Text(
-                        amount,
-                        style: textTheme.titleMedium?.copyWith(
-                          fontWeight: FontWeight.w700,
-                        ),
-                      ),
-                    ],
-                  ),
-                ),
-              ),
-              const SizedBox(height: IviaSpacing.xs),
-              ExcludeSemantics(
-                child: Text(
-                  detail,
-                  style: textTheme.bodyMedium?.copyWith(
-                    color: IviaColors.textSecondary,
-                  ),
-                ),
-              ),
-              const SizedBox(height: IviaSpacing.sm),
-              Wrap(
-                spacing: IviaSpacing.md,
-                runSpacing: IviaSpacing.xs,
-                crossAxisAlignment: WrapCrossAlignment.center,
-                children: [
-                  ExcludeSemantics(
-                    child: statusPill(order.status, label: label),
-                  ),
-                  if (deadline != null)
-                    IviaCountdown(
-                      deadline: deadline,
-                      now: client.now,
-                      style: textTheme.titleSmall,
-                      // Délai passé : la commande est relue (annulée par le
-                      // serveur).
-                      onExpired: () => ref
-                          .read(sellerOrdersProvider.notifier)
-                          .poll()
-                          .catchError((Object _) {}),
                     ),
-                ],
+                    Text(
+                      amount,
+                      style: textTheme.titleMedium?.copyWith(
+                        fontWeight: FontWeight.w700,
+                      ),
+                    ),
+                  ],
+                ),
               ),
-            ],
-          ),
+            ),
+            const SizedBox(height: IviaSpacing.xs),
+            ExcludeSemantics(
+              child: Text(
+                detail,
+                style: textTheme.bodyMedium?.copyWith(
+                  color: IviaColors.textSecondary,
+                ),
+              ),
+            ),
+            const SizedBox(height: IviaSpacing.sm),
+            Wrap(
+              spacing: IviaSpacing.md,
+              runSpacing: IviaSpacing.xs,
+              crossAxisAlignment: WrapCrossAlignment.center,
+              children: [
+                ExcludeSemantics(child: statusPill(order.status, label: label)),
+                if (deadline != null)
+                  IviaCountdown(
+                    deadline: deadline,
+                    now: client.now,
+                    style: textTheme.titleSmall,
+                    // Délai passé : la commande est relue (annulée par le
+                    // serveur).
+                    onExpired: () => ref
+                        .read(sellerOrdersProvider.notifier)
+                        .poll()
+                        .catchError((Object _) {}),
+                  ),
+              ],
+            ),
+          ],
         ),
       ),
     );
@@ -297,22 +323,13 @@ class _Message extends StatelessWidget {
   final Widget? action;
 
   @override
-  Widget build(BuildContext context) => Padding(
-    padding: const EdgeInsets.symmetric(vertical: IviaSpacing.xxl),
-    child: Column(
-      children: [
-        Text(
-          text,
-          textAlign: TextAlign.center,
-          style: Theme.of(context).textTheme.bodyLarge
-              ?.copyWith(color: IviaColors.textSecondary),
-        ),
-        if (action case final a?) ...[
-          const SizedBox(height: IviaSpacing.lg),
-          a,
-        ],
-      ],
-    ),
+  Widget build(BuildContext context) => BizEmpty(
+    icon: action == null
+        ? Icons.receipt_long_outlined
+        : Icons.cloud_off_rounded,
+    color: action == null ? Biz.blue : Biz.red,
+    title: text,
+    action: action,
   );
 }
 

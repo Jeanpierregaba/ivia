@@ -161,7 +161,11 @@ func (s *Service) Quote(ctx context.Context, buyerID uuid.UUID, in CheckoutInput
 		q.address = &addr
 	}
 	if in.PromoCode != "" {
-		a, err := s.coupons.Quote(ctx, buyerID, in.PromoCode, shopID, q.SubtotalXOF)
+		lines := make([]coupons.Line, len(q.Items))
+		for i, it := range q.Items {
+			lines[i] = coupons.Line{ProductID: it.ProductID, TotalXOF: it.LineTotalXOF}
+		}
+		a, err := s.coupons.Quote(ctx, buyerID, in.PromoCode, shopID, lines)
 		if err != nil {
 			return Quote{}, err
 		}

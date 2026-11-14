@@ -108,6 +108,13 @@ class _CouponTicket extends ConsumerWidget {
         'Jusqu’à ${formatXof(c.maxDiscountXof!)}',
       if (c.minOrderXof > 0) 'Dès ${formatXof(c.minOrderXof)} d’achats',
       if (c.endsAt != null) 'Jusqu’au ${shortDate(c.endsAt!.toLocal())}',
+      // Code limité à certains produits (spec 041).
+      if (c.limitedToProducts)
+        c.products.length == 1
+            ? 'Sur ${c.products.single.name}'
+            : c.products.length <= 3
+            ? 'Sur ${c.products.map((p) => p.name).join(', ')}'
+            : 'Sur ${c.products.length} produits',
     ];
     return Material(
       color: IviaColors.surface,

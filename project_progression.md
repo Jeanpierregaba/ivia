@@ -18,6 +18,8 @@
 
 ## Dernières avancées (2026-11-14)
 
+- **Codes promo par produit** : un code peut valoir pour toute la boutique, pour certains produits ou pour un seul. La réduction ne porte que sur les produits choisis du panier. Il se crée aussi directement depuis un produit (« Code promo pour ce produit ») et depuis le back-office pour les produits IVI.
+- **Business, Commandes** : cartes arrondies, onglets avec leurs compteurs, chargement animé ; détail d'une commande avec la frise de ses étapes (paiement, accord, préparation, prête, retrait ou livraison) et des boutons d'action fixes.
 - **Ivia Business refait (lot 1)**, dans la charte d'origine (bleu nuit, cartes arrondies) :
   - **Barre du bas** en pilule avec un bouton **+** : nouveau produit, code promo, commandes à accepter, revenus.
   - **Accueil** : la commande payée s'accepte ou se refuse directement ; tuiles « En préparation · Prêtes · Stock bas » ; commandes en cours qui avancent d'un geste ; produits à réapprovisionner.

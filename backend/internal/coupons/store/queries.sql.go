@@ -229,6 +229,20 @@ func (q *Queries) HasWelcome(ctx context.Context, reservedFor *uuid.UUID) (bool,
 	return column_1, err
 }
 
+const insertCodeProduct = `-- name: InsertCodeProduct :exec
+INSERT INTO promo_code_products (code_id, product_id) VALUES ($1, $2)
+`
+
+type InsertCodeProductParams struct {
+	CodeID    uuid.UUID
+	ProductID uuid.UUID
+}
+
+func (q *Queries) InsertCodeProduct(ctx context.Context, arg InsertCodeProductParams) error {
+	_, err := q.db.Exec(ctx, insertCodeProduct, arg.CodeID, arg.ProductID)
+	return err
+}
+
 const insertRedemption = `-- name: InsertRedemption :exec
 INSERT INTO promo_redemptions (code_id, order_id, user_id, discount_xof)
 VALUES ($1, $2, $3, $4)
@@ -249,6 +263,31 @@ func (q *Queries) InsertRedemption(ctx context.Context, arg InsertRedemptionPara
 		arg.DiscountXof,
 	)
 	return err
+}
+
+const listCodeProducts = `-- name: ListCodeProducts :many
+SELECT product_id FROM promo_code_products WHERE code_id = $1 ORDER BY product_id
+`
+
+// Produits visés par un code ; aucun : toute la boutique.
+func (q *Queries) ListCodeProducts(ctx context.Context, codeID uuid.UUID) ([]uuid.UUID, error) {
+	rows, err := q.db.Query(ctx, listCodeProducts, codeID)
+	if err != nil {
+		return nil, err
+	}
+	defer rows.Close()
+	items := []uuid.UUID{}
+	for rows.Next() {
+		var product_id uuid.UUID
+		if err := rows.Scan(&product_id); err != nil {
+			return nil, err
+		}
+		items = append(items, product_id)
+	}
+	if err := rows.Err(); err != nil {
+		return nil, err
+	}
+	return items, nil
 }
 
 const listCodes = `-- name: ListCodes :many

@@ -19,6 +19,7 @@ import {
 import { api, ApiError, type Schemas } from "@/lib/api";
 import { formatXOF, frDate, type Tone } from "@/lib/format";
 import { codeAction, createCode, updateWelcome } from "./actions";
+import { ProductScope } from "./product-scope";
 
 export const metadata = { title: "Codes promo" };
 
@@ -125,15 +126,7 @@ export default async function CouponsPage({ searchParams }: Props) {
           </CardTitle>
           <ServerForm action={createCode} submitLabel="Créer le code" variant="imperial">
             <div className="grid grid-cols-1 gap-3 sm:grid-cols-2">
-              <Field label="Boutique">
-                <select name="shop_id" required className={fieldClass}>
-                  {shops.map((s) => (
-                    <option key={s.id} value={s.id}>
-                      {s.name}
-                    </option>
-                  ))}
-                </select>
-              </Field>
+              <ProductScope shops={shops.map((s) => ({ id: s.id, name: s.name }))} />
               <Field label="Code" hint="Vide : code généré">
                 <input name="code" maxLength={24} className={`${fieldClass} uppercase`} />
               </Field>
@@ -196,7 +189,16 @@ export default async function CouponsPage({ searchParams }: Props) {
                     {c.funded_by === "ivia" ? "Payé par ivia" : "Payé par la boutique"}
                   </span>
                 </Td>
-                <Td>{valueOf(c)}</Td>
+                <Td>
+                  {valueOf(c)}
+                  <span className="block text-[12px] text-text-muted">
+                    {c.scope === "products"
+                      ? c.products.length === 1
+                        ? `Sur ${c.products[0]?.name ?? ""}`
+                        : `Sur ${c.products.length} produits`
+                      : "Toute la boutique"}
+                  </span>
+                </Td>
                 <Td className="tabular-nums">
                   {c.used_count ?? 0}
                   {c.max_uses ? ` / ${c.max_uses}` : ""}

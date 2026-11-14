@@ -436,8 +436,13 @@ void main() {
       expect(find.byType(OrderRow, skipOffstage: false), findsNWidgets(100));
       await tester.scrollUntilVisible(
         find.text('Afficher plus'),
-        2000,
-        scrollable: find.byType(Scrollable).first,
+        600,
+        scrollable: find
+            .descendant(
+              of: find.byType(OrdersScreen),
+              matching: find.byType(Scrollable),
+            )
+            .first,
       );
       await tester.pumpAndSettle();
       await tester.tap(find.text('Afficher plus'));

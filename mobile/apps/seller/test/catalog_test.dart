@@ -468,6 +468,55 @@ void main() {
       expect(find.text('Riz parfumé 5 kg'), findsWidgets);
     });
 
+    testWidgets('code promo pour un seul produit, depuis sa ligne', (
+      tester,
+    ) async {
+      final id = catalog.seed(name: 'Riz parfumé 5 kg')['id'];
+      server.on(
+        'POST',
+        '/v1/seller/shops/$shopId/promo-codes',
+        (r) => FakeResponse.json(201, {
+          'id': 'pc1',
+          'code': 'RIZ20',
+          'kind': 'percent',
+          'value': 20,
+          'status': 'active',
+          'state': 'active',
+          'scope': 'products',
+          'products': [
+            {'id': id, 'name': 'Riz parfumé 5 kg'},
+          ],
+        }),
+      );
+      await openCatalog(tester);
+      await tester.tap(find.byTooltip('Actions pour Riz parfumé 5 kg'));
+      await tester.pumpAndSettle();
+      await tester.tap(find.text('Code promo pour ce produit'));
+      await tester.pumpAndSettle();
+      // Produit déjà choisi, portée « Certains produits ».
+      expect(
+        find.widgetWithText(InputChip, 'Riz parfumé 5 kg'),
+        findsOneWidget,
+      );
+      await tester.enterText(
+        find.widgetWithText(TextField, 'Réduction (%)'),
+        '20',
+      );
+      await tapText(tester, 'Créer le code');
+      final body =
+          server
+                  .calls('POST', '/v1/seller/shops/$shopId/promo-codes')
+                  .single
+                  .body!
+              as Map;
+      expect(body['product_ids'], [id]);
+      expect(body['kind'], 'percent');
+      expect(
+        find.text('Code RIZ20 créé, utilisable dès maintenant.'),
+        findsOneWidget,
+      );
+    });
+
     testWidgets('affichage en grille', (tester) async {
       catalog.seed(name: 'Riz parfumé 5 kg');
       await openCatalog(tester);
