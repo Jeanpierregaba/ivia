@@ -1,0 +1,261 @@
+<?xml version="1.0" encoding="UTF-8"?>
+<bpmn:definitions xmlns:bpmn="http://www.omg.org/spec/BPMN/20100524/MODEL" xmlns:bpmndi="http://www.omg.org/spec/BPMN/20100524/DI" xmlns:dc="http://www.omg.org/spec/DD/20100524/DC" xmlns:di="http://www.omg.org/spec/DD/20100524/DI" id="Defs_AlerteMedicament" targetNamespace="https://ivia.tg/bpmn" exporter="ivia" exporterVersion="1.0">
+  <bpmn:collaboration id="Collab_AlerteMedicament">
+    <bpmn:participant id="Pool_AlerteMedicament" name="Alerte médicament — recherche, déblocage et récupération" processRef="Process_AlerteMedicament" />
+    <bpmn:textAnnotation id="Note_1"><bpmn:text>Pharmacies validées par l'admin, ouvertes ou de garde, dans un rayon de 5 km (élargi si personne ne répond).</bpmn:text></bpmn:textAnnotation>
+    <bpmn:textAnnotation id="Note_2"><bpmn:text>La plus proche d'abord. Nom, adresse et téléphone grisés jusqu'au déblocage.</bpmn:text></bpmn:textAnnotation>
+    <bpmn:textAnnotation id="Note_3"><bpmn:text>Déblocage forfaitaire : 100 F, payé via l'agrégateur.</bpmn:text></bpmn:textAnnotation>
+    <bpmn:textAnnotation id="Note_4"><bpmn:text>Sur ordonnance (alerte par ordonnance ou médicament signalé par la pharmacie) : pas de livreur ivia, retrait en pharmacie obligatoire.</bpmn:text></bpmn:textAnnotation>
+    <bpmn:textAnnotation id="Note_5"><bpmn:text>La pharmacie reçoit l'argent ; ivia retient sa commission.</bpmn:text></bpmn:textAnnotation>
+    <bpmn:association id="Assoc_Note_1" sourceRef="S_Chercher" targetRef="Note_1" />
+    <bpmn:association id="Assoc_Note_2" sourceRef="S_Classer" targetRef="Note_2" />
+    <bpmn:association id="Assoc_Note_3" sourceRef="C_Payer100" targetRef="Note_3" />
+    <bpmn:association id="Assoc_Note_4" sourceRef="G_Ordonnance" targetRef="Note_4" />
+    <bpmn:association id="Assoc_Note_5" sourceRef="S_Reverser" targetRef="Note_5" />
+  </bpmn:collaboration>
+  <bpmn:process id="Process_AlerteMedicament" isExecutable="false">
+    <bpmn:laneSet id="LaneSet_AlerteMedicament">
+      <bpmn:lane id="Lane_Client" name="Client (app acheteur)">
+        <bpmn:flowNodeRef>Start_Besoin</bpmn:flowNodeRef>
+        <bpmn:flowNodeRef>C_Lancer</bpmn:flowNodeRef>
+        <bpmn:flowNodeRef>G_Type</bpmn:flowNodeRef>
+        <bpmn:flowNodeRef>C_Ordonnance</bpmn:flowNodeRef>
+        <bpmn:flowNodeRef>C_Boite</bpmn:flowNodeRef>
+        <bpmn:flowNodeRef>C_Nom</bpmn:flowNodeRef>
+        <bpmn:flowNodeRef>G_Join</bpmn:flowNodeRef>
+        <bpmn:flowNodeRef>C_Envoyer</bpmn:flowNodeRef>
+        <bpmn:flowNodeRef>C_Voir</bpmn:flowNodeRef>
+        <bpmn:flowNodeRef>G_Debloquer</bpmn:flowNodeRef>
+        <bpmn:flowNodeRef>End_Abandon</bpmn:flowNodeRef>
+        <bpmn:flowNodeRef>C_Payer100</bpmn:flowNodeRef>
+        <bpmn:flowNodeRef>C_Choisir</bpmn:flowNodeRef>
+        <bpmn:flowNodeRef>G_Ordonnance</bpmn:flowNodeRef>
+        <bpmn:flowNodeRef>G_Mode</bpmn:flowNodeRef>
+        <bpmn:flowNodeRef>C_SeRendre</bpmn:flowNodeRef>
+        <bpmn:flowNodeRef>C_PayerTout</bpmn:flowNodeRef>
+      </bpmn:lane>
+      <bpmn:lane id="Lane_Systeme" name="Système ivia">
+        <bpmn:flowNodeRef>S_Chercher</bpmn:flowNodeRef>
+        <bpmn:flowNodeRef>S_Diffuser</bpmn:flowNodeRef>
+        <bpmn:flowNodeRef>S_Collecter</bpmn:flowNodeRef>
+        <bpmn:flowNodeRef>G_Dispo</bpmn:flowNodeRef>
+        <bpmn:flowNodeRef>S_Aucune</bpmn:flowNodeRef>
+        <bpmn:flowNodeRef>End_SansResultat</bpmn:flowNodeRef>
+        <bpmn:flowNodeRef>S_Classer</bpmn:flowNodeRef>
+        <bpmn:flowNodeRef>G_PaiementOK</bpmn:flowNodeRef>
+        <bpmn:flowNodeRef>S_Reveler</bpmn:flowNodeRef>
+        <bpmn:flowNodeRef>S_Reserver</bpmn:flowNodeRef>
+        <bpmn:flowNodeRef>S_Commande</bpmn:flowNodeRef>
+        <bpmn:flowNodeRef>S_Livreur</bpmn:flowNodeRef>
+        <bpmn:flowNodeRef>S_Reverser</bpmn:flowNodeRef>
+        <bpmn:flowNodeRef>End_Livre</bpmn:flowNodeRef>
+      </bpmn:lane>
+      <bpmn:lane id="Lane_Pharmacie" name="Pharmacie (app pharmacie)">
+        <bpmn:flowNodeRef>P_Recevoir</bpmn:flowNodeRef>
+        <bpmn:flowNodeRef>P_Repondre</bpmn:flowNodeRef>
+        <bpmn:flowNodeRef>P_Mettre</bpmn:flowNodeRef>
+        <bpmn:flowNodeRef>P_Remettre</bpmn:flowNodeRef>
+        <bpmn:flowNodeRef>End_Retire</bpmn:flowNodeRef>
+        <bpmn:flowNodeRef>P_Preparer</bpmn:flowNodeRef>
+      </bpmn:lane>
+      <bpmn:lane id="Lane_Paiement" name="Agrégateur de paiement">
+        <bpmn:flowNodeRef>A_Deblocage</bpmn:flowNodeRef>
+        <bpmn:flowNodeRef>A_Commande</bpmn:flowNodeRef>
+      </bpmn:lane>
+      <bpmn:lane id="Lane_Livreur" name="Livreur ivia">
+        <bpmn:flowNodeRef>L_Recuperer</bpmn:flowNodeRef>
+        <bpmn:flowNodeRef>L_Livrer</bpmn:flowNodeRef>
+      </bpmn:lane>
+    </bpmn:laneSet>
+    <bpmn:startEvent id="Start_Besoin" name="Besoin d'un médicament"><bpmn:outgoing>Flow_1</bpmn:outgoing></bpmn:startEvent>
+    <bpmn:userTask id="C_Lancer" name="Lancer une alerte"><bpmn:incoming>Flow_1</bpmn:incoming><bpmn:outgoing>Flow_2</bpmn:outgoing></bpmn:userTask>
+    <bpmn:exclusiveGateway id="G_Type" name="Type d'alerte ?"><bpmn:incoming>Flow_2</bpmn:incoming><bpmn:outgoing>Flow_3</bpmn:outgoing><bpmn:outgoing>Flow_4</bpmn:outgoing><bpmn:outgoing>Flow_5</bpmn:outgoing></bpmn:exclusiveGateway>
+    <bpmn:userTask id="C_Ordonnance" name="Photographier l'ordonnance"><bpmn:incoming>Flow_3</bpmn:incoming><bpmn:outgoing>Flow_6</bpmn:outgoing></bpmn:userTask>
+    <bpmn:userTask id="C_Boite" name="Photographier la boîte du médicament"><bpmn:incoming>Flow_4</bpmn:incoming><bpmn:outgoing>Flow_7</bpmn:outgoing></bpmn:userTask>
+    <bpmn:userTask id="C_Nom" name="Saisir le nom du médicament"><bpmn:incoming>Flow_5</bpmn:incoming><bpmn:outgoing>Flow_8</bpmn:outgoing></bpmn:userTask>
+    <bpmn:exclusiveGateway id="G_Join" name=""><bpmn:incoming>Flow_6</bpmn:incoming><bpmn:incoming>Flow_7</bpmn:incoming><bpmn:incoming>Flow_8</bpmn:incoming><bpmn:outgoing>Flow_9</bpmn:outgoing></bpmn:exclusiveGateway>
+    <bpmn:userTask id="C_Envoyer" name="Confirmer sa position et envoyer l'alerte"><bpmn:incoming>Flow_9</bpmn:incoming><bpmn:outgoing>Flow_10</bpmn:outgoing></bpmn:userTask>
+    <bpmn:serviceTask id="S_Chercher" name="Trouver les pharmacies proches"><bpmn:incoming>Flow_10</bpmn:incoming><bpmn:outgoing>Flow_11</bpmn:outgoing></bpmn:serviceTask>
+    <bpmn:sendTask id="S_Diffuser" name="Diffuser l'alerte aux pharmacies"><bpmn:incoming>Flow_11</bpmn:incoming><bpmn:outgoing>Flow_12</bpmn:outgoing></bpmn:sendTask>
+    <bpmn:receiveTask id="P_Recevoir" name="Recevoir l'alerte (ordonnance, photo ou nom)"><bpmn:incoming>Flow_12</bpmn:incoming><bpmn:outgoing>Flow_13</bpmn:outgoing></bpmn:receiveTask>
+    <bpmn:userTask id="P_Repondre" name="Répondre : disponible, prix, sur ordonnance ?"><bpmn:incoming>Flow_13</bpmn:incoming><bpmn:outgoing>Flow_14</bpmn:outgoing></bpmn:userTask>
+    <bpmn:receiveTask id="S_Collecter" name="Collecter 3 à 4 réponses (10 min max)"><bpmn:incoming>Flow_14</bpmn:incoming><bpmn:outgoing>Flow_15</bpmn:outgoing></bpmn:receiveTask>
+    <bpmn:exclusiveGateway id="G_Dispo" name="Au moins une pharmacie disponible ?"><bpmn:incoming>Flow_15</bpmn:incoming><bpmn:outgoing>Flow_16</bpmn:outgoing><bpmn:outgoing>Flow_17</bpmn:outgoing></bpmn:exclusiveGateway>
+    <bpmn:sendTask id="S_Aucune" name="Prévenir le client : aucune pharmacie trouvée"><bpmn:incoming>Flow_17</bpmn:incoming><bpmn:outgoing>Flow_18</bpmn:outgoing></bpmn:sendTask>
+    <bpmn:endEvent id="End_SansResultat" name="Alerte sans résultat"><bpmn:incoming>Flow_18</bpmn:incoming></bpmn:endEvent>
+    <bpmn:serviceTask id="S_Classer" name="Classer par distance et masquer les identités"><bpmn:incoming>Flow_16</bpmn:incoming><bpmn:outgoing>Flow_19</bpmn:outgoing></bpmn:serviceTask>
+    <bpmn:userTask id="C_Voir" name="Voir les réponses grisées et le bouton Débloquer"><bpmn:incoming>Flow_19</bpmn:incoming><bpmn:outgoing>Flow_20</bpmn:outgoing></bpmn:userTask>
+    <bpmn:exclusiveGateway id="G_Debloquer" name="Débloquer ?"><bpmn:incoming>Flow_20</bpmn:incoming><bpmn:outgoing>Flow_21</bpmn:outgoing><bpmn:outgoing>Flow_22</bpmn:outgoing></bpmn:exclusiveGateway>
+    <bpmn:endEvent id="End_Abandon" name="Alerte abandonnée"><bpmn:incoming>Flow_21</bpmn:incoming></bpmn:endEvent>
+    <bpmn:userTask id="C_Payer100" name="Payer 100 F (Flooz ou T-Money)"><bpmn:incoming>Flow_22</bpmn:incoming><bpmn:incoming>Flow_25</bpmn:incoming><bpmn:outgoing>Flow_23</bpmn:outgoing></bpmn:userTask>
+    <bpmn:serviceTask id="A_Deblocage" name="Encaisser le déblocage (100 F)"><bpmn:incoming>Flow_23</bpmn:incoming><bpmn:outgoing>Flow_24</bpmn:outgoing></bpmn:serviceTask>
+    <bpmn:exclusiveGateway id="G_PaiementOK" name="Paiement confirmé ?"><bpmn:incoming>Flow_24</bpmn:incoming><bpmn:outgoing>Flow_25</bpmn:outgoing><bpmn:outgoing>Flow_26</bpmn:outgoing></bpmn:exclusiveGateway>
+    <bpmn:serviceTask id="S_Reveler" name="Révéler nom, adresse, téléphone et itinéraire"><bpmn:incoming>Flow_26</bpmn:incoming><bpmn:outgoing>Flow_27</bpmn:outgoing></bpmn:serviceTask>
+    <bpmn:userTask id="C_Choisir" name="Choisir une pharmacie"><bpmn:incoming>Flow_27</bpmn:incoming><bpmn:outgoing>Flow_28</bpmn:outgoing></bpmn:userTask>
+    <bpmn:exclusiveGateway id="G_Ordonnance" name="Sur ordonnance ?"><bpmn:incoming>Flow_28</bpmn:incoming><bpmn:outgoing>Flow_29</bpmn:outgoing><bpmn:outgoing>Flow_30</bpmn:outgoing></bpmn:exclusiveGateway>
+    <bpmn:exclusiveGateway id="G_Mode" name="Récupération ?"><bpmn:incoming>Flow_30</bpmn:incoming><bpmn:outgoing>Flow_31</bpmn:outgoing><bpmn:outgoing>Flow_32</bpmn:outgoing></bpmn:exclusiveGateway>
+    <bpmn:serviceTask id="S_Reserver" name="Réserver le médicament et générer un code de retrait"><bpmn:incoming>Flow_29</bpmn:incoming><bpmn:incoming>Flow_31</bpmn:incoming><bpmn:outgoing>Flow_33</bpmn:outgoing></bpmn:serviceTask>
+    <bpmn:userTask id="P_Mettre" name="Mettre le médicament de côté"><bpmn:incoming>Flow_33</bpmn:incoming><bpmn:outgoing>Flow_34</bpmn:outgoing></bpmn:userTask>
+    <bpmn:userTask id="C_SeRendre" name="Aller en pharmacie : ordonnance + code, payer sur place"><bpmn:incoming>Flow_34</bpmn:incoming><bpmn:outgoing>Flow_35</bpmn:outgoing></bpmn:userTask>
+    <bpmn:userTask id="P_Remettre" name="Vérifier ordonnance et code, remettre"><bpmn:incoming>Flow_35</bpmn:incoming><bpmn:outgoing>Flow_36</bpmn:outgoing></bpmn:userTask>
+    <bpmn:endEvent id="End_Retire" name="Médicament retiré"><bpmn:incoming>Flow_36</bpmn:incoming></bpmn:endEvent>
+    <bpmn:userTask id="C_PayerTout" name="Payer médicament + livraison dans l'app"><bpmn:incoming>Flow_32</bpmn:incoming><bpmn:outgoing>Flow_37</bpmn:outgoing></bpmn:userTask>
+    <bpmn:serviceTask id="A_Commande" name="Encaisser le paiement de la commande"><bpmn:incoming>Flow_37</bpmn:incoming><bpmn:outgoing>Flow_38</bpmn:outgoing></bpmn:serviceTask>
+    <bpmn:serviceTask id="S_Commande" name="Créer la commande et la notifier à la pharmacie"><bpmn:incoming>Flow_38</bpmn:incoming><bpmn:outgoing>Flow_39</bpmn:outgoing></bpmn:serviceTask>
+    <bpmn:userTask id="P_Preparer" name="Préparer la commande"><bpmn:incoming>Flow_39</bpmn:incoming><bpmn:outgoing>Flow_40</bpmn:outgoing></bpmn:userTask>
+    <bpmn:serviceTask id="S_Livreur" name="Attribuer le livreur ivia le plus proche"><bpmn:incoming>Flow_40</bpmn:incoming><bpmn:outgoing>Flow_41</bpmn:outgoing></bpmn:serviceTask>
+    <bpmn:userTask id="L_Recuperer" name="Récupérer la commande à la pharmacie"><bpmn:incoming>Flow_41</bpmn:incoming><bpmn:outgoing>Flow_42</bpmn:outgoing></bpmn:userTask>
+    <bpmn:userTask id="L_Livrer" name="Livrer au client (code de remise)"><bpmn:incoming>Flow_42</bpmn:incoming><bpmn:outgoing>Flow_43</bpmn:outgoing></bpmn:userTask>
+    <bpmn:serviceTask id="S_Reverser" name="Reverser à la pharmacie (montant − commission ivia)"><bpmn:incoming>Flow_43</bpmn:incoming><bpmn:outgoing>Flow_44</bpmn:outgoing></bpmn:serviceTask>
+    <bpmn:endEvent id="End_Livre" name="Médicament livré"><bpmn:incoming>Flow_44</bpmn:incoming></bpmn:endEvent>
+    <bpmn:sequenceFlow id="Flow_1" sourceRef="Start_Besoin" targetRef="C_Lancer" />
+    <bpmn:sequenceFlow id="Flow_2" sourceRef="C_Lancer" targetRef="G_Type" />
+    <bpmn:sequenceFlow id="Flow_3" name="Ordonnance" sourceRef="G_Type" targetRef="C_Ordonnance" />
+    <bpmn:sequenceFlow id="Flow_4" name="Boîte" sourceRef="G_Type" targetRef="C_Boite" />
+    <bpmn:sequenceFlow id="Flow_5" name="Nom" sourceRef="G_Type" targetRef="C_Nom" />
+    <bpmn:sequenceFlow id="Flow_6" sourceRef="C_Ordonnance" targetRef="G_Join" />
+    <bpmn:sequenceFlow id="Flow_7" sourceRef="C_Boite" targetRef="G_Join" />
+    <bpmn:sequenceFlow id="Flow_8" sourceRef="C_Nom" targetRef="G_Join" />
+    <bpmn:sequenceFlow id="Flow_9" sourceRef="G_Join" targetRef="C_Envoyer" />
+    <bpmn:sequenceFlow id="Flow_10" sourceRef="C_Envoyer" targetRef="S_Chercher" />
+    <bpmn:sequenceFlow id="Flow_11" sourceRef="S_Chercher" targetRef="S_Diffuser" />
+    <bpmn:sequenceFlow id="Flow_12" sourceRef="S_Diffuser" targetRef="P_Recevoir" />
+    <bpmn:sequenceFlow id="Flow_13" sourceRef="P_Recevoir" targetRef="P_Repondre" />
+    <bpmn:sequenceFlow id="Flow_14" sourceRef="P_Repondre" targetRef="S_Collecter" />
+    <bpmn:sequenceFlow id="Flow_15" sourceRef="S_Collecter" targetRef="G_Dispo" />
+    <bpmn:sequenceFlow id="Flow_16" name="Oui" sourceRef="G_Dispo" targetRef="S_Classer" />
+    <bpmn:sequenceFlow id="Flow_17" name="Non" sourceRef="G_Dispo" targetRef="S_Aucune" />
+    <bpmn:sequenceFlow id="Flow_18" sourceRef="S_Aucune" targetRef="End_SansResultat" />
+    <bpmn:sequenceFlow id="Flow_19" sourceRef="S_Classer" targetRef="C_Voir" />
+    <bpmn:sequenceFlow id="Flow_20" sourceRef="C_Voir" targetRef="G_Debloquer" />
+    <bpmn:sequenceFlow id="Flow_21" name="Non" sourceRef="G_Debloquer" targetRef="End_Abandon" />
+    <bpmn:sequenceFlow id="Flow_22" name="Oui" sourceRef="G_Debloquer" targetRef="C_Payer100" />
+    <bpmn:sequenceFlow id="Flow_23" sourceRef="C_Payer100" targetRef="A_Deblocage" />
+    <bpmn:sequenceFlow id="Flow_24" sourceRef="A_Deblocage" targetRef="G_PaiementOK" />
+    <bpmn:sequenceFlow id="Flow_25" name="Non : réessayer" sourceRef="G_PaiementOK" targetRef="C_Payer100" />
+    <bpmn:sequenceFlow id="Flow_26" name="Oui" sourceRef="G_PaiementOK" targetRef="S_Reveler" />
+    <bpmn:sequenceFlow id="Flow_27" sourceRef="S_Reveler" targetRef="C_Choisir" />
+    <bpmn:sequenceFlow id="Flow_28" sourceRef="C_Choisir" targetRef="G_Ordonnance" />
+    <bpmn:sequenceFlow id="Flow_29" name="Oui : retrait obligatoire" sourceRef="G_Ordonnance" targetRef="S_Reserver" />
+    <bpmn:sequenceFlow id="Flow_30" name="Non" sourceRef="G_Ordonnance" targetRef="G_Mode" />
+    <bpmn:sequenceFlow id="Flow_31" name="Retrait" sourceRef="G_Mode" targetRef="S_Reserver" />
+    <bpmn:sequenceFlow id="Flow_32" name="Livraison" sourceRef="G_Mode" targetRef="C_PayerTout" />
+    <bpmn:sequenceFlow id="Flow_33" sourceRef="S_Reserver" targetRef="P_Mettre" />
+    <bpmn:sequenceFlow id="Flow_34" sourceRef="P_Mettre" targetRef="C_SeRendre" />
+    <bpmn:sequenceFlow id="Flow_35" sourceRef="C_SeRendre" targetRef="P_Remettre" />
+    <bpmn:sequenceFlow id="Flow_36" sourceRef="P_Remettre" targetRef="End_Retire" />
+    <bpmn:sequenceFlow id="Flow_37" sourceRef="C_PayerTout" targetRef="A_Commande" />
+    <bpmn:sequenceFlow id="Flow_38" sourceRef="A_Commande" targetRef="S_Commande" />
+    <bpmn:sequenceFlow id="Flow_39" sourceRef="S_Commande" targetRef="P_Preparer" />
+    <bpmn:sequenceFlow id="Flow_40" sourceRef="P_Preparer" targetRef="S_Livreur" />
+    <bpmn:sequenceFlow id="Flow_41" sourceRef="S_Livreur" targetRef="L_Recuperer" />
+    <bpmn:sequenceFlow id="Flow_42" sourceRef="L_Recuperer" targetRef="L_Livrer" />
+    <bpmn:sequenceFlow id="Flow_43" sourceRef="L_Livrer" targetRef="S_Reverser" />
+    <bpmn:sequenceFlow id="Flow_44" sourceRef="S_Reverser" targetRef="End_Livre" />
+  </bpmn:process>
+  <bpmndi:BPMNDiagram id="Diagram_AlerteMedicament">
+    <bpmndi:BPMNPlane id="Plane_AlerteMedicament" bpmnElement="Collab_AlerteMedicament">
+      <bpmndi:BPMNShape id="Pool_AlerteMedicament_di" bpmnElement="Pool_AlerteMedicament" isHorizontal="true"><dc:Bounds x="160" y="80" width="4120" height="1240" /></bpmndi:BPMNShape>
+      <bpmndi:BPMNShape id="Lane_Client_di" bpmnElement="Lane_Client" isHorizontal="true"><dc:Bounds x="190" y="80" width="4090" height="340" /></bpmndi:BPMNShape>
+      <bpmndi:BPMNShape id="Lane_Systeme_di" bpmnElement="Lane_Systeme" isHorizontal="true"><dc:Bounds x="190" y="420" width="4090" height="320" /></bpmndi:BPMNShape>
+      <bpmndi:BPMNShape id="Lane_Pharmacie_di" bpmnElement="Lane_Pharmacie" isHorizontal="true"><dc:Bounds x="190" y="740" width="4090" height="240" /></bpmndi:BPMNShape>
+      <bpmndi:BPMNShape id="Lane_Paiement_di" bpmnElement="Lane_Paiement" isHorizontal="true"><dc:Bounds x="190" y="980" width="4090" height="160" /></bpmndi:BPMNShape>
+      <bpmndi:BPMNShape id="Lane_Livreur_di" bpmnElement="Lane_Livreur" isHorizontal="true"><dc:Bounds x="190" y="1140" width="4090" height="180" /></bpmndi:BPMNShape>
+      <bpmndi:BPMNShape id="Start_Besoin_di" bpmnElement="Start_Besoin"><dc:Bounds x="252" y="232" width="36" height="36" /><bpmndi:BPMNLabel><dc:Bounds x="215.0" y="274" width="110" height="40" /></bpmndi:BPMNLabel></bpmndi:BPMNShape>
+      <bpmndi:BPMNShape id="C_Lancer_di" bpmnElement="C_Lancer"><dc:Bounds x="330" y="210" width="110" height="80" /></bpmndi:BPMNShape>
+      <bpmndi:BPMNShape id="G_Type_di" bpmnElement="G_Type" isMarkerVisible="true"><dc:Bounds x="490" y="225" width="50" height="50" /><bpmndi:BPMNLabel><dc:Bounds x="460.0" y="281" width="110" height="40" /></bpmndi:BPMNLabel></bpmndi:BPMNShape>
+      <bpmndi:BPMNShape id="C_Ordonnance_di" bpmnElement="C_Ordonnance"><dc:Bounds x="590" y="105" width="110" height="80" /></bpmndi:BPMNShape>
+      <bpmndi:BPMNShape id="C_Boite_di" bpmnElement="C_Boite"><dc:Bounds x="590" y="210" width="110" height="80" /></bpmndi:BPMNShape>
+      <bpmndi:BPMNShape id="C_Nom_di" bpmnElement="C_Nom"><dc:Bounds x="590" y="315" width="110" height="80" /></bpmndi:BPMNShape>
+      <bpmndi:BPMNShape id="G_Join_di" bpmnElement="G_Join" isMarkerVisible="true"><dc:Bounds x="760" y="225" width="50" height="50" /><bpmndi:BPMNLabel><dc:Bounds x="730.0" y="281" width="110" height="40" /></bpmndi:BPMNLabel></bpmndi:BPMNShape>
+      <bpmndi:BPMNShape id="C_Envoyer_di" bpmnElement="C_Envoyer"><dc:Bounds x="850" y="210" width="110" height="80" /></bpmndi:BPMNShape>
+      <bpmndi:BPMNShape id="S_Chercher_di" bpmnElement="S_Chercher"><dc:Bounds x="850" y="450" width="110" height="80" /></bpmndi:BPMNShape>
+      <bpmndi:BPMNShape id="S_Diffuser_di" bpmnElement="S_Diffuser"><dc:Bounds x="1010" y="450" width="110" height="80" /></bpmndi:BPMNShape>
+      <bpmndi:BPMNShape id="P_Recevoir_di" bpmnElement="P_Recevoir"><dc:Bounds x="1010" y="760" width="110" height="80" /></bpmndi:BPMNShape>
+      <bpmndi:BPMNShape id="P_Repondre_di" bpmnElement="P_Repondre"><dc:Bounds x="1170" y="760" width="110" height="80" /></bpmndi:BPMNShape>
+      <bpmndi:BPMNShape id="S_Collecter_di" bpmnElement="S_Collecter"><dc:Bounds x="1330" y="450" width="110" height="80" /></bpmndi:BPMNShape>
+      <bpmndi:BPMNShape id="G_Dispo_di" bpmnElement="G_Dispo" isMarkerVisible="true"><dc:Bounds x="1490" y="465" width="50" height="50" /><bpmndi:BPMNLabel><dc:Bounds x="1460.0" y="521" width="110" height="40" /></bpmndi:BPMNLabel></bpmndi:BPMNShape>
+      <bpmndi:BPMNShape id="S_Aucune_di" bpmnElement="S_Aucune"><dc:Bounds x="1590" y="600" width="110" height="80" /></bpmndi:BPMNShape>
+      <bpmndi:BPMNShape id="End_SansResultat_di" bpmnElement="End_SansResultat"><dc:Bounds x="1752" y="622" width="36" height="36" /><bpmndi:BPMNLabel><dc:Bounds x="1715.0" y="664" width="110" height="40" /></bpmndi:BPMNLabel></bpmndi:BPMNShape>
+      <bpmndi:BPMNShape id="S_Classer_di" bpmnElement="S_Classer"><dc:Bounds x="1590" y="450" width="110" height="80" /></bpmndi:BPMNShape>
+      <bpmndi:BPMNShape id="C_Voir_di" bpmnElement="C_Voir"><dc:Bounds x="1750" y="210" width="110" height="80" /></bpmndi:BPMNShape>
+      <bpmndi:BPMNShape id="G_Debloquer_di" bpmnElement="G_Debloquer" isMarkerVisible="true"><dc:Bounds x="1910" y="225" width="50" height="50" /><bpmndi:BPMNLabel><dc:Bounds x="1880.0" y="281" width="110" height="40" /></bpmndi:BPMNLabel></bpmndi:BPMNShape>
+      <bpmndi:BPMNShape id="End_Abandon_di" bpmnElement="End_Abandon"><dc:Bounds x="1917" y="120" width="36" height="36" /><bpmndi:BPMNLabel><dc:Bounds x="1880.0" y="162" width="110" height="40" /></bpmndi:BPMNLabel></bpmndi:BPMNShape>
+      <bpmndi:BPMNShape id="C_Payer100_di" bpmnElement="C_Payer100"><dc:Bounds x="2010" y="210" width="110" height="80" /></bpmndi:BPMNShape>
+      <bpmndi:BPMNShape id="A_Deblocage_di" bpmnElement="A_Deblocage"><dc:Bounds x="2010" y="1020" width="110" height="80" /></bpmndi:BPMNShape>
+      <bpmndi:BPMNShape id="G_PaiementOK_di" bpmnElement="G_PaiementOK" isMarkerVisible="true"><dc:Bounds x="2170" y="465" width="50" height="50" /><bpmndi:BPMNLabel><dc:Bounds x="2140.0" y="521" width="110" height="40" /></bpmndi:BPMNLabel></bpmndi:BPMNShape>
+      <bpmndi:BPMNShape id="S_Reveler_di" bpmnElement="S_Reveler"><dc:Bounds x="2270" y="450" width="110" height="80" /></bpmndi:BPMNShape>
+      <bpmndi:BPMNShape id="C_Choisir_di" bpmnElement="C_Choisir"><dc:Bounds x="2430" y="210" width="110" height="80" /></bpmndi:BPMNShape>
+      <bpmndi:BPMNShape id="G_Ordonnance_di" bpmnElement="G_Ordonnance" isMarkerVisible="true"><dc:Bounds x="2590" y="225" width="50" height="50" /><bpmndi:BPMNLabel><dc:Bounds x="2560.0" y="281" width="110" height="40" /></bpmndi:BPMNLabel></bpmndi:BPMNShape>
+      <bpmndi:BPMNShape id="G_Mode_di" bpmnElement="G_Mode" isMarkerVisible="true"><dc:Bounds x="2690" y="330" width="50" height="50" /><bpmndi:BPMNLabel><dc:Bounds x="2660.0" y="386" width="110" height="40" /></bpmndi:BPMNLabel></bpmndi:BPMNShape>
+      <bpmndi:BPMNShape id="S_Reserver_di" bpmnElement="S_Reserver"><dc:Bounds x="2800" y="450" width="110" height="80" /></bpmndi:BPMNShape>
+      <bpmndi:BPMNShape id="P_Mettre_di" bpmnElement="P_Mettre"><dc:Bounds x="2960" y="760" width="110" height="80" /></bpmndi:BPMNShape>
+      <bpmndi:BPMNShape id="C_SeRendre_di" bpmnElement="C_SeRendre"><dc:Bounds x="3120" y="105" width="110" height="80" /></bpmndi:BPMNShape>
+      <bpmndi:BPMNShape id="P_Remettre_di" bpmnElement="P_Remettre"><dc:Bounds x="3280" y="760" width="110" height="80" /></bpmndi:BPMNShape>
+      <bpmndi:BPMNShape id="End_Retire_di" bpmnElement="End_Retire"><dc:Bounds x="3440" y="782" width="36" height="36" /><bpmndi:BPMNLabel><dc:Bounds x="3403.0" y="824" width="110" height="40" /></bpmndi:BPMNLabel></bpmndi:BPMNShape>
+      <bpmndi:BPMNShape id="C_PayerTout_di" bpmnElement="C_PayerTout"><dc:Bounds x="2800" y="315" width="110" height="80" /></bpmndi:BPMNShape>
+      <bpmndi:BPMNShape id="A_Commande_di" bpmnElement="A_Commande"><dc:Bounds x="3000" y="1020" width="110" height="80" /></bpmndi:BPMNShape>
+      <bpmndi:BPMNShape id="S_Commande_di" bpmnElement="S_Commande"><dc:Bounds x="3160" y="600" width="110" height="80" /></bpmndi:BPMNShape>
+      <bpmndi:BPMNShape id="P_Preparer_di" bpmnElement="P_Preparer"><dc:Bounds x="3320" y="870" width="110" height="80" /></bpmndi:BPMNShape>
+      <bpmndi:BPMNShape id="S_Livreur_di" bpmnElement="S_Livreur"><dc:Bounds x="3480" y="600" width="110" height="80" /></bpmndi:BPMNShape>
+      <bpmndi:BPMNShape id="L_Recuperer_di" bpmnElement="L_Recuperer"><dc:Bounds x="3640" y="1190" width="110" height="80" /></bpmndi:BPMNShape>
+      <bpmndi:BPMNShape id="L_Livrer_di" bpmnElement="L_Livrer"><dc:Bounds x="3800" y="1190" width="110" height="80" /></bpmndi:BPMNShape>
+      <bpmndi:BPMNShape id="S_Reverser_di" bpmnElement="S_Reverser"><dc:Bounds x="3960" y="600" width="110" height="80" /></bpmndi:BPMNShape>
+      <bpmndi:BPMNShape id="End_Livre_di" bpmnElement="End_Livre"><dc:Bounds x="4120" y="622" width="36" height="36" /><bpmndi:BPMNLabel><dc:Bounds x="4083.0" y="664" width="110" height="40" /></bpmndi:BPMNLabel></bpmndi:BPMNShape>
+      <bpmndi:BPMNEdge id="Flow_1_di" bpmnElement="Flow_1"><di:waypoint x="288" y="250" /><di:waypoint x="330" y="250" /></bpmndi:BPMNEdge>
+      <bpmndi:BPMNEdge id="Flow_2_di" bpmnElement="Flow_2"><di:waypoint x="440" y="250" /><di:waypoint x="490" y="250" /></bpmndi:BPMNEdge>
+      <bpmndi:BPMNEdge id="Flow_3_di" bpmnElement="Flow_3"><di:waypoint x="540" y="250" /><di:waypoint x="560" y="250" /><di:waypoint x="560" y="145" /><di:waypoint x="590" y="145" /><bpmndi:BPMNLabel><dc:Bounds x="492" y="150" width="64" height="27" /></bpmndi:BPMNLabel></bpmndi:BPMNEdge>
+      <bpmndi:BPMNEdge id="Flow_4_di" bpmnElement="Flow_4"><di:waypoint x="540" y="250" /><di:waypoint x="590" y="250" /><bpmndi:BPMNLabel><dc:Bounds x="546" y="226" width="40" height="27" /></bpmndi:BPMNLabel></bpmndi:BPMNEdge>
+      <bpmndi:BPMNEdge id="Flow_5_di" bpmnElement="Flow_5"><di:waypoint x="540" y="250" /><di:waypoint x="560" y="250" /><di:waypoint x="560" y="355" /><di:waypoint x="590" y="355" /><bpmndi:BPMNLabel><dc:Bounds x="566" y="300" width="30" height="27" /></bpmndi:BPMNLabel></bpmndi:BPMNEdge>
+      <bpmndi:BPMNEdge id="Flow_6_di" bpmnElement="Flow_6"><di:waypoint x="700" y="145" /><di:waypoint x="785" y="145" /><di:waypoint x="785" y="225" /></bpmndi:BPMNEdge>
+      <bpmndi:BPMNEdge id="Flow_7_di" bpmnElement="Flow_7"><di:waypoint x="700" y="250" /><di:waypoint x="760" y="250" /></bpmndi:BPMNEdge>
+      <bpmndi:BPMNEdge id="Flow_8_di" bpmnElement="Flow_8"><di:waypoint x="700" y="355" /><di:waypoint x="785" y="355" /><di:waypoint x="785" y="275" /></bpmndi:BPMNEdge>
+      <bpmndi:BPMNEdge id="Flow_9_di" bpmnElement="Flow_9"><di:waypoint x="810" y="250" /><di:waypoint x="850" y="250" /></bpmndi:BPMNEdge>
+      <bpmndi:BPMNEdge id="Flow_10_di" bpmnElement="Flow_10"><di:waypoint x="905" y="290" /><di:waypoint x="905" y="450" /></bpmndi:BPMNEdge>
+      <bpmndi:BPMNEdge id="Flow_11_di" bpmnElement="Flow_11"><di:waypoint x="960" y="490" /><di:waypoint x="1010" y="490" /></bpmndi:BPMNEdge>
+      <bpmndi:BPMNEdge id="Flow_12_di" bpmnElement="Flow_12"><di:waypoint x="1065" y="530" /><di:waypoint x="1065" y="760" /></bpmndi:BPMNEdge>
+      <bpmndi:BPMNEdge id="Flow_13_di" bpmnElement="Flow_13"><di:waypoint x="1120" y="800" /><di:waypoint x="1170" y="800" /></bpmndi:BPMNEdge>
+      <bpmndi:BPMNEdge id="Flow_14_di" bpmnElement="Flow_14"><di:waypoint x="1280" y="800" /><di:waypoint x="1305" y="800" /><di:waypoint x="1305" y="490" /><di:waypoint x="1330" y="490" /></bpmndi:BPMNEdge>
+      <bpmndi:BPMNEdge id="Flow_15_di" bpmnElement="Flow_15"><di:waypoint x="1440" y="490" /><di:waypoint x="1490" y="490" /></bpmndi:BPMNEdge>
+      <bpmndi:BPMNEdge id="Flow_16_di" bpmnElement="Flow_16"><di:waypoint x="1540" y="490" /><di:waypoint x="1590" y="490" /><bpmndi:BPMNLabel><dc:Bounds x="1545" y="466" width="30" height="27" /></bpmndi:BPMNLabel></bpmndi:BPMNEdge>
+      <bpmndi:BPMNEdge id="Flow_17_di" bpmnElement="Flow_17"><di:waypoint x="1540" y="490" /><di:waypoint x="1560" y="490" /><di:waypoint x="1560" y="640" /><di:waypoint x="1590" y="640" /><bpmndi:BPMNLabel><dc:Bounds x="1566" y="560" width="30" height="27" /></bpmndi:BPMNLabel></bpmndi:BPMNEdge>
+      <bpmndi:BPMNEdge id="Flow_18_di" bpmnElement="Flow_18"><di:waypoint x="1700" y="640" /><di:waypoint x="1752" y="640" /></bpmndi:BPMNEdge>
+      <bpmndi:BPMNEdge id="Flow_19_di" bpmnElement="Flow_19"><di:waypoint x="1700" y="490" /><di:waypoint x="1725" y="490" /><di:waypoint x="1725" y="250" /><di:waypoint x="1750" y="250" /></bpmndi:BPMNEdge>
+      <bpmndi:BPMNEdge id="Flow_20_di" bpmnElement="Flow_20"><di:waypoint x="1860" y="250" /><di:waypoint x="1910" y="250" /></bpmndi:BPMNEdge>
+      <bpmndi:BPMNEdge id="Flow_21_di" bpmnElement="Flow_21"><di:waypoint x="1935" y="225" /><di:waypoint x="1935" y="156" /><bpmndi:BPMNLabel><dc:Bounds x="1941" y="180" width="90" height="27" /></bpmndi:BPMNLabel></bpmndi:BPMNEdge>
+      <bpmndi:BPMNEdge id="Flow_22_di" bpmnElement="Flow_22"><di:waypoint x="1960" y="250" /><di:waypoint x="2010" y="250" /><bpmndi:BPMNLabel><dc:Bounds x="1966" y="226" width="90" height="27" /></bpmndi:BPMNLabel></bpmndi:BPMNEdge>
+      <bpmndi:BPMNEdge id="Flow_23_di" bpmnElement="Flow_23"><di:waypoint x="2065" y="290" /><di:waypoint x="2065" y="1020" /></bpmndi:BPMNEdge>
+      <bpmndi:BPMNEdge id="Flow_24_di" bpmnElement="Flow_24"><di:waypoint x="2120" y="1060" /><di:waypoint x="2145" y="1060" /><di:waypoint x="2145" y="490" /><di:waypoint x="2170" y="490" /></bpmndi:BPMNEdge>
+      <bpmndi:BPMNEdge id="Flow_25_di" bpmnElement="Flow_25"><di:waypoint x="2195" y="465" /><di:waypoint x="2195" y="250" /><di:waypoint x="2120" y="250" /><bpmndi:BPMNLabel><dc:Bounds x="2201" y="226" width="90" height="27" /></bpmndi:BPMNLabel></bpmndi:BPMNEdge>
+      <bpmndi:BPMNEdge id="Flow_26_di" bpmnElement="Flow_26"><di:waypoint x="2220" y="490" /><di:waypoint x="2270" y="490" /><bpmndi:BPMNLabel><dc:Bounds x="2226" y="466" width="90" height="27" /></bpmndi:BPMNLabel></bpmndi:BPMNEdge>
+      <bpmndi:BPMNEdge id="Flow_27_di" bpmnElement="Flow_27"><di:waypoint x="2380" y="490" /><di:waypoint x="2405" y="490" /><di:waypoint x="2405" y="250" /><di:waypoint x="2430" y="250" /></bpmndi:BPMNEdge>
+      <bpmndi:BPMNEdge id="Flow_28_di" bpmnElement="Flow_28"><di:waypoint x="2540" y="250" /><di:waypoint x="2590" y="250" /></bpmndi:BPMNEdge>
+      <bpmndi:BPMNEdge id="Flow_29_di" bpmnElement="Flow_29"><di:waypoint x="2640" y="250" /><di:waypoint x="2660" y="250" /><di:waypoint x="2660" y="490" /><di:waypoint x="2800" y="490" /><bpmndi:BPMNLabel><dc:Bounds x="2666" y="425" width="110" height="27" /></bpmndi:BPMNLabel></bpmndi:BPMNEdge>
+      <bpmndi:BPMNEdge id="Flow_30_di" bpmnElement="Flow_30"><di:waypoint x="2640" y="250" /><di:waypoint x="2660" y="250" /><di:waypoint x="2660" y="355" /><di:waypoint x="2690" y="355" /><bpmndi:BPMNLabel><dc:Bounds x="2628" y="298" width="30" height="27" /></bpmndi:BPMNLabel></bpmndi:BPMNEdge>
+      <bpmndi:BPMNEdge id="Flow_31_di" bpmnElement="Flow_31"><di:waypoint x="2715" y="380" /><di:waypoint x="2715" y="420" /><di:waypoint x="2855" y="420" /><di:waypoint x="2855" y="450" /><bpmndi:BPMNLabel><dc:Bounds x="2721" y="418" width="45" height="27" /></bpmndi:BPMNLabel></bpmndi:BPMNEdge>
+      <bpmndi:BPMNEdge id="Flow_32_di" bpmnElement="Flow_32"><di:waypoint x="2740" y="355" /><di:waypoint x="2800" y="355" /><bpmndi:BPMNLabel><dc:Bounds x="2743" y="360" width="55" height="27" /></bpmndi:BPMNLabel></bpmndi:BPMNEdge>
+      <bpmndi:BPMNEdge id="Flow_33_di" bpmnElement="Flow_33"><di:waypoint x="2910" y="490" /><di:waypoint x="2935" y="490" /><di:waypoint x="2935" y="800" /><di:waypoint x="2960" y="800" /></bpmndi:BPMNEdge>
+      <bpmndi:BPMNEdge id="Flow_34_di" bpmnElement="Flow_34"><di:waypoint x="3070" y="800" /><di:waypoint x="3095" y="800" /><di:waypoint x="3095" y="145" /><di:waypoint x="3120" y="145" /></bpmndi:BPMNEdge>
+      <bpmndi:BPMNEdge id="Flow_35_di" bpmnElement="Flow_35"><di:waypoint x="3230" y="145" /><di:waypoint x="3255" y="145" /><di:waypoint x="3255" y="800" /><di:waypoint x="3280" y="800" /></bpmndi:BPMNEdge>
+      <bpmndi:BPMNEdge id="Flow_36_di" bpmnElement="Flow_36"><di:waypoint x="3390" y="800" /><di:waypoint x="3440" y="800" /></bpmndi:BPMNEdge>
+      <bpmndi:BPMNEdge id="Flow_37_di" bpmnElement="Flow_37"><di:waypoint x="2910" y="355" /><di:waypoint x="2955" y="355" /><di:waypoint x="2955" y="1060" /><di:waypoint x="3000" y="1060" /></bpmndi:BPMNEdge>
+      <bpmndi:BPMNEdge id="Flow_38_di" bpmnElement="Flow_38"><di:waypoint x="3110" y="1060" /><di:waypoint x="3135" y="1060" /><di:waypoint x="3135" y="640" /><di:waypoint x="3160" y="640" /></bpmndi:BPMNEdge>
+      <bpmndi:BPMNEdge id="Flow_39_di" bpmnElement="Flow_39"><di:waypoint x="3270" y="640" /><di:waypoint x="3295" y="640" /><di:waypoint x="3295" y="910" /><di:waypoint x="3320" y="910" /></bpmndi:BPMNEdge>
+      <bpmndi:BPMNEdge id="Flow_40_di" bpmnElement="Flow_40"><di:waypoint x="3430" y="910" /><di:waypoint x="3455" y="910" /><di:waypoint x="3455" y="640" /><di:waypoint x="3480" y="640" /></bpmndi:BPMNEdge>
+      <bpmndi:BPMNEdge id="Flow_41_di" bpmnElement="Flow_41"><di:waypoint x="3590" y="640" /><di:waypoint x="3615" y="640" /><di:waypoint x="3615" y="1230" /><di:waypoint x="3640" y="1230" /></bpmndi:BPMNEdge>
+      <bpmndi:BPMNEdge id="Flow_42_di" bpmnElement="Flow_42"><di:waypoint x="3750" y="1230" /><di:waypoint x="3800" y="1230" /></bpmndi:BPMNEdge>
+      <bpmndi:BPMNEdge id="Flow_43_di" bpmnElement="Flow_43"><di:waypoint x="3910" y="1230" /><di:waypoint x="3935" y="1230" /><di:waypoint x="3935" y="640" /><di:waypoint x="3960" y="640" /></bpmndi:BPMNEdge>
+      <bpmndi:BPMNEdge id="Flow_44_di" bpmnElement="Flow_44"><di:waypoint x="4070" y="640" /><di:waypoint x="4120" y="640" /></bpmndi:BPMNEdge>
+      <bpmndi:BPMNShape id="Note_1_di" bpmnElement="Note_1"><dc:Bounds x="700" y="545" width="230" height="68" /></bpmndi:BPMNShape>
+      <bpmndi:BPMNEdge id="Assoc_Note_1_di" bpmnElement="Assoc_Note_1"><di:waypoint x="905" y="450" /><di:waypoint x="710" y="613" /></bpmndi:BPMNEdge>
+      <bpmndi:BPMNShape id="Note_2_di" bpmnElement="Note_2"><dc:Bounds x="1720" y="545" width="200" height="55" /></bpmndi:BPMNShape>
+      <bpmndi:BPMNEdge id="Assoc_Note_2_di" bpmnElement="Assoc_Note_2"><di:waypoint x="1645" y="450" /><di:waypoint x="1730" y="600" /></bpmndi:BPMNEdge>
+      <bpmndi:BPMNShape id="Note_3_di" bpmnElement="Note_3"><dc:Bounds x="2060" y="95" width="190" height="40" /></bpmndi:BPMNShape>
+      <bpmndi:BPMNEdge id="Assoc_Note_3_di" bpmnElement="Assoc_Note_3"><di:waypoint x="2065" y="210" /><di:waypoint x="2070" y="135" /></bpmndi:BPMNEdge>
+      <bpmndi:BPMNShape id="Note_4_di" bpmnElement="Note_4"><dc:Bounds x="2470" y="95" width="300" height="55" /></bpmndi:BPMNShape>
+      <bpmndi:BPMNEdge id="Assoc_Note_4_di" bpmnElement="Assoc_Note_4"><di:waypoint x="2615" y="225" /><di:waypoint x="2480" y="150" /></bpmndi:BPMNEdge>
+      <bpmndi:BPMNShape id="Note_5_di" bpmnElement="Note_5"><dc:Bounds x="4000" y="470" width="200" height="45" /></bpmndi:BPMNShape>
+      <bpmndi:BPMNEdge id="Assoc_Note_5_di" bpmnElement="Assoc_Note_5"><di:waypoint x="4015" y="600" /><di:waypoint x="4010" y="515" /></bpmndi:BPMNEdge>
+    </bpmndi:BPMNPlane>
+  </bpmndi:BPMNDiagram>
+</bpmn:definitions>

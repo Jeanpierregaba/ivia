@@ -1,0 +1,1326 @@
+import 'dart:async';
+import 'dart:convert';
+
+import 'package:flutter/foundation.dart';
+import 'package:flutter/material.dart';
+import 'package:flutter_riverpod/flutter_riverpod.dart';
+import 'package:flutter_secure_storage/flutter_secure_storage.dart';
+import 'package:flutter_test/flutter_test.dart';
+import 'package:go_router/go_router.dart';
+import 'package:ivia_api_client/ivia_api_client.dart';
+import 'package:ivia_api_client/testing.dart';
+import 'package:ivia_app_core/ivia_app_core.dart';
+import 'package:ivia_app_core/testing.dart';
+import 'package:ivia_seller/features/business/biz_ui.dart';
+import 'package:ivia_seller/app/device_services.dart';
+import 'package:ivia_seller/app/identity.dart';
+import 'package:ivia_seller/features/catalog/catalog_screen.dart';
+import 'package:ivia_seller/main.dart';
+import 'package:ivia_ui/ivia_ui.dart';
+import 'package:shared_preferences/shared_preferences.dart';
+
+/// Autre image PNG de 1 × 1 pixel (rouge), pour distinguer deux photos.
+final _redPng = base64Decode(
+  'iVBORw0KGgoAAAANSUhEUgAAAAEAAAABCAYAAAAfFcSJAAAADUlEQVR42mP8z8DwHwAFBQIAX8jx0gAAAABJRU5ErkJggg==',
+);
+
+/// Image PNG de 1 × 1 pixel.
+final _png = base64Decode(
+  'iVBORw0KGgoAAAANSUhEUgAAAAEAAAABCAYAAAAfFcSJAAAADUlEQVR42mNkYPhfDwAChwGA60e6kgAAAABJRU5ErkJggg==',
+);
+
+class _FakePicker implements PhotoPicker {
+  Uint8List? next = _png;
+  int? lastMaxSide;
+
+  @override
+  Future<Uint8List?> pick({
+    PhotoSource source = PhotoSource.gallery,
+    int maxSide = 1024,
+  }) async {
+    lastMaxSide = maxSide;
+    return next;
+  }
+}
+
+class _NoLocation extends FakeLocationService {}
+
+/// Espaces typographiques remplacés par des espaces simples.
+String plain(String s) => s.replaceAll(' ', ' ').replaceAll(' ', ' ');
+
+/// Texte affiché, espaces typographiques compris (« 4 500 F »).
+Finder textPlain(String text) => find.byWidgetPredicate(
+  (w) => w is Text && plain(w.data ?? w.textSpan?.toPlainText() ?? '') == text,
+);
+
+void main() {
+  late FakeApiServer server;
+  late FakeCatalog catalog;
+  late _FakePicker picker;
+
+  Map<String, dynamic> seller() => {
+    ...userBody(complete: true),
+    'roles': ['buyer', 'seller'],
+  };
+
+  void withShop(String status) => server.on(
+    'GET',
+    '/v1/seller/shops',
+    (_) => FakeResponse.json(200, {
+      'items': [shopBody(status: status)],
+    }),
+  );
+
+  setUp(() async {
+    SharedPreferences.setMockInitialValues({'onboarding_seen': true});
+    FlutterSecureStorage.setMockInitialValues({});
+    picker = _FakePicker();
+    server = FakeApiServer()
+      ..on('GET', '/v1/me', (_) => FakeResponse.json(200, seller()))
+      ..on('POST', '/v1/auth/logout', (_) => FakeResponse.json(204, null));
+    withShop('published');
+    FakeBusiness(server);
+    catalog = FakeCatalog(server);
+    await SessionStore().save('jeton-secret', User.fromJson(seller()));
+  });
+
+  Future<void> launch(WidgetTester tester) async {
+    // Animations réduites : le point « en direct » du pilotage s'arrête.
+    tester.platformDispatcher.accessibilityFeaturesTestValue =
+        const FakeAccessibilityFeatures(disableAnimations: true);
+    addTearDown(tester.platformDispatcher.clearAccessibilityFeaturesTestValue);
+    final store = await OnboardingStore.open();
+    await tester.pumpWidget(
+      ProviderScope(
+        overrides: [
+          onboardingStoreProvider.overrideWithValue(store),
+          appIdentityProvider.overrideWithValue(sellerIdentity),
+          apiClientProvider.overrideWithValue(
+            IviaApiClient(
+              config: ApiConfig(baseUrl: Uri.parse('http://api.test')),
+              adapter: server,
+            ),
+          ),
+          authTimingsProvider.overrideWithValue(
+            const AuthTimings(
+              minSplash: Duration.zero,
+              meTimeout: Duration(seconds: 1),
+            ),
+          ),
+          photoPickerProvider.overrideWithValue(picker),
+          locationServiceProvider.overrideWithValue(_NoLocation()),
+          locationPromptStoreProvider.overrideWithValue(
+            await LocationPromptStore.open(_NoLocation()),
+          ),
+          mapsEnabledProvider.overrideWithValue(false),
+        ],
+        child: const SellerApp(),
+      ),
+    );
+    await tester.pumpAndSettle();
+  }
+
+  /// Onglet de la barre du bas (l'icône peut aussi figurer dans l'écran).
+  Finder dockTab(IconData icon) =>
+      find.descendant(of: find.byType(BizDock), matching: find.byIcon(icon));
+
+  Future<void> tapText(WidgetTester tester, String text) async {
+    FocusManager.instance.primaryFocus?.unfocus();
+    await tester.pump();
+    final target = find.text(text, skipOffstage: false).last;
+    await tester.ensureVisible(target);
+    await tester.pumpAndSettle();
+    await tester.tap(target);
+    await tester.pumpAndSettle();
+  }
+
+  /// Ouvre l'onglet Catalogue de la barre du bas.
+  Future<void> openCatalog(WidgetTester tester) async {
+    await launch(tester);
+    await tester.tap(dockTab(Icons.inventory_2_outlined));
+    await tester.pumpAndSettle();
+  }
+
+  Finder field(String label) => find.descendant(
+    of: find.widgetWithText(IviaFieldLabel, label),
+    matching: find.byType(TextField),
+  );
+
+  /// Catégorie choisie dans la feuille (ligne « Catégorie · + Ajouter »).
+  Future<void> chooseCategory(WidgetTester tester, String item) async {
+    final row = find.bySemanticsLabel(RegExp('^Catégorie, '));
+    await tester.ensureVisible(row);
+    await tester.pumpAndSettle();
+    await tester.tap(row);
+    await tester.pumpAndSettle();
+    await tester.tap(find.text(item).last);
+    await tester.pumpAndSettle();
+  }
+
+  /// Ouvre « Ajouter des photos », onglet Importer, choisit une photo de
+  /// la galerie ; [validate] : puis « Valider ».
+  Future<void> addPhoto(WidgetTester tester, {bool validate = true}) async {
+    final add = find.bySemanticsLabel('Ajouter une photo').first;
+    await tester.ensureVisible(add);
+    await tester.pumpAndSettle();
+    await tester.tap(add);
+    await tester.pumpAndSettle();
+    await tester.tap(find.text('Importer'));
+    await tester.pumpAndSettle();
+    // Petit écran, grande police : la tuile peut être plus bas.
+    await tester.scrollUntilVisible(
+      find.text('Choisir une photo'),
+      120,
+      scrollable: find
+          .descendant(
+            of: find.byType(CustomScrollView).last,
+            matching: find.byType(Scrollable),
+          )
+          .first,
+    );
+    await tester.pumpAndSettle();
+    await tester.tap(find.text('Choisir une photo'));
+    await tester.pumpAndSettle();
+    if (validate) {
+      await tester.tap(find.text('Valider'));
+      await tester.pumpAndSettle();
+    }
+  }
+
+  /// Photo, nom, prix et catégorie remplis.
+  Future<void> fillDetails(
+    WidgetTester tester, {
+    bool photo = true,
+    String name = 'Riz parfumé 5 kg',
+  }) async {
+    if (photo) await addPhoto(tester);
+    await tester.enterText(field('Nom du produit'), name);
+    await tester.enterText(field('Prix'), '4500');
+    await chooseCategory(tester, 'Alimentation');
+  }
+
+  /// Dernière lecture de la liste.
+  RecordedRequest lastList() =>
+      server.calls('GET', '/v1/seller/shops/$shopId/products').last;
+
+  Iterable<RecordedRequest> creates() =>
+      server.calls('POST', '/v1/seller/shops/$shopId/products');
+
+  group('catalogue', () {
+    testWidgets('onglets, compteurs, lignes et barre du bas', (tester) async {
+      catalog
+        ..seed(name: 'Riz parfumé 5 kg')
+        ..seed(name: 'Sucre 1 kg', stockMode: 'untracked', price: 800)
+        ..seed(name: 'Lait en poudre', stock: 0, price: 2750)
+        ..seed(name: 'Huile 1 L', status: 'draft')
+        ..seed(name: 'Bissap', status: 'withdrawn');
+      await openCatalog(tester);
+
+      expect(find.text('Chez Afi · 5 produits'), findsOneWidget);
+      expect(find.bySemanticsLabel('En vente, 3'), findsOneWidget);
+      expect(find.bySemanticsLabel('Brouillons, 1'), findsOneWidget);
+      expect(find.bySemanticsLabel('Retirés, 1'), findsOneWidget);
+      expect(textPlain('4 500 F'), findsOneWidget);
+      expect(find.text('Alimentation · Stock 12'), findsOneWidget);
+      expect(find.text('Stock non suivi'), findsOneWidget);
+      expect(find.text('Épuisé · à réapprovisionner'), findsOneWidget);
+      expect(find.text('Huile 1 L'), findsNothing);
+      // Catalogue choisi dans la barre du bas.
+      expect(find.byType(BizDock), findsOneWidget);
+      expect(lastList().query['status'], 'active');
+
+      await tester.tap(find.textContaining('Brouillons'));
+      await tester.pumpAndSettle();
+      expect(find.text('Huile 1 L'), findsOneWidget);
+      expect(find.text('Riz parfumé 5 kg'), findsNothing);
+      expect(lastList().query['status'], 'draft');
+    });
+
+    testWidgets('recherche envoyée au serveur après le délai de frappe', (
+      tester,
+    ) async {
+      catalog
+        ..seed(name: 'Café moulu')
+        ..seed(name: 'Riz parfumé 5 kg');
+      await openCatalog(tester);
+      await tester.enterText(find.byType(TextField), 'cafe');
+      await tester.pump(const Duration(milliseconds: 100));
+      expect(
+        server.requests.where((r) => r.query['q'] != null),
+        isEmpty,
+        reason: 'pas de requête pendant la frappe',
+      );
+      await tester.pump(searchDelay);
+      await tester.pumpAndSettle();
+      expect(lastList().query['q'], 'cafe');
+      expect(find.text('Café moulu'), findsOneWidget);
+      expect(find.text('Riz parfumé 5 kg'), findsNothing);
+
+      await tester.enterText(find.byType(TextField), 'tomate');
+      await tester.pump(searchDelay);
+      await tester.pumpAndSettle();
+      expect(
+        find.text('Aucun produit ne correspond à « tomate ».'),
+        findsOneWidget,
+      );
+      // Effacer : liste complète tout de suite.
+      await tester.tap(find.byTooltip('Effacer la recherche'));
+      await tester.pumpAndSettle();
+      expect(find.text('Riz parfumé 5 kg'), findsOneWidget);
+    });
+
+    testWidgets('listes vides : un message par onglet', (tester) async {
+      await openCatalog(tester);
+      expect(
+        find.text('Aucun produit en vente. Ajoutez votre premier produit.'),
+        findsOneWidget,
+      );
+      expect(find.text('Ajouter un produit'), findsOneWidget);
+      await tester.tap(find.textContaining('Brouillons'));
+      await tester.pumpAndSettle();
+      expect(find.text('Aucun brouillon.'), findsOneWidget);
+      await tester.tap(find.textContaining('Retirés'));
+      await tester.pumpAndSettle();
+      expect(find.text('Aucun produit retiré.'), findsOneWidget);
+    });
+
+    testWidgets('réseau coupé : message et « Réessayer » sans quitter', (
+      tester,
+    ) async {
+      catalog.seed(name: 'Riz parfumé 5 kg');
+      await launch(tester);
+      catalog.failures['GET /v1/seller/shops/$shopId/products'] =
+          FakeResponse.networkError();
+      await tester.tap(dockTab(Icons.inventory_2_outlined));
+      await tester.pumpAndSettle();
+      expect(
+        find.text(
+          'Impossible de charger vos produits. Vérifiez votre connexion.',
+        ),
+        findsOneWidget,
+      );
+      await tapText(tester, 'Réessayer');
+      expect(find.text('Riz parfumé 5 kg'), findsOneWidget);
+    });
+
+    testWidgets('défilement : la page suivante se charge', (tester) async {
+      for (var i = 0; i < 25; i++) {
+        catalog.seed(name: 'Produit ${i.toString().padLeft(2, '0')}');
+      }
+      await openCatalog(tester);
+      expect(lastList().query['offset'], '0');
+      await tester.scrollUntilVisible(
+        find.text('Produit 00'),
+        400,
+        scrollable: find.byType(Scrollable).first,
+      );
+      await tester.pumpAndSettle();
+      expect(
+        server.requests.where((r) => r.query['offset'] == '20'),
+        hasLength(1),
+      );
+      expect(find.text('Produit 00'), findsOneWidget);
+    });
+
+    testWidgets('retrait confirmé, onglet Retirés, puis « Annuler »', (
+      tester,
+    ) async {
+      catalog.seed(name: 'Riz parfumé 5 kg');
+      await openCatalog(tester);
+      await tester.tap(find.byTooltip('Actions pour Riz parfumé 5 kg'));
+      await tester.pumpAndSettle();
+      await tester.tap(find.text('Retirer de la vente'));
+      await tester.pumpAndSettle();
+      expect(find.text('Retirer ce produit de la vente ?'), findsOneWidget);
+      await tester.tap(
+        find.widgetWithText(FilledButton, 'Retirer de la vente'),
+      );
+      await tester.pumpAndSettle();
+
+      final patch = server.calls(
+        'PATCH',
+        '/v1/seller/products/${catalog.products.single['id']}',
+      );
+      expect((patch.single.body! as Map)['is_active'], isFalse);
+      expect(find.bySemanticsLabel('Retirés, 1'), findsOneWidget);
+      expect(find.textContaining('Retiré '), findsOneWidget);
+      expect(find.text('Riz parfumé 5 kg retiré de la vente'), findsOneWidget);
+
+      await tester.tap(find.text('Annuler'));
+      await tester.pumpAndSettle();
+      expect(catalog.products.single['status'], 'active');
+      expect(find.bySemanticsLabel('En vente, 1'), findsOneWidget);
+    });
+
+    testWidgets('« Remettre » : en vente ; sans photo : refusé', (
+      tester,
+    ) async {
+      catalog
+        ..seed(name: 'Bissap', status: 'withdrawn')
+        ..seed(name: 'Tomate', status: 'withdrawn', images: 0);
+      await openCatalog(tester);
+      await tester.tap(find.textContaining('Retirés'));
+      await tester.pumpAndSettle();
+
+      await tester.tap(find.bySemanticsLabel('Remettre Tomate en vente'));
+      await tester.pumpAndSettle();
+      expect(find.text('Ajoutez au moins une photo.'), findsOneWidget);
+      expect(catalog.byName('Tomate')['status'], 'withdrawn');
+
+      await tester.tap(find.bySemanticsLabel('Remettre Bissap en vente'));
+      await tester.pumpAndSettle();
+      expect(catalog.byName('Bissap')['status'], 'active');
+      expect(find.text('Bissap remis en vente'), findsOneWidget);
+      expect(find.text('Bissap'), findsNothing);
+    });
+
+    testWidgets('ajuster le stock depuis le menu', (tester) async {
+      final id = catalog.seed(name: 'Riz parfumé 5 kg')['id'];
+      await openCatalog(tester);
+      await tester.tap(find.byTooltip('Actions pour Riz parfumé 5 kg'));
+      await tester.pumpAndSettle();
+      await tester.tap(find.text('Ajuster le stock'));
+      await tester.pumpAndSettle();
+      await tester.tap(find.byTooltip('Ajouter 1'));
+      await tester.pump();
+      await tapText(tester, 'Valider');
+      expect(server.calls('PUT', '/v1/seller/products/$id/stock').single.body, {
+        'quantity': 13,
+        'note': '',
+      });
+      expect(find.text('Alimentation · Stock 13'), findsOneWidget);
+    });
+
+    testWidgets('police à 200 % sur 320 dp : catalogue sans débordement', (
+      tester,
+    ) async {
+      tester.view.physicalSize = const Size(320, 568);
+      tester.view.devicePixelRatio = 1;
+      tester.platformDispatcher.textScaleFactorTestValue = 2;
+      addTearDown(tester.view.reset);
+      addTearDown(tester.platformDispatcher.clearTextScaleFactorTestValue);
+      catalog
+        ..seed(name: 'Riz parfumé long grain de Thaïlande, sac de 5 kg')
+        ..seed(name: 'Bissap', status: 'withdrawn');
+      await openCatalog(tester);
+      expect(tester.takeException(), isNull);
+      await tester.ensureVisible(find.textContaining('Retirés'));
+      await tester.pumpAndSettle();
+      await tester.tap(find.textContaining('Retirés'));
+      await tester.pumpAndSettle();
+      expect(tester.takeException(), isNull);
+    });
+  });
+
+  group('produits : filtres et gestes', () {
+    testWidgets('catégorie : filtre envoyé au serveur, puis retiré', (
+      tester,
+    ) async {
+      catalog.seed(name: 'Riz parfumé 5 kg');
+      await openCatalog(tester);
+      await tester.tap(find.byTooltip('Filtrer par catégorie'));
+      await tester.pumpAndSettle();
+      await tester.tap(find.text('Boissons'));
+      await tester.pumpAndSettle();
+      expect(
+        lastList().query['category_id'],
+        'c1000000-0000-4000-8000-000000000003',
+      );
+      expect(find.text('Aucun produit dans cette catégorie.'), findsOneWidget);
+      // La puce porte le nom de la catégorie ; un appui la retire.
+      await tester.tap(find.text('Boissons'));
+      await tester.pumpAndSettle();
+      expect(lastList().query.containsKey('category_id'), isFalse);
+      expect(find.text('Riz parfumé 5 kg'), findsOneWidget);
+    });
+
+    testWidgets('sélection multiple : retrait groupé', (tester) async {
+      catalog
+        ..seed(name: 'Riz parfumé 5 kg')
+        ..seed(name: 'Sucre 1 kg');
+      await openCatalog(tester);
+      await tester.longPress(find.text('Riz parfumé 5 kg'));
+      await tester.pumpAndSettle();
+      expect(find.text('1 sélectionné'), findsOneWidget);
+      await tester.tap(find.text('Sucre 1 kg'));
+      await tester.pumpAndSettle();
+      expect(find.text('2 sélectionnés'), findsOneWidget);
+      await tester.tap(find.widgetWithText(BizButton, 'Retirer'));
+      await tester.pumpAndSettle();
+      expect(find.text('Retirer 2 produits de la vente ?'), findsOneWidget);
+      await tester.tap(find.widgetWithText(FilledButton, 'Retirer'));
+      await tester.pumpAndSettle();
+      expect(
+        catalog.products.map((p) => p['status']),
+        everyElement('withdrawn'),
+      );
+      expect(find.text('2 produits retirés'), findsOneWidget);
+      expect(find.bySemanticsLabel('Retirés, 2'), findsOneWidget);
+    });
+
+    testWidgets('glisser vers la gauche : ajuster le stock', (tester) async {
+      catalog.seed(name: 'Riz parfumé 5 kg');
+      await openCatalog(tester);
+      await tester.drag(find.text('Riz parfumé 5 kg'), const Offset(-500, 0));
+      await tester.pumpAndSettle();
+      expect(find.byTooltip('Ajouter 1'), findsOneWidget);
+      // La ligne est revenue à sa place.
+      expect(find.text('Riz parfumé 5 kg'), findsWidgets);
+    });
+
+    testWidgets('code promo pour un seul produit, depuis sa ligne', (
+      tester,
+    ) async {
+      final id = catalog.seed(name: 'Riz parfumé 5 kg')['id'];
+      server.on(
+        'POST',
+        '/v1/seller/shops/$shopId/promo-codes',
+        (r) => FakeResponse.json(201, {
+          'id': 'pc1',
+          'code': 'RIZ20',
+          'kind': 'percent',
+          'value': 20,
+          'status': 'active',
+          'state': 'active',
+          'scope': 'products',
+          'products': [
+            {'id': id, 'name': 'Riz parfumé 5 kg'},
+          ],
+        }),
+      );
+      await openCatalog(tester);
+      await tester.tap(find.byTooltip('Actions pour Riz parfumé 5 kg'));
+      await tester.pumpAndSettle();
+      await tester.tap(find.text('Code promo pour ce produit'));
+      await tester.pumpAndSettle();
+      // Produit déjà choisi, portée « Certains produits ».
+      expect(
+        find.widgetWithText(InputChip, 'Riz parfumé 5 kg'),
+        findsOneWidget,
+      );
+      await tester.enterText(
+        find.widgetWithText(TextField, 'Réduction (%)'),
+        '20',
+      );
+      await tapText(tester, 'Créer le code');
+      final body =
+          server
+                  .calls('POST', '/v1/seller/shops/$shopId/promo-codes')
+                  .single
+                  .body!
+              as Map;
+      expect(body['product_ids'], [id]);
+      expect(body['kind'], 'percent');
+      expect(
+        find.text('Code RIZ20 créé, utilisable dès maintenant.'),
+        findsOneWidget,
+      );
+    });
+
+    testWidgets('affichage en grille', (tester) async {
+      catalog.seed(name: 'Riz parfumé 5 kg');
+      await openCatalog(tester);
+      await tester.tap(find.byTooltip('Afficher en grille'));
+      await tester.pumpAndSettle();
+      expect(find.byTooltip('Afficher en liste'), findsOneWidget);
+      expect(find.text('Riz parfumé 5 kg'), findsOneWidget);
+    });
+
+    testWidgets('« + » de la barre : menu de création', (tester) async {
+      await launch(tester);
+      await tester.tap(find.byTooltip('Créer'));
+      await tester.pumpAndSettle();
+      expect(find.text('Créer et gérer'), findsOneWidget);
+      await tester.tap(find.text('Nouveau produit'));
+      await tester.pumpAndSettle();
+      expect(find.text('0 sur 5'), findsOneWidget);
+    });
+  });
+
+  group('nouveau produit', () {
+    testWidgets('une page, aperçu, publication avec photo', (tester) async {
+      await openCatalog(tester);
+      await tester.tap(find.bySemanticsLabel('Ajouter un produit').first);
+      await tester.pumpAndSettle();
+      expect(find.text('Nouveau produit'), findsOneWidget);
+      expect(find.text('0 sur 5'), findsOneWidget);
+
+      await fillDetails(tester);
+      expect(picker.lastMaxSide, 1600);
+      expect(find.text('4 sur 5'), findsOneWidget);
+      await tapText(tester, 'Moyen');
+      expect(find.text('Prêt'), findsOneWidget);
+      final more = find.byTooltip('Ajouter 1');
+      await tester.ensureVisible(more);
+      await tester.pumpAndSettle();
+      await tester.tap(more);
+      await tester.pump();
+
+      await tester.tap(find.byTooltip('Aperçu'));
+      await tester.pumpAndSettle();
+      expect(find.text('Aperçu acheteur'), findsOneWidget);
+      expect(find.text('1 photo'), findsOneWidget);
+      expect(find.text('Prix et catégorie'), findsWidgets);
+      expect(find.text('Stock suivi : 2'), findsOneWidget);
+      expect(find.text('Colis moyen'), findsOneWidget);
+      expect(find.textContaining('Chez Afi · Tokoin'), findsOneWidget);
+      await tester.tap(find.byTooltip('Fermer'));
+      await tester.pumpAndSettle();
+      expect(server.calls('POST', '/v1/uploads'), isEmpty);
+
+      await tapText(tester, 'Publier');
+      expect(server.calls('POST', '/v1/uploads').single.body, {
+        'purpose': 'product_image',
+        'content_type': 'image/jpeg',
+        'size_bytes': _png.length,
+      });
+      expect(server.calls('PUT', '/products/u1.jpg'), hasLength(1));
+      expect(creates().single.body, {
+        'category_id': 'c1000000-0000-4000-8000-000000000001',
+        'name': 'Riz parfumé 5 kg',
+        'description': '',
+        'price_xof': 4500,
+        'parcel_size': 'medium',
+        'image_keys': ['products/u1.jpg'],
+        'stock_mode': 'tracked',
+        'stock_quantity': 2,
+        'is_active': true,
+      });
+      expect(find.text('Produit publié'), findsOneWidget);
+      expect(
+        find.text(
+          'Il est visible maintenant par les acheteurs autour de Tokoin.',
+        ),
+        findsOneWidget,
+      );
+
+      await tapText(tester, 'Retour au catalogue');
+      expect(find.text('Riz parfumé 5 kg'), findsOneWidget);
+      expect(find.bySemanticsLabel('En vente, 1'), findsOneWidget);
+    });
+
+    testWidgets('validations : tout est signalé, rien n\'est envoyé', (
+      tester,
+    ) async {
+      await openCatalog(tester);
+      await tester.tap(find.bySemanticsLabel('Ajouter un produit').first);
+      await tester.pumpAndSettle();
+      await tapText(tester, 'Publier');
+      expect(find.text('Le nom compte de 2 à 150 caractères.'), findsOneWidget);
+      expect(find.text('Prix entre 1 et 100 000 000 FCFA.'), findsOneWidget);
+      expect(find.text('Choisissez une catégorie.'), findsOneWidget);
+      expect(find.text('Choisissez la taille du colis.'), findsOneWidget);
+      expect(find.text('Ajoutez au moins une photo.'), findsOneWidget);
+
+      await fillDetails(tester, photo: false);
+      await tapText(tester, 'Petit');
+      await tapText(tester, 'Publier');
+      expect(find.text('Ajoutez au moins une photo.'), findsOneWidget);
+      expect(find.text('Choisissez une catégorie.'), findsNothing);
+      expect(creates(), isEmpty);
+    });
+
+    testWidgets('brouillon sans photo, puis reprise et publication', (
+      tester,
+    ) async {
+      await openCatalog(tester);
+      await tester.tap(find.bySemanticsLabel('Ajouter un produit').first);
+      await tester.pumpAndSettle();
+      await fillDetails(tester, photo: false);
+      await tapText(tester, 'Grand');
+      final stock = find.byType(Switch);
+      await tester.ensureVisible(stock);
+      await tester.pumpAndSettle();
+      await tester.tap(stock);
+      await tester.pump();
+      await tapText(tester, 'À terminer plus tard');
+      await tapText(tester, 'Enregistrer');
+
+      final body = creates().single.body! as Map;
+      expect(body['is_active'], isFalse);
+      expect(body['stock_mode'], 'untracked');
+      expect(body['image_keys'], isEmpty);
+      expect(
+        find.text('Brouillon enregistré : Riz parfumé 5 kg'),
+        findsOneWidget,
+      );
+      expect(find.bySemanticsLabel('Brouillons, 1'), findsOneWidget);
+
+      await tapText(tester, 'Riz parfumé 5 kg');
+      expect(find.text('Brouillon'), findsWidgets);
+      expect(
+        tester.widget<TextField>(field('Nom du produit')).controller!.text,
+        'Riz parfumé 5 kg',
+      );
+      await addPhoto(tester);
+      // Mode de stock figé après l'enregistrement.
+      expect(tester.widget<Switch>(find.byType(Switch)).onChanged, isNull);
+      await tapText(tester, 'Publier');
+
+      expect(creates(), hasLength(1), reason: 'pas de second produit');
+      final id = catalog.products.single['id'];
+      final patch = server.calls('PATCH', '/v1/seller/products/$id').single;
+      expect((patch.body! as Map)['is_active'], isTrue);
+      expect((patch.body! as Map).containsKey('stock_mode'), isFalse);
+      expect(catalog.products.single['status'], 'active');
+      expect(find.text('Produit publié'), findsOneWidget);
+    });
+
+    testWidgets('échec réseau : nouvel essai sans renvoyer la photo', (
+      tester,
+    ) async {
+      await openCatalog(tester);
+      await tester.tap(find.bySemanticsLabel('Ajouter un produit').first);
+      await tester.pumpAndSettle();
+      await fillDetails(tester);
+      await tapText(tester, 'Moyen');
+      catalog.failures['POST /v1/seller/shops'] = FakeResponse.networkError();
+      await tapText(tester, 'Publier');
+      expect(find.text('Produit publié'), findsNothing);
+      expect(find.textContaining('connexion'), findsOneWidget);
+      expect(catalog.products, isEmpty);
+
+      await tapText(tester, 'Publier');
+      expect(server.calls('POST', '/v1/uploads'), hasLength(1));
+      expect(catalog.products, hasLength(1));
+      expect(find.text('Produit publié'), findsOneWidget);
+    });
+
+    testWidgets('double appui sur « Publier » : un seul produit', (
+      tester,
+    ) async {
+      await openCatalog(tester);
+      await tester.tap(find.bySemanticsLabel('Ajouter un produit').first);
+      await tester.pumpAndSettle();
+      await fillDetails(tester);
+      await tapText(tester, 'Moyen');
+      final publish = find.widgetWithText(BizButton, 'Publier');
+      await tester.tap(publish);
+      await tester.tap(publish, warnIfMissed: false);
+      await tester.pumpAndSettle();
+      expect(creates(), hasLength(1));
+    });
+
+    testWidgets('boutique en validation : visible dès la validation', (
+      tester,
+    ) async {
+      withShop('pending_review');
+      await launch(tester);
+      await tapText(tester, 'Préparer mes produits');
+      await tester.tap(find.bySemanticsLabel('Ajouter un produit').first);
+      await tester.pumpAndSettle();
+      await fillDetails(tester);
+      await tapText(tester, 'Petit');
+      await tapText(tester, 'Publier');
+      expect(
+        find.text('Il sera visible dès que votre boutique sera validée.'),
+        findsOneWidget,
+      );
+    });
+
+    testWidgets('quitter avec une saisie : confirmation', (tester) async {
+      await openCatalog(tester);
+      await tester.tap(find.bySemanticsLabel('Ajouter un produit').first);
+      await tester.pumpAndSettle();
+      await tester.enterText(field('Nom du produit'), 'Riz');
+      await tester.tap(find.byTooltip('Retour'));
+      await tester.pumpAndSettle();
+      expect(find.text('Abandonner ce produit ?'), findsOneWidget);
+      await tester.tap(find.text('Continuer').last);
+      await tester.pumpAndSettle();
+      expect(find.text('Nouveau produit'), findsOneWidget);
+      await tester.tap(find.byTooltip('Retour'));
+      await tester.pumpAndSettle();
+      await tester.tap(find.text('Abandonner'));
+      await tester.pumpAndSettle();
+      expect(find.text('Produits'), findsWidgets);
+      expect(creates(), isEmpty);
+    });
+
+    testWidgets('photos : principale changée, suppression', (tester) async {
+      await openCatalog(tester);
+      await tester.tap(find.bySemanticsLabel('Ajouter un produit').first);
+      await tester.pumpAndSettle();
+      await addPhoto(tester);
+      await addPhoto(tester);
+      expect(find.bySemanticsLabel('Photo 2 sur 2'), findsOneWidget);
+      await tester.tap(find.bySemanticsLabel('Photo 2 sur 2'));
+      await tester.pumpAndSettle();
+      await tester.tap(find.text('Mettre en principale'));
+      await tester.pumpAndSettle();
+      await tester.tap(find.bySemanticsLabel('Photo principale'));
+      await tester.pumpAndSettle();
+      expect(find.text('Mettre en principale'), findsNothing);
+      await tester.tap(find.text('Supprimer'));
+      await tester.pumpAndSettle();
+      expect(find.bySemanticsLabel(RegExp('^Photo ')), findsOneWidget);
+    });
+
+    testWidgets('bibliothèque : photo d\'un autre produit réutilisée', (
+      tester,
+    ) async {
+      final other = catalog.seed(name: 'Sucre 1 kg');
+      await openCatalog(tester);
+      await tester.tap(find.bySemanticsLabel('Ajouter un produit').first);
+      await tester.pumpAndSettle();
+      await tester.tap(find.bySemanticsLabel('Ajouter une photo').first);
+      await tester.pumpAndSettle();
+      // Bibliothèque ouverte d'abord : elle contient une photo.
+      expect(find.text('Sélectionnées'), findsOneWidget);
+      expect(find.text('0/5'), findsOneWidget);
+      await tester.tap(find.bySemanticsLabel('Photo 1 de la bibliothèque'));
+      await tester.pumpAndSettle();
+      expect(find.text('1/5'), findsOneWidget);
+      await tester.tap(find.text('Valider'));
+      await tester.pumpAndSettle();
+      expect(find.bySemanticsLabel('Photo principale'), findsOneWidget);
+
+      await fillDetails(tester, photo: false);
+      await tapText(tester, 'Moyen');
+      await tapText(tester, 'Publier');
+      // Photo reprise telle quelle : rien n'est renvoyé.
+      expect(server.calls('POST', '/v1/uploads'), isEmpty);
+      expect((creates().single.body! as Map)['image_keys'], [
+        'products/${other['id']}-0.jpg',
+      ]);
+    });
+
+    testWidgets('police à 200 % sur 320 dp : formulaire sans débordement', (
+      tester,
+    ) async {
+      tester.view.physicalSize = const Size(320, 568);
+      tester.view.devicePixelRatio = 1;
+      tester.platformDispatcher.textScaleFactorTestValue = 2;
+      addTearDown(tester.view.reset);
+      addTearDown(tester.platformDispatcher.clearTextScaleFactorTestValue);
+      await openCatalog(tester);
+      await tester.tap(find.bySemanticsLabel('Ajouter un produit').first);
+      await tester.pumpAndSettle();
+      expect(tester.takeException(), isNull);
+      await fillDetails(tester);
+      expect(tester.takeException(), isNull);
+      await tapText(tester, 'Moyen');
+      await tester.tap(find.byTooltip('Aperçu'));
+      await tester.pumpAndSettle();
+      expect(tester.takeException(), isNull);
+    });
+  });
+
+  group('modifier', () {
+    testWidgets('prix modifié et enregistré', (tester) async {
+      final id = catalog.seed(name: 'Riz parfumé 5 kg')['id'];
+      await openCatalog(tester);
+      await tapText(tester, 'Riz parfumé 5 kg');
+      expect(find.text('Modifier'), findsOneWidget);
+      expect(
+        find.textContaining('Visible par les acheteurs depuis'),
+        findsOneWidget,
+      );
+      await tester.enterText(field('Prix'), '4250');
+      await tapText(tester, 'Enregistrer les modifications');
+      final patch = server.calls('PATCH', '/v1/seller/products/$id').single;
+      expect((patch.body! as Map)['price_xof'], 4250);
+      expect((patch.body! as Map)['is_active'], isTrue);
+      expect(find.text('Modifications enregistrées'), findsOneWidget);
+      expect(textPlain('4 250 F'), findsOneWidget);
+    });
+
+    testWidgets('stock ajusté, enregistré avec le produit', (tester) async {
+      final id = catalog.seed(name: 'Riz parfumé 5 kg')['id'];
+      await openCatalog(tester);
+      await tapText(tester, 'Riz parfumé 5 kg');
+      await tapText(tester, 'Suivi · 12');
+      await tester.tap(find.byTooltip('Retirer 1'));
+      await tester.pump();
+      await tapText(tester, 'Valider');
+      expect(find.text('Suivi · 11'), findsOneWidget);
+      expect(server.calls('PUT', '/v1/seller/products/$id/stock'), isEmpty);
+      await tapText(tester, 'Enregistrer les modifications');
+      expect(server.calls('PUT', '/v1/seller/products/$id/stock').single.body, {
+        'quantity': 11,
+        'note': '',
+      });
+    });
+
+    testWidgets('catégorie refusée par le serveur : message sous le champ', (
+      tester,
+    ) async {
+      catalog.seed(name: 'Riz parfumé 5 kg');
+      await openCatalog(tester);
+      await tapText(tester, 'Riz parfumé 5 kg');
+      catalog.failures['PATCH /v1/seller/products'] = FakeResponse.error(
+        400,
+        'validation_failed',
+        'Données invalides.',
+        fields: {'category_id': 'Catégorie inconnue.'},
+      );
+      await tapText(tester, 'Enregistrer les modifications');
+      expect(find.text('Catégorie inconnue.'), findsOneWidget);
+      expect(find.text('Modifier'), findsOneWidget);
+    });
+
+    testWidgets('« Retirer de la vente » : confirmation, onglet Retirés', (
+      tester,
+    ) async {
+      catalog.seed(name: 'Riz parfumé 5 kg');
+      await openCatalog(tester);
+      await tapText(tester, 'Riz parfumé 5 kg');
+      await tapText(tester, 'Retirer de la vente');
+      await tester.tap(
+        find.widgetWithText(FilledButton, 'Retirer de la vente'),
+      );
+      await tester.pumpAndSettle();
+      expect(catalog.products.single['status'], 'withdrawn');
+      expect(find.bySemanticsLabel('Retirés, 1'), findsOneWidget);
+      expect(find.byType(BizDock), findsOneWidget);
+    });
+
+    testWidgets('produit retiré remis en vente par l\'interrupteur', (
+      tester,
+    ) async {
+      final id = catalog.seed(name: 'Bissap', status: 'withdrawn')['id'];
+      await openCatalog(tester);
+      await tester.tap(find.textContaining('Retirés'));
+      await tester.pumpAndSettle();
+      await tapText(tester, 'Bissap');
+      expect(find.textContaining('Non visible depuis'), findsOneWidget);
+      await tester.tap(find.byType(Switch));
+      await tester.pumpAndSettle();
+      await tapText(tester, 'Enregistrer les modifications');
+      final patch = server.calls('PATCH', '/v1/seller/products/$id').single;
+      expect((patch.body! as Map)['is_active'], isTrue);
+      expect(catalog.byName('Bissap')['status'], 'active');
+    });
+  });
+
+  testWidgets('police à 200 % sur 320 dp : « Modifier » sans débordement', (
+    tester,
+  ) async {
+    tester.view.physicalSize = const Size(320, 568);
+    tester.view.devicePixelRatio = 1;
+    tester.platformDispatcher.textScaleFactorTestValue = 2;
+    addTearDown(tester.view.reset);
+    addTearDown(tester.platformDispatcher.clearTextScaleFactorTestValue);
+    catalog.seed(name: 'Riz parfumé 5 kg', images: 3);
+    await openCatalog(tester);
+    await tapText(tester, 'Riz parfumé 5 kg');
+    expect(find.text('Enregistrer les modifications'), findsOneWidget);
+    expect(tester.takeException(), isNull);
+  });
+
+  testWidgets('Compte : déconnexion', (tester) async {
+    await launch(tester);
+    await tester.tap(dockTab(Icons.person_outline));
+    await tester.pumpAndSettle();
+    expect(find.textContaining('Awa Mensah'), findsOneWidget);
+    await tester.scrollUntilVisible(
+      find.text('Se déconnecter'),
+      200,
+      scrollable: find.byType(Scrollable).last,
+    );
+    await tapText(tester, 'Se déconnecter');
+    expect(server.calls('POST', '/v1/auth/logout'), hasLength(1));
+    expect(find.text('Votre activité vous attend'), findsOneWidget);
+  });
+
+  group('relecture', () {
+    testWidgets('stock : la saisie survit au clavier (ouvert puis fermé)', (
+      tester,
+    ) async {
+      final id = catalog.seed(name: 'Riz parfumé 5 kg')['id'];
+      await openCatalog(tester);
+      await tester.tap(find.byTooltip('Actions pour Riz parfumé 5 kg'));
+      await tester.pumpAndSettle();
+      await tester.tap(find.text('Ajuster le stock'));
+      await tester.pumpAndSettle();
+      await tester.enterText(
+        find.descendant(
+          of: find.byType(IviaQuantityStepper),
+          matching: find.byType(TextField),
+        ),
+        '50',
+      );
+      // Clavier ouvert puis fermé : la feuille se reconstruit.
+      tester.view.viewInsets = const FakeViewPadding(bottom: 300);
+      await tester.pumpAndSettle();
+      tester.view.resetViewInsets();
+      await tester.pumpAndSettle();
+      await tapText(tester, 'Valider');
+      expect(server.calls('PUT', '/v1/seller/products/$id/stock').single.body, {
+        'quantity': 50,
+        'note': '',
+      });
+    });
+
+    testWidgets('« Modifier » : le retrait enregistre aussi la saisie', (
+      tester,
+    ) async {
+      final id = catalog.seed(name: 'Riz parfumé 5 kg')['id'];
+      await openCatalog(tester);
+      await tapText(tester, 'Riz parfumé 5 kg');
+      await tester.enterText(field('Prix'), '5000');
+      await tapText(tester, 'Retirer de la vente');
+      await tester.tap(
+        find.widgetWithText(FilledButton, 'Retirer de la vente'),
+      );
+      await tester.pumpAndSettle();
+      final patch = server.calls('PATCH', '/v1/seller/products/$id').single;
+      expect((patch.body! as Map)['price_xof'], 5000);
+      expect((patch.body! as Map)['is_active'], isFalse);
+      expect(find.bySemanticsLabel('Retirés, 1'), findsOneWidget);
+      // Date du jour, et « Annuler » remet en vente avec le nouveau prix.
+      expect(find.text("Retiré aujourd'hui"), findsOneWidget);
+      await tester.tap(find.text('Annuler'));
+      await tester.pumpAndSettle();
+      expect(catalog.byName('Riz parfumé 5 kg')['status'], 'active');
+      expect(catalog.byName('Riz parfumé 5 kg')['price_xof'], 5000);
+    });
+
+    testWidgets('« Modifier » : retrait en échec, l\'écran reste, rien perdu', (
+      tester,
+    ) async {
+      catalog.seed(name: 'Riz parfumé 5 kg');
+      await openCatalog(tester);
+      await tapText(tester, 'Riz parfumé 5 kg');
+      catalog.failures['PATCH /v1/seller/products'] =
+          FakeResponse.networkError();
+      await tapText(tester, 'Retirer de la vente');
+      await tester.tap(
+        find.widgetWithText(FilledButton, 'Retirer de la vente'),
+      );
+      await tester.pumpAndSettle();
+      expect(find.text('Modifier'), findsOneWidget);
+      expect(find.textContaining('connexion'), findsOneWidget);
+      expect(catalog.products.single['status'], 'active');
+      // Quitter demande confirmation : le retrait n'est pas enregistré.
+      await tester.ensureVisible(find.byTooltip('Retour'));
+      await tester.pumpAndSettle();
+      await tester.tap(find.byTooltip('Retour'));
+      await tester.pumpAndSettle();
+      expect(find.text('Abandonner les changements ?'), findsOneWidget);
+    });
+
+    testWidgets('catégorie désactivée : retrait possible, remise refusée', (
+      tester,
+    ) async {
+      catalog.seed(name: 'Jus de bissap');
+      catalog.inactiveCategories.add('c1000000-0000-4000-8000-000000000001');
+      await openCatalog(tester);
+      await tester.tap(find.byTooltip('Actions pour Jus de bissap'));
+      await tester.pumpAndSettle();
+      await tester.tap(find.text('Retirer de la vente'));
+      await tester.pumpAndSettle();
+      await tester.tap(
+        find.widgetWithText(FilledButton, 'Retirer de la vente'),
+      );
+      await tester.pumpAndSettle();
+      expect(catalog.products.single['status'], 'withdrawn');
+
+      await tester.tap(
+        find.bySemanticsLabel('Remettre Jus de bissap en vente'),
+      );
+      await tester.pumpAndSettle();
+      expect(
+        find.text('Catégorie inconnue. Choisissez-en une autre.'),
+        findsOneWidget,
+      );
+      expect(catalog.products.single['status'], 'withdrawn');
+      await tester.tap(find.text('Modifier'));
+      await tester.pumpAndSettle();
+      expect(find.text('Enregistrer les modifications'), findsOneWidget);
+    });
+
+    testWidgets('catégorie refusée à la création : message sur la ligne', (
+      tester,
+    ) async {
+      catalog.inactiveCategories.add('c1000000-0000-4000-8000-000000000001');
+      await openCatalog(tester);
+      await tester.tap(find.bySemanticsLabel('Ajouter un produit').first);
+      await tester.pumpAndSettle();
+      await fillDetails(tester);
+      await tapText(tester, 'Moyen');
+      await tapText(tester, 'Publier');
+      expect(find.text('Catégorie inconnue.'), findsOneWidget);
+      expect(catalog.products, isEmpty);
+    });
+
+    testWidgets('page suivante arrivée après un rechargement : ignorée', (
+      tester,
+    ) async {
+      for (var i = 0; i < 25; i++) {
+        catalog.seed(name: 'Produit ${i.toString().padLeft(2, '0')}');
+      }
+      await openCatalog(tester);
+      final slowPage = Completer<void>();
+      catalog.beforeList = (r) async {
+        if (r.query['offset'] == '20') await slowPage.future;
+      };
+      // Bas de liste : la page suivante est demandée, la réponse tarde
+      // (indicateur animé : pas de pumpAndSettle tant qu'elle attend).
+      await tester.drag(find.byType(CustomScrollView), const Offset(0, -3000));
+      for (var i = 0; i < 5; i++) {
+        await tester.pump(const Duration(milliseconds: 20));
+      }
+      expect(
+        server.requests.where((r) => r.query['offset'] == '20'),
+        hasLength(1),
+      );
+      // Pendant ce temps, le produit le plus récent passe à 13 et la liste
+      // est rechargée.
+      final newest = catalog.byName('Produit 24');
+      newest['stock_quantity'] = 13;
+      Future<void> advance(int steps) async {
+        for (var i = 0; i < steps; i++) {
+          await tester.pump(const Duration(milliseconds: 50));
+        }
+      }
+
+      await tester.drag(find.byType(CustomScrollView), const Offset(0, 6000));
+      await advance(20);
+      // Tirer vers le bas : rechargement.
+      await tester.fling(
+        find.byType(CustomScrollView),
+        const Offset(0, 600),
+        1000,
+      );
+      await advance(40);
+      expect(find.text('Alimentation · Stock 13'), findsOneWidget);
+
+      slowPage.complete();
+      await tester.pumpAndSettle();
+      expect(
+        find.text('Alimentation · Stock 13'),
+        findsOneWidget,
+        reason: 'la page en retard n\'écrase pas la liste rechargée',
+      );
+      expect(find.text('Produit 24'), findsOneWidget);
+    });
+
+    testWidgets('suite en échec : « Afficher la suite » sans relance seule', (
+      tester,
+    ) async {
+      for (var i = 0; i < 25; i++) {
+        catalog.seed(name: 'Produit ${i.toString().padLeft(2, '0')}');
+      }
+      await openCatalog(tester);
+      catalog.failures['GET /v1/seller/shops/$shopId/products'] =
+          FakeResponse.networkError();
+      await tester.drag(find.byType(CustomScrollView), const Offset(0, -3000));
+      await tester.pumpAndSettle();
+      await tester.drag(find.byType(CustomScrollView), const Offset(0, -300));
+      await tester.pumpAndSettle();
+      expect(
+        server.requests.where((r) => r.query['offset'] == '20'),
+        hasLength(1),
+        reason: 'pas de relance automatique après un échec',
+      );
+      await tapText(tester, 'Afficher la suite');
+      await tester.scrollUntilVisible(
+        find.text('Produit 00'),
+        300,
+        scrollable: find.byType(Scrollable).first,
+      );
+      expect(find.text('Produit 00'), findsOneWidget);
+    });
+
+    testWidgets('boutique suspendue pendant la consultation : écran dédié', (
+      tester,
+    ) async {
+      catalog.seed(name: 'Riz parfumé 5 kg');
+      await openCatalog(tester);
+      withShop('suspended');
+      catalog.failures['GET /v1/seller/shops/$shopId/products'] =
+          FakeResponse.error(403, 'shop_suspended', 'Boutique suspendue.');
+      await tester.tap(find.textContaining('Brouillons'));
+      await tester.pumpAndSettle();
+      expect(find.text('Votre boutique est suspendue'), findsOneWidget);
+    });
+
+    testWidgets('produit introuvable au chargement de « Modifier »', (
+      tester,
+    ) async {
+      catalog.seed(name: 'Riz parfumé 5 kg');
+      await openCatalog(tester);
+      catalog.failures['GET /v1/seller/products'] = FakeResponse.error(
+        404,
+        'product_not_found',
+        'Produit introuvable.',
+      );
+      await tapText(tester, 'Riz parfumé 5 kg');
+      expect(find.text('Produit introuvable.'), findsOneWidget);
+      await tapText(tester, 'Réessayer');
+      expect(find.text('Enregistrer les modifications'), findsOneWidget);
+    });
+
+    testWidgets('description seule modifiée : confirmation au retour', (
+      tester,
+    ) async {
+      await openCatalog(tester);
+      await tester.tap(find.bySemanticsLabel('Ajouter un produit').first);
+      await tester.pumpAndSettle();
+      await tester.enterText(field('Description'), 'Sac de 5 kg.');
+      await tester.tap(find.byTooltip('Retour'));
+      await tester.pumpAndSettle();
+      expect(find.text('Abandonner ce produit ?'), findsOneWidget);
+    });
+
+    testWidgets('photos : ordre après « Mettre en principale », trop lourde', (
+      tester,
+    ) async {
+      await openCatalog(tester);
+      await tester.tap(find.bySemanticsLabel('Ajouter un produit').first);
+      await tester.pumpAndSettle();
+      picker.next = Uint8List(5 * 1024 * 1024 + 1);
+      await addPhoto(tester, validate: false);
+      expect(find.text('Photo trop lourde (5 Mo au plus).'), findsOneWidget);
+      expect(find.text('0/5'), findsOneWidget);
+      await tester.tap(find.text('Annuler').last);
+      await tester.pumpAndSettle();
+      expect(
+        find.bySemanticsLabel(RegExp(r'^Photo (principale|\d)')),
+        findsNothing,
+      );
+
+      picker.next = _png;
+      await addPhoto(tester);
+      picker.next = _redPng;
+      await addPhoto(tester);
+      await tester.tap(find.bySemanticsLabel('Photo 2 sur 2'));
+      await tester.pumpAndSettle();
+      await tester.tap(find.text('Mettre en principale'));
+      await tester.pumpAndSettle();
+      await fillDetails(tester, photo: false);
+      await tapText(tester, 'Moyen');
+      await tapText(tester, 'Publier');
+      // La photo rouge, devenue principale, est envoyée et listée en premier.
+      final puts = server.requests.where(
+        (r) => r.method == 'PUT' && r.host == 'storage.test',
+      );
+      expect(puts.first.body, _redPng);
+      expect((creates().single.body! as Map)['image_keys'], [
+        puts.first.path.substring(1),
+        puts.last.path.substring(1),
+      ]);
+    });
+
+    testWidgets('envoi interrompu à la 2e photo : la 1re n\'est pas renvoyée', (
+      tester,
+    ) async {
+      await openCatalog(tester);
+      await tester.tap(find.bySemanticsLabel('Ajouter un produit').first);
+      await tester.pumpAndSettle();
+      await addPhoto(tester);
+      picker.next = _redPng;
+      await addPhoto(tester);
+      await fillDetails(tester, photo: false);
+      await tapText(tester, 'Moyen');
+      catalog.failures['PUT /products/u2.jpg'] = FakeResponse.networkError();
+      await tapText(tester, 'Publier');
+      expect(find.text('Produit publié'), findsNothing);
+      await tapText(tester, 'Publier');
+      expect(server.calls('PUT', '/products/u1.jpg'), hasLength(1));
+      expect((creates().single.body! as Map)['image_keys'], [
+        'products/u1.jpg',
+        'products/u3.jpg',
+      ]);
+      expect(find.text('Produit publié'), findsOneWidget);
+    });
+
+    testWidgets('double appui sur « Brouillon » : un seul produit', (
+      tester,
+    ) async {
+      await openCatalog(tester);
+      await tester.tap(find.bySemanticsLabel('Ajouter un produit').first);
+      await tester.pumpAndSettle();
+      await fillDetails(tester, photo: false);
+      await tapText(tester, 'Petit');
+      await tapText(tester, 'À terminer plus tard');
+      final draft = find.widgetWithText(BizButton, 'Enregistrer');
+      await tester.tap(draft);
+      await tester.tap(draft, warnIfMissed: false);
+      await tester.pumpAndSettle();
+      expect(creates(), hasLength(1));
+    });
+
+    testWidgets('« Modifier » : photo ajoutée aux photos existantes', (
+      tester,
+    ) async {
+      final id = catalog.seed(name: 'Riz parfumé 5 kg')['id'];
+      await openCatalog(tester);
+      await tapText(tester, 'Riz parfumé 5 kg');
+      await addPhoto(tester);
+      await tapText(tester, 'Enregistrer les modifications');
+      final patch = server.calls('PATCH', '/v1/seller/products/$id').single;
+      expect((patch.body! as Map)['image_keys'], [
+        'products/$id-0.jpg',
+        'products/u1.jpg',
+      ]);
+    });
+
+    testWidgets('remis en vente : « Visible depuis aujourd\'hui »', (
+      tester,
+    ) async {
+      catalog.seed(name: 'Bissap', status: 'withdrawn');
+      await openCatalog(tester);
+      await tester.tap(find.textContaining('Retirés'));
+      await tester.pumpAndSettle();
+      await tester.tap(find.bySemanticsLabel('Remettre Bissap en vente'));
+      await tester.pumpAndSettle();
+      await tester.tap(find.textContaining('En vente'));
+      await tester.pumpAndSettle();
+      await tapText(tester, 'Bissap');
+      expect(
+        find.text("Visible par les acheteurs depuis aujourd'hui."),
+        findsOneWidget,
+      );
+    });
+
+    testWidgets('lien de brouillon vers un produit en vente : « Modifier »', (
+      tester,
+    ) async {
+      final id = catalog.seed(name: 'Riz parfumé 5 kg')['id'] as String;
+      await openCatalog(tester);
+      GoRouter.of(tester.element(find.byType(CatalogScreen)))
+          .push('/catalog/draft/$id');
+      await tester.pumpAndSettle();
+      expect(find.text('Enregistrer les modifications'), findsOneWidget);
+    });
+
+    testWidgets('autre compte : onglet et recherche repartent de zéro', (
+      tester,
+    ) async {
+      await openCatalog(tester);
+      await tester.tap(find.textContaining('Brouillons'));
+      await tester.pumpAndSettle();
+      await tester.tap(dockTab(Icons.person_outline));
+      await tester.pumpAndSettle();
+      await tester.scrollUntilVisible(
+        find.text('Se déconnecter'),
+        200,
+        scrollable: find.byType(Scrollable).last,
+      );
+      await tapText(tester, 'Se déconnecter');
+      server
+        ..on(
+          'POST',
+          '/v1/auth/phone/code',
+          (_) => FakeResponse.json(202, phoneOtpBody),
+        )
+        ..on(
+          'POST',
+          '/v1/auth/phone/verify',
+          (_) => FakeResponse.json(200, {
+            'status': 'signed_in',
+            'session': {...phoneSessionBody(), 'user': seller()},
+          }),
+        );
+      await tester.enterText(find.byType(TextField), '90 12 34 56');
+      await tapText(tester, 'Recevoir le code sur WhatsApp');
+      await tester.enterText(find.byType(TextField), '481902');
+      await tester.pumpAndSettle();
+      await tester.tap(dockTab(Icons.inventory_2_outlined));
+      await tester.pumpAndSettle();
+      expect(lastList().query['status'], 'active');
+    });
+  });
+}

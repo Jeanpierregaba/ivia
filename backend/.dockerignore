@@ -1,0 +1,5 @@
+bin/
+var/
+**/*_test.go
+.env
+.env.*

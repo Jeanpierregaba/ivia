@@ -57,17 +57,19 @@ erDiagram
 | Module | Tables | Points clés |
 |---|---|---|
 | auth | `otp_codes`, `sessions` | Code et jeton stockés **hachés** ; tentatives limitées ; sessions révocables |
-| users | `users`, `user_roles`, `addresses`, `device_tokens` | `email` et `phone` uniques ; rôles cumulables |
+| users | `users`, `user_roles`, `addresses`, `device_tokens` | `email` et `phone` uniques ; rôles cumulables ; `privacy_consent_at` daté par le serveur à la première acceptation de la politique de confidentialité. Profil complet = prénom, téléphone et consentement (requis pour commander ou postuler comme livreur) |
 | geo | `neighborhoods` | Quartiers de Lomé (nom, polygone optionnel) |
-| shops | `shops` | Statut `pending_review` → `published` / `suspended` ; position obligatoire |
-| catalog | `categories`, `products`, `product_images` | `parcel_size` (`small`/`medium`/`large`), `stock_mode` (`tracked`/`untracked`), colonne `tsvector` pour la recherche |
-| stock | `stock_movements` | Journal des mouvements ; quantité disponible = colonne `products.stock_qty` mise à jour dans la même transaction |
+| shops | `shops`, `shop_categories`, `merchant_documents` | Statut `pending_review` → `published` / `suspended`, publication refusée sans la pièce d'identité du marchand (pièces rattachées à la personne, compartiment privé) ; position obligatoire ; catégorie de boutique obligatoire à la création (liste propre au module : le catalogue dépend déjà des boutiques) |
+| catalog | `categories`, `products`, `product_images` | `parcel_size` (`small`/`medium`/`large`), `stock_mode` (`tracked`/`untracked`, figé à la création), colonne `tsvector` pour la recherche. État de publication : `is_active` porte la visibilité (lue par la recherche et le panier) ; `published_at` (dernière mise en vente, NULL = brouillon) et `withdrawn_at` (dernier retrait) distinguent brouillon, en vente et retiré, cohérence garantie par `products_publication_check` |
+| stock | `stock_levels`, `stock_movements` | Quantité disponible dans `stock_levels` (et non dans `products`, pour qu'aucun autre module n'écrive dans les tables du catalogue), `CHECK (quantity >= 0)` : survente impossible ; journal des mouvements en ajout seul, écrit dans la même transaction |
 | cart | `carts`, `cart_items` | Un panier par acheteur, lié à une seule boutique |
 | orders | `orders`, `order_items`, `order_status_events` | Copie du prix, du nom et de la commission à la commande ; historique des statuts **en ajout seul** ; code de remise en clair (affiché à l'acheteur) + compteur d'essais (5 max) |
-| payments | `payments`, `payment_events`, `refunds` | `payment_events` garde chaque webhook brut ; aucune ligne modifiée après coup : un remboursement est une nouvelle ligne `refunds`. Ces trois tables et `settlements` forment la trace financière |
+| payments | `payments`, `payment_events`, `refunds` | `payment_events` garde chaque événement du prestataire (unique par prestataire et identifiant : idempotence) ; `payment_events` et `refunds` sont en ajout seul (trigger). Un remboursement n'est écrit dans `refunds` qu'une fois son résultat connu ; l'état « en cours » est porté par `payments.status = 'refund_pending'`. Statuts d'un paiement : `pending`, `succeeded`, `failed`, `expired`, `refund_pending`, `refunded` ; un paiement reçu pour une commande déjà payée est marqué `is_duplicate` et remboursable. Ces trois tables et `settlements` forment la trace financière |
 | delivery | `drivers`, `driver_documents`, `delivery_offers`, `deliveries` | Index uniques partiels : une seule `delivery` active **par commande** et **par livreur** |
 | notifications | `notifications` | Liste consultable dans les apps + envoi push |
-| settlements | `settlements` | Relevé par boutique et période (fuseau `Africa/Lome`), marqué réglé par l'admin ; un remboursement postérieur au règlement est déduit du relevé suivant (solde négatif possible) |
+| settlements | `settlements`, `settlement_lines` | Relevé par boutique et période (fuseau `Africa/Lome`) des commandes remises : net = produits − commission (les frais de livraison restent à la plateforme). Une commande n'entre que dans un relevé (`settlement_lines.order_id` unique) ; un relevé réglé est figé (trigger). Une commande remise n'est jamais remboursée par la machine à états : aucune déduction n'est donc nécessaire |
+| search | vues `search_products`, `search_shops` | Lecture seule du catalogue publié ([ADR 0009](decisions/0009-recherche-vues-lecture-seule.md)) |
+| uploads, reports | — | Pas de table : URL signées d'envoi de fichiers ; indicateurs calculés par les modules propriétaires des données |
 | admin | `settings`, `admin_audit_log` | Commission, barème et coefficient de distance, délais ; journal **en ajout seul** de chaque action admin (qui, quoi, quand, avant/après) |
 
 **Cycle de vie d'une commande** (codes utilisés dans le code et l'API) :
@@ -77,21 +79,25 @@ stateDiagram-v2
   [*] --> pending_payment
   pending_payment --> awaiting_seller : webhook paiement réussi
   pending_payment --> expired : 15 min sans paiement réussi
+  pending_payment --> cancelled : l'acheteur renonce avant de payer
   expired --> awaiting_seller : paiement tardif, stock disponible
   expired --> cancelled : paiement tardif, stock indisponible
   awaiting_seller --> accepted : marchand accepte
   awaiting_seller --> cancelled : refus marchand / 15 min sans réponse / annulation acheteur
   accepted --> preparing
+  accepted --> cancelled : admin
+  preparing --> cancelled : admin
+  ready_for_pickup --> cancelled : admin
   preparing --> ready_for_pickup : retrait
   preparing --> awaiting_driver : livraison
   ready_for_pickup --> completed : code de remise saisi par le marchand
   awaiting_driver --> driver_assigned : un livreur accepte
   awaiting_driver --> cancelled : admin annule (après alerte)
-  driver_assigned --> awaiting_driver : livreur se désiste
+  driver_assigned --> awaiting_driver : livreur se désiste / admin le retire
   driver_assigned --> picked_up : récupération confirmée
   picked_up --> delivered : code de remise saisi par le livreur
   picked_up --> delivery_failed : client absent ou injoignable
-  delivery_failed --> returned_to_shop : marchand confirme le retour
+  delivery_failed --> returned_to_shop : marchand (ou admin) confirme le retour
   cancelled --> refunded : remboursement confirmé
   returned_to_shop --> refunded : produits remboursés
 ```
@@ -100,6 +106,11 @@ stateDiagram-v2
   remboursement** du back-office. `expired` sans paiement ne demande aucun remboursement.
 - Le stock réservé est rendu à `expired`, `cancelled` et `returned_to_shop`.
 - `accepted`, `preparing` et au-delà : seul l'admin peut annuler.
+- La table des transitions permises et de leurs auteurs est dans `backend/internal/orders/statemachine.go`
+  (testée transition par transition). Un paiement reçu pour une commande annulée avant paiement
+  l'ajoute à la file de remboursement (événement `cancelled → cancelled` dans l'historique).
+- Code de remise : 5 essais ; chaque mauvais essai est compté même si la requête échoue, puis le code
+  est bloqué jusqu'au déblocage par un admin (journalisé).
 
 Toute transition passe par une seule fonction du module `orders`, qui vérifie qu'elle est permise
 (machine à états), l'écrit dans `order_status_events` avec son auteur, et crée les tâches qui en
@@ -140,7 +151,14 @@ flowchart LR
 - **Monolithe modulaire** : `backend/internal/<module>/` avec trois couches (handlers HTTP →
   service métier → store sqlc). Un module n'utilise **jamais** les tables d'un autre : il appelle
   son service. Les dépendances entre modules vont dans un seul sens (ex. `orders` → `catalog`,
-  jamais l'inverse) ; les réactions à un événement passent par des tâches River.
+  `payments` → `orders`, `delivery` → `orders`, jamais l'inverse) ; les réactions à un événement
+  passent par des tâches River (ex. `orders.status_changed`, traitée par `delivery`).
+- **Transactions partagées** : la transaction en cours voyage dans le `context.Context`
+  (`database.DB.InTx`) ; un service appelé pendant la transaction d'un autre y participe. Une
+  commande, sa réservation de stock, son historique, ses notifications et ses tâches de fond sont
+  ainsi écrits atomiquement sans qu'un module touche aux tables d'un autre.
+- **Suppression de compte** : le module `users` orchestre ; les autres modules s'y branchent par
+  des interfaces (`DeletionGuard` pour refuser, `DeletionHook` pour effacer leurs données).
 - **Contrat d'API** : `backend/api/openapi.yaml` décrit chaque route. Les types TypeScript du
   back-office en sont générés (`openapi-typescript`) ; le client Dart est écrit à la main dans
   `mobile/packages/api_client`.
@@ -164,16 +182,23 @@ flowchart LR
 ```
 backend/
   cmd/api/                 point d'entrée (API + workers)
+  cmd/manage/              administration : grant-admin, seed-dev, migrate
   internal/<module>/       auth, users, geo, shops, catalog, stock, search, cart, orders,
-                           payments, delivery, notifications, settlements, admin
-  internal/platform/       config, base, HTTP (middlewares, erreurs), stockage R2
+                           payments, delivery, notifications, settlements, admin, uploads, reports
+                           (queries.sql → store/ généré par sqlc ; service ; handler ; jobs)
+  internal/app/            assemblage des modules (serveur, ligne de commande, tests de bout en bout)
+  internal/platform/       config, base (transactions par contexte), HTTP, River, stockage R2,
+                           erreurs, validation, limitation de débit
   db/migrations/           migrations goose (SQL)
   api/openapi.yaml         contrat de l'API
 mobile/                    Dart pub workspace
   apps/buyer, apps/seller, apps/driver
   packages/api_client      appels HTTP, modèles, gestion du jeton
+  packages/app_core        session, connexion par code, champs communs (spec 004), position du
+                           téléphone (précise pour le marchand, approximative pour l'acheteur, spec 007)
   packages/ui              thème et composants partagés
-admin/                     back-office Next.js
+admin/                     back-office Next.js (app/(admin)/ pages, lib/api.ts client serveur,
+                           lib/api-types.ts généré depuis openapi.yaml) : admin/README.md
 infra/                     docker-compose de production, Caddyfile, sauvegardes
 ```
 
@@ -189,8 +214,13 @@ infra/                     docker-compose de production, Caddyfile, sauvegardes
   - Mobile : jeton dans le stockage sécurisé du téléphone. Back-office : jeton dans un cookie
     `httpOnly`, `Secure`, `SameSite=Lax`, jamais lisible par le JavaScript du navigateur.
 - **Rôles** dans `user_roles`. `buyer` est donné à l'inscription. `seller` est ajouté quand
-  l'utilisateur crée une boutique : elle reste invisible tant que l'admin ne l'a pas validée.
-  `driver` et `admin` ne sont **attribués que par un admin**.
+  l'utilisateur crée une boutique : elle reste invisible tant que l'admin ne l'a pas validée, et
+  l'admin ne peut la publier qu'après avoir vérifié la pièce d'identité du marchand
+  (`POST /v1/seller/documents`, compartiment privé ; registre du commerce facultatif).
+  `driver` et `admin` ne sont **attribués que par un admin**. Un candidat livreur dépose sa
+  candidature et ses documents (compartiment privé) ; il n'obtient le rôle `driver`, donc l'accès
+  aux missions, qu'après validation par un admin, refusée tant que la pièce d'identité et le
+  permis de conduire manquent. Un dossier refusé peut être corrigé et soumis de nouveau.
 - **Contrôle d'accès dans le backend, à deux niveaux** :
   1. middleware de route : rôle requis (`requireRole("seller")`) ;
   2. service : propriété de la ressource (le marchand ne voit que les commandes de **ses** boutiques,
@@ -230,7 +260,7 @@ Chaque intégration est derrière une interface Go (`PaymentProvider`, `OTPSende
 | staging | Petit VPS séparé (mis en place à l'intégration du paiement) | Base séparée | Mode test du prestataire |
 | production | VPS Hetzner (UE) | Base de production, mot de passe + accès réseau interne uniquement | Comptes réels |
 
-- **Déploiement** : la CI construit les images Docker (API, back-office) à chaque fusion sur `main`
+- **Déploiement** (`infra/`, mode d'emploi dans `infra/README.md`) : la CI construit les images Docker (API, back-office) à chaque fusion sur `main`
   et les publie sur GitHub Container Registry ; le déploiement sur le VPS se fait par
   `docker compose pull && docker compose up -d`. Les migrations goose s'exécutent au démarrage de l'API.
 - **Retour arrière** : redéployer l'image précédente (tag = SHA du commit). Les migrations doivent
@@ -269,6 +299,8 @@ Chaque intégration est derrière une interface Go (`PaymentProvider`, `OTPSende
 - [ADR-0006](decisions/0006-authentification-otp-sessions.md) — Connexion par OTP multi-canal et sessions opaques
 - [ADR-0007](decisions/0007-paiement-mobile-money.md) — Paiement derrière une interface, agrégateur à choisir (proposé)
 - [ADR-0008](decisions/0008-hebergement-vps-hetzner.md) — Hébergement sur VPS Hetzner avec Docker Compose, fichiers sur R2
+- [ADR-0009](decisions/0009-recherche-vues-lecture-seule.md) — Recherche par vues SQL en lecture seule du catalogue publié
+- [ADR-0010](decisions/0010-position-arrondie-dans-les-recherches.md) — Position arrondie dans l'URL des recherches, paramètres d'URL non journalisés
 
 ## Points d'attention
 

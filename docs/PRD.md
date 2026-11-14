@@ -54,7 +54,7 @@ Une ligne = une fonctionnalité testable, ordre indicatif (le backlog ordonné e
 - [ ] Suppression du compte depuis chaque app (exigence du Play Store) : données personnelles anonymisées, commandes et paiements conservés pour la traçabilité financière.
 
 **Boutiques et catalogue**
-- [ ] Création d'une boutique par un marchand, soumise à validation de l'admin avant publication.
+- [ ] Création d'une boutique par un marchand, soumise à validation de l'admin avant publication ; l'admin vérifie d'abord la pièce d'identité du marchand (registre du commerce facultatif).
 - [ ] Gestion des produits : création, modification, désactivation, photo principale + photos supplémentaires, prix, catégorie, description, taille de colis (petit / moyen / grand).
 - [ ] Gestion du stock : produit à stock suivi (quantité décrémentée, survente impossible) ou non suivi (disponibilité confirmée par le marchand à chaque commande).
 

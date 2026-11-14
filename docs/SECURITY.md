@@ -4,14 +4,40 @@ Points à vérifier, adaptés à la stack (API Go, PostgreSQL, apps Flutter, bac
 `/audit-securite` les passe en revue sur le code réel. Une case n'est cochée que lorsque c'est en
 place **et** vérifié.
 
+## Comptes et connexion (ADR 0011)
+- [x] Mot de passe haché en Argon2id (19 Mio, 2 passes, format PHC), jamais en clair ni journalisé ;
+      10 à 128 caractères, mots de passe courants et proches de l'e-mail refusés.
+- [x] Même erreur et même durée de réponse que le compte existe ou non ; verrou de 15 min après
+      10 échecs ; « mot de passe oublié » déconnecte tous les appareils.
+- [x] Codes à usage unique liés à leur usage (création, réinitialisation, double vérification) :
+      HMAC, 10 min, 5 essais, 1 par minute et par usage, 10 par jour.
+- [x] Google : jeton vérifié par le serveur (signature RS256 de Google, émetteur, application,
+      expiration, e-mail vérifié).
+- [x] Back-office : double vérification par code exigée sur toutes les routes admin ; session
+      admin limitée à 8 h.
+- [x] Apps mobiles : connexion par numéro uniquement (ADR 0012), sans mot de passe ni Google ;
+      code jamais gardé sur le téléphone, journalisé ni mis dans une URL ; jeton de
+      rafraîchissement et identifiant d'installation en stockage sécurisé.
+
 ## Secrets et configuration
-- [ ] Aucun secret dans le code ni dans l'historique git (gitleaks dans la CI).
+- [x] Aucun secret dans le code ni dans l'historique git : job `secrets` (gitleaks, historique
+      complet) dans la CI, exceptions limitées aux faux secrets de test (`.gitleaks.toml`).
+      Historique vérifié le 2026-11-02 : aucune fuite.
+- [x] En staging et production, chaque secret est un fichier (`infra/secrets/`, dossier 700,
+      fichiers 400 au nom de l'utilisateur du conteneur) monté dans `/run/secrets` et lu par
+      `<NOM>_FILE` : jamais en variable d'environnement (invisible dans `docker inspect`), jamais
+      dans `infra/.env`. Création et rotation : `infra/init-secrets.sh`, `infra/README.md`.
+- [x] L'API refuse de démarrer hors local avec un secret court, d'exemple ou peu aléatoire, un
+      fichier de secret trop ouvert, ou une variable et son fichier définis ensemble ; les messages
+      ne recopient jamais la valeur, et la configuration se journalise sans ses secrets (testé).
 - [ ] Aucun secret exposé au navigateur : les variables `NEXT_PUBLIC_*` ne contiennent que du public.
 - [ ] Aucune clé de service dans les apps mobiles ; la clé Google Maps est restreinte aux
       identifiants des apps et à leur empreinte de signature.
 - [ ] Clés différentes entre local, staging et production ; prestataire de paiement en mode test
       hors production.
-- [ ] Sur le VPS : `.env` lisible uniquement par l'utilisateur du déploiement, SSH par clé, pare-feu
+- [ ] Sauvegardes chiffrées avant l'envoi (rclone `crypt`), fichier temporaire réservé à root ;
+      mot de passe de chiffrement dans le gestionnaire de mots de passe de l'équipe.
+- [ ] Sur le VPS : `.env` (sans secret) en 600, `secrets/` lisible par root seulement, SSH par clé, pare-feu
       n'ouvrant que 80/443, mises à jour de sécurité automatiques.
 - [ ] La base de production n'est joignable que depuis le réseau Docker interne (aucun port public).
 
@@ -45,7 +71,8 @@ place **et** vérifié.
       `dangerouslySetInnerHTML` sur une donnée utilisateur).
 - [ ] Uploads : URL signée à durée courte (5 min), type (`image/jpeg`, `image/png`, `image/webp`,
       PDF pour les documents) et taille max (5 Mo) imposés à la signature ; clé de fichier choisie
-      par le serveur ; documents des livreurs dans un bucket privé, lus par URL signée réservée aux admins.
+      par le serveur ; documents des livreurs et pièces des marchands dans un bucket privé, lus par URL
+      signée réservée aux admins.
 - [ ] Taille maximale du corps des requêtes limitée dans l'API.
 
 ## Abus
@@ -69,7 +96,9 @@ Cadre : loi togolaise n° 2019-014 relative à la protection des données à car
 - [ ] Données collectées limitées au nécessaire ; position du livreur collectée uniquement quand il
       est disponible ou en mission.
 - [ ] Durées de conservation définies : positions brutes des livreurs 30 jours, codes OTP et
-      sessions expirées purgés, documents des livreurs conservés pendant la collaboration.
+      sessions expirées purgés, documents des livreurs et pièces des marchands conservés pendant la
+      collaboration, effacés à la suppression du compte (tout le dossier de l'utilisateur, fichiers
+      non rattachés compris) ; fichier privé jamais rattaché supprimé après 24 h (tâche quotidienne).
 - [ ] Suppression de compte depuis chaque app : données personnelles anonymisées, données
       financières conservées.
 - [ ] Données d'un acheteur visibles par un livreur uniquement pendant sa mission.

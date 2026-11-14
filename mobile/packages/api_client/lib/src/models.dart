@@ -1,0 +1,1747 @@
+/// Profil de l'utilisateur connecté (schéma `User` de openapi.yaml).
+class User {
+  const User({
+    required this.id,
+    required this.email,
+    required this.phone,
+    required this.firstName,
+    required this.lastName,
+    required this.roles,
+    required this.privacyConsentAt,
+    required this.profileComplete,
+    this.phoneVerified = false,
+    this.avatarUrl,
+  });
+
+  factory User.fromJson(Map<String, dynamic> json) => User(
+    id: json['id'] as String,
+    email: json['email'] as String?,
+    phone: json['phone'] as String?,
+    firstName: json['first_name'] as String,
+    lastName: json['last_name'] as String,
+    roles: List<String>.from(json['roles'] as List),
+    privacyConsentAt: _date(json['privacy_consent_at']),
+    profileComplete: json['profile_complete'] as bool,
+    phoneVerified: json['phone_verified'] as bool? ?? false,
+    avatarUrl: json['avatar_url'] as String?,
+  );
+
+  final String id;
+  final String? email;
+
+  /// Format +228XXXXXXXX.
+  final String? phone;
+  final String firstName;
+  final String lastName;
+  final List<String> roles;
+  final DateTime? privacyConsentAt;
+
+  /// Prénom, téléphone et consentement renseignés.
+  final bool profileComplete;
+
+  /// Numéro prouvé par un code : identifiant de connexion, modifiable
+  /// seulement avec un nouveau code (`POST /v1/me/phone`).
+  final bool phoneVerified;
+
+  /// Photo de profil ; `null` : initiales.
+  final String? avatarUrl;
+
+  Map<String, dynamic> toJson() => {
+    'id': id,
+    'email': email,
+    'phone': phone,
+    'first_name': firstName,
+    'last_name': lastName,
+    'roles': roles,
+    'privacy_consent_at': privacyConsentAt?.toUtc().toIso8601String(),
+    'profile_complete': profileComplete,
+    'phone_verified': phoneVerified,
+    'avatar_url': avatarUrl,
+  };
+}
+
+/// Session ouverte par la connexion par numéro (code vérifié ou inscription
+/// terminée).
+class Session {
+  const Session({
+    required this.token,
+    required this.isNewUser,
+    required this.user,
+    this.refreshToken,
+  });
+
+  factory Session.fromJson(Map<String, dynamic> json) => Session(
+    token: json['token'] as String,
+    refreshToken: json['refresh_token'] as String?,
+    isNewUser: json['is_new_user'] as bool? ?? false,
+    user: User.fromJson(json['user'] as Map<String, dynamic>),
+  );
+
+  /// Jeton opaque : jamais affiché ni journalisé. Avec [refreshToken],
+  /// c'est un jeton d'accès court, renouvelé automatiquement.
+  final String token;
+
+  /// Connexion par numéro : jeton de rafraîchissement, changé à chaque
+  /// renouvellement ; gardé dans le stockage sécurisé uniquement.
+  final String? refreshToken;
+  final bool isNewUser;
+  final User user;
+}
+
+/// Réponse à une demande de code (connexion ou changement de numéro).
+class OtpRequested {
+  const OtpRequested({
+    required this.expiresIn,
+    required this.resendAfter,
+    this.channel = OtpChannel.email,
+  });
+
+  factory OtpRequested.fromJson(Map<String, dynamic> json) => OtpRequested(
+    expiresIn: Duration(seconds: json['expires_in_seconds'] as int),
+    resendAfter: Duration(seconds: json['resend_after_seconds'] as int),
+    channel: OtpChannel.parse(json['channel'] as String? ?? 'email'),
+  );
+
+  final Duration expiresIn;
+  final Duration resendAfter;
+
+  /// Canal réellement utilisé (WhatsApp, ou SMS en secours).
+  final OtpChannel channel;
+}
+
+/// Canal d'envoi d'un code.
+enum OtpChannel {
+  email('email'),
+  whatsapp('whatsapp'),
+  sms('sms');
+
+  const OtpChannel(this.code);
+
+  final String code;
+
+  static OtpChannel parse(String code) =>
+      values.firstWhere((c) => c.code == code, orElse: () => email);
+}
+
+/// Appareil qui se connecte (`device_id`, `device_name`, `app`).
+class DeviceInfo {
+  const DeviceInfo({required this.id, required this.name, required this.app});
+
+  /// Identifiant d'installation tiré au hasard ([SessionStore.deviceId]).
+  final String id;
+
+  /// Nom lisible (« Téléphone Android »).
+  final String name;
+
+  /// buyer, seller, driver ou pharmacy.
+  final String app;
+
+  Map<String, dynamic> toJson() => {
+    'device_id': id,
+    'device_name': name,
+    'app': app,
+  };
+}
+
+/// Résultat de `POST /v1/auth/phone/verify` : session ouverte (numéro
+/// connu) ou inscription à terminer (numéro nouveau).
+sealed class PhoneVerifyResult {
+  const PhoneVerifyResult();
+
+  factory PhoneVerifyResult.fromJson(Map<String, dynamic> json) =>
+      switch (json['status']) {
+        'signup_required' => PhoneSignupRequired(
+          token: json['signup_token'] as String,
+          expiresAt: DateTime.parse(json['signup_expires_at'] as String),
+        ),
+        _ => PhoneSignedIn(
+          Session.fromJson(json['session'] as Map<String, dynamic>),
+        ),
+      };
+}
+
+final class PhoneSignedIn extends PhoneVerifyResult {
+  const PhoneSignedIn(this.session);
+
+  final Session session;
+}
+
+/// Numéro prouvé, compte à créer avec le nom avant [expiresAt].
+final class PhoneSignupRequired extends PhoneVerifyResult {
+  const PhoneSignupRequired({required this.token, required this.expiresAt});
+
+  /// Jeton d'inscription à usage unique : gardé en mémoire seulement.
+  final String token;
+  final DateTime expiresAt;
+}
+
+/// Session active, vue par son titulaire (« Appareils connectés »).
+class SessionView {
+  const SessionView({
+    required this.id,
+    required this.deviceName,
+    required this.userAgent,
+    required this.lastUsedAt,
+    required this.createdAt,
+    required this.current,
+    this.app,
+  });
+
+  factory SessionView.fromJson(Map<String, dynamic> json) => SessionView(
+    id: json['id'] as String,
+    deviceName: json['device_name'] as String,
+    userAgent: json['user_agent'] as String,
+    app: json['app'] as String?,
+    createdAt: DateTime.parse(json['created_at'] as String),
+    lastUsedAt: DateTime.parse(json['last_used_at'] as String),
+    current: json['current'] as bool,
+  );
+
+  final String id;
+  final String deviceName;
+  final String userAgent;
+  final String? app;
+  final DateTime createdAt;
+  final DateTime lastUsedAt;
+  final bool current;
+}
+
+/// Position (schéma `Point`).
+class GeoPoint {
+  const GeoPoint({required this.lat, required this.lng});
+
+  factory GeoPoint.fromJson(Map<String, dynamic> json) => GeoPoint(
+    lat: (json['lat'] as num).toDouble(),
+    lng: (json['lng'] as num).toDouble(),
+  );
+
+  final double lat;
+  final double lng;
+
+  Map<String, dynamic> toJson() => {'lat': lat, 'lng': lng};
+
+  @override
+  bool operator ==(Object other) =>
+      other is GeoPoint && other.lat == lat && other.lng == lng;
+
+  @override
+  int get hashCode => Object.hash(lat, lng);
+}
+
+/// Élément d'une liste de choix (catégorie de boutique, quartier).
+class Choice {
+  const Choice({required this.id, required this.name});
+
+  factory Choice.fromJson(Map<String, dynamic> json) =>
+      Choice(id: json['id'] as String, name: json['name'] as String);
+
+  final String id;
+  final String name;
+}
+
+/// Statut d'une boutique.
+enum ShopStatus {
+  pendingReview('pending_review'),
+  published('published'),
+  rejected('rejected'),
+  suspended('suspended');
+
+  const ShopStatus(this.code);
+
+  final String code;
+
+  static ShopStatus parse(String code) =>
+      values.firstWhere((s) => s.code == code, orElse: () => pendingReview);
+}
+
+/// Boutique vue par son marchand (schéma `Shop`).
+class Shop {
+  const Shop({
+    required this.id,
+    required this.name,
+    required this.status,
+    required this.statusReason,
+    required this.neighborhoodName,
+    required this.categoryName,
+    required this.logoUrl,
+    this.merchantDocuments,
+  });
+
+  factory Shop.fromJson(Map<String, dynamic> json) => Shop(
+    id: json['id'] as String,
+    name: json['name'] as String,
+    status: ShopStatus.parse(json['status'] as String),
+    statusReason: json['status_reason'] as String? ?? '',
+    neighborhoodName: json['neighborhood_name'] as String? ?? '',
+    categoryName: json['category_name'] as String? ?? '',
+    logoUrl: json['logo_url'] as String?,
+    merchantDocuments: switch (json['merchant_documents']) {
+      final List<dynamic> docs => merchantDocumentKinds(docs),
+      _ => null,
+    },
+  );
+
+  final String id;
+  final String name;
+  final ShopStatus status;
+
+  /// Motif d'un refus ou d'une suspension, donné par l'admin.
+  final String statusReason;
+  final String neighborhoodName;
+  final String categoryName;
+  final String? logoUrl;
+
+  /// Types des pièces déjà déposées par le marchand (elles valent pour
+  /// toutes ses boutiques) ; `null` : réponse sans les pièces.
+  final List<MerchantDocumentKind>? merchantDocuments;
+
+  /// La même boutique, avec les pièces rendues par le serveur après un dépôt.
+  Shop withDocuments(List<MerchantDocumentKind> documents) => Shop(
+    id: id,
+    name: name,
+    status: status,
+    statusReason: statusReason,
+    neighborhoodName: neighborhoodName,
+    categoryName: categoryName,
+    logoUrl: logoUrl,
+    merchantDocuments: documents,
+  );
+}
+
+/// Type d'une pièce du marchand.
+enum MerchantDocumentKind {
+  idCard('id_card'),
+  businessRegistration('business_registration'),
+  other('other'),
+
+  /// Type ajouté au serveur après cette version de l'app.
+  unknown('');
+
+  const MerchantDocumentKind(this.code);
+
+  final String code;
+
+  static MerchantDocumentKind parse(String code) =>
+      values.firstWhere((k) => k.code == code, orElse: () => unknown);
+}
+
+/// Types d'une liste de pièces du marchand (schéma `MerchantDocument`) : le
+/// lien de lecture est réservé aux admins. Un type peut revenir (pièce
+/// remplacée).
+List<MerchantDocumentKind> merchantDocumentKinds(List<dynamic> docs) => [
+  for (final doc in docs)
+    MerchantDocumentKind.parse((doc as Map)['kind'] as String),
+];
+
+/// Boutique à créer (schéma `ShopInput`).
+class ShopDraft {
+  const ShopDraft({
+    required this.name,
+    required this.categoryId,
+    required this.phone,
+    required this.addressText,
+    required this.neighborhoodId,
+    required this.location,
+    this.logoKey,
+  });
+
+  final String name;
+  final String categoryId;
+
+  /// Format +228XXXXXXXX.
+  final String phone;
+  final String addressText;
+  final String? neighborhoodId;
+  final GeoPoint location;
+  final String? logoKey;
+
+  Map<String, dynamic> toJson() => {
+    'name': name,
+    'category_id': categoryId,
+    'phone': phone,
+    'address_text': addressText,
+    'neighborhood_id': neighborhoodId,
+    'location': location.toJson(),
+    'logo_key': ?logoKey,
+  };
+}
+
+/// Envoi de fichier préparé par `POST /v1/uploads` (schéma `Upload`).
+class PreparedUpload {
+  const PreparedUpload({
+    required this.objectKey,
+    required this.url,
+    required this.headers,
+  });
+
+  factory PreparedUpload.fromJson(Map<String, dynamic> json) {
+    final upload = json['upload'] as Map<String, dynamic>;
+    // Le client envoie en PUT : toute autre méthode est un changement de
+    // contrat à traiter explicitement.
+    if (upload['method'] != 'PUT') {
+      throw FormatException(
+        'Méthode d\'envoi inattendue : ${upload['method']}',
+      );
+    }
+    return PreparedUpload(
+      objectKey: json['object_key'] as String,
+      url: upload['url'] as String,
+      headers: Map<String, String>.from(upload['headers'] as Map),
+    );
+  }
+
+  /// À transmettre ensuite (ex. `logo_key`).
+  final String objectKey;
+
+  /// URL signée, valable 5 minutes : à envoyer en PUT, sans jeton.
+  final String url;
+  final Map<String, String> headers;
+}
+
+/// Catégorie de véhicule d'un livreur.
+enum VehicleType {
+  bicycle('bicycle'),
+  motorbike('motorbike'),
+  car('car');
+
+  const VehicleType(this.code);
+
+  final String code;
+
+  static VehicleType parse(String code) =>
+      values.firstWhere((v) => v.code == code, orElse: () => motorbike);
+}
+
+/// Type d'un document du dossier livreur.
+enum DriverDocumentKind {
+  idCard('id_card'),
+  drivingLicense('driving_license'),
+  vehicleRegistration('vehicle_registration'),
+  vehicleInsurance('vehicle_insurance'),
+  vehiclePhoto('vehicle_photo'),
+  criminalRecord('criminal_record'),
+  photo('photo'),
+  other('other');
+
+  const DriverDocumentKind(this.code);
+
+  final String code;
+
+  static DriverDocumentKind parse(String code) =>
+      values.firstWhere((k) => k.code == code, orElse: () => other);
+}
+
+/// Décision de l'admin sur un dossier livreur.
+enum DriverReview {
+  /// Brouillon : activité déclarée, dossier pas encore envoyé (spec 033).
+  draft('draft'),
+  pending('pending_review'),
+
+  /// Compléments demandés par le back-office (motif dans `reviewNote`).
+  changesRequested('changes_requested'),
+  approved('approved'),
+  rejected('rejected');
+
+  const DriverReview(this.code);
+
+  final String code;
+
+  static DriverReview parse(String code) =>
+      values.firstWhere((r) => r.code == code, orElse: () => pending);
+}
+
+/// Dossier du livreur connecté (schéma `Driver`). Les documents ne sont
+/// connus que par leur type : leur lien est réservé aux admins.
+class DriverDossier {
+  /// Disponibilité vue par le serveur : `available`, `busy`, `offline` (ou `suspended`).
+  final String availability;
+
+  const DriverDossier({
+    required this.review,
+    required this.reviewNote,
+    required this.suspended,
+    required this.suspensionReason,
+    required this.vehicleType,
+    required this.vehiclePlate,
+    required this.documents,
+    this.delivery,
+    this.payout,
+    this.availability = 'offline',
+  });
+
+  factory DriverDossier.fromJson(Map<String, dynamic> json) => DriverDossier(
+    availability:
+        json['availability'] as String? ??
+        json['status'] as String? ??
+        'offline',
+    review: DriverReview.parse(json['review_status'] as String),
+    reviewNote: json['review_note'] as String? ?? '',
+    suspended: json['status'] == 'suspended',
+    suspensionReason: json['suspension_reason'] as String? ?? '',
+    vehicleType: VehicleType.parse(json['vehicle_type'] as String),
+    vehiclePlate: json['vehicle_plate'] as String,
+    documents: [
+      for (final doc in json['documents'] as List? ?? const [])
+        DriverDocumentKind.parse((doc as Map)['kind'] as String),
+    ],
+    delivery: [
+      for (final a in json['activities'] as List? ?? const [])
+        if ((a as Map)['activity'] == 'delivery')
+          DriverActivity.fromJson(a.cast<String, dynamic>()),
+    ].firstOrNull,
+    payout: json['payout'] == null
+        ? null
+        : DriverPayout.fromJson(json['payout'] as Map<String, dynamic>),
+  );
+
+  final DriverReview review;
+
+  /// Motif d'un refus, donné par l'admin.
+  final String reviewNote;
+  final bool suspended;
+  final String suspensionReason;
+  final VehicleType vehicleType;
+  final String vehiclePlate;
+  final List<DriverDocumentKind> documents;
+
+  /// Activité livraison (spec 033) ; `null` : ancien dossier ou aucune.
+  final DriverActivity? delivery;
+
+  /// Compte de versement Mobile Money, numéro masqué.
+  final DriverPayout? payout;
+}
+
+/// Activité partenaire et état de son dossier (schéma `DriverActivity`).
+class DriverActivity {
+  const DriverActivity({
+    required this.status,
+    required this.reviewNote,
+    required this.vehicleType,
+    required this.brand,
+    required this.model,
+    required this.plate,
+    required this.workZoneId,
+    required this.requiredDocuments,
+    required this.missingDocuments,
+  });
+
+  factory DriverActivity.fromJson(Map<String, dynamic> json) {
+    final vehicle = json['vehicle'] as Map<String, dynamic>? ?? const {};
+    List<DriverDocumentKind> kinds(Object? v) => [
+      for (final k in v as List? ?? const [])
+        DriverDocumentKind.parse(k as String),
+    ];
+    return DriverActivity(
+      status: DriverReview.parse(json['status'] as String? ?? 'draft'),
+      reviewNote: json['review_note'] as String? ?? '',
+      vehicleType: VehicleType.parse(vehicle['type'] as String? ?? ''),
+      brand: vehicle['brand'] as String? ?? '',
+      model: vehicle['model'] as String? ?? '',
+      plate: vehicle['plate'] as String? ?? '',
+      workZoneId: json['work_zone_id'] as String?,
+      requiredDocuments: kinds(json['required_documents']),
+      missingDocuments: kinds(json['missing_documents']),
+    );
+  }
+
+  final DriverReview status;
+  final String reviewNote;
+  final VehicleType vehicleType;
+  final String brand, model, plate;
+  final String? workZoneId;
+  final List<DriverDocumentKind> requiredDocuments, missingDocuments;
+}
+
+/// Opérateur Mobile Money du compte de versement.
+enum PayoutOperator {
+  flooz('flooz', 'Moov Money (Flooz)'),
+  tmoney('tmoney', 'Yas (T-Money)');
+
+  const PayoutOperator(this.code, this.label);
+  final String code, label;
+
+  static PayoutOperator parse(String code) =>
+      values.firstWhere((o) => o.code == code, orElse: () => flooz);
+}
+
+/// Compte de versement du livreur ; le numéro complet n'est jamais renvoyé.
+class DriverPayout {
+  const DriverPayout({
+    required this.operator,
+    required this.phoneMasked,
+    required this.holder,
+  });
+
+  factory DriverPayout.fromJson(Map<String, dynamic> json) => DriverPayout(
+    operator: PayoutOperator.parse(json['operator'] as String? ?? ''),
+    phoneMasked: json['phone_masked'] as String? ?? '',
+    holder: json['holder'] as String? ?? '',
+  );
+
+  final PayoutOperator operator;
+  final String phoneMasked, holder;
+}
+
+/// Choix du dossier livraison (`GET /v1/driver/options`) : pièces exigées
+/// par véhicule et zones de travail.
+class DriverOptions {
+  const DriverOptions({required this.vehicles, required this.zones});
+
+  factory DriverOptions.fromJson(Map<String, dynamic> json) {
+    final delivery = [
+      for (final a in json['activities'] as List? ?? const [])
+        if ((a as Map)['activity'] == 'delivery') a,
+    ].firstOrNull;
+    return DriverOptions(
+      vehicles: {
+        for (final v in delivery?['vehicles'] as List? ?? const [])
+          VehicleType.parse((v as Map)['type'] as String): [
+            for (final k in v['required_documents'] as List? ?? const [])
+              DriverDocumentKind.parse(k as String),
+          ],
+      },
+      zones: [
+        for (final z in json['zones'] as List? ?? const [])
+          (id: (z as Map)['id'] as String, name: z['name'] as String),
+      ],
+    );
+  }
+
+  /// Véhicules proposés, dans l'ordre du serveur, et leurs pièces exigées.
+  final Map<VehicleType, List<DriverDocumentKind>> vehicles;
+  final List<({String id, String name})> zones;
+}
+
+/// Page d'une liste paginée (`items`, `next_offset`).
+class Page<T> {
+  const Page({required this.items, required this.nextOffset});
+
+  final List<T> items;
+
+  /// Décalage de la page suivante ; `null` : dernière page.
+  final int? nextOffset;
+}
+
+/// Catégorie de produits (deux niveaux au plus).
+class ProductCategory {
+  const ProductCategory({
+    required this.id,
+    required this.name,
+    required this.parentId,
+  });
+
+  factory ProductCategory.fromJson(Map<String, dynamic> json) =>
+      ProductCategory(
+        id: json['id'] as String,
+        name: json['name'] as String,
+        parentId: json['parent_id'] as String?,
+      );
+
+  final String id;
+  final String name;
+  final String? parentId;
+}
+
+/// État de publication d'un produit.
+enum ProductStatus {
+  /// En vente : visible des acheteurs si la boutique est publiée.
+  active('active'),
+
+  /// Enregistré, jamais publié.
+  draft('draft'),
+
+  /// Publié puis retiré par le marchand.
+  withdrawn('withdrawn');
+
+  const ProductStatus(this.code);
+
+  final String code;
+
+  static ProductStatus parse(String code) =>
+      values.firstWhere((s) => s.code == code, orElse: () => draft);
+}
+
+/// Taille de colis : elle détermine les véhicules de livraison possibles.
+enum ParcelSize {
+  small('small'),
+  medium('medium'),
+  large('large');
+
+  const ParcelSize(this.code);
+
+  final String code;
+
+  static ParcelSize parse(String code) =>
+      values.firstWhere((s) => s.code == code, orElse: () => medium);
+}
+
+/// Stock suivi (quantité connue) ou non suivi (disponibilité confirmée à
+/// chaque commande).
+enum StockMode {
+  tracked('tracked'),
+  untracked('untracked');
+
+  const StockMode(this.code);
+
+  final String code;
+
+  static StockMode parse(String code) =>
+      values.firstWhere((m) => m.code == code, orElse: () => untracked);
+}
+
+/// Photo d'un produit ; la première est la principale.
+class ProductImage {
+  const ProductImage({required this.url, required this.objectKey});
+
+  factory ProductImage.fromJson(Map<String, dynamic> json) => ProductImage(
+    url: json['url'] as String,
+    objectKey: json['object_key'] as String,
+  );
+
+  final String url;
+
+  /// À renvoyer dans `image_keys` pour garder la photo.
+  final String objectKey;
+}
+
+/// Produit vu par son marchand (schéma `Product`).
+class Product {
+  const Product({
+    required this.id,
+    required this.shopId,
+    required this.categoryId,
+    required this.name,
+    required this.description,
+    required this.priceXof,
+    required this.parcelSize,
+    required this.stockMode,
+    required this.stockQuantity,
+    required this.available,
+    required this.status,
+    required this.publishedAt,
+    required this.withdrawnAt,
+    required this.images,
+    this.promoPriceXof,
+    this.promoActive = false,
+    int? effectivePriceXof,
+    this.badges = const [],
+    this.featuredRank,
+    this.features = const [],
+  }) : effectivePriceXof = effectivePriceXof ?? priceXof;
+
+  factory Product.fromJson(Map<String, dynamic> json) => Product(
+    id: json['id'] as String,
+    shopId: json['shop_id'] as String,
+    categoryId: json['category_id'] as String,
+    name: json['name'] as String,
+    description: json['description'] as String? ?? '',
+    priceXof: json['price_xof'] as int,
+    parcelSize: ParcelSize.parse(json['parcel_size'] as String),
+    stockMode: StockMode.parse(json['stock_mode'] as String),
+    stockQuantity: json['stock_quantity'] as int?,
+    available: json['available'] as bool,
+    status: ProductStatus.parse(json['status'] as String),
+    publishedAt: _date(json['published_at']),
+    withdrawnAt: _date(json['withdrawn_at']),
+    images: [
+      for (final image in json['images'] as List? ?? const [])
+        ProductImage.fromJson(image as Map<String, dynamic>),
+    ],
+    promoPriceXof: json['promo_price_xof'] as int?,
+    promoActive: json['promo_active'] as bool? ?? false,
+    effectivePriceXof: json['effective_price_xof'] as int?,
+    badges: _badges(json['badges']),
+    featuredRank: json['featured_rank'] as int?,
+    features: [for (final f in json['features'] as List? ?? const []) '$f'],
+  );
+
+  final String id;
+  final String shopId;
+  final String categoryId;
+  final String name;
+  final String description;
+
+  /// Prix en FCFA (entier).
+  final int priceXof;
+  final ParcelSize parcelSize;
+  final StockMode stockMode;
+
+  /// Quantité d'un stock suivi ; `null` : stock non suivi.
+  final int? stockQuantity;
+
+  /// En vente et en stock.
+  final bool available;
+  final ProductStatus status;
+
+  /// Dernière mise en vente ; `null` : brouillon.
+  final DateTime? publishedAt;
+
+  /// Dernier retrait ; `null` : en vente ou brouillon.
+  final DateTime? withdrawnAt;
+  final List<ProductImage> images;
+
+  /// Prix promotionnel programmé ou en cours ; `null` : pas de promotion.
+  final int? promoPriceXof;
+
+  /// Promotion en cours : [effectivePriceXof] est le prix promotionnel.
+  final bool promoActive;
+
+  /// Prix facturé aujourd'hui (promotion comprise).
+  final int effectivePriceXof;
+  final List<ProductBadge> badges;
+
+  /// Rang de mise en avant (1 = premier) ; `null` : pas mis en avant.
+  final int? featuredRank;
+
+  /// Caractéristiques mises en avant (« Eau minérale naturelle »…).
+  final List<String> features;
+
+  /// Stock suivi épuisé.
+  bool get soldOut =>
+      stockMode == StockMode.tracked && (stockQuantity ?? 0) <= 0;
+}
+
+/// Badge commercial d'un produit.
+enum ProductBadge {
+  promotion('promotion', 'Promotion'),
+  specialOffer('special_offer', 'Offre spéciale'),
+  featured('featured', 'Produit vedette'),
+  bestSeller('best_seller', 'Meilleure vente');
+
+  const ProductBadge(this.code, this.label);
+
+  final String code;
+  final String label;
+
+  static ProductBadge? parse(String code) =>
+      values.where((b) => b.code == code).firstOrNull;
+}
+
+/// Badges connus de [json] ; les inconnus (version plus récente) sont ignorés.
+List<ProductBadge> _badges(Object? json) => [
+  for (final code in json as List? ?? const []) ?ProductBadge.parse('$code'),
+];
+
+/// Produit à créer ou à modifier (schéma `ProductInput`).
+class ProductInput {
+  const ProductInput({
+    required this.categoryId,
+    required this.name,
+    required this.description,
+    required this.priceXof,
+    required this.parcelSize,
+    required this.imageKeys,
+    this.stockMode,
+    this.stockQuantity,
+    this.isActive,
+  });
+
+  final String categoryId;
+  final String name;
+  final String description;
+  final int priceXof;
+  final ParcelSize parcelSize;
+
+  /// Clés des photos, la principale d'abord (toutes envoyées).
+  final List<String> imageKeys;
+
+  /// À la création seulement : le mode ne change plus ensuite.
+  final StockMode? stockMode;
+
+  /// À la création d'un produit suivi.
+  final int? stockQuantity;
+
+  /// Création : `false` crée un brouillon. Modification : `null` garde l'état.
+  final bool? isActive;
+
+  Map<String, dynamic> toJson() => {
+    'category_id': categoryId,
+    'name': name,
+    'description': description,
+    'price_xof': priceXof,
+    'parcel_size': parcelSize.code,
+    'image_keys': imageKeys,
+    'stock_mode': ?stockMode?.code,
+    'stock_quantity': ?stockQuantity,
+    'is_active': ?isActive,
+  };
+}
+
+/// Nombre de produits d'une boutique par état.
+class ProductCounts {
+  const ProductCounts({
+    required this.active,
+    required this.draft,
+    required this.withdrawn,
+  });
+
+  factory ProductCounts.fromJson(Map<String, dynamic> json) => ProductCounts(
+    active: json['active'] as int,
+    draft: json['draft'] as int,
+    withdrawn: json['withdrawn'] as int,
+  );
+
+  final int active;
+  final int draft;
+  final int withdrawn;
+
+  int get total => active + draft + withdrawn;
+
+  int of(ProductStatus status) => switch (status) {
+    ProductStatus.active => active,
+    ProductStatus.draft => draft,
+    ProductStatus.withdrawn => withdrawn,
+  };
+}
+
+DateTime? _date(Object? value) => switch (value) {
+  final String at => DateTime.parse(at),
+  _ => null,
+};
+
+/// Tri des résultats de recherche.
+enum SearchSort {
+  relevance('relevance'),
+  distance('distance'),
+  priceAsc('price_asc'),
+  priceDesc('price_desc');
+
+  const SearchSort(this.code);
+
+  final String code;
+}
+
+/// Paramètres d'une recherche de produits ou de boutiques. Égalité de
+/// valeur : sert de clé aux listes de résultats.
+class SearchQuery {
+  const SearchQuery({
+    this.text = '',
+    this.point,
+    this.radiusM,
+    this.neighborhoodId,
+    this.categoryId,
+    this.shopId,
+    this.minPrice,
+    this.maxPrice,
+    this.inStockOnly = false,
+    this.sort = SearchSort.relevance,
+    this.shopCategoryId,
+  });
+
+  final String text;
+
+  /// Catégorie de boutique (« Restauration »…).
+  final String? shopCategoryId;
+
+  /// Position de l'acheteur : distances calculées, tri par distance permis.
+  final GeoPoint? point;
+
+  /// Rayon autour de [point], en mètres.
+  final int? radiusM;
+  final String? neighborhoodId;
+  final String? categoryId;
+  final String? shopId;
+  final int? minPrice;
+  final int? maxPrice;
+  final bool inStockOnly;
+  final SearchSort sort;
+
+  /// Paramètres d'URL ; [products] : filtres propres aux produits inclus.
+  ///
+  /// La position est arrondie à 3 décimales (environ 110 m) : elle part dans
+  /// l'URL, qui peut être journalisée (ADR 0010). Les boutiques ne se trient
+  /// que par pertinence ou distance : un tri par prix y devient pertinence.
+  Map<String, String> toParams({required bool products}) {
+    final q = text.trim();
+    final p = point;
+    final s =
+        !products &&
+            (sort == SearchSort.priceAsc || sort == SearchSort.priceDesc)
+        ? SearchSort.relevance
+        : sort;
+    return {
+      if (q.isNotEmpty) 'q': q,
+      if (p != null) 'lat': p.lat.toStringAsFixed(3),
+      if (p != null) 'lng': p.lng.toStringAsFixed(3),
+      if (p != null && radiusM != null) 'radius_m': '$radiusM',
+      'neighborhood_id': ?neighborhoodId,
+      'shop_category_id': ?shopCategoryId,
+      if (products) ...{
+        'category_id': ?categoryId,
+        'shop_id': ?shopId,
+        if (minPrice != null) 'min_price': '$minPrice',
+        if (maxPrice != null) 'max_price': '$maxPrice',
+        if (inStockOnly) 'in_stock': 'true',
+      },
+      'sort': s.code,
+    };
+  }
+
+  SearchQuery copyWith({
+    String? text,
+    GeoPoint? Function()? point,
+    int? Function()? radiusM,
+    String? Function()? neighborhoodId,
+    String? Function()? categoryId,
+    String? Function()? shopId,
+    int? Function()? minPrice,
+    int? Function()? maxPrice,
+    bool? inStockOnly,
+    SearchSort? sort,
+  }) => SearchQuery(
+    text: text ?? this.text,
+    point: point == null ? this.point : point(),
+    radiusM: radiusM == null ? this.radiusM : radiusM(),
+    neighborhoodId: neighborhoodId == null
+        ? this.neighborhoodId
+        : neighborhoodId(),
+    categoryId: categoryId == null ? this.categoryId : categoryId(),
+    shopId: shopId == null ? this.shopId : shopId(),
+    minPrice: minPrice == null ? this.minPrice : minPrice(),
+    maxPrice: maxPrice == null ? this.maxPrice : maxPrice(),
+    inStockOnly: inStockOnly ?? this.inStockOnly,
+    sort: sort ?? this.sort,
+  );
+
+  @override
+  bool operator ==(Object other) =>
+      other is SearchQuery &&
+      other.text == text &&
+      other.point == point &&
+      other.radiusM == radiusM &&
+      other.neighborhoodId == neighborhoodId &&
+      other.categoryId == categoryId &&
+      other.shopId == shopId &&
+      other.minPrice == minPrice &&
+      other.maxPrice == maxPrice &&
+      other.inStockOnly == inStockOnly &&
+      other.sort == sort;
+
+  @override
+  int get hashCode => Object.hash(
+    text,
+    point,
+    radiusM,
+    neighborhoodId,
+    categoryId,
+    shopId,
+    minPrice,
+    maxPrice,
+    inStockOnly,
+    sort,
+  );
+}
+
+/// Produit trouvé (schéma `ProductHit`).
+class ProductHit {
+  const ProductHit({
+    required this.id,
+    required this.shopId,
+    required this.name,
+    required this.priceXof,
+    required this.parcelSize,
+    required this.shopName,
+    required this.neighborhoodId,
+    required this.imageUrl,
+    required this.inStock,
+    required this.distanceM,
+    int? effectivePriceXof,
+    this.badges = const [],
+    this.featuredRank,
+  }) : effectivePriceXof = effectivePriceXof ?? priceXof;
+
+  /// Carte d'un produit complet (produits mis en avant du fil publicitaire).
+  factory ProductHit.fromProduct(Product p, {required String shopName}) =>
+      ProductHit(
+        id: p.id,
+        shopId: p.shopId,
+        name: p.name,
+        priceXof: p.priceXof,
+        parcelSize: p.parcelSize,
+        shopName: shopName,
+        neighborhoodId: null,
+        imageUrl: p.images.firstOrNull?.url,
+        inStock: p.available,
+        distanceM: null,
+        effectivePriceXof: p.effectivePriceXof,
+        badges: p.badges,
+        featuredRank: p.featuredRank,
+      );
+
+  factory ProductHit.fromJson(Map<String, dynamic> json) => ProductHit(
+    id: json['id'] as String,
+    shopId: json['shop_id'] as String,
+    name: json['name'] as String,
+    priceXof: json['price_xof'] as int,
+    parcelSize: ParcelSize.parse(json['parcel_size'] as String),
+    shopName: json['shop_name'] as String,
+    neighborhoodId: json['neighborhood_id'] as String?,
+    imageUrl: json['image_url'] as String?,
+    inStock: json['in_stock'] as bool,
+    distanceM: json['distance_m'] as int?,
+    effectivePriceXof: json['effective_price_xof'] as int?,
+    badges: _badges(json['badges']),
+    featuredRank: json['featured_rank'] as int?,
+  );
+
+  final String id;
+  final String shopId;
+  final String name;
+  final int priceXof;
+  final ParcelSize parcelSize;
+  final String shopName;
+  final String? neighborhoodId;
+  final String? imageUrl;
+  final bool inStock;
+
+  /// Distance à la position envoyée ; `null` sans position.
+  final int? distanceM;
+
+  /// Prix facturé aujourd'hui (promotion comprise).
+  final int effectivePriceXof;
+  final List<ProductBadge> badges;
+
+  /// Rang de mise en avant ; `null` : pas mis en avant.
+  final int? featuredRank;
+
+  /// En promotion : prix effectif inférieur au prix normal.
+  bool get onPromo => effectivePriceXof < priceXof;
+}
+
+/// Boutique trouvée (schéma `ShopHit`).
+class ShopHit {
+  const ShopHit({
+    required this.id,
+    required this.name,
+    required this.neighborhoodId,
+    required this.logoUrl,
+    required this.acceptingOrders,
+    required this.distanceM,
+  });
+
+  factory ShopHit.fromJson(Map<String, dynamic> json) => ShopHit(
+    id: json['id'] as String,
+    name: json['name'] as String,
+    neighborhoodId: json['neighborhood_id'] as String?,
+    logoUrl: json['logo_url'] as String?,
+    acceptingOrders: json['accepting_orders'] as bool,
+    distanceM: json['distance_m'] as int?,
+  );
+
+  final String id;
+  final String name;
+  final String? neighborhoodId;
+  final String? logoUrl;
+  final bool acceptingOrders;
+  final int? distanceM;
+}
+
+/// Boutique vue par l'acheteur (schéma `PublicShop`).
+class PublicShop {
+  const PublicShop({
+    required this.id,
+    required this.name,
+    required this.description,
+    required this.addressText,
+    required this.neighborhoodName,
+    required this.location,
+    required this.logoUrl,
+    required this.acceptingOrders,
+  });
+
+  factory PublicShop.fromJson(Map<String, dynamic> json) => PublicShop(
+    id: json['id'] as String,
+    name: json['name'] as String,
+    description: json['description'] as String? ?? '',
+    addressText: json['address_text'] as String? ?? '',
+    neighborhoodName: json['neighborhood_name'] as String? ?? '',
+    location: GeoPoint.fromJson(json['location'] as Map<String, dynamic>),
+    logoUrl: json['logo_url'] as String?,
+    acceptingOrders: json['accepting_orders'] as bool,
+  );
+
+  final String id;
+  final String name;
+  final String description;
+  final String addressText;
+  final String neighborhoodName;
+  final GeoPoint location;
+  final String? logoUrl;
+
+  /// La boutique accepte des commandes (sinon : « Commandes suspendues »).
+  final bool acceptingOrders;
+}
+
+/// Ligne du panier, au prix et au stock du moment (schéma `CartItem`).
+class CartItem {
+  const CartItem({
+    required this.productId,
+    required this.name,
+    required this.imageUrl,
+    required this.unitPriceXof,
+    required this.quantity,
+    required this.lineTotalXof,
+    required this.parcelSize,
+    required this.issue,
+    this.issueCode = CartIssue.none,
+    this.stockLeft,
+  });
+
+  factory CartItem.fromJson(Map<String, dynamic> json) => CartItem(
+    productId: json['product_id'] as String,
+    name: json['name'] as String,
+    imageUrl: json['image_url'] as String?,
+    unitPriceXof: json['unit_price_xof'] as int,
+    quantity: json['quantity'] as int,
+    lineTotalXof: json['line_total_xof'] as int,
+    parcelSize: ParcelSize.parse(json['parcel_size'] as String),
+    issue: json['issue'] as String? ?? '',
+    issueCode: CartIssue.parse(json['issue_code'] as String? ?? ''),
+    stockLeft: json['stock_left'] as int?,
+  );
+
+  final String productId;
+  final String name;
+  final String? imageUrl;
+  final int unitPriceXof;
+  final int quantity;
+  final int lineTotalXof;
+  final ParcelSize parcelSize;
+
+  /// Pourquoi la ligne empêche de commander, en français, à afficher tel
+  /// quel ; vide si elle est commandable. Jamais analysé : lire [issueCode].
+  final String issue;
+
+  /// La même raison, en code (`issue_code`).
+  final CartIssue issueCode;
+
+  /// Stock restant quand [issueCode] vaut [CartIssue.insufficientStock]
+  /// (`stock_left`) ; `null` sinon.
+  final int? stockLeft;
+
+  bool get hasIssue => issue.isNotEmpty || issueCode != CartIssue.none;
+}
+
+/// Raison d'une ligne de panier qui empêche de commander (`issue_code`).
+enum CartIssue {
+  none(''),
+  unavailable('unavailable'),
+  insufficientStock('insufficient_stock'),
+
+  /// Raison ajoutée au serveur après cette version de l'app.
+  unknown('unknown');
+
+  const CartIssue(this.code);
+
+  final String code;
+
+  static CartIssue parse(String code) =>
+      values.firstWhere((i) => i.code == code, orElse: () => unknown);
+}
+
+/// Panier de l'acheteur, d'une seule boutique (schéma `Cart`).
+class Cart {
+  const Cart({
+    required this.shop,
+    required this.items,
+    required this.subtotalXof,
+    required this.orderable,
+  });
+
+  factory Cart.fromJson(Map<String, dynamic> json) => Cart(
+    shop: switch (json['shop']) {
+      final Map<String, dynamic> shop => PublicShop.fromJson(shop),
+      _ => null,
+    },
+    items: [
+      for (final item in json['items'] as List? ?? const [])
+        CartItem.fromJson(item as Map<String, dynamic>),
+    ],
+    subtotalXof: json['subtotal_xof'] as int,
+    orderable: json['orderable'] as bool,
+  );
+
+  static const empty = Cart(
+    shop: null,
+    items: [],
+    subtotalXof: 0,
+    orderable: false,
+  );
+
+  /// Boutique du panier ; `null` si le panier est vide ou si la boutique
+  /// n'est plus publiée.
+  final PublicShop? shop;
+  final List<CartItem> items;
+
+  /// Somme des lignes commandables.
+  final int subtotalXof;
+
+  /// Toutes les lignes sont disponibles et la boutique accepte les commandes.
+  final bool orderable;
+
+  bool get isEmpty => items.isEmpty;
+
+  /// Nombre d'articles : somme des quantités (badge du panier).
+  int get articleCount => items.fold(0, (n, item) => n + item.quantity);
+
+  /// Quantité de [productId] dans le panier (0 s'il n'y est pas).
+  int quantityOf(String productId) =>
+      items.where((i) => i.productId == productId).firstOrNull?.quantity ?? 0;
+}
+
+/// Mode de remise d'une commande.
+enum Fulfillment {
+  pickup('pickup'),
+  delivery('delivery');
+
+  const Fulfillment(this.code);
+
+  final String code;
+
+  static Fulfillment parse(String code) =>
+      values.firstWhere((f) => f.code == code, orElse: () => pickup);
+}
+
+/// Statut d'une commande (machine à états du module `orders`).
+enum OrderStatus {
+  pendingPayment('pending_payment'),
+  expired('expired'),
+  awaitingSeller('awaiting_seller'),
+  accepted('accepted'),
+  preparing('preparing'),
+  readyForPickup('ready_for_pickup'),
+  awaitingDriver('awaiting_driver'),
+  driverAssigned('driver_assigned'),
+  pickedUp('picked_up'),
+  delivered('delivered'),
+  deliveryFailed('delivery_failed'),
+  returnedToShop('returned_to_shop'),
+  completed('completed'),
+  cancelled('cancelled'),
+  refunded('refunded'),
+
+  /// Statut ajouté au serveur après cette version de l'app.
+  unknown('unknown');
+
+  const OrderStatus(this.code);
+
+  final String code;
+
+  static OrderStatus parse(String code) =>
+      values.firstWhere((s) => s.code == code, orElse: () => unknown);
+
+  /// Commande en cours : elle peut encore changer (sinon terminée).
+  bool get isActive => switch (this) {
+    pendingPayment ||
+    awaitingSeller ||
+    accepted ||
+    preparing ||
+    readyForPickup ||
+    awaitingDriver ||
+    driverAssigned ||
+    pickedUp ||
+    unknown => true,
+    _ => false,
+  };
+}
+
+/// Ligne d'une commande ou d'un récapitulatif, au prix de la commande.
+class OrderItem {
+  const OrderItem({
+    required this.productId,
+    required this.name,
+    required this.unitPriceXof,
+    required this.quantity,
+    required this.lineTotalXof,
+    this.stockMode,
+  });
+
+  factory OrderItem.fromJson(Map<String, dynamic> json) => OrderItem(
+    productId: json['product_id'] as String,
+    name: json['product_name'] as String,
+    unitPriceXof: json['unit_price_xof'] as int,
+    quantity: json['quantity'] as int,
+    lineTotalXof: json['line_total_xof'] as int,
+    stockMode: switch (json['stock_mode']) {
+      final String code when code.isNotEmpty => StockMode.parse(code),
+      _ => null,
+    },
+  );
+
+  final String productId;
+  final String name;
+  final int unitPriceXof;
+  final int quantity;
+  final int lineTotalXof;
+
+  /// Mode de stock du produit à la commande ; `null` si le serveur ne le
+  /// donne pas (récapitulatif). Non suivi : le marchand confirme la
+  /// disponibilité en acceptant.
+  final StockMode? stockMode;
+}
+
+/// Récapitulatif calculé par le serveur avant la commande (schéma
+/// `Quote`).
+class OrderQuote {
+  const OrderQuote({
+    required this.shopId,
+    required this.fulfillment,
+    required this.items,
+    required this.subtotalXof,
+    required this.deliveryFeeXof,
+    required this.totalXof,
+    required this.paymentTimeout,
+    this.promoCode,
+    this.discountXof = 0,
+  });
+
+  factory OrderQuote.fromJson(Map<String, dynamic> json) => OrderQuote(
+    shopId: json['shop_id'] as String,
+    fulfillment: Fulfillment.parse(json['fulfillment'] as String),
+    items: [
+      for (final item in json['items'] as List? ?? const [])
+        OrderItem.fromJson(item as Map<String, dynamic>),
+    ],
+    subtotalXof: json['subtotal_xof'] as int,
+    deliveryFeeXof: json['delivery_fee_xof'] as int? ?? 0,
+    totalXof: json['total_xof'] as int,
+    paymentTimeout: Duration(
+      minutes: json['payment_timeout_minutes'] as int? ?? 15,
+    ),
+    promoCode: json['promo_code'] as String?,
+    discountXof: json['discount_xof'] as int? ?? 0,
+  );
+
+  final String shopId;
+  final Fulfillment fulfillment;
+  final List<OrderItem> items;
+  final int subtotalXof;
+  final int deliveryFeeXof;
+  final int totalXof;
+
+  /// Temps laissé pour payer : les produits sont réservés pendant ce délai.
+  final Duration paymentTimeout;
+
+  /// Code promo appliqué et réduction sur les produits (déjà retirée du total).
+  final String? promoCode;
+  final int discountXof;
+
+  int get articleCount => items.fold(0, (n, i) => n + i.quantity);
+}
+
+/// Étape de l'historique d'une commande.
+class OrderEvent {
+  const OrderEvent({
+    required this.from,
+    required this.to,
+    required this.reason,
+    required this.at,
+  });
+
+  factory OrderEvent.fromJson(Map<String, dynamic> json) => OrderEvent(
+    from: switch (json['from_status']) {
+      final String code => OrderStatus.parse(code),
+      _ => null,
+    },
+    to: OrderStatus.parse(json['to_status'] as String),
+    reason: json['reason'] as String? ?? '',
+    at: DateTime.parse(json['created_at'] as String),
+  );
+
+  final OrderStatus? from;
+  final OrderStatus to;
+  final String reason;
+  final DateTime at;
+}
+
+/// Commande vue par l'acheteur (schéma `BuyerOrder`).
+class BuyerOrder {
+  const BuyerOrder({
+    required this.id,
+    required this.number,
+    required this.status,
+    required this.fulfillment,
+    required this.subtotalXof,
+    required this.deliveryFeeXof,
+    required this.totalXof,
+    required this.cancelReason,
+    required this.paymentDeadlineAt,
+    this.paidAt,
+    required this.createdAt,
+    required this.updatedAt,
+    required this.items,
+    required this.events,
+    required this.shop,
+    required this.handoverCode,
+    this.promoCode,
+    this.discountXof = 0,
+  });
+
+  factory BuyerOrder.fromJson(Map<String, dynamic> json) => BuyerOrder(
+    id: json['id'] as String,
+    number: json['number'] as int,
+    status: OrderStatus.parse(json['status'] as String),
+    fulfillment: Fulfillment.parse(json['fulfillment'] as String),
+    subtotalXof: json['subtotal_xof'] as int,
+    deliveryFeeXof: json['delivery_fee_xof'] as int? ?? 0,
+    totalXof: json['total_xof'] as int,
+    cancelReason: json['cancel_reason'] as String? ?? '',
+    paymentDeadlineAt: DateTime.parse(json['payment_deadline_at'] as String),
+    paidAt: _date(json['paid_at']),
+    createdAt: DateTime.parse(json['created_at'] as String),
+    updatedAt: DateTime.parse(json['updated_at'] as String),
+    items: [
+      for (final item in json['items'] as List? ?? const [])
+        OrderItem.fromJson(item as Map<String, dynamic>),
+    ],
+    events: [
+      for (final event in json['events'] as List? ?? const [])
+        OrderEvent.fromJson(event as Map<String, dynamic>),
+    ],
+    shop: PublicShop.fromJson(json['shop'] as Map<String, dynamic>),
+    handoverCode: json['handover_code'] as String?,
+    promoCode: json['promo_code'] as String?,
+    discountXof: json['discount_xof'] as int? ?? 0,
+  );
+
+  final String id;
+
+  /// Code promo appliqué et réduction sur les produits (déjà retirée du total).
+  final String? promoCode;
+  final int discountXof;
+
+  /// Numéro lisible (« #1042 »).
+  final int number;
+  final OrderStatus status;
+  final Fulfillment fulfillment;
+  final int subtotalXof;
+  final int deliveryFeeXof;
+  final int totalXof;
+  final String cancelReason;
+
+  /// Heure limite de paiement ; passée, la commande expire.
+  final DateTime paymentDeadlineAt;
+
+  /// Paiement confirmé par le serveur ; `null` : pas (encore) payée. Une
+  /// commande annulée et payée est remboursée intégralement.
+  final DateTime? paidAt;
+  final DateTime createdAt;
+
+  /// Dernier changement : une réponse plus ancienne que la version affichée
+  /// (arrivée en retard) ne la remplace pas.
+  final DateTime updatedAt;
+  final List<OrderItem> items;
+
+  /// Historique des statuts, du plus ancien au plus récent.
+  final List<OrderEvent> events;
+  final PublicShop shop;
+
+  /// Code de remise : donné par le serveur entre le paiement et la remise
+  /// seulement. Jamais gardé ni journalisé.
+  final String? handoverCode;
+
+  int get articleCount => items.fold(0, (n, i) => n + i.quantity);
+
+  /// Heure du dernier passage à [status] ; `null` s'il n'a pas eu lieu.
+  DateTime? reachedAt(OrderStatus status) {
+    for (final e in events.reversed) {
+      if (e.to == status) return e.at;
+    }
+    return null;
+  }
+}
+
+/// Nombre d'essais de code de remise au-delà duquel le serveur le bloque.
+const maxHandoverAttempts = 5;
+
+/// Commande vue par le marchand (schéma `SellerOrder`) : jamais le numéro
+/// ni l'adresse de l'acheteur, seulement son prénom.
+class SellerOrder {
+  const SellerOrder({
+    required this.id,
+    required this.number,
+    required this.shopId,
+    required this.status,
+    required this.fulfillment,
+    required this.buyerFirstName,
+    required this.subtotalXof,
+    required this.commissionXof,
+    required this.netXof,
+    required this.cancelReason,
+    required this.sellerDeadlineAt,
+    required this.paidAt,
+    required this.completedAt,
+    required this.createdAt,
+    required this.updatedAt,
+    required this.handoverAttempts,
+    required this.items,
+    this.promoCode,
+    this.discountXof = 0,
+  });
+
+  factory SellerOrder.fromJson(Map<String, dynamic> json) => SellerOrder(
+    id: json['id'] as String,
+    number: json['number'] as int,
+    shopId: json['shop_id'] as String,
+    status: OrderStatus.parse(json['status'] as String),
+    fulfillment: Fulfillment.parse(json['fulfillment'] as String),
+    buyerFirstName: json['buyer_first_name'] as String? ?? '',
+    subtotalXof: json['subtotal_xof'] as int,
+    commissionXof: json['commission_xof'] as int? ?? 0,
+    netXof: json['net_xof'] as int? ?? json['subtotal_xof'] as int,
+    cancelReason: json['cancel_reason'] as String? ?? '',
+    sellerDeadlineAt: _date(json['seller_deadline_at']),
+    paidAt: _date(json['paid_at']),
+    completedAt: _date(json['completed_at']),
+    createdAt: DateTime.parse(json['created_at'] as String),
+    updatedAt: DateTime.parse(json['updated_at'] as String),
+    handoverAttempts: json['handover_attempts'] as int? ?? 0,
+    items: [
+      for (final item in json['items'] as List? ?? const [])
+        OrderItem.fromJson(item as Map<String, dynamic>),
+    ],
+    promoCode: json['promo_code'] as String?,
+    discountXof: json['discount_xof'] as int? ?? 0,
+  );
+
+  final String id;
+
+  /// Code promo du client et réduction ; à la charge de la boutique si elle
+  /// est retirée de [netXof], sinon offerte par ivia.
+  final String? promoCode;
+  final int discountXof;
+
+  /// Réduction prise sur ce que reçoit la boutique (code de la boutique).
+  bool get discountPaidByShop =>
+      discountXof > 0 && subtotalXof - commissionXof - netXof == discountXof;
+
+  /// Numéro lisible (« #1042 »).
+  final int number;
+  final String shopId;
+  final OrderStatus status;
+  final Fulfillment fulfillment;
+  final String buyerFirstName;
+
+  /// Montant des produits.
+  final int subtotalXof;
+
+  /// Commission ivia sur les produits.
+  final int commissionXof;
+
+  /// Ce que reçoit le marchand : produits moins la commission.
+  final int netXof;
+
+  /// Motif d'annulation (refus, délai dépassé) ; vide sinon.
+  final String cancelReason;
+
+  /// Heure limite pour accepter ; passée, le serveur annule la commande.
+  final DateTime? sellerDeadlineAt;
+  final DateTime? paidAt;
+
+  /// Fin de la commande (retirée ou livrée).
+  final DateTime? completedAt;
+  final DateTime createdAt;
+
+  /// Dernier changement : une réponse plus ancienne que la version affichée
+  /// (arrivée en retard) ne la remplace pas.
+  final DateTime updatedAt;
+
+  /// Essais de code de remise déjà faits.
+  final int handoverAttempts;
+  final List<OrderItem> items;
+
+  int get articleCount => items.fold(0, (n, i) => n + i.quantity);
+
+  /// Code de remise bloqué (trop d'essais) : seul l'admin peut débloquer.
+  bool get isHandoverLocked => handoverAttempts >= maxHandoverAttempts;
+}
+
+/// Opérateur Mobile Money du payeur.
+enum PaymentOperator {
+  flooz('flooz'),
+  tmoney('tmoney');
+
+  const PaymentOperator(this.code);
+
+  final String code;
+
+  static PaymentOperator parse(String code) =>
+      values.firstWhere((o) => o.code == code, orElse: () => flooz);
+}
+
+/// Statut d'un paiement (module `payments`). Seul le serveur le change, sur
+/// notification vérifiée du prestataire.
+enum PaymentStatus {
+  pending('pending'),
+  succeeded('succeeded'),
+  failed('failed'),
+  expired('expired'),
+  refundPending('refund_pending'),
+  refunded('refunded'),
+
+  /// Statut ajouté au serveur après cette version de l'app.
+  unknown('unknown');
+
+  const PaymentStatus(this.code);
+
+  final String code;
+
+  static PaymentStatus parse(String code) =>
+      values.firstWhere((s) => s.code == code, orElse: () => unknown);
+
+  /// La demande attend la validation du payeur sur son téléphone.
+  bool get isPending => this == pending;
+
+  /// Issue connue : plus rien n'arrivera de lui-même (un statut inconnu de
+  /// cette version de l'app n'est pas considéré comme final).
+  bool get isFinal => !(this == pending || this == unknown);
+
+  /// L'argent a été reçu (même s'il a été remboursé depuis).
+  bool get isPaid => switch (this) {
+    succeeded || refundPending || refunded => true,
+    _ => false,
+  };
+}
+
+/// Paiement d'une commande (schéma `Payment`).
+class Payment {
+  const Payment({
+    required this.id,
+    required this.orderId,
+    required this.status,
+    required this.amountXof,
+    required this.operator,
+    required this.phoneMasked,
+    required this.failureReason,
+    required this.createdAt,
+    required this.updatedAt,
+  });
+
+  factory Payment.fromJson(Map<String, dynamic> json) => Payment(
+    id: json['id'] as String,
+    orderId: json['order_id'] as String,
+    status: PaymentStatus.parse(json['status'] as String),
+    amountXof: json['amount_xof'] as int,
+    operator: PaymentOperator.parse(json['operator'] as String),
+    phoneMasked: json['phone_masked'] as String? ?? '',
+    failureReason: json['failure_reason'] as String? ?? '',
+    createdAt: DateTime.parse(json['created_at'] as String),
+    updatedAt: DateTime.parse(json['updated_at'] as String),
+  );
+
+  final String id;
+  final String orderId;
+  final PaymentStatus status;
+  final int amountXof;
+  final PaymentOperator operator;
+
+  /// Numéro du payeur masqué par le serveur (« +22896••••78 »).
+  final String phoneMasked;
+
+  /// Raison d'un échec, en français (« Paiement refusé ou annulé. »).
+  final String failureReason;
+  final DateTime createdAt;
+
+  /// Dernier changement : une réponse plus ancienne est ignorée.
+  final DateTime updatedAt;
+}
