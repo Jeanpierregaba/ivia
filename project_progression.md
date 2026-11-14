@@ -18,6 +18,9 @@
 
 ## Dernières avancées (2026-11-14)
 
+- **Notifications façon push partout** : les bandeaux bleus du bas de l'écran sont remplacés par de jolies notifications qui descendent du haut de l'écran (succès en vert, erreur en rouge, bouton « Annuler » le cas échéant), dans les quatre apps.
+- **Tableau de bord Business** : chiffre d'affaires, commandes, panier moyen et clients, avec leur tendance par rapport à la période précédente ; ventes par jour (graphique interactif), heures de pointe, meilleurs produits, part retrait / livraison ; sur 7 ou 30 jours.
+- **Tableau de bord Pharmacie** : alertes reçues, taux et temps de réponse, ventes ; alertes par jour, heures d'affluence, médicaments les plus demandés.
 - **Codes promo par produit** : un code peut valoir pour toute la boutique, pour certains produits ou pour un seul. La réduction ne porte que sur les produits choisis du panier. Il se crée aussi directement depuis un produit (« Code promo pour ce produit ») et depuis le back-office pour les produits IVI.
 - **Business, Commandes** : cartes arrondies, onglets avec leurs compteurs, chargement animé ; détail d'une commande avec la frise de ses étapes (paiement, accord, préparation, prête, retrait ou livraison) et des boutons d'action fixes.
 - **Ivia Business refait (lot 1)**, dans la charte d'origine (bleu nuit, cartes arrondies) :

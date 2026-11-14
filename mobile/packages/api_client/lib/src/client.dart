@@ -22,6 +22,8 @@ part 'driver_work.dart';
 part 'pharmacist.dart';
 part 'pharmacy.dart';
 part 'seller_money.dart';
+part 'seller_stats.dart';
+part 'pharmacy_stats.dart';
 
 /// Client de l'API REST `/v1` (contrat : backend/api/openapi.yaml).
 ///

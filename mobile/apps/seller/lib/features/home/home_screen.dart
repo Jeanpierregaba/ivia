@@ -16,6 +16,7 @@ import '../catalog/catalog_providers.dart';
 import '../orders/order_labels.dart';
 import '../orders/orders_providers.dart';
 import '../orders/reject_sheet.dart';
+import 'stats_dashboard.dart';
 
 /// Accueil d'une boutique ou d'un restaurant (maquette B10) : chiffres du
 /// jour, commandes payées à accepter (Accepter / Refuser sur place), état de
@@ -54,7 +55,9 @@ class HomeScreen extends ConsumerWidget {
       child: RefreshIndicator(
         color: Biz.navy,
         onRefresh: () async {
-          ref.invalidate(lowStockProvider);
+          ref
+            ..invalidate(lowStockProvider)
+            ..invalidate(sellerStatsProvider);
           try {
             await ref.read(sellerOrdersProvider.notifier).refresh();
           } on ApiException {
@@ -202,6 +205,7 @@ class HomeScreen extends ConsumerWidget {
                       ),
                     ),
                   ],
+                  const BizReveal(index: 9, child: StatsDashboard()),
                   const _SectionTitle('Raccourcis'),
                   BizReveal(
                     index: 10,

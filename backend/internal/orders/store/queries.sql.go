@@ -1104,6 +1104,179 @@ func (q *Queries) ResetHandoverAttempts(ctx context.Context, id uuid.UUID) error
 	return err
 }
 
+const sellerStatsDaily = `-- name: SellerStatsDaily :many
+
+SELECT (paid_at AT TIME ZONE 'Africa/Lome')::date AS day,
+       count(*)::int AS orders,
+       coalesce(sum(subtotal_xof), 0)::bigint AS sales_xof
+FROM orders
+WHERE shop_id = $1 AND paid_at >= $2::timestamptz AND paid_at < $3::timestamptz
+  AND status NOT IN ('cancelled', 'refunded')
+GROUP BY 1
+ORDER BY 1
+`
+
+type SellerStatsDailyParams struct {
+	ShopID uuid.UUID
+	Since  time.Time
+	Until  time.Time
+}
+
+type SellerStatsDailyRow struct {
+	Day      time.Time
+	Orders   int32
+	SalesXof int64
+}
+
+// Tableau de bord du marchand (spec 042) : commandes payées d'une boutique, hors annulées et
+// remboursées, sur une période (heure de Lomé).
+func (q *Queries) SellerStatsDaily(ctx context.Context, arg SellerStatsDailyParams) ([]SellerStatsDailyRow, error) {
+	rows, err := q.db.Query(ctx, sellerStatsDaily, arg.ShopID, arg.Since, arg.Until)
+	if err != nil {
+		return nil, err
+	}
+	defer rows.Close()
+	items := []SellerStatsDailyRow{}
+	for rows.Next() {
+		var i SellerStatsDailyRow
+		if err := rows.Scan(&i.Day, &i.Orders, &i.SalesXof); err != nil {
+			return nil, err
+		}
+		items = append(items, i)
+	}
+	if err := rows.Err(); err != nil {
+		return nil, err
+	}
+	return items, nil
+}
+
+const sellerStatsHourly = `-- name: SellerStatsHourly :many
+SELECT extract(hour FROM paid_at AT TIME ZONE 'Africa/Lome')::int AS hour, count(*)::int AS orders
+FROM orders
+WHERE shop_id = $1 AND paid_at >= $2::timestamptz AND paid_at < $3::timestamptz
+  AND status NOT IN ('cancelled', 'refunded')
+GROUP BY 1
+ORDER BY 1
+`
+
+type SellerStatsHourlyParams struct {
+	ShopID uuid.UUID
+	Since  time.Time
+	Until  time.Time
+}
+
+type SellerStatsHourlyRow struct {
+	Hour   int32
+	Orders int32
+}
+
+func (q *Queries) SellerStatsHourly(ctx context.Context, arg SellerStatsHourlyParams) ([]SellerStatsHourlyRow, error) {
+	rows, err := q.db.Query(ctx, sellerStatsHourly, arg.ShopID, arg.Since, arg.Until)
+	if err != nil {
+		return nil, err
+	}
+	defer rows.Close()
+	items := []SellerStatsHourlyRow{}
+	for rows.Next() {
+		var i SellerStatsHourlyRow
+		if err := rows.Scan(&i.Hour, &i.Orders); err != nil {
+			return nil, err
+		}
+		items = append(items, i)
+	}
+	if err := rows.Err(); err != nil {
+		return nil, err
+	}
+	return items, nil
+}
+
+const sellerStatsTopProducts = `-- name: SellerStatsTopProducts :many
+SELECT i.product_id, max(i.product_name)::text AS name,
+       sum(i.quantity)::int AS quantity, sum(i.line_total_xof)::bigint AS sales_xof
+FROM order_items i
+JOIN orders o ON o.id = i.order_id
+WHERE o.shop_id = $1 AND o.paid_at >= $2::timestamptz AND o.paid_at < $3::timestamptz
+  AND o.status NOT IN ('cancelled', 'refunded')
+GROUP BY i.product_id
+ORDER BY sales_xof DESC, quantity DESC
+LIMIT 5
+`
+
+type SellerStatsTopProductsParams struct {
+	ShopID uuid.UUID
+	Since  time.Time
+	Until  time.Time
+}
+
+type SellerStatsTopProductsRow struct {
+	ProductID uuid.UUID
+	Name      string
+	Quantity  int32
+	SalesXof  int64
+}
+
+func (q *Queries) SellerStatsTopProducts(ctx context.Context, arg SellerStatsTopProductsParams) ([]SellerStatsTopProductsRow, error) {
+	rows, err := q.db.Query(ctx, sellerStatsTopProducts, arg.ShopID, arg.Since, arg.Until)
+	if err != nil {
+		return nil, err
+	}
+	defer rows.Close()
+	items := []SellerStatsTopProductsRow{}
+	for rows.Next() {
+		var i SellerStatsTopProductsRow
+		if err := rows.Scan(
+			&i.ProductID,
+			&i.Name,
+			&i.Quantity,
+			&i.SalesXof,
+		); err != nil {
+			return nil, err
+		}
+		items = append(items, i)
+	}
+	if err := rows.Err(); err != nil {
+		return nil, err
+	}
+	return items, nil
+}
+
+const sellerStatsTotals = `-- name: SellerStatsTotals :one
+SELECT count(*) FILTER (WHERE status NOT IN ('cancelled', 'refunded'))::int AS orders,
+       coalesce(sum(subtotal_xof) FILTER (WHERE status NOT IN ('cancelled', 'refunded')), 0)::bigint AS sales_xof,
+       count(*) FILTER (WHERE fulfillment = 'delivery' AND status NOT IN ('cancelled', 'refunded'))::int AS deliveries,
+       count(*) FILTER (WHERE status IN ('cancelled', 'refunded'))::int AS cancelled,
+       count(DISTINCT buyer_id) FILTER (WHERE status NOT IN ('cancelled', 'refunded'))::int AS buyers
+FROM orders
+WHERE shop_id = $1 AND paid_at >= $2::timestamptz AND paid_at < $3::timestamptz
+`
+
+type SellerStatsTotalsParams struct {
+	ShopID uuid.UUID
+	Since  time.Time
+	Until  time.Time
+}
+
+type SellerStatsTotalsRow struct {
+	Orders     int32
+	SalesXof   int64
+	Deliveries int32
+	Cancelled  int32
+	Buyers     int32
+}
+
+func (q *Queries) SellerStatsTotals(ctx context.Context, arg SellerStatsTotalsParams) (SellerStatsTotalsRow, error) {
+	row := q.db.QueryRow(ctx, sellerStatsTotals, arg.ShopID, arg.Since, arg.Until)
+	var i SellerStatsTotalsRow
+	err := row.Scan(
+		&i.Orders,
+		&i.SalesXof,
+		&i.Deliveries,
+		&i.Cancelled,
+		&i.Buyers,
+	)
+	return i, err
+}
+
 const updateStatus = `-- name: UpdateStatus :execrows
 UPDATE orders
 SET status             = $1,

@@ -34,6 +34,7 @@ func (h *Handler) Register(rt *httpapi.Router) {
 	rt.Roles("POST /v1/orders/{id}/cancel", h.cancel, identity.RoleBuyer)
 
 	rt.Roles("GET /v1/seller/orders", h.sellerList, identity.RoleSeller)
+	rt.Roles("GET /v1/seller/shops/{id}/stats", h.sellerStats, identity.RoleSeller)
 	rt.Roles("GET /v1/seller/orders/{id}", h.sellerGet, identity.RoleSeller)
 	rt.Roles("POST /v1/seller/orders/{id}/accept", h.sellerSimple(h.svc.Accept), identity.RoleSeller)
 	rt.Roles("POST /v1/seller/orders/{id}/reject", h.reject, identity.RoleSeller)
@@ -292,4 +293,26 @@ func (h *Handler) refundQueue(w http.ResponseWriter, r *http.Request) error {
 		return err
 	}
 	return httpapi.OK(w, httpapi.NewList(items, page))
+}
+
+// sellerStats : tableau de bord d'une boutique du marchand, sur 7 (défaut) ou 30 jours.
+func (h *Handler) sellerStats(w http.ResponseWriter, r *http.Request) error {
+	id, err := httpapi.PathUUID(r, "id")
+	if err != nil {
+		return err
+	}
+	q := httpapi.NewQuery(r)
+	days := q.Enum("days", "7", "7", "30")
+	if err := q.Err(); err != nil {
+		return err
+	}
+	n := 7
+	if days == "30" {
+		n = 30
+	}
+	stats, err := h.svc.StatsForSeller(r.Context(), uid(r).UserID, id, n)
+	if err != nil {
+		return err
+	}
+	return httpapi.OK(w, stats)
 }

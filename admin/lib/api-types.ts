@@ -1012,6 +1012,46 @@ export interface paths {
         patch?: never;
         trace?: never;
     };
+    "/v1/pharmacy/stats": {
+        parameters: {
+            query?: never;
+            header?: never;
+            path?: never;
+            cookie?: never;
+        };
+        /**
+         * Tableau de bord de ma pharmacie
+         * @description Sur 7 ou 30 jours, aujourd'hui compris (heure de Lomé) : alertes reçues et répondues, réservations et montant des médicaments des réservations terminées, par jour ; totaux (taux de réponse, temps moyen de réponse) et période précédente ; alertes par heure ; médicaments les plus demandés.
+         */
+        get: operations["getPharmacyStats"];
+        put?: never;
+        post?: never;
+        delete?: never;
+        options?: never;
+        head?: never;
+        patch?: never;
+        trace?: never;
+    };
+    "/v1/seller/shops/{id}/stats": {
+        parameters: {
+            query?: never;
+            header?: never;
+            path?: never;
+            cookie?: never;
+        };
+        /**
+         * Tableau de bord de ma boutique
+         * @description Commandes payées (hors annulées et remboursées) sur 7 ou 30 jours, aujourd'hui compris (heure de Lomé) : ventes par jour, totaux, période précédente pour comparer, commandes par heure, 5 produits les plus vendus.
+         */
+        get: operations["getSellerShopsByIdStats"];
+        put?: never;
+        post?: never;
+        delete?: never;
+        options?: never;
+        head?: never;
+        patch?: never;
+        trace?: never;
+    };
     "/v1/seller/shops/{id}/media": {
         parameters: {
             query?: never;
@@ -6320,6 +6360,69 @@ export interface components {
                 name: string;
             }[];
         };
+        PharmacyStatsTotals: {
+            received: number;
+            responded: number;
+            /** @description Pourcentage d'alertes reçues auxquelles la pharmacie a répondu « disponible ». */
+            response_rate: number;
+            avg_response_min: number;
+            reservations: number;
+            completed: number;
+            /** Format: int64 */
+            sales_xof: number;
+        };
+        PharmacyStats: {
+            days: number;
+            series: {
+                /** Format: date */
+                date: string;
+                received: number;
+                responded: number;
+                reservations: number;
+                /** Format: int64 */
+                sales_xof: number;
+            }[];
+            totals: components["schemas"]["PharmacyStatsTotals"];
+            previous: components["schemas"]["PharmacyStatsTotals"];
+            hours: number[];
+            top_medicines: {
+                name: string;
+                responses: number;
+                reservations: number;
+            }[];
+        };
+        SellerStatsTotals: {
+            orders: number;
+            /** Format: int64 */
+            sales_xof: number;
+            /** Format: int64 */
+            avg_basket_xof: number;
+            deliveries: number;
+            cancelled: number;
+            buyers: number;
+        };
+        SellerStats: {
+            days: number;
+            series: {
+                /** Format: date */
+                date: string;
+                orders: number;
+                /** Format: int64 */
+                sales_xof: number;
+            }[];
+            totals: components["schemas"]["SellerStatsTotals"];
+            previous: components["schemas"]["SellerStatsTotals"];
+            /** @description Commandes par heure de la journée (24 valeurs, 0 h à 23 h). */
+            hours: number[];
+            top_products: {
+                /** Format: uuid */
+                product_id: string;
+                name: string;
+                quantity: number;
+                /** Format: int64 */
+                sales_xof: number;
+            }[];
+        };
         PromoCodeInput: {
             /** @description Vide : code généré. */
             code?: string;
@@ -10569,6 +10672,70 @@ export interface operations {
                 };
                 content: {
                     "application/json": components["schemas"]["Product"];
+                };
+            };
+            /** @description Erreur (voir `code`) */
+            default: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["Error"];
+                };
+            };
+        };
+    };
+    getPharmacyStats: {
+        parameters: {
+            query?: {
+                days?: "7" | "30";
+            };
+            header?: never;
+            path?: never;
+            cookie?: never;
+        };
+        requestBody?: never;
+        responses: {
+            /** @description Succès */
+            200: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["PharmacyStats"];
+                };
+            };
+            /** @description Erreur (voir `code`) */
+            default: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["Error"];
+                };
+            };
+        };
+    };
+    getSellerShopsByIdStats: {
+        parameters: {
+            query?: {
+                days?: "7" | "30";
+            };
+            header?: never;
+            path: {
+                id: string;
+            };
+            cookie?: never;
+        };
+        requestBody?: never;
+        responses: {
+            /** @description Succès */
+            200: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["SellerStats"];
                 };
             };
             /** @description Erreur (voir `code`) */

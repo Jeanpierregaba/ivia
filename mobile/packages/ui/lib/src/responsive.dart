@@ -2,6 +2,7 @@ import 'dart:math' as math;
 
 import 'package:flutter/widgets.dart';
 
+import 'notification_banner.dart';
 import 'tokens.dart';
 
 /// Cadre commun des apps ivia, posé autour de tout l'écran (`builder` de
@@ -38,6 +39,8 @@ class IviaResponsiveFrame extends StatelessWidget {
     final mq = MediaQuery.of(context);
     final size = mq.size;
     final scaler = mq.textScaler.clamp(maxScaleFactor: maxTextScale);
+    // Notifications en haut de l'écran à la place des bandeaux du bas.
+    final child = IviaNotificationHost(child: IviaMessenger(child: this.child));
 
     if (size.width < wideFrom) {
       return MediaQuery(

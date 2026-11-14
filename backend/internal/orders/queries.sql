@@ -228,3 +228,44 @@ GROUP BY i.product_id;
 
 -- name: HasPaidOrder :one
 SELECT EXISTS (SELECT 1 FROM orders WHERE buyer_id = $1 AND paid_at IS NOT NULL)::boolean;
+
+-- Tableau de bord du marchand (spec 042) : commandes payées d'une boutique, hors annulées et
+-- remboursées, sur une période (heure de Lomé).
+
+-- name: SellerStatsDaily :many
+SELECT (paid_at AT TIME ZONE 'Africa/Lome')::date AS day,
+       count(*)::int AS orders,
+       coalesce(sum(subtotal_xof), 0)::bigint AS sales_xof
+FROM orders
+WHERE shop_id = sqlc.arg(shop_id) AND paid_at >= sqlc.arg(since)::timestamptz AND paid_at < sqlc.arg(until)::timestamptz
+  AND status NOT IN ('cancelled', 'refunded')
+GROUP BY 1
+ORDER BY 1;
+
+-- name: SellerStatsHourly :many
+SELECT extract(hour FROM paid_at AT TIME ZONE 'Africa/Lome')::int AS hour, count(*)::int AS orders
+FROM orders
+WHERE shop_id = sqlc.arg(shop_id) AND paid_at >= sqlc.arg(since)::timestamptz AND paid_at < sqlc.arg(until)::timestamptz
+  AND status NOT IN ('cancelled', 'refunded')
+GROUP BY 1
+ORDER BY 1;
+
+-- name: SellerStatsTotals :one
+SELECT count(*) FILTER (WHERE status NOT IN ('cancelled', 'refunded'))::int AS orders,
+       coalesce(sum(subtotal_xof) FILTER (WHERE status NOT IN ('cancelled', 'refunded')), 0)::bigint AS sales_xof,
+       count(*) FILTER (WHERE fulfillment = 'delivery' AND status NOT IN ('cancelled', 'refunded'))::int AS deliveries,
+       count(*) FILTER (WHERE status IN ('cancelled', 'refunded'))::int AS cancelled,
+       count(DISTINCT buyer_id) FILTER (WHERE status NOT IN ('cancelled', 'refunded'))::int AS buyers
+FROM orders
+WHERE shop_id = sqlc.arg(shop_id) AND paid_at >= sqlc.arg(since)::timestamptz AND paid_at < sqlc.arg(until)::timestamptz;
+
+-- name: SellerStatsTopProducts :many
+SELECT i.product_id, max(i.product_name)::text AS name,
+       sum(i.quantity)::int AS quantity, sum(i.line_total_xof)::bigint AS sales_xof
+FROM order_items i
+JOIN orders o ON o.id = i.order_id
+WHERE o.shop_id = sqlc.arg(shop_id) AND o.paid_at >= sqlc.arg(since)::timestamptz AND o.paid_at < sqlc.arg(until)::timestamptz
+  AND o.status NOT IN ('cancelled', 'refunded')
+GROUP BY i.product_id
+ORDER BY sales_xof DESC, quantity DESC
+LIMIT 5;

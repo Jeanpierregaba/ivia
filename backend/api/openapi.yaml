@@ -2161,6 +2161,76 @@ paths:
             application/json:
               schema:
                 "$ref": "#/components/schemas/Error"
+  "/v1/pharmacy/stats":
+    get:
+      summary: "Tableau de bord de ma pharmacie"
+      description: "Sur 7 ou 30 jours, aujourd'hui compris (heure de Lomé) : alertes reçues et répondues, réservations et montant des médicaments des réservations terminées, par jour ; totaux (taux de réponse, temps moyen de réponse) et période précédente ; alertes par heure ; médicaments les plus demandés."
+      tags:
+        - Pharmacie
+      operationId: getPharmacyStats
+      parameters:
+        - name: days
+          in: query
+          required: false
+          schema:
+            type: string
+            enum:
+              - "7"
+              - "30"
+            default: "7"
+      x-roles:
+        - pharmacy
+      responses:
+        "200":
+          description: "Succès"
+          content:
+            application/json:
+              schema:
+                "$ref": "#/components/schemas/PharmacyStats"
+        default:
+          description: "Erreur (voir `code`)"
+          content:
+            application/json:
+              schema:
+                "$ref": "#/components/schemas/Error"
+  "/v1/seller/shops/{id}/stats":
+    get:
+      summary: "Tableau de bord de ma boutique"
+      description: "Commandes payées (hors annulées et remboursées) sur 7 ou 30 jours, aujourd'hui compris (heure de Lomé) : ventes par jour, totaux, période précédente pour comparer, commandes par heure, 5 produits les plus vendus."
+      tags:
+        - Marchand
+      operationId: getSellerShopsByIdStats
+      parameters:
+        - name: id
+          in: path
+          required: true
+          schema:
+            type: string
+            format: uuid
+        - name: days
+          in: query
+          required: false
+          schema:
+            type: string
+            enum:
+              - "7"
+              - "30"
+            default: "7"
+      x-roles:
+        - seller
+      responses:
+        "200":
+          description: "Succès"
+          content:
+            application/json:
+              schema:
+                "$ref": "#/components/schemas/SellerStats"
+        default:
+          description: "Erreur (voir `code`)"
+          content:
+            application/json:
+              schema:
+                "$ref": "#/components/schemas/Error"
   "/v1/seller/shops/{id}/media":
     get:
       summary: "Bibliothèque de photos de ma boutique"
@@ -13786,6 +13856,173 @@ components:
         - state
         - scope
         - products
+    PharmacyStatsTotals:
+      type: object
+      properties:
+        received:
+          type: integer
+        responded:
+          type: integer
+        response_rate:
+          type: integer
+          description: "Pourcentage d'alertes reçues auxquelles la pharmacie a répondu « disponible »."
+        avg_response_min:
+          type: integer
+        reservations:
+          type: integer
+        completed:
+          type: integer
+        sales_xof:
+          type: integer
+          format: int64
+      required:
+        - received
+        - responded
+        - response_rate
+        - avg_response_min
+        - reservations
+        - completed
+        - sales_xof
+    PharmacyStats:
+      type: object
+      properties:
+        days:
+          type: integer
+        series:
+          type: array
+          items:
+            type: object
+            properties:
+              date:
+                type: string
+                format: date
+              received:
+                type: integer
+              responded:
+                type: integer
+              reservations:
+                type: integer
+              sales_xof:
+                type: integer
+                format: int64
+            required:
+              - date
+              - received
+              - responded
+              - reservations
+              - sales_xof
+        totals:
+          "$ref": "#/components/schemas/PharmacyStatsTotals"
+        previous:
+          "$ref": "#/components/schemas/PharmacyStatsTotals"
+        hours:
+          type: array
+          items:
+            type: integer
+        top_medicines:
+          type: array
+          items:
+            type: object
+            properties:
+              name:
+                type: string
+              responses:
+                type: integer
+              reservations:
+                type: integer
+            required:
+              - name
+              - responses
+              - reservations
+      required:
+        - days
+        - series
+        - totals
+        - previous
+        - hours
+        - top_medicines
+    SellerStatsTotals:
+      type: object
+      properties:
+        orders:
+          type: integer
+        sales_xof:
+          type: integer
+          format: int64
+        avg_basket_xof:
+          type: integer
+          format: int64
+        deliveries:
+          type: integer
+        cancelled:
+          type: integer
+        buyers:
+          type: integer
+      required:
+        - orders
+        - sales_xof
+        - avg_basket_xof
+        - deliveries
+        - cancelled
+        - buyers
+    SellerStats:
+      type: object
+      properties:
+        days:
+          type: integer
+        series:
+          type: array
+          items:
+            type: object
+            properties:
+              date:
+                type: string
+                format: date
+              orders:
+                type: integer
+              sales_xof:
+                type: integer
+                format: int64
+            required:
+              - date
+              - orders
+              - sales_xof
+        totals:
+          "$ref": "#/components/schemas/SellerStatsTotals"
+        previous:
+          "$ref": "#/components/schemas/SellerStatsTotals"
+        hours:
+          type: array
+          description: "Commandes par heure de la journée (24 valeurs, 0 h à 23 h)."
+          items:
+            type: integer
+        top_products:
+          type: array
+          items:
+            type: object
+            properties:
+              product_id:
+                type: string
+                format: uuid
+              name:
+                type: string
+              quantity:
+                type: integer
+              sales_xof:
+                type: integer
+                format: int64
+            required:
+              - product_id
+              - name
+              - quantity
+              - sales_xof
+      required:
+        - days
+        - series
+        - totals
+        - previous
+        - hours
+        - top_products
     PromoCodeInput:
       type: object
       properties:

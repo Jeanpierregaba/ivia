@@ -6,6 +6,7 @@ library;
 export 'src/amount_row.dart';
 export 'src/brand.dart';
 export 'src/catalog_views.dart';
+export 'src/charts.dart';
 export 'src/code_input.dart';
 export 'src/components.dart';
 export 'src/countdown.dart';

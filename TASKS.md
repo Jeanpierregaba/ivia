@@ -8,6 +8,7 @@ docs/specs/NNN-nom/tasks.md. Les petites tâches isolées (bug, retouche) peuven
 
 ## En cours
 
+- [x] 042 — Tableaux de bord et notifications ([spec](docs/specs/042-tableaux-de-bord-notifications/spec.md), 2026-11-14) : notifications façon push à la place des bandeaux du bas (4 apps) ; Business « Performances » et Pharmacie « Votre activité » (chiffres clés et tendance, graphiques interactifs), routes `/v1/seller/shops/{id}/stats` et `/v1/pharmacy/stats`
 - [x] 041 — Codes promo par produit ([spec](docs/specs/041-promo-par-produit/spec.md), 2026-11-14, migration 00050) : toute la boutique, certains produits ou un seul ; réduction sur les lignes visées ; Business (sélecteur, « Code promo pour ce produit »), back-office, Mes coupons
 - [ ] 040 — Refonte d'Ivia Business, lot 1 ([spec](docs/specs/040-refonte-business/spec.md), 2026-11-14) : charte d'origine (B00-B25), barre en pilule avec « + », Accueil (accepter/refuser sur place, stock bas), Produits (filtre catégorie, grille, glissements, sélection multiple), Nouveau produit sur une page, bibliothèque de photos (`GET /v1/seller/shops/{id}/media`) ; Commandes faites ; reste « Modifier » et code-barres
 - [ ] 039 — Comptes admin à rôles ([spec](docs/specs/039-roles-admin/spec.md), 2026-11-13, migration 00049) : super admin et 7 rôles par domaine, droits vérifiés par le serveur, menu par rôle, page Comptes admin, journal filtré par admin ; tableau de bord restylé

@@ -1060,6 +1060,83 @@ void main() {
       expect(find.text('Prête ?'), findsOneWidget);
     });
 
+    testWidgets('Performances : chiffres, tendance, graphique, 30 jours', (
+      tester,
+    ) async {
+      Map<String, dynamic> stats(int days) => {
+        'days': days,
+        'series': [
+          for (var i = 0; i < days; i++)
+            {
+              'date': DateTime.utc(2026, 11, 14)
+                  .subtract(Duration(days: days - 1 - i))
+                  .toIso8601String()
+                  .substring(0, 10),
+              'orders': i == days - 1 ? 3 : 1,
+              'sales_xof': i == days - 1 ? 15000 : 5000,
+            },
+        ],
+        'totals': {
+          'orders': 9,
+          'sales_xof': 45000,
+          'avg_basket_xof': 5000,
+          'deliveries': 3,
+          'cancelled': 1,
+          'buyers': 6,
+        },
+        'previous': {
+          'orders': 6,
+          'sales_xof': 30000,
+          'avg_basket_xof': 5000,
+          'deliveries': 1,
+          'cancelled': 0,
+          'buyers': 6,
+        },
+        'hours': [
+          for (var h = 0; h < 24; h++) h == 12 ? 5 : (h > 8 && h < 20 ? 1 : 0),
+        ],
+        'top_products': [
+          {
+            'product_id': 'p1',
+            'name': 'Riz parfumé 5 kg',
+            'quantity': 6,
+            'sales_xof': 27000,
+          },
+          {
+            'product_id': 'p2',
+            'name': 'Huile 1 L',
+            'quantity': 3,
+            'sales_xof': 6000,
+          },
+        ],
+      };
+      server.on(
+        'GET',
+        '/v1/seller/shops/$shopId/stats',
+        (r) => FakeResponse.json(200, stats(int.parse(r.query['days'] ?? '7'))),
+      );
+      await launch(tester);
+      await scrollHomeTo(tester, 'Performances');
+      expect(textPlain('45 000 F'), findsOneWidget);
+      expect(find.text('▲ 50 %'), findsNWidgets(2));
+      expect(find.text('Le plus de commandes vers 12 h'), findsOneWidget);
+      // Sans sélection, aujourd'hui (dernière barre) est mis en avant.
+      expect(find.textContaining('sam. 14 nov.'), findsOneWidget);
+      // Toucher la première barre : sa bulle.
+      final chart = find.byType(IviaBarChart).first;
+      await tester.ensureVisible(chart);
+      await tester.pumpAndSettle();
+      await tester.tapAt(tester.getTopLeft(chart) + const Offset(8, 120));
+      await tester.pumpAndSettle();
+      expect(find.textContaining('dim. 8 nov.'), findsOneWidget);
+
+      await tapText(tester, '30 jours');
+      expect(server.requests.where((r) => r.query['days'] == '30'), isNotEmpty);
+      await scrollHomeTo(tester, 'Meilleurs produits');
+      expect(find.text('Riz parfumé 5 kg'), findsOneWidget);
+      expect(find.text('Retrait · 67 %'), findsOneWidget);
+    });
+
     testWidgets('rien à traiter (terminées seulement)', (tester) async {
       orders.add(status: 'completed');
       await launch(tester);
@@ -1087,6 +1164,55 @@ void main() {
       addTearDown(tester.view.reset);
       addTearDown(tester.platformDispatcher.clearTextScaleFactorTestValue);
     }
+
+    testWidgets('Performances remplies : rien ne déborde', (tester) async {
+      large(tester);
+      server.on(
+        'GET',
+        '/v1/seller/shops/$shopId/stats',
+        (r) => FakeResponse.json(200, {
+          'days': 7,
+          'series': [
+            for (var i = 0; i < 7; i++)
+              {
+                'date': '2026-11-${(8 + i).toString().padLeft(2, '0')}',
+                'orders': i,
+                'sales_xof': 1250000 * i,
+              },
+          ],
+          'totals': {
+            'orders': 21,
+            'sales_xof': 26250000,
+            'avg_basket_xof': 1250000,
+            'deliveries': 7,
+            'cancelled': 2,
+            'buyers': 18,
+          },
+          'previous': {
+            'orders': 7,
+            'sales_xof': 9000000,
+            'avg_basket_xof': 1285714,
+            'deliveries': 2,
+            'cancelled': 0,
+            'buyers': 7,
+          },
+          'hours': [for (var h = 0; h < 24; h++) h],
+          'top_products': [
+            {
+              'product_id': 'p1',
+              'name': 'Riz parfumé long grain de Thaïlande, sac de 25 kg',
+              'quantity': 12,
+              'sales_xof': 20000000,
+            },
+          ],
+        }),
+      );
+      await launch(tester);
+      await scrollHomeTo(tester, 'Performances');
+      expect(tester.takeException(), isNull);
+      await scrollHomeTo(tester, 'Retrait ou livraison');
+      expect(tester.takeException(), isNull);
+    });
 
     testWidgets('Accueil, liste, détail, refus : rien ne déborde', (
       tester,

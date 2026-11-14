@@ -100,6 +100,7 @@ func (h *Handler) Register(rt *httpapi.Router) {
 	rt.Roles("GET /v1/pharmacy/earnings", h.earnings, ph)
 	rt.Roles("GET /v1/pharmacy/cash-receipts", h.cashReceipts, ph)
 	rt.Roles("GET /v1/pharmacy/today", h.today, ph)
+	rt.Roles("GET /v1/pharmacy/stats", h.stats, ph)
 
 	// Livreur ivia.
 	dr := identity.RoleDriver
@@ -559,6 +560,21 @@ func (h *Handler) cashReceipts(w http.ResponseWriter, r *http.Request) error {
 	}
 	c, err := h.svc.PharmacyCashReceipts(r.Context(), me(r), days)
 	return ok(w, c, err)
+}
+
+// stats : tableau de bord de la pharmacie sur 7 (défaut) ou 30 jours.
+func (h *Handler) stats(w http.ResponseWriter, r *http.Request) error {
+	q := httpapi.NewQuery(r)
+	days := q.Enum("days", "7", "7", "30")
+	if err := q.Err(); err != nil {
+		return err
+	}
+	n := 7
+	if days == "30" {
+		n = 30
+	}
+	st, err := h.svc.PharmacyStats(r.Context(), me(r), n)
+	return ok(w, st, err)
 }
 
 func (h *Handler) today(w http.ResponseWriter, r *http.Request) error {

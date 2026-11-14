@@ -3071,6 +3071,224 @@ func (q *Queries) PharmacyIDByOwner(ctx context.Context, ownerID uuid.UUID) (uui
 	return id, err
 }
 
+const pharmacyStatsDaily = `-- name: PharmacyStatsDaily :many
+
+SELECT (t.notified_at AT TIME ZONE 'Africa/Lome')::date AS day,
+       count(*)::int AS received,
+       count(resp.id)::int AS responded
+FROM pharmacy_alert_targets t
+LEFT JOIN pharmacy_responses resp ON resp.alert_id = t.alert_id AND resp.pharmacy_id = t.pharmacy_id
+WHERE t.pharmacy_id = $1 AND t.notified_at >= $2::timestamptz AND t.notified_at < $3::timestamptz
+GROUP BY 1
+ORDER BY 1
+`
+
+type PharmacyStatsDailyParams struct {
+	PharmacyID uuid.UUID
+	Since      time.Time
+	Until      time.Time
+}
+
+type PharmacyStatsDailyRow struct {
+	Day       time.Time
+	Received  int32
+	Responded int32
+}
+
+// Tableau de bord de la pharmacie (spec 042), heure de Lomé.
+// Alertes reçues et répondues (disponible) par jour de réception.
+func (q *Queries) PharmacyStatsDaily(ctx context.Context, arg PharmacyStatsDailyParams) ([]PharmacyStatsDailyRow, error) {
+	rows, err := q.db.Query(ctx, pharmacyStatsDaily, arg.PharmacyID, arg.Since, arg.Until)
+	if err != nil {
+		return nil, err
+	}
+	defer rows.Close()
+	items := []PharmacyStatsDailyRow{}
+	for rows.Next() {
+		var i PharmacyStatsDailyRow
+		if err := rows.Scan(&i.Day, &i.Received, &i.Responded); err != nil {
+			return nil, err
+		}
+		items = append(items, i)
+	}
+	if err := rows.Err(); err != nil {
+		return nil, err
+	}
+	return items, nil
+}
+
+const pharmacyStatsHourly = `-- name: PharmacyStatsHourly :many
+SELECT extract(hour FROM t.notified_at AT TIME ZONE 'Africa/Lome')::int AS hour, count(*)::int AS received
+FROM pharmacy_alert_targets t
+WHERE t.pharmacy_id = $1 AND t.notified_at >= $2::timestamptz AND t.notified_at < $3::timestamptz
+GROUP BY 1
+ORDER BY 1
+`
+
+type PharmacyStatsHourlyParams struct {
+	PharmacyID uuid.UUID
+	Since      time.Time
+	Until      time.Time
+}
+
+type PharmacyStatsHourlyRow struct {
+	Hour     int32
+	Received int32
+}
+
+func (q *Queries) PharmacyStatsHourly(ctx context.Context, arg PharmacyStatsHourlyParams) ([]PharmacyStatsHourlyRow, error) {
+	rows, err := q.db.Query(ctx, pharmacyStatsHourly, arg.PharmacyID, arg.Since, arg.Until)
+	if err != nil {
+		return nil, err
+	}
+	defer rows.Close()
+	items := []PharmacyStatsHourlyRow{}
+	for rows.Next() {
+		var i PharmacyStatsHourlyRow
+		if err := rows.Scan(&i.Hour, &i.Received); err != nil {
+			return nil, err
+		}
+		items = append(items, i)
+	}
+	if err := rows.Err(); err != nil {
+		return nil, err
+	}
+	return items, nil
+}
+
+const pharmacyStatsSalesDaily = `-- name: PharmacyStatsSalesDaily :many
+SELECT (created_at AT TIME ZONE 'Africa/Lome')::date AS day,
+       count(*)::int AS reservations,
+       coalesce(sum(items_xof) FILTER (WHERE status = 'completed'), 0)::bigint AS sales_xof
+FROM pharmacy_reservations
+WHERE pharmacy_id = $1 AND created_at >= $2::timestamptz AND created_at < $3::timestamptz
+GROUP BY 1
+ORDER BY 1
+`
+
+type PharmacyStatsSalesDailyParams struct {
+	PharmacyID uuid.UUID
+	Since      time.Time
+	Until      time.Time
+}
+
+type PharmacyStatsSalesDailyRow struct {
+	Day          time.Time
+	Reservations int32
+	SalesXof     int64
+}
+
+// Réservations par jour, et montant des médicaments des réservations terminées.
+func (q *Queries) PharmacyStatsSalesDaily(ctx context.Context, arg PharmacyStatsSalesDailyParams) ([]PharmacyStatsSalesDailyRow, error) {
+	rows, err := q.db.Query(ctx, pharmacyStatsSalesDaily, arg.PharmacyID, arg.Since, arg.Until)
+	if err != nil {
+		return nil, err
+	}
+	defer rows.Close()
+	items := []PharmacyStatsSalesDailyRow{}
+	for rows.Next() {
+		var i PharmacyStatsSalesDailyRow
+		if err := rows.Scan(&i.Day, &i.Reservations, &i.SalesXof); err != nil {
+			return nil, err
+		}
+		items = append(items, i)
+	}
+	if err := rows.Err(); err != nil {
+		return nil, err
+	}
+	return items, nil
+}
+
+const pharmacyStatsTopMedicines = `-- name: PharmacyStatsTopMedicines :many
+SELECT resp.product_name AS name, count(*)::int AS responses, count(v.id)::int AS reservations
+FROM pharmacy_responses resp
+LEFT JOIN pharmacy_reservations v ON v.response_id = resp.id
+WHERE resp.pharmacy_id = $1 AND resp.created_at >= $2::timestamptz AND resp.created_at < $3::timestamptz
+GROUP BY resp.product_name
+ORDER BY responses DESC, reservations DESC, name
+LIMIT 5
+`
+
+type PharmacyStatsTopMedicinesParams struct {
+	PharmacyID uuid.UUID
+	Since      time.Time
+	Until      time.Time
+}
+
+type PharmacyStatsTopMedicinesRow struct {
+	Name         string
+	Responses    int32
+	Reservations int32
+}
+
+// Médicaments les plus demandés auxquels la pharmacie a répondu, et combien ont été réservés.
+func (q *Queries) PharmacyStatsTopMedicines(ctx context.Context, arg PharmacyStatsTopMedicinesParams) ([]PharmacyStatsTopMedicinesRow, error) {
+	rows, err := q.db.Query(ctx, pharmacyStatsTopMedicines, arg.PharmacyID, arg.Since, arg.Until)
+	if err != nil {
+		return nil, err
+	}
+	defer rows.Close()
+	items := []PharmacyStatsTopMedicinesRow{}
+	for rows.Next() {
+		var i PharmacyStatsTopMedicinesRow
+		if err := rows.Scan(&i.Name, &i.Responses, &i.Reservations); err != nil {
+			return nil, err
+		}
+		items = append(items, i)
+	}
+	if err := rows.Err(); err != nil {
+		return nil, err
+	}
+	return items, nil
+}
+
+const pharmacyStatsTotals = `-- name: PharmacyStatsTotals :one
+SELECT
+  (SELECT count(*) FROM pharmacy_alert_targets t WHERE t.pharmacy_id = $1 AND t.notified_at >= $2::timestamptz AND t.notified_at < $3::timestamptz)::int AS received,
+  (SELECT count(*) FROM pharmacy_alert_targets t
+     JOIN pharmacy_responses resp ON resp.alert_id = t.alert_id AND resp.pharmacy_id = t.pharmacy_id
+     WHERE t.pharmacy_id = $1 AND t.notified_at >= $2::timestamptz AND t.notified_at < $3::timestamptz)::int AS responded,
+  (SELECT coalesce(avg(extract(epoch FROM (t.responded_at - t.notified_at)) / 60), 0)
+     FROM pharmacy_alert_targets t WHERE t.pharmacy_id = $1 AND t.notified_at >= $2::timestamptz AND t.notified_at < $3::timestamptz AND t.responded_at IS NOT NULL)::float8 AS avg_response_min,
+  (SELECT count(*) FROM pharmacy_reservations v
+     WHERE v.pharmacy_id = $1 AND v.created_at >= $2::timestamptz AND v.created_at < $3::timestamptz)::int AS reservations,
+  (SELECT count(*) FROM pharmacy_reservations v
+     WHERE v.pharmacy_id = $1 AND v.created_at >= $2::timestamptz AND v.created_at < $3::timestamptz
+       AND v.status = 'completed')::int AS completed,
+  (SELECT coalesce(sum(v.items_xof), 0) FROM pharmacy_reservations v
+     WHERE v.pharmacy_id = $1 AND v.created_at >= $2::timestamptz AND v.created_at < $3::timestamptz
+       AND v.status = 'completed')::bigint AS sales_xof
+`
+
+type PharmacyStatsTotalsParams struct {
+	PharmacyID uuid.UUID
+	Since      time.Time
+	Until      time.Time
+}
+
+type PharmacyStatsTotalsRow struct {
+	Received       int32
+	Responded      int32
+	AvgResponseMin float64
+	Reservations   int32
+	Completed      int32
+	SalesXof       int64
+}
+
+func (q *Queries) PharmacyStatsTotals(ctx context.Context, arg PharmacyStatsTotalsParams) (PharmacyStatsTotalsRow, error) {
+	row := q.db.QueryRow(ctx, pharmacyStatsTotals, arg.PharmacyID, arg.Since, arg.Until)
+	var i PharmacyStatsTotalsRow
+	err := row.Scan(
+		&i.Received,
+		&i.Responded,
+		&i.AvgResponseMin,
+		&i.Reservations,
+		&i.Completed,
+		&i.SalesXof,
+	)
+	return i, err
+}
+
 const pharmacyTodayStats = `-- name: PharmacyTodayStats :one
 SELECT
   count(*)::bigint AS received,

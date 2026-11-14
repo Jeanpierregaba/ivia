@@ -700,3 +700,60 @@ FROM pharmacy_deliveries WHERE driver_id = sqlc.arg(driver_id);
 
 -- name: CourierMissionOwnedBy :one
 SELECT EXISTS (SELECT 1 FROM pharmacy_deliveries WHERE id = sqlc.arg(id) AND driver_id = sqlc.arg(driver_id));
+
+-- Tableau de bord de la pharmacie (spec 042), heure de Lomé.
+
+-- name: PharmacyStatsDaily :many
+-- Alertes reçues et répondues (disponible) par jour de réception.
+SELECT (t.notified_at AT TIME ZONE 'Africa/Lome')::date AS day,
+       count(*)::int AS received,
+       count(resp.id)::int AS responded
+FROM pharmacy_alert_targets t
+LEFT JOIN pharmacy_responses resp ON resp.alert_id = t.alert_id AND resp.pharmacy_id = t.pharmacy_id
+WHERE t.pharmacy_id = sqlc.arg(pharmacy_id) AND t.notified_at >= sqlc.arg(since)::timestamptz AND t.notified_at < sqlc.arg(until)::timestamptz
+GROUP BY 1
+ORDER BY 1;
+
+-- name: PharmacyStatsSalesDaily :many
+-- Réservations par jour, et montant des médicaments des réservations terminées.
+SELECT (created_at AT TIME ZONE 'Africa/Lome')::date AS day,
+       count(*)::int AS reservations,
+       coalesce(sum(items_xof) FILTER (WHERE status = 'completed'), 0)::bigint AS sales_xof
+FROM pharmacy_reservations
+WHERE pharmacy_id = sqlc.arg(pharmacy_id) AND created_at >= sqlc.arg(since)::timestamptz AND created_at < sqlc.arg(until)::timestamptz
+GROUP BY 1
+ORDER BY 1;
+
+-- name: PharmacyStatsTotals :one
+SELECT
+  (SELECT count(*) FROM pharmacy_alert_targets t WHERE t.pharmacy_id = sqlc.arg(pharmacy_id) AND t.notified_at >= sqlc.arg(since)::timestamptz AND t.notified_at < sqlc.arg(until)::timestamptz)::int AS received,
+  (SELECT count(*) FROM pharmacy_alert_targets t
+     JOIN pharmacy_responses resp ON resp.alert_id = t.alert_id AND resp.pharmacy_id = t.pharmacy_id
+     WHERE t.pharmacy_id = sqlc.arg(pharmacy_id) AND t.notified_at >= sqlc.arg(since)::timestamptz AND t.notified_at < sqlc.arg(until)::timestamptz)::int AS responded,
+  (SELECT coalesce(avg(extract(epoch FROM (t.responded_at - t.notified_at)) / 60), 0)
+     FROM pharmacy_alert_targets t WHERE t.pharmacy_id = sqlc.arg(pharmacy_id) AND t.notified_at >= sqlc.arg(since)::timestamptz AND t.notified_at < sqlc.arg(until)::timestamptz AND t.responded_at IS NOT NULL)::float8 AS avg_response_min,
+  (SELECT count(*) FROM pharmacy_reservations v
+     WHERE v.pharmacy_id = sqlc.arg(pharmacy_id) AND v.created_at >= sqlc.arg(since)::timestamptz AND v.created_at < sqlc.arg(until)::timestamptz)::int AS reservations,
+  (SELECT count(*) FROM pharmacy_reservations v
+     WHERE v.pharmacy_id = sqlc.arg(pharmacy_id) AND v.created_at >= sqlc.arg(since)::timestamptz AND v.created_at < sqlc.arg(until)::timestamptz
+       AND v.status = 'completed')::int AS completed,
+  (SELECT coalesce(sum(v.items_xof), 0) FROM pharmacy_reservations v
+     WHERE v.pharmacy_id = sqlc.arg(pharmacy_id) AND v.created_at >= sqlc.arg(since)::timestamptz AND v.created_at < sqlc.arg(until)::timestamptz
+       AND v.status = 'completed')::bigint AS sales_xof;
+
+-- name: PharmacyStatsHourly :many
+SELECT extract(hour FROM t.notified_at AT TIME ZONE 'Africa/Lome')::int AS hour, count(*)::int AS received
+FROM pharmacy_alert_targets t
+WHERE t.pharmacy_id = sqlc.arg(pharmacy_id) AND t.notified_at >= sqlc.arg(since)::timestamptz AND t.notified_at < sqlc.arg(until)::timestamptz
+GROUP BY 1
+ORDER BY 1;
+
+-- name: PharmacyStatsTopMedicines :many
+-- Médicaments les plus demandés auxquels la pharmacie a répondu, et combien ont été réservés.
+SELECT resp.product_name AS name, count(*)::int AS responses, count(v.id)::int AS reservations
+FROM pharmacy_responses resp
+LEFT JOIN pharmacy_reservations v ON v.response_id = resp.id
+WHERE resp.pharmacy_id = sqlc.arg(pharmacy_id) AND resp.created_at >= sqlc.arg(since)::timestamptz AND resp.created_at < sqlc.arg(until)::timestamptz
+GROUP BY resp.product_name
+ORDER BY responses DESC, reservations DESC, name
+LIMIT 5;

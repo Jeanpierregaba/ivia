@@ -10,6 +10,7 @@ import '../../common/ui.dart';
 import '../alerts/alert_detail_screen.dart';
 import '../alerts/alert_logic.dart';
 import '../alerts/response_screen.dart';
+import 'pharmacy_dashboard.dart';
 
 /// Ligne sous le nom : la garde en cours (« De garde · 20:00 → 08:00 »),
 /// sinon l'ouverture.
@@ -98,7 +99,8 @@ class _HomeTabState extends ConsumerState<HomeTab> {
           ref
             ..invalidate(inboxProvider)
             ..invalidate(ordersProvider)
-            ..invalidate(pharmacyProfileProvider);
+            ..invalidate(pharmacyProfileProvider)
+            ..invalidate(pharmacyStatsProvider);
         },
         child: ListView(
           padding: EdgeInsets.zero,
@@ -159,6 +161,8 @@ class _HomeTabState extends ConsumerState<HomeTab> {
                     const SizedBox(height: 12),
                     _OrdersCard(orders: toPrepare, onTap: widget.onSeeOrders),
                   ],
+                  // Tableau de bord : statistiques et graphiques (spec 042).
+                  const PharmacyDashboard(),
                 ],
               ),
             ),
