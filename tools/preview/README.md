@@ -1,5 +1,24 @@
 # Aperçu local (sans émulateur)
 
+## Lancer tout en une commande
+
+```powershell
+powershell -ExecutionPolicy Bypass -File tools\lancer.ps1            # démarre tout
+powershell -ExecutionPolicy Bypass -File tools\lancer.ps1 -Ouvrir    # … et ouvre le navigateur
+powershell -ExecutionPolicy Bypass -File tools\lancer.ps1 -Arreter   # arrête tout
+powershell -ExecutionPolicy Bypass -File tools\lancer.ps1 -Reconstruire   # reconstruit tout
+powershell -ExecutionPolicy Bypass -File tools\lancer.ps1 -ReparerDocker  # Docker bloqué
+```
+
+`lancer.ps1` :
+1. démarre Docker Desktop s'il le faut ;
+2. reconstruit ce qui a changé depuis la dernière construction (API, back-office, apps web) ;
+3. lance l'aperçu (`demarrer.ps1`) ;
+4. vérifie que chaque adresse répond.
+
+Sur le poste de Gedeon, des raccourcis à double-cliquer sont sur le bureau : « Lancer ivia »,
+« Arreter ivia », « Reconstruire ivia », « Reparer Docker ivia ».
+
 Toute la plateforme dans le navigateur. Pour la vue téléphone, utiliser le mode appareil de Chrome (ou `/iphone` pour un cadre).
 
 1. Lancer Docker Desktop.
