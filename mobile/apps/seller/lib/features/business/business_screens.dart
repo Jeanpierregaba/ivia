@@ -365,6 +365,26 @@ class _SpaceFormScreenState extends ConsumerState<SpaceFormScreen> {
     }
   }
 
+  Future<void> _searchPlace() async {
+    final lat = _d['lat'], lng = _d['lng'];
+    final picked = await Navigator.of(context).push<PickedPlace>(
+      MaterialPageRoute(
+        builder: (_) => PlacePickerScreen(
+          initial: lat is num && lng is num
+              ? GeoPoint(lat: lat.toDouble(), lng: lng.toDouble())
+              : null,
+          title: "Lieu de l'activité",
+          confirmLabel: 'Confirmer ce lieu',
+        ),
+      ),
+    );
+    if (picked == null || !mounted) return;
+    setState(() {
+      _d['lat'] = picked.point.lat;
+      _d['lng'] = picked.point.lng;
+    });
+  }
+
   Future<void> _locate() async {
     final point = (await ref.read(locationServiceProvider).current()).point;
     if (!mounted) return;
@@ -704,6 +724,14 @@ class _SpaceFormScreenState extends ConsumerState<SpaceFormScreen> {
                 ? 'Utiliser ma position'
                 : 'Position enregistrée',
             onPressed: _locate,
+          ),
+          const SizedBox(height: 8),
+          // Lieu cherché par son nom, repère ajusté sur la carte.
+          ProButton(
+            outlined: true,
+            icon: Icons.search,
+            label: 'Chercher le lieu sur la carte',
+            onPressed: _searchPlace,
           ),
           _error('location'),
           const SizedBox(height: 14),

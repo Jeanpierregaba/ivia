@@ -112,6 +112,8 @@ class _HomeTabState extends ConsumerState<HomeTab> {
               stats: todayStats(inbox, now),
               busy: _busy,
               onOpen: (v) => _setOpen(p, v),
+              openAlerts: open.length,
+              onSeeAlerts: widget.onSeeAlerts,
             ),
             Padding(
               padding: const EdgeInsets.fromLTRB(P.gutter, 20, P.gutter, 120),
@@ -173,13 +175,15 @@ class _HomeTabState extends ConsumerState<HomeTab> {
   }
 }
 
-class _Header extends StatelessWidget {
+class _Header extends ConsumerWidget {
   const _Header({
     required this.profile,
     required this.line,
     required this.stats,
     required this.busy,
     required this.onOpen,
+    required this.openAlerts,
+    required this.onSeeAlerts,
   });
 
   final PharmacyProfile profile;
@@ -187,54 +191,67 @@ class _Header extends StatelessWidget {
   final ({int received, int responded, int confirmed}) stats;
   final bool busy;
   final ValueChanged<bool> onOpen;
+  final int openAlerts;
+  final VoidCallback onSeeAlerts;
 
   @override
-  Widget build(BuildContext context) {
+  Widget build(BuildContext context, WidgetRef ref) {
     final p = profile;
     final receiving = p.isOpen || p.onDuty || p.open24h;
     final top = MediaQuery.paddingOf(context).top;
-    Widget kpi(int value, String label, Color color) => Expanded(
-      child: Semantics(
-        container: true,
-        label: '$value $label',
-        excludeSemantics: true,
-        child: Padding(
-          padding: const EdgeInsets.fromLTRB(12, 12, 8, 12),
-          child: Column(
-            crossAxisAlignment: CrossAxisAlignment.start,
-            children: [
-              Text(
-                '$value',
-                style: PText.figure.copyWith(color: value > 0 ? color : P.ink),
+    final week = ref.watch(pharmacyStatsProvider(7)).value?.series;
+    Widget tile(int value, String label, IconData icon, Color color) =>
+        Expanded(
+          child: Semantics(
+            container: true,
+            label: '$value $label',
+            excludeSemantics: true,
+            child: Container(
+              padding: const EdgeInsets.symmetric(horizontal: 6, vertical: 12),
+              decoration: BoxDecoration(
+                color: Colors.white,
+                borderRadius: BorderRadius.circular(P.radius),
+                border: Border.all(color: P.line),
               ),
-              Text(
-                label,
-                maxLines: 1,
-                overflow: TextOverflow.ellipsis,
-                style: PText.small,
+              child: Column(
+                children: [
+                  Container(
+                    width: 36,
+                    height: 36,
+                    decoration: BoxDecoration(
+                      color: color.withValues(alpha: 0.12),
+                      shape: BoxShape.circle,
+                    ),
+                    child: Icon(icon, size: 18, color: color),
+                  ),
+                  const SizedBox(height: 6),
+                  Text('$value', style: PText.figure),
+                  Text(
+                    label,
+                    maxLines: 1,
+                    overflow: TextOverflow.ellipsis,
+                    style: PText.small,
+                  ),
+                ],
               ),
-            ],
+            ),
           ),
-        ),
-      ),
-    );
+        );
     return Container(
-      padding: EdgeInsets.fromLTRB(P.gutter, top + 14, P.gutter, 16),
-      decoration: const BoxDecoration(
-        color: Colors.white,
-        border: Border(bottom: BorderSide(color: P.line)),
-      ),
+      color: Colors.white,
+      padding: EdgeInsets.fromLTRB(P.gutter, top + 12, P.gutter, 4),
       child: Column(
         crossAxisAlignment: CrossAxisAlignment.stretch,
         children: [
           Row(
             children: [
-              IviaLogoTile(size: 40, color: P.green),
-              const SizedBox(width: 10),
+              IviaLogoTile(size: 44, color: P.green),
+              const SizedBox(width: 12),
               Expanded(
                 child: Column(
                   crossAxisAlignment: CrossAxisAlignment.start,
                   children: [
+                    Text('Bonjour,', style: PText.small),
                     Semantics(
                       header: true,
                       child: Text(
@@ -244,26 +261,110 @@ class _Header extends StatelessWidget {
                         style: PText.header.copyWith(color: P.ink),
                       ),
                     ),
-                    Row(
-                      children: [
-                        Container(
-                          width: 7,
-                          height: 7,
-                          decoration: BoxDecoration(
-                            color: receiving ? P.green : P.muted,
-                            shape: BoxShape.circle,
-                          ),
-                        ),
-                        const SizedBox(width: 6),
-                        Flexible(child: Text(line, style: PText.small)),
-                      ],
-                    ),
                   ],
+                ),
+              ),
+              IconButton(
+                tooltip: openAlerts == 0
+                    ? 'Alertes'
+                    : '$openAlerts alerte${openAlerts > 1 ? 's' : ''} à traiter',
+                onPressed: onSeeAlerts,
+                icon: Badge(
+                  isLabelVisible: openAlerts > 0,
+                  backgroundColor: P.red,
+                  label: Text('$openAlerts'),
+                  child: const Icon(
+                    Icons.notifications_none_rounded,
+                    color: P.ink,
+                    size: 27,
+                  ),
                 ),
               ),
             ],
           ),
-          const SizedBox(height: 16),
+          const SizedBox(height: 14),
+          // Carte du jour : vert, alertes reçues, courbe des 7 derniers jours.
+          Container(
+            decoration: BoxDecoration(
+              color: P.greenDeep,
+              borderRadius: BorderRadius.circular(16),
+            ),
+            clipBehavior: Clip.antiAlias,
+            child: Column(
+              crossAxisAlignment: CrossAxisAlignment.stretch,
+              children: [
+                Padding(
+                  padding: const EdgeInsets.fromLTRB(16, 14, 16, 0),
+                  child: Column(
+                    crossAxisAlignment: CrossAxisAlignment.start,
+                    children: [
+                      Row(
+                        children: [
+                          Expanded(
+                            child: Text(
+                              "Alertes aujourd'hui",
+                              style: PText.body.copyWith(
+                                color: IviaPharmacyColors.onGreenMuted,
+                              ),
+                            ),
+                          ),
+                          Container(
+                            width: 7,
+                            height: 7,
+                            decoration: BoxDecoration(
+                              color: receiving
+                                  ? const Color(0xFF7CF0B4)
+                                  : Colors.white54,
+                              shape: BoxShape.circle,
+                            ),
+                          ),
+                          const SizedBox(width: 6),
+                          Flexible(
+                            child: Text(
+                              line,
+                              maxLines: 1,
+                              overflow: TextOverflow.ellipsis,
+                              style: PText.small.copyWith(
+                                color: IviaPharmacyColors.onGreenMuted,
+                              ),
+                            ),
+                          ),
+                        ],
+                      ),
+                      const SizedBox(height: 2),
+                      ExcludeSemantics(
+                        child: Text(
+                          '${stats.received}',
+                          style: PText.heading.copyWith(
+                            color: Colors.white,
+                            fontSize: 34,
+                          ),
+                        ),
+                      ),
+                      Text(
+                        receiving
+                            ? 'Vous recevez les alertes du quartier'
+                            : 'Activez le service pour recevoir les alertes',
+                        style: PText.small.copyWith(
+                          color: IviaPharmacyColors.onGreenMuted,
+                        ),
+                      ),
+                    ],
+                  ),
+                ),
+                const SizedBox(height: 8),
+                if (week != null && week.length >= 2)
+                  IviaSparkline(
+                    values: [for (final d in week) d.received],
+                    color: const Color(0xFF9BF2C6),
+                    height: 56,
+                  )
+                else
+                  const SizedBox(height: 14),
+              ],
+            ),
+          ),
+          const SizedBox(height: 12),
           Container(
             padding: const EdgeInsets.fromLTRB(14, 6, 8, 6),
             decoration: BoxDecoration(
@@ -300,24 +401,31 @@ class _Header extends StatelessWidget {
             ),
           ),
           const SizedBox(height: 12),
-          Text("Aujourd'hui", style: PText.label),
-          const SizedBox(height: 6),
-          Container(
-            decoration: BoxDecoration(
-              borderRadius: BorderRadius.circular(P.radius),
-              border: Border.all(color: P.line),
-            ),
-            child: IntrinsicHeight(
-              child: Row(
-                crossAxisAlignment: CrossAxisAlignment.stretch,
-                children: [
-                  kpi(stats.received, 'Alertes', P.green),
-                  const VerticalDivider(width: 1, color: P.line),
-                  kpi(stats.responded, 'Répondues', P.blue),
-                  const VerticalDivider(width: 1, color: P.line),
-                  kpi(stats.confirmed, 'Confirmées', P.greenDeep),
-                ],
-              ),
+          IntrinsicHeight(
+            child: Row(
+              crossAxisAlignment: CrossAxisAlignment.stretch,
+              children: [
+                tile(
+                  stats.received,
+                  'Alertes',
+                  Icons.notifications_active_outlined,
+                  P.green,
+                ),
+                const SizedBox(width: 10),
+                tile(
+                  stats.responded,
+                  'Répondues',
+                  Icons.mark_chat_read_outlined,
+                  P.blue,
+                ),
+                const SizedBox(width: 10),
+                tile(
+                  stats.confirmed,
+                  'Confirmées',
+                  Icons.verified_outlined,
+                  P.yellow,
+                ),
+              ],
             ),
           ),
         ],

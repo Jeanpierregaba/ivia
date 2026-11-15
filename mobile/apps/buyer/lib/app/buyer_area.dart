@@ -27,6 +27,7 @@ sealed class BuyerArea {
 
   /// Libellé de l'en-tête de l'accueil (« Ma position », « Tokoin »).
   String get label => switch (this) {
+    AreaPlace(:final name) => name,
     AreaPosition() => 'Ma position',
     AreaNeighborhood(:final name) => name,
     AreaLocating() => 'Localisation…',
@@ -58,6 +59,14 @@ class AreaPosition extends BuyerArea {
   final GeoPoint point;
 }
 
+/// Lieu cherché par son nom (« Grand Marché », « Université de Lomé ») :
+/// ses coordonnées servent comme une position.
+class AreaPlace extends AreaPosition {
+  const AreaPlace(super.point, this.name);
+
+  final String name;
+}
+
 class AreaNeighborhood extends BuyerArea {
   const AreaNeighborhood(this.id, this.name);
 
@@ -74,8 +83,9 @@ class AreaStore {
 
   final SharedPreferences? _prefs;
 
-  /// Choix lu au lancement : `null` (rien de choisi, ou position).
-  final AreaNeighborhood? initial;
+  /// Choix lu au lancement : quartier ou lieu cherché ; `null` (rien de
+  /// choisi, ou position du téléphone).
+  final BuyerArea? initial;
 
   static Future<AreaStore> open() async {
     try {
@@ -86,13 +96,27 @@ class AreaStore {
     }
   }
 
-  /// `n|<id>|<nom>` ; toute autre valeur (position, donnée corrompue) : rien.
-  static AreaNeighborhood? _parse(Object? value) {
-    if (value is! String || !value.startsWith('n|')) return null;
+  /// `n|<id>|<nom>` ou `l|<lat>|<lng>|<nom>` ; toute autre valeur
+  /// (position, donnée corrompue) : rien.
+  static BuyerArea? _parse(Object? value) {
+    if (value is! String) return null;
     final parts = value.split('|');
-    if (parts.length != 3 || parts[1].isEmpty) return null;
-    return AreaNeighborhood(parts[1], parts[2]);
+    if (value.startsWith('n|')) {
+      if (parts.length != 3 || parts[1].isEmpty) return null;
+      return AreaNeighborhood(parts[1], parts[2]);
+    }
+    if (value.startsWith('l|') && parts.length == 4) {
+      final lat = double.tryParse(parts[1]), lng = double.tryParse(parts[2]);
+      if (lat == null || lng == null) return null;
+      return AreaPlace(GeoPoint(lat: lat, lng: lng), parts[3]);
+    }
+    return null;
   }
+
+  /// Lieu choisi par son nom (pas la position du téléphone).
+  Future<void> savePlace(AreaPlace area) => _write(
+    'l|${area.point.lat}|${area.point.lng}|${area.name.replaceAll('|', ' ')}',
+  );
 
   Future<void> saveNeighborhood(AreaNeighborhood area) =>
       _write('n|${area.id}|${area.name.replaceAll('|', ' ')}');
@@ -143,7 +167,7 @@ class BuyerAreaController extends Notifier<BuyerArea> {
   /// À l'ouverture de l'accueil : sans quartier choisi, la position est
   /// demandée une fois par ouverture de l'app.
   Future<void> ensure() async {
-    if (_asked || state is AreaNeighborhood) return;
+    if (_asked || state is AreaNeighborhood || state is AreaPlace) return;
     await locate();
   }
 
@@ -168,6 +192,14 @@ class BuyerAreaController extends Notifier<BuyerArea> {
     }
     state = _settled ?? AreaUnknown(result.failure);
     return result.failure;
+  }
+
+  /// Lieu trouvé par la recherche : ses coordonnées servent de zone.
+  Future<void> choosePlace(GeoPoint point, String name) async {
+    _request++;
+    final area = AreaPlace(point, name);
+    state = _settled = area;
+    await ref.read(areaStoreProvider).savePlace(area);
   }
 
   Future<void> chooseNeighborhood(Choice neighborhood) async {

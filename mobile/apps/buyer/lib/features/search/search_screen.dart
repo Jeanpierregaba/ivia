@@ -141,6 +141,14 @@ class _SearchScreenState extends ConsumerState<SearchScreen> {
       });
 
     final zoneChip = switch (area) {
+      AreaPlace(:final name) => IviaChip(
+        label: filters.radiusKm == null
+            ? name
+            : '$name · ${filters.radiusKm} km',
+        selected: true,
+        dropdown: true,
+        onTap: () => showAreaSheet(context),
+      ),
       AreaPosition() => IviaChip(
         label: filters.radiusKm == null
             ? 'Autour de moi'

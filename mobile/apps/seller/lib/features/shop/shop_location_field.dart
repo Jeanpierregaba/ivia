@@ -83,6 +83,30 @@ class _ShopLocationFieldState extends ConsumerState<ShopLocationField> {
     }
   }
 
+  Future<void> _search() async {
+    final picked = await Navigator.of(context).push<PickedPlace>(
+      MaterialPageRoute(
+        builder: (_) => PlacePickerScreen(
+          initial: widget.value,
+          title: 'Placez la boutique',
+          hint:
+              'Cherchez un lieu ou déplacez la carte : le repère marque '
+              "l'entrée de la boutique.",
+          confirmLabel: 'Confirmer cet emplacement',
+        ),
+      ),
+    );
+    if (picked == null || !mounted) return;
+    setState(() => _locateError = null);
+    widget.onChanged(picked.point);
+    await _map?.animateCamera(
+      CameraUpdate.newLatLngZoom(
+        LatLng(picked.point.lat, picked.point.lng),
+        17,
+      ),
+    );
+  }
+
   void _place(LatLng position) {
     if (widget.enabled) {
       widget.onChanged(
@@ -109,18 +133,26 @@ class _ShopLocationFieldState extends ConsumerState<ShopLocationField> {
           ),
         ),
         const SizedBox(height: IviaSpacing.sm),
-        Align(
-          alignment: Alignment.centerLeft,
-          child: TextButton.icon(
-            onPressed: widget.enabled && !_locating ? _locate : null,
-            icon: _locating
-                ? const SizedBox.square(
-                    dimension: 18,
-                    child: CircularProgressIndicator(strokeWidth: 2),
-                  )
-                : const Icon(Icons.my_location),
-            label: const Text('Ma position'),
-          ),
+        Wrap(
+          spacing: IviaSpacing.sm,
+          children: [
+            TextButton.icon(
+              onPressed: widget.enabled && !_locating ? _locate : null,
+              icon: _locating
+                  ? const SizedBox.square(
+                      dimension: 18,
+                      child: CircularProgressIndicator(strokeWidth: 2),
+                    )
+                  : const Icon(Icons.my_location),
+              label: const Text('Ma position'),
+            ),
+            // Lieu cherché par son nom (comme sur une carte), repère ajusté.
+            TextButton.icon(
+              onPressed: widget.enabled ? _search : null,
+              icon: const Icon(Icons.search),
+              label: const Text('Chercher un lieu'),
+            ),
+          ],
         ),
         if (error != null)
           Semantics(

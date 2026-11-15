@@ -51,7 +51,7 @@ class HomeScreen extends ConsumerWidget {
     final low = ref.watch(lowStockProvider).value;
 
     return ColoredBox(
-      color: Biz.page,
+      color: Colors.white,
       child: RefreshIndicator(
         color: Biz.navy,
         onRefresh: () async {
@@ -84,6 +84,7 @@ class HomeScreen extends ConsumerWidget {
               sector: space?.sector,
               sales: sales,
               count: today.length,
+              fresh: fresh.length,
             ),
             Padding(
               padding: const EdgeInsets.fromLTRB(16, 18, 16, 24),
@@ -125,22 +126,25 @@ class HomeScreen extends ConsumerWidget {
                     child: _MetricsStrip(
                       items: [
                         _Metric(
-                          preparing,
-                          restaurant ? 'En cuisine' : 'En préparation',
+                          today.length,
+                          'Commandes',
                           Biz.blue,
                           () => context.go(Routes.ordersTab(OrderTab.active)),
+                          Icons.shopping_bag_outlined,
                         ),
                         _Metric(
-                          ready,
-                          ready > 1 ? 'Prêtes' : 'Prête',
-                          IviaColors.cornellRed,
+                          preparing + ready,
+                          restaurant ? 'En cuisine' : 'En préparation',
+                          Biz.green,
                           () => context.go(Routes.ordersTab(OrderTab.active)),
+                          Icons.inventory_2_outlined,
                         ),
                         _Metric(
                           low?.length,
                           'Stock bas',
                           Biz.amber,
                           () => context.go(Routes.catalog),
+                          Icons.warning_amber_rounded,
                         ),
                       ],
                     ),
@@ -220,8 +224,8 @@ class HomeScreen extends ConsumerWidget {
   }
 }
 
-/// En-tête : boutique et son état, ventes du jour en grand, comparaison avec
-/// hier et courbe des 7 derniers jours.
+/// En-tête : « Bonjour, » et la boutique, cloche des commandes à accepter,
+/// carte des ventes du jour (tendance et courbe des 7 derniers jours).
 class _Header extends ConsumerWidget {
   const _Header({
     required this.name,
@@ -231,13 +235,14 @@ class _Header extends ConsumerWidget {
     required this.sector,
     required this.sales,
     required this.count,
+    required this.fresh,
   });
   final String name;
   final String? logoUrl;
   final bool online;
   final String place;
   final String? sector;
-  final int sales, count;
+  final int sales, count, fresh;
 
   @override
   Widget build(BuildContext context, WidgetRef ref) {
@@ -249,59 +254,105 @@ class _Header extends ConsumerWidget {
     final trend = yesterday == null || yesterday == 0
         ? null
         : ((sales - yesterday) * 100 / yesterday).round();
-    return Container(
-      decoration: const BoxDecoration(
-        color: Colors.white,
-        border: Border(bottom: BorderSide(color: Biz.line)),
-      ),
-      child: SafeArea(
-        bottom: false,
-        child: Padding(
-          padding: const EdgeInsets.fromLTRB(16, 12, 16, 16),
-          child: Column(
-            crossAxisAlignment: CrossAxisAlignment.stretch,
-            children: [
-              Row(
-                children: [
-                  Container(
-                    width: 40,
-                    height: 40,
-                    decoration: BoxDecoration(
-                      color: Biz.page,
-                      borderRadius: BorderRadius.circular(10),
-                      border: Border.all(color: Biz.line),
-                    ),
-                    clipBehavior: Clip.antiAlias,
-                    child: logoUrl == null
-                        ? Icon(Pro.icon(sector), color: Biz.navy, size: 20)
-                        : Image.network(
-                            logoUrl!,
-                            fit: BoxFit.cover,
-                            errorBuilder: (_, _, _) =>
-                                Icon(Pro.icon(sector), color: Biz.navy),
-                          ),
+    return SafeArea(
+      bottom: false,
+      child: Padding(
+        padding: const EdgeInsets.fromLTRB(16, 12, 16, 0),
+        child: Column(
+          crossAxisAlignment: CrossAxisAlignment.stretch,
+          children: [
+            Row(
+              children: [
+                Container(
+                  width: 46,
+                  height: 46,
+                  decoration: BoxDecoration(
+                    color: IviaColors.secondarySoft,
+                    shape: BoxShape.circle,
+                    border: Border.all(color: Biz.line),
                   ),
-                  const SizedBox(width: 10),
-                  Expanded(
+                  clipBehavior: Clip.antiAlias,
+                  child: logoUrl == null
+                      ? Icon(Pro.icon(sector), color: Biz.navy, size: 22)
+                      : Image.network(
+                          logoUrl!,
+                          fit: BoxFit.cover,
+                          errorBuilder: (_, _, _) =>
+                              Icon(Pro.icon(sector), color: Biz.navy),
+                        ),
+                ),
+                const SizedBox(width: 12),
+                Expanded(
+                  child: Column(
+                    crossAxisAlignment: CrossAxisAlignment.start,
+                    children: [
+                      Text(
+                        'Bonjour,',
+                        style: t.bodyMedium?.copyWith(color: Biz.muted),
+                      ),
+                      Text(
+                        name,
+                        maxLines: 1,
+                        overflow: TextOverflow.ellipsis,
+                        style: t.titleMedium?.copyWith(
+                          fontWeight: FontWeight.w800,
+                          color: IviaColors.text,
+                        ),
+                      ),
+                    ],
+                  ),
+                ),
+                IconButton(
+                  tooltip: fresh == 0
+                      ? 'Commandes'
+                      : '$fresh commande${fresh > 1 ? 's' : ''} à accepter',
+                  onPressed: () => context.go(Routes.ordersTab(OrderTab.fresh)),
+                  icon: Badge(
+                    isLabelVisible: fresh > 0,
+                    backgroundColor: Biz.red,
+                    label: Text('$fresh'),
+                    child: const Icon(
+                      Icons.notifications_none_rounded,
+                      color: IviaColors.text,
+                      size: 27,
+                    ),
+                  ),
+                ),
+              ],
+            ),
+            const SizedBox(height: 16),
+            // Carte des ventes : bleu nuit, montant, tendance, courbe.
+            Container(
+              decoration: BoxDecoration(
+                color: Biz.navy,
+                borderRadius: BorderRadius.circular(16),
+              ),
+              clipBehavior: Clip.antiAlias,
+              child: Column(
+                crossAxisAlignment: CrossAxisAlignment.stretch,
+                children: [
+                  Padding(
+                    padding: const EdgeInsets.fromLTRB(16, 14, 16, 0),
                     child: Column(
                       crossAxisAlignment: CrossAxisAlignment.start,
                       children: [
-                        Text(
-                          name,
-                          maxLines: 1,
-                          overflow: TextOverflow.ellipsis,
-                          style: t.titleMedium?.copyWith(
-                            fontWeight: FontWeight.w800,
-                            color: IviaColors.text,
-                          ),
-                        ),
                         Row(
                           children: [
+                            Expanded(
+                              child: Text(
+                                'Ventes du jour',
+                                style: t.labelLarge?.copyWith(
+                                  color: Colors.white70,
+                                ),
+                              ),
+                            ),
                             Container(
                               width: 7,
                               height: 7,
                               decoration: BoxDecoration(
-                                color: online ? Biz.green : Biz.amber,
+                                color: online
+                                    ? const Color(0xFF3DD68C)
+                                    : const Color(0xFFF5B942),
                                 shape: BoxShape.circle,
                               ),
                             ),
@@ -314,7 +365,59 @@ class _Header extends ConsumerWidget {
                                 ].join(' · '),
                                 maxLines: 1,
                                 overflow: TextOverflow.ellipsis,
-                                style: t.bodySmall?.copyWith(color: Biz.muted),
+                                style: t.labelSmall?.copyWith(
+                                  color: Colors.white70,
+                                ),
+                              ),
+                            ),
+                          ],
+                        ),
+                        const SizedBox(height: 4),
+                        FittedBox(
+                          fit: BoxFit.scaleDown,
+                          alignment: Alignment.centerLeft,
+                          child: CountUp(
+                            value: sales,
+                            format: formatXof,
+                            style: t.headlineMedium?.copyWith(
+                              color: Colors.white,
+                              fontWeight: FontWeight.w800,
+                              letterSpacing: -0.5,
+                            ),
+                          ),
+                        ),
+                        const SizedBox(height: 6),
+                        Wrap(
+                          spacing: 8,
+                          runSpacing: 4,
+                          crossAxisAlignment: WrapCrossAlignment.center,
+                          children: [
+                            if (trend != null)
+                              Container(
+                                padding: const EdgeInsets.symmetric(
+                                  horizontal: 7,
+                                  vertical: 2,
+                                ),
+                                decoration: BoxDecoration(
+                                  color: Colors.white.withValues(alpha: 0.12),
+                                  borderRadius: BorderRadius.circular(6),
+                                ),
+                                child: Text(
+                                  '${trend >= 0 ? '↑ +' : '↓ −'}${trend.abs()} %',
+                                  style: t.labelMedium?.copyWith(
+                                    color: trend >= 0
+                                        ? const Color(0xFF5EE6A0)
+                                        : const Color(0xFFFF8A8A),
+                                    fontWeight: FontWeight.w800,
+                                  ),
+                                ),
+                              ),
+                            Text(
+                              count == 1
+                                  ? '1 commande payée aujourd’hui'
+                                  : '$count commandes payées aujourd’hui',
+                              style: t.bodySmall?.copyWith(
+                                color: Colors.white70,
                               ),
                             ),
                           ],
@@ -322,138 +425,18 @@ class _Header extends ConsumerWidget {
                       ],
                     ),
                   ),
+                  const SizedBox(height: 10),
+                  if (series != null && series.length >= 2)
+                    IviaSparkline(
+                      values: [for (final d in series) d.salesXof],
+                      color: const Color(0xFF6EA8FF),
+                      height: 64,
+                    )
+                  else
+                    const SizedBox(height: 16),
                 ],
               ),
-              const SizedBox(height: 20),
-              Text(
-                'Ventes du jour',
-                style: t.labelLarge?.copyWith(color: Biz.muted),
-              ),
-              const SizedBox(height: 2),
-              Wrap(
-                crossAxisAlignment: WrapCrossAlignment.end,
-                spacing: 10,
-                children: [
-                  CountUp(
-                    value: sales,
-                    format: formatXof,
-                    style: t.headlineMedium?.copyWith(
-                      fontWeight: FontWeight.w800,
-                      color: IviaColors.text,
-                      letterSpacing: -0.5,
-                    ),
-                  ),
-                  if (trend != null)
-                    Padding(
-                      padding: const EdgeInsets.only(bottom: 5),
-                      child: Text(
-                        '${trend >= 0 ? '+' : '−'}${trend.abs()} % vs hier',
-                        style: t.labelMedium?.copyWith(
-                          color: trend >= 0 ? Biz.green : Biz.red,
-                          fontWeight: FontWeight.w700,
-                        ),
-                      ),
-                    ),
-                ],
-              ),
-              Text(
-                count == 1
-                    ? '1 commande payée aujourd’hui'
-                    : '$count commandes payées aujourd’hui',
-                style: t.bodySmall?.copyWith(color: Biz.muted),
-              ),
-              if (series != null && series.length >= 2) ...[
-                const SizedBox(height: 12),
-                IviaSparkline(
-                  values: [for (final d in series) d.salesXof],
-                  height: 44,
-                ),
-                const SizedBox(height: 4),
-                Row(
-                  children: [
-                    Expanded(
-                      child: Text(
-                        'il y a 7 jours',
-                        style: t.labelSmall?.copyWith(color: Biz.muted),
-                      ),
-                    ),
-                    Expanded(
-                      child: Text(
-                        'aujourd’hui',
-                        textAlign: TextAlign.end,
-                        style: t.labelSmall?.copyWith(color: Biz.muted),
-                      ),
-                    ),
-                  ],
-                ),
-              ],
-            ],
-          ),
-        ),
-      ),
-    );
-  }
-}
-
-/// Bande d'indicateurs : un chiffre par colonne, séparés par un filet.
-class _MetricsStrip extends StatelessWidget {
-  const _MetricsStrip({required this.items});
-  final List<_Metric> items;
-
-  @override
-  Widget build(BuildContext context) {
-    final t = Theme.of(context).textTheme;
-    return Container(
-      decoration: BoxDecoration(
-        color: Colors.white,
-        borderRadius: BorderRadius.circular(Biz.radius),
-        border: Border.all(color: Biz.line),
-      ),
-      clipBehavior: Clip.antiAlias,
-      child: IntrinsicHeight(
-        child: Row(
-          crossAxisAlignment: CrossAxisAlignment.stretch,
-          children: [
-            for (final (i, m) in items.indexed) ...[
-              if (i > 0) const VerticalDivider(width: 1, color: Biz.line),
-              Expanded(
-                child: Semantics(
-                  container: true,
-                  button: true,
-                  label: '${m.label} : ${m.value ?? 'inconnu'}',
-                  excludeSemantics: true,
-                  onTap: m.onTap,
-                  child: InkWell(
-                    onTap: m.onTap,
-                    child: Padding(
-                      padding: const EdgeInsets.fromLTRB(12, 12, 8, 12),
-                      child: Column(
-                        crossAxisAlignment: CrossAxisAlignment.start,
-                        children: [
-                          m.value == null
-                              ? const BizSkeleton(width: 24, height: 22)
-                              : CountUp(
-                                  value: m.value!,
-                                  format: (v) => '$v',
-                                  style: t.titleLarge?.copyWith(
-                                    fontWeight: FontWeight.w800,
-                                    color: (m.value ?? 0) > 0
-                                        ? m.color
-                                        : IviaColors.text,
-                                  ),
-                                ),
-                          const SizedBox(height: 2),
-                          Text(
-                            m.label,
-                            style: t.bodySmall?.copyWith(color: Biz.muted),
-                          ),
-                        ],
-                      ),
-                    ),
-                  ),
-                ),
-              ),
-            ],
+            ),
           ],
         ),
       ),
@@ -461,12 +444,79 @@ class _MetricsStrip extends StatelessWidget {
   }
 }
 
+/// Trois tuiles : icône ronde teintée, chiffre, libellé.
+class _MetricsStrip extends StatelessWidget {
+  const _MetricsStrip({required this.items});
+  final List<_Metric> items;
+
+  @override
+  Widget build(BuildContext context) {
+    final t = Theme.of(context).textTheme;
+    return IntrinsicHeight(
+      child: Row(
+        crossAxisAlignment: CrossAxisAlignment.stretch,
+        children: [
+          for (final (i, m) in items.indexed) ...[
+            if (i > 0) const SizedBox(width: 10),
+            Expanded(
+              child: Semantics(
+                container: true,
+                button: true,
+                label: '${m.label} : ${m.value ?? 'inconnu'}',
+                excludeSemantics: true,
+                onTap: m.onTap,
+                child: BizCard(
+                  onTap: m.onTap,
+                  padding: const EdgeInsets.symmetric(
+                    horizontal: 8,
+                    vertical: 14,
+                  ),
+                  child: Column(
+                    children: [
+                      Container(
+                        width: 38,
+                        height: 38,
+                        decoration: BoxDecoration(
+                          color: m.color.withValues(alpha: 0.12),
+                          shape: BoxShape.circle,
+                        ),
+                        child: Icon(m.icon, size: 19, color: m.color),
+                      ),
+                      const SizedBox(height: 8),
+                      m.value == null
+                          ? const BizSkeleton(width: 24, height: 22)
+                          : CountUp(
+                              value: m.value!,
+                              format: (v) => '$v',
+                              style: t.titleLarge?.copyWith(
+                                fontWeight: FontWeight.w800,
+                                color: IviaColors.text,
+                              ),
+                            ),
+                      Text(
+                        m.label,
+                        textAlign: TextAlign.center,
+                        style: t.bodySmall?.copyWith(color: Biz.muted),
+                      ),
+                    ],
+                  ),
+                ),
+              ),
+            ),
+          ],
+        ],
+      ),
+    );
+  }
+}
+
 class _Metric {
-  const _Metric(this.value, this.label, this.color, this.onTap);
+  const _Metric(this.value, this.label, this.color, this.onTap, this.icon);
   final int? value;
   final String label;
   final Color color;
   final VoidCallback onTap;
+  final IconData icon;
 }
 
 class _SectionTitle extends StatelessWidget {

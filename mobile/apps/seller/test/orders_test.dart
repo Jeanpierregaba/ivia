@@ -1226,7 +1226,10 @@ void main() {
         ..add(status: 'ready_for_pickup');
       await launch(tester);
       expect(tester.takeException(), isNull);
+      // Grande police : la carte passe sous l'en-tête (la cloche la signale).
+      await scrollHomeTo(tester, 'NOUVELLE COMMANDE PAYÉE');
       expect(find.text('NOUVELLE COMMANDE PAYÉE'), findsOneWidget);
+      expect(tester.takeException(), isNull);
 
       await tester.tap(dockTab(Icons.receipt_long_outlined));
       await tester.pumpAndSettle();
