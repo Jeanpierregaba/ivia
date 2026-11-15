@@ -83,7 +83,7 @@ Future<void> showQuickCreate(
                             height: 44,
                             decoration: BoxDecoration(
                               color: a.color,
-                              borderRadius: BorderRadius.circular(14),
+                              borderRadius: BorderRadius.circular(10),
                             ),
                             child: Icon(a.icon, color: Colors.white),
                           ),

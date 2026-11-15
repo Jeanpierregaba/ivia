@@ -168,7 +168,7 @@ class _EmptyMedia extends StatelessWidget {
                 height: 52,
                 decoration: BoxDecoration(
                   color: Biz.page,
-                  borderRadius: BorderRadius.circular(16),
+                  borderRadius: BorderRadius.circular(10),
                 ),
                 child: const Icon(
                   Icons.add_photo_alternate_outlined,
@@ -225,7 +225,7 @@ class _AddTile extends StatelessWidget {
         height: size,
         decoration: BoxDecoration(
           color: Colors.white,
-          borderRadius: BorderRadius.circular(18),
+          borderRadius: BorderRadius.circular(10),
           border: Border.all(color: IviaColors.borderInput, width: 1.4),
         ),
         child: const Icon(Icons.add_rounded, color: Biz.navy, size: 30),
@@ -265,7 +265,7 @@ class _PhotoTile extends StatelessWidget {
           children: [
             Container(
               decoration: BoxDecoration(
-                borderRadius: BorderRadius.circular(18),
+                borderRadius: BorderRadius.circular(10),
                 border: main ? Border.all(color: Biz.navy, width: 2.5) : null,
               ),
               padding: EdgeInsets.all(main ? 2 : 0),

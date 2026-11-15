@@ -397,7 +397,7 @@ class _Tab extends StatelessWidget {
         padding: const EdgeInsets.symmetric(horizontal: 16, vertical: 10),
         decoration: BoxDecoration(
           color: selected ? Biz.navy : Colors.white,
-          borderRadius: BorderRadius.circular(14),
+          borderRadius: BorderRadius.circular(10),
           border: Border.all(color: selected ? Biz.navy : Biz.line),
         ),
         child: Text(
@@ -475,7 +475,7 @@ class _SelectableImage extends StatelessWidget {
         duration: Biz.fast,
         decoration: BoxDecoration(
           color: Biz.page,
-          borderRadius: BorderRadius.circular(18),
+          borderRadius: BorderRadius.circular(10),
           border: Border.all(
             color: on ? Biz.navy : Colors.transparent,
             width: 2.5,

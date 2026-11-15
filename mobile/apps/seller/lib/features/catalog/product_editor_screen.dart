@@ -217,7 +217,7 @@ class _ProductEditorScreenState extends ConsumerState<ProductEditorScreen> {
     final leave = await showDialog<bool>(
       context: context,
       builder: (context) => AlertDialog(
-        shape: RoundedRectangleBorder(borderRadius: BorderRadius.circular(24)),
+        shape: RoundedRectangleBorder(borderRadius: BorderRadius.circular(12)),
         title: Text(
           widget.productId == null
               ? 'Abandonner ce produit ?'
@@ -706,7 +706,7 @@ class _StatusChoice extends StatelessWidget {
           padding: const EdgeInsets.all(12),
           decoration: BoxDecoration(
             color: selected ? const Color(0xFFF2F6FC) : Colors.white,
-            borderRadius: BorderRadius.circular(16),
+            borderRadius: BorderRadius.circular(10),
             border: Border.all(
               color: selected ? Biz.navy : Biz.line,
               width: selected ? 2 : 1,
@@ -798,7 +798,7 @@ class _AddRow extends StatelessWidget {
               padding: const EdgeInsets.all(12),
               decoration: BoxDecoration(
                 color: Biz.page,
-                borderRadius: BorderRadius.circular(16),
+                borderRadius: BorderRadius.circular(10),
                 border: Border.all(
                   color: error != null ? IviaColors.error : Colors.transparent,
                   width: 1.5,

@@ -614,15 +614,15 @@ class _SearchField extends StatelessWidget {
               icon: const Icon(Icons.cancel_rounded, color: Biz.muted),
             ),
       border: OutlineInputBorder(
-        borderRadius: BorderRadius.circular(16),
+        borderRadius: BorderRadius.circular(10),
         borderSide: const BorderSide(color: Biz.line),
       ),
       enabledBorder: OutlineInputBorder(
-        borderRadius: BorderRadius.circular(16),
+        borderRadius: BorderRadius.circular(10),
         borderSide: const BorderSide(color: Biz.line),
       ),
       focusedBorder: OutlineInputBorder(
-        borderRadius: BorderRadius.circular(16),
+        borderRadius: BorderRadius.circular(10),
         borderSide: const BorderSide(color: Biz.navy, width: 1.6),
       ),
     ),
@@ -650,7 +650,7 @@ class _AddButton extends StatelessWidget {
           height: 48,
           decoration: BoxDecoration(
             color: Biz.navy,
-            borderRadius: BorderRadius.circular(16),
+            borderRadius: BorderRadius.circular(10),
             boxShadow: [
               BoxShadow(
                 color: Biz.navy.withValues(alpha: 0.3),
@@ -758,7 +758,7 @@ class _SelectionBar extends StatelessWidget {
       padding: const EdgeInsets.fromLTRB(6, 8, 8, 8),
       decoration: BoxDecoration(
         color: Biz.navy,
-        borderRadius: BorderRadius.circular(24),
+        borderRadius: BorderRadius.circular(12),
         boxShadow: const [
           BoxShadow(
             color: Color(0x400E2E54),
@@ -906,7 +906,7 @@ class _CategoryPickerState extends State<_CategoryPicker> {
                 hintText: 'Chercher une catégorie',
                 prefixIcon: const Icon(Icons.search_rounded),
                 border: OutlineInputBorder(
-                  borderRadius: BorderRadius.circular(14),
+                  borderRadius: BorderRadius.circular(10),
                 ),
               ),
             ),

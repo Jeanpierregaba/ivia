@@ -110,7 +110,7 @@ class ProductRow extends StatelessWidget {
               Container(
                 decoration: BoxDecoration(
                   color: Biz.page,
-                  borderRadius: BorderRadius.circular(16),
+                  borderRadius: BorderRadius.circular(10),
                 ),
                 child: Opacity(
                   opacity: withdrawn ? 0.55 : 1,
@@ -290,7 +290,7 @@ class ProductRow extends StatelessWidget {
   Widget _menu(BuildContext context) => PopupMenuButton<_RowAction>(
     tooltip: 'Actions pour ${product.name}',
     padding: EdgeInsets.zero,
-    shape: RoundedRectangleBorder(borderRadius: BorderRadius.circular(16)),
+    shape: RoundedRectangleBorder(borderRadius: BorderRadius.circular(10)),
     icon: const Icon(Icons.more_vert_rounded, color: Biz.muted),
     onSelected: (action) => switch (action) {
       _RowAction.edit => onOpen(),

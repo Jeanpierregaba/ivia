@@ -26,7 +26,7 @@ abstract final class P {
   static const navy = ink;
 
   /// Coins des cartes.
-  static const radius = 20.0;
+  static const radius = 12.0;
 
   /// Marges latérales des écrans.
   static const gutter = 18.0;

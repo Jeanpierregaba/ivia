@@ -68,7 +68,7 @@ class RevenueScreen extends ConsumerWidget {
               padding: const EdgeInsets.all(22),
               decoration: BoxDecoration(
                 color: IviaColors.berkeleyBlue,
-                borderRadius: BorderRadius.circular(28),
+                borderRadius: BorderRadius.circular(12),
               ),
               child: Column(
                 crossAxisAlignment: CrossAxisAlignment.start,
@@ -338,7 +338,7 @@ class _StatusIcon extends StatelessWidget {
     height: 46,
     decoration: BoxDecoration(
       color: settled ? IviaColors.successSoft : IviaColors.warningSoft,
-      borderRadius: BorderRadius.circular(14),
+      borderRadius: BorderRadius.circular(10),
     ),
     child: Icon(
       settled ? Icons.check : Icons.schedule,
@@ -380,7 +380,7 @@ class _Box extends StatelessWidget {
   @override
   Widget build(BuildContext context) => Material(
     color: IviaColors.surface,
-    borderRadius: BorderRadius.circular(24),
+    borderRadius: BorderRadius.circular(12),
     clipBehavior: Clip.antiAlias,
     child: InkWell(
       onTap: onTap,

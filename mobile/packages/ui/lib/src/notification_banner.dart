@@ -360,7 +360,7 @@ class _NotificationBannerState extends State<_NotificationBanner>
                         color: Colors.white,
                         elevation: 14,
                         shadowColor: const Color(0x400E2E54),
-                        borderRadius: BorderRadius.circular(22),
+                        borderRadius: BorderRadius.circular(14),
                         clipBehavior: Clip.antiAlias,
                         child: Column(
                           mainAxisSize: MainAxisSize.min,

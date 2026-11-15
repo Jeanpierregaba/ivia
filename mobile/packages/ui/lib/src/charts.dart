@@ -128,8 +128,8 @@ class _IviaBarChartState extends State<IviaBarChart>
                               vertical: 6,
                             ),
                             decoration: BoxDecoration(
-                              color: widget.color,
-                              borderRadius: BorderRadius.circular(10),
+                              color: IviaColors.text,
+                              borderRadius: BorderRadius.circular(6),
                             ),
                             child: Text(
                               widget.tooltip(shown),
@@ -232,21 +232,14 @@ class _BarsPainter extends CustomPainter {
       final x = slot * i + (slot - w) / 2;
       final r = RRect.fromRectAndCorners(
         Rect.fromLTWH(x, size.height - h, w, h),
-        topLeft: const Radius.circular(8),
-        topRight: const Radius.circular(8),
-        bottomLeft: const Radius.circular(3),
-        bottomRight: const Radius.circular(3),
+        topLeft: const Radius.circular(3),
+        topRight: const Radius.circular(3),
       );
       final on = i == selected;
-      final paint = Paint()
-        ..shader = LinearGradient(
-          begin: Alignment.topCenter,
-          end: Alignment.bottomCenter,
-          colors: on
-              ? [Color.lerp(color, Colors.white, 0.15)!, color]
-              : [color.withValues(alpha: 0.28), color.withValues(alpha: 0.14)],
-        ).createShader(r.outerRect);
-      canvas.drawRRect(r, paint);
+      canvas.drawRRect(
+        r,
+        Paint()..color = on ? color : color.withValues(alpha: 0.22),
+      );
     }
   }
 
@@ -425,4 +418,88 @@ class IviaMeter extends StatelessWidget {
       ),
     ),
   );
+}
+
+/// Courbe de tendance discrète (ventes des derniers jours) : trait et léger
+/// dégradé dessous, dernier point marqué.
+class IviaSparkline extends StatelessWidget {
+  const IviaSparkline({
+    super.key,
+    required this.values,
+    this.color = IviaColors.berkeleyBlue,
+    this.height = 48,
+  });
+
+  final List<num> values;
+  final Color color;
+  final double height;
+
+  @override
+  Widget build(BuildContext context) => ExcludeSemantics(
+    child: TweenAnimationBuilder<double>(
+      tween: Tween(begin: IviaMotion.reduced(context) ? 1 : 0, end: 1),
+      duration: const Duration(milliseconds: 900),
+      curve: Curves.easeOutCubic,
+      builder: (_, v, _) => CustomPaint(
+        size: Size(double.infinity, height),
+        painter: _SparkPainter(values, color, v),
+      ),
+    ),
+  );
+}
+
+class _SparkPainter extends CustomPainter {
+  _SparkPainter(this.values, this.color, this.progress);
+  final List<num> values;
+  final Color color;
+  final double progress;
+
+  @override
+  void paint(Canvas canvas, Size size) {
+    if (values.length < 2) return;
+    final top = values.fold<num>(0, (m, v) => math.max(m, v)).toDouble();
+    final pts = <Offset>[
+      for (var i = 0; i < values.length; i++)
+        Offset(
+          size.width * i / (values.length - 1),
+          size.height -
+              4 -
+              (top <= 0 ? 0 : (size.height - 8) * values[i] / top) * progress,
+        ),
+    ];
+    final line = Path()..moveTo(pts.first.dx, pts.first.dy);
+    for (var i = 1; i < pts.length; i++) {
+      final a = pts[i - 1], b = pts[i];
+      final mid = (a.dx + b.dx) / 2;
+      line.cubicTo(mid, a.dy, mid, b.dy, b.dx, b.dy);
+    }
+    final fill = Path.from(line)
+      ..lineTo(size.width, size.height)
+      ..lineTo(0, size.height)
+      ..close();
+    canvas
+      ..drawPath(
+        fill,
+        Paint()
+          ..shader = LinearGradient(
+            begin: Alignment.topCenter,
+            end: Alignment.bottomCenter,
+            colors: [color.withValues(alpha: 0.14), color.withValues(alpha: 0)],
+          ).createShader(Offset.zero & size),
+      )
+      ..drawPath(
+        line,
+        Paint()
+          ..color = color
+          ..style = PaintingStyle.stroke
+          ..strokeWidth = 2
+          ..strokeCap = StrokeCap.round,
+      )
+      ..drawCircle(pts.last, 6, Paint()..color = color.withValues(alpha: 0.18))
+      ..drawCircle(pts.last, 3.5, Paint()..color = color);
+  }
+
+  @override
+  bool shouldRepaint(_SparkPainter old) =>
+      old.progress != progress || old.values != values || old.color != color;
 }

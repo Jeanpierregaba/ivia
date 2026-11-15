@@ -669,7 +669,7 @@ class _ProductPickerState extends ConsumerState<_ProductPicker> {
               hintText: 'Chercher un produit',
               prefixIcon: const Icon(Icons.search_rounded),
               border: OutlineInputBorder(
-                borderRadius: BorderRadius.circular(14),
+                borderRadius: BorderRadius.circular(10),
               ),
             ),
           ),

@@ -122,35 +122,25 @@ class HomeScreen extends ConsumerWidget {
                     ),
                   BizReveal(
                     index: 3,
-                    child: Row(
-                      children: [
-                        Expanded(
-                          child: _StatTile(
-                            value: preparing,
-                            label: restaurant ? 'En cuisine' : 'En préparation',
-                            color: Biz.blue,
-                            onTap: () =>
-                                context.go(Routes.ordersTab(OrderTab.active)),
-                          ),
+                    child: _MetricsStrip(
+                      items: [
+                        _Metric(
+                          preparing,
+                          restaurant ? 'En cuisine' : 'En préparation',
+                          Biz.blue,
+                          () => context.go(Routes.ordersTab(OrderTab.active)),
                         ),
-                        const SizedBox(width: 10),
-                        Expanded(
-                          child: _StatTile(
-                            value: ready,
-                            label: ready > 1 ? 'Prêtes' : 'Prête',
-                            color: IviaColors.cornellRed,
-                            onTap: () =>
-                                context.go(Routes.ordersTab(OrderTab.active)),
-                          ),
+                        _Metric(
+                          ready,
+                          ready > 1 ? 'Prêtes' : 'Prête',
+                          IviaColors.cornellRed,
+                          () => context.go(Routes.ordersTab(OrderTab.active)),
                         ),
-                        const SizedBox(width: 10),
-                        Expanded(
-                          child: _StatTile(
-                            value: low?.length,
-                            label: 'Stock bas',
-                            color: Biz.amber,
-                            onTap: () => context.go(Routes.catalog),
-                          ),
+                        _Metric(
+                          low?.length,
+                          'Stock bas',
+                          Biz.amber,
+                          () => context.go(Routes.catalog),
                         ),
                       ],
                     ),
@@ -230,8 +220,9 @@ class HomeScreen extends ConsumerWidget {
   }
 }
 
-/// En-tête bleu nuit arrondi : boutique, état, chiffres du jour.
-class _Header extends StatelessWidget {
+/// En-tête : boutique et son état, ventes du jour en grand, comparaison avec
+/// hier et courbe des 7 derniers jours.
+class _Header extends ConsumerWidget {
   const _Header({
     required this.name,
     required this.logoUrl,
@@ -249,48 +240,48 @@ class _Header extends StatelessWidget {
   final int sales, count;
 
   @override
-  Widget build(BuildContext context) {
+  Widget build(BuildContext context, WidgetRef ref) {
     final t = Theme.of(context).textTheme;
-    final kpiValue = t.headlineSmall?.copyWith(
-      color: Colors.white,
-      fontWeight: FontWeight.w800,
-    );
+    final series = ref.watch(sellerStatsProvider(7)).value?.series;
+    final yesterday = series != null && series.length >= 2
+        ? series[series.length - 2].salesXof
+        : null;
+    final trend = yesterday == null || yesterday == 0
+        ? null
+        : ((sales - yesterday) * 100 / yesterday).round();
     return Container(
       decoration: const BoxDecoration(
-        gradient: LinearGradient(
-          begin: Alignment.topLeft,
-          end: Alignment.bottomRight,
-          colors: [Biz.navy2, Biz.navy],
-        ),
-        borderRadius: BorderRadius.vertical(bottom: Radius.circular(32)),
+        color: Colors.white,
+        border: Border(bottom: BorderSide(color: Biz.line)),
       ),
       child: SafeArea(
         bottom: false,
         child: Padding(
-          padding: const EdgeInsets.fromLTRB(18, 14, 18, 20),
+          padding: const EdgeInsets.fromLTRB(16, 12, 16, 16),
           child: Column(
             crossAxisAlignment: CrossAxisAlignment.stretch,
             children: [
               Row(
                 children: [
                   Container(
-                    width: 54,
-                    height: 54,
+                    width: 40,
+                    height: 40,
                     decoration: BoxDecoration(
-                      color: Colors.white.withValues(alpha: 0.12),
-                      borderRadius: BorderRadius.circular(18),
+                      color: Biz.page,
+                      borderRadius: BorderRadius.circular(10),
+                      border: Border.all(color: Biz.line),
                     ),
                     clipBehavior: Clip.antiAlias,
                     child: logoUrl == null
-                        ? Icon(Pro.icon(sector), color: Colors.white)
+                        ? Icon(Pro.icon(sector), color: Biz.navy, size: 20)
                         : Image.network(
                             logoUrl!,
                             fit: BoxFit.cover,
                             errorBuilder: (_, _, _) =>
-                                Icon(Pro.icon(sector), color: Colors.white),
+                                Icon(Pro.icon(sector), color: Biz.navy),
                           ),
                   ),
-                  const SizedBox(width: 12),
+                  const SizedBox(width: 10),
                   Expanded(
                     child: Column(
                       crossAxisAlignment: CrossAxisAlignment.start,
@@ -299,20 +290,22 @@ class _Header extends StatelessWidget {
                           name,
                           maxLines: 1,
                           overflow: TextOverflow.ellipsis,
-                          style: t.titleLarge?.copyWith(
-                            color: Colors.white,
+                          style: t.titleMedium?.copyWith(
                             fontWeight: FontWeight.w800,
+                            color: IviaColors.text,
                           ),
                         ),
                         Row(
                           children: [
-                            PulseDot(
-                              color: online
-                                  ? const Color(0xFF3DD68C)
-                                  : const Color(0xFFF5B942),
-                              size: 6,
+                            Container(
+                              width: 7,
+                              height: 7,
+                              decoration: BoxDecoration(
+                                color: online ? Biz.green : Biz.amber,
+                                shape: BoxShape.circle,
+                              ),
                             ),
-                            const SizedBox(width: 2),
+                            const SizedBox(width: 6),
                             Flexible(
                               child: Text(
                                 [
@@ -321,9 +314,7 @@ class _Header extends StatelessWidget {
                                 ].join(' · '),
                                 maxLines: 1,
                                 overflow: TextOverflow.ellipsis,
-                                style: t.bodySmall?.copyWith(
-                                  color: Colors.white70,
-                                ),
+                                style: t.bodySmall?.copyWith(color: Biz.muted),
                               ),
                             ),
                           ],
@@ -331,65 +322,71 @@ class _Header extends StatelessWidget {
                       ],
                     ),
                   ),
-                  // Grande police : la pastille du secteur laisse la place au nom.
-                  if (MediaQuery.textScalerOf(context).scale(10) <= 13) ...[
-                    const SizedBox(width: 8),
-                    Container(
-                      padding: const EdgeInsets.symmetric(
-                        horizontal: 12,
-                        vertical: 8,
+                ],
+              ),
+              const SizedBox(height: 20),
+              Text(
+                'Ventes du jour',
+                style: t.labelLarge?.copyWith(color: Biz.muted),
+              ),
+              const SizedBox(height: 2),
+              Wrap(
+                crossAxisAlignment: WrapCrossAlignment.end,
+                spacing: 10,
+                children: [
+                  CountUp(
+                    value: sales,
+                    format: formatXof,
+                    style: t.headlineMedium?.copyWith(
+                      fontWeight: FontWeight.w800,
+                      color: IviaColors.text,
+                      letterSpacing: -0.5,
+                    ),
+                  ),
+                  if (trend != null)
+                    Padding(
+                      padding: const EdgeInsets.only(bottom: 5),
+                      child: Text(
+                        '${trend >= 0 ? '+' : '−'}${trend.abs()} % vs hier',
+                        style: t.labelMedium?.copyWith(
+                          color: trend >= 0 ? Biz.green : Biz.red,
+                          fontWeight: FontWeight.w700,
+                        ),
                       ),
-                      decoration: BoxDecoration(
-                        color: Colors.white.withValues(alpha: 0.12),
-                        borderRadius: BorderRadius.circular(99),
+                    ),
+                ],
+              ),
+              Text(
+                count == 1
+                    ? '1 commande payée aujourd’hui'
+                    : '$count commandes payées aujourd’hui',
+                style: t.bodySmall?.copyWith(color: Biz.muted),
+              ),
+              if (series != null && series.length >= 2) ...[
+                const SizedBox(height: 12),
+                IviaSparkline(
+                  values: [for (final d in series) d.salesXof],
+                  height: 44,
+                ),
+                const SizedBox(height: 4),
+                Row(
+                  children: [
+                    Expanded(
+                      child: Text(
+                        'il y a 7 jours',
+                        style: t.labelSmall?.copyWith(color: Biz.muted),
                       ),
-                      child: Row(
-                        mainAxisSize: MainAxisSize.min,
-                        children: [
-                          Icon(Pro.icon(sector), size: 16, color: Colors.white),
-                          const SizedBox(width: 6),
-                          Text(
-                            switch (sector) {
-                              'restaurant' => 'Restaurant',
-                              _ => 'Boutique',
-                            },
-                            style: t.labelLarge?.copyWith(
-                              color: Colors.white,
-                              fontWeight: FontWeight.w800,
-                            ),
-                          ),
-                        ],
+                    ),
+                    Expanded(
+                      child: Text(
+                        'aujourd’hui',
+                        textAlign: TextAlign.end,
+                        style: t.labelSmall?.copyWith(color: Biz.muted),
                       ),
                     ),
                   ],
-                ],
-              ),
-              const SizedBox(height: 18),
-              Row(
-                children: [
-                  Expanded(
-                    child: _Kpi(
-                      label: 'Ventes du jour',
-                      child: CountUp(
-                        value: sales,
-                        format: formatXof,
-                        style: kpiValue,
-                      ),
-                    ),
-                  ),
-                  const SizedBox(width: 10),
-                  Expanded(
-                    child: _Kpi(
-                      label: 'Commandes',
-                      child: CountUp(
-                        value: count,
-                        format: (v) => '$v',
-                        style: kpiValue,
-                      ),
-                    ),
-                  ),
-                ],
-              ),
+                ),
+              ],
             ],
           ),
         ),
@@ -398,85 +395,78 @@ class _Header extends StatelessWidget {
   }
 }
 
-class _Kpi extends StatelessWidget {
-  const _Kpi({required this.label, required this.child});
-  final String label;
-  final Widget child;
-
-  @override
-  Widget build(BuildContext context) => Container(
-    padding: const EdgeInsets.fromLTRB(14, 12, 14, 14),
-    decoration: BoxDecoration(
-      color: Colors.white.withValues(alpha: 0.08),
-      borderRadius: BorderRadius.circular(20),
-    ),
-    child: Column(
-      crossAxisAlignment: CrossAxisAlignment.start,
-      children: [
-        Text(
-          label,
-          style: Theme.of(context).textTheme.bodySmall
-              ?.copyWith(color: Colors.white70),
-        ),
-        const SizedBox(height: 4),
-        FittedBox(
-          fit: BoxFit.scaleDown,
-          alignment: Alignment.centerLeft,
-          child: child,
-        ),
-      ],
-    ),
-  );
-}
-
-class _StatTile extends StatelessWidget {
-  const _StatTile({
-    required this.value,
-    required this.label,
-    required this.color,
-    required this.onTap,
-  });
-  final int? value;
-  final String label;
-  final Color color;
-  final VoidCallback onTap;
+/// Bande d'indicateurs : un chiffre par colonne, séparés par un filet.
+class _MetricsStrip extends StatelessWidget {
+  const _MetricsStrip({required this.items});
+  final List<_Metric> items;
 
   @override
   Widget build(BuildContext context) {
     final t = Theme.of(context).textTheme;
-    return Semantics(
-      container: true,
-      button: true,
-      label: '$label : ${value ?? 'inconnu'}',
-      excludeSemantics: true,
-      onTap: onTap,
-      child: BizCard(
-        onTap: onTap,
-        padding: const EdgeInsets.fromLTRB(14, 12, 10, 14),
-        child: Column(
-          crossAxisAlignment: CrossAxisAlignment.start,
+    return Container(
+      decoration: BoxDecoration(
+        color: Colors.white,
+        borderRadius: BorderRadius.circular(Biz.radius),
+        border: Border.all(color: Biz.line),
+      ),
+      clipBehavior: Clip.antiAlias,
+      child: IntrinsicHeight(
+        child: Row(
+          crossAxisAlignment: CrossAxisAlignment.stretch,
           children: [
-            value == null
-                ? const BizSkeleton(width: 28, height: 26)
-                : CountUp(
-                    value: value!,
-                    format: (v) => '$v',
-                    style: t.headlineSmall?.copyWith(
-                      color: color,
-                      fontWeight: FontWeight.w800,
+            for (final (i, m) in items.indexed) ...[
+              if (i > 0) const VerticalDivider(width: 1, color: Biz.line),
+              Expanded(
+                child: Semantics(
+                  container: true,
+                  button: true,
+                  label: '${m.label} : ${m.value ?? 'inconnu'}',
+                  excludeSemantics: true,
+                  onTap: m.onTap,
+                  child: InkWell(
+                    onTap: m.onTap,
+                    child: Padding(
+                      padding: const EdgeInsets.fromLTRB(12, 12, 8, 12),
+                      child: Column(
+                        crossAxisAlignment: CrossAxisAlignment.start,
+                        children: [
+                          m.value == null
+                              ? const BizSkeleton(width: 24, height: 22)
+                              : CountUp(
+                                  value: m.value!,
+                                  format: (v) => '$v',
+                                  style: t.titleLarge?.copyWith(
+                                    fontWeight: FontWeight.w800,
+                                    color: (m.value ?? 0) > 0
+                                        ? m.color
+                                        : IviaColors.text,
+                                  ),
+                                ),
+                          const SizedBox(height: 2),
+                          Text(
+                            m.label,
+                            style: t.bodySmall?.copyWith(color: Biz.muted),
+                          ),
+                        ],
+                      ),
                     ),
                   ),
-            const SizedBox(height: 2),
-            Text(
-              label,
-              maxLines: 2,
-              style: t.bodySmall?.copyWith(color: Biz.muted),
-            ),
+                ),
+              ),
+            ],
           ],
         ),
       ),
     );
   }
+}
+
+class _Metric {
+  const _Metric(this.value, this.label, this.color, this.onTap);
+  final int? value;
+  final String label;
+  final Color color;
+  final VoidCallback onTap;
 }
 
 class _SectionTitle extends StatelessWidget {
@@ -768,7 +758,7 @@ class _ActiveOrderState extends ConsumerState<_ActiveOrder> {
             height: 48,
             decoration: BoxDecoration(
               color: IviaColors.secondarySoft,
-              borderRadius: BorderRadius.circular(16),
+              borderRadius: BorderRadius.circular(10),
             ),
             child: Icon(
               delivery ? Icons.two_wheeler_rounded : Icons.inventory_2_outlined,

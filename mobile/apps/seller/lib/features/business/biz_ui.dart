@@ -4,9 +4,9 @@ import 'package:flutter/material.dart';
 import 'package:flutter/services.dart';
 import 'package:ivia_ui/ivia_ui.dart';
 
-/// Charte d'Ivia Business (maquettes B00 à B25) : bleu nuit, cartes blanches
-/// très arrondies, barre du bas en pilule flottante, rouge réservé à
-/// l'urgence. Chaque interaction répond : enfoncement, ressort, retour
+/// Charte d'Ivia Business : sobre et professionnelle. Fond clair, surfaces
+/// blanches à filet fin (sans ombre), coins peu arrondis, bleu nuit pour les
+/// actions, rouge réservé à l'urgence. Chaque interaction répond : enfoncement, ressort, retour
 /// haptique, apparitions en cascade. Tout s'arrête si le téléphone demande
 /// de réduire les animations.
 abstract final class Biz {
@@ -19,15 +19,13 @@ abstract final class Biz {
   static const green = Color(0xFF1E8E55);
   static const amber = Color(0xFFB7791F);
   static const blue = IviaColors.cobaltBlue;
-  static const radius = 22.0;
+  static const radius = 12.0;
   static const fast = Duration(milliseconds: 180);
   static const medium = Duration(milliseconds: 320);
   static const spring = Cubic(0.34, 1.56, 0.64, 1);
   static const tabular = [FontFeature.tabularFigures()];
 
-  static const shadow = [
-    BoxShadow(color: Color(0x0F0E2E54), blurRadius: 18, offset: Offset(0, 6)),
-  ];
+  static const shadow = <BoxShadow>[];
 
   static bool still(BuildContext context) =>
       MediaQuery.maybeDisableAnimationsOf(context) ?? false;
@@ -120,8 +118,10 @@ class BizCard extends StatelessWidget {
       decoration: BoxDecoration(
         color: color,
         borderRadius: BorderRadius.circular(radius),
-        border: border == null ? null : Border.all(color: border!, width: 2),
-        boxShadow: Biz.shadow,
+        border: Border.all(
+          color: border ?? Biz.line,
+          width: border == null ? 1 : 1.5,
+        ),
       ),
       child: child,
     );
@@ -208,17 +208,8 @@ class BizButton extends StatelessWidget {
           padding: const EdgeInsets.symmetric(horizontal: 18),
           decoration: BoxDecoration(
             color: bg,
-            borderRadius: BorderRadius.circular(height),
+            borderRadius: BorderRadius.circular(10),
             border: outlined ? Border.all(color: Biz.line, width: 1.5) : null,
-            boxShadow: outlined || !enabled
-                ? null
-                : [
-                    BoxShadow(
-                      color: color.withValues(alpha: 0.28),
-                      blurRadius: 16,
-                      offset: const Offset(0, 6),
-                    ),
-                  ],
           ),
           child: Center(
             child: AnimatedSwitcher(
@@ -298,7 +289,7 @@ class BizIconButton extends StatelessWidget {
           height: size,
           decoration: BoxDecoration(
             color: active ? Biz.navy : Colors.white,
-            borderRadius: BorderRadius.circular(size * 0.32),
+            borderRadius: BorderRadius.circular(10),
             border: Border.all(color: active ? Biz.navy : Biz.line),
           ),
           child: Stack(
@@ -364,7 +355,7 @@ class BizFilterChip extends StatelessWidget {
           padding: const EdgeInsets.symmetric(horizontal: 14, vertical: 8),
           decoration: BoxDecoration(
             color: active ? Biz.navy : Colors.white,
-            borderRadius: BorderRadius.circular(99),
+            borderRadius: BorderRadius.circular(8),
             border: Border.all(color: active ? Biz.navy : Biz.line),
           ),
           child: Row(
@@ -500,13 +491,13 @@ class BizEmpty extends StatelessWidget {
             curve: Biz.spring,
             builder: (_, s, child) => Transform.scale(scale: s, child: child),
             child: Container(
-              width: 84,
-              height: 84,
+              width: 56,
+              height: 56,
               decoration: BoxDecoration(
-                color: color.withValues(alpha: 0.09),
-                shape: BoxShape.circle,
+                color: color.withValues(alpha: 0.08),
+                borderRadius: BorderRadius.circular(12),
               ),
-              child: Icon(icon, size: 38, color: color),
+              child: Icon(icon, size: 28, color: color),
             ),
           ),
           const SizedBox(height: 16),
@@ -545,7 +536,7 @@ Future<T?> showBizSheet<T>(
   useSafeArea: true,
   backgroundColor: Colors.white,
   shape: const RoundedRectangleBorder(
-    borderRadius: BorderRadius.vertical(top: Radius.circular(28)),
+    borderRadius: BorderRadius.vertical(top: Radius.circular(16)),
   ),
   builder: (context) {
     final t = Theme.of(context).textTheme;
@@ -657,8 +648,8 @@ class _BizRevealState extends State<BizReveal>
   }
 }
 
-/// Barre du bas en pilule flottante : l'onglet actif s'étire en pastille
-/// bleu nuit avec son nom ; bouton « + » au centre.
+/// Barre du bas d'app pro : bord à bord, filet en haut, nom sous chaque icône,
+/// onglet actif en bleu nuit avec un trait au-dessus ; bouton « + » au centre.
 class BizDock extends StatelessWidget {
   const BizDock({
     super.key,
@@ -682,7 +673,6 @@ class BizDock extends StatelessWidget {
   Widget build(BuildContext context) {
     final half = items.length ~/ 2;
     Widget tab(int i) => Expanded(
-      flex: i == current ? 13 : 8,
       child: _DockTab(
         item: items[i],
         selected: i == current,
@@ -692,33 +682,21 @@ class BizDock extends StatelessWidget {
         },
       ),
     );
-    return Container(
-      color: Biz.page,
+    return DecoratedBox(
+      decoration: const BoxDecoration(
+        color: Colors.white,
+        border: Border(top: BorderSide(color: Biz.line)),
+      ),
       child: SafeArea(
         top: false,
-        child: Padding(
-          padding: const EdgeInsets.fromLTRB(12, 6, 12, 10),
-          child: Container(
-            height: 70,
-            padding: const EdgeInsets.symmetric(horizontal: 7),
-            decoration: BoxDecoration(
-              color: Colors.white,
-              borderRadius: BorderRadius.circular(35),
-              boxShadow: const [
-                BoxShadow(
-                  color: Color(0x1F0E2E54),
-                  blurRadius: 28,
-                  offset: Offset(0, 10),
-                ),
-              ],
-            ),
-            child: Row(
-              children: [
-                for (var i = 0; i < half; i++) tab(i),
-                _CreateButton(onTap: onCreate, open: creating),
-                for (var i = half; i < items.length; i++) tab(i),
-              ],
-            ),
+        child: SizedBox(
+          height: 62,
+          child: Row(
+            children: [
+              for (var i = 0; i < half; i++) tab(i),
+              _CreateButton(onTap: onCreate, open: creating),
+              for (var i = half; i < items.length; i++) tab(i),
+            ],
           ),
         ),
       ),
@@ -749,7 +727,7 @@ class _DockTab extends StatelessWidget {
   @override
   Widget build(BuildContext context) {
     final t = Theme.of(context).textTheme;
-    final fg = selected ? Colors.white : Biz.muted;
+    final fg = selected ? Biz.navy : Biz.muted;
     return Semantics(
       container: true,
       button: true,
@@ -758,60 +736,59 @@ class _DockTab extends StatelessWidget {
           ? '${item.label}, ${item.badgeLabel ?? item.badge}'
           : item.label,
       child: ExcludeSemantics(
-        child: GestureDetector(
-          behavior: HitTestBehavior.opaque,
+        child: InkWell(
           onTap: onTap,
-          child: Center(
-            child: AnimatedContainer(
-              duration: Biz.medium,
-              curve: Curves.easeOutCubic,
-              height: 54,
-              padding: EdgeInsets.symmetric(horizontal: selected ? 12 : 0),
-              decoration: BoxDecoration(
-                color: selected ? Biz.navy : Colors.transparent,
-                borderRadius: BorderRadius.circular(27),
-              ),
-              // Réduit plutôt que de déborder (petit écran, grande police).
-              child: FittedBox(
-                fit: BoxFit.scaleDown,
-                child: Row(
-                  mainAxisSize: MainAxisSize.min,
-                  children: [
-                    Badge(
-                      isLabelVisible: item.badge > 0,
-                      backgroundColor: Biz.red,
-                      label: Text('${item.badge}'),
-                      child: AnimatedScale(
-                        scale: selected ? 1.06 : 1,
-                        duration: Biz.medium,
-                        curve: Biz.spring,
-                        child: Icon(item.icon, size: 24, color: fg),
-                      ),
+          child: Stack(
+            children: [
+              // Trait de l'onglet actif.
+              Align(
+                alignment: Alignment.topCenter,
+                child: AnimatedContainer(
+                  duration: Biz.medium,
+                  curve: Curves.easeOutCubic,
+                  width: selected ? 28 : 0,
+                  height: 2.5,
+                  decoration: const BoxDecoration(
+                    color: Biz.navy,
+                    borderRadius: BorderRadius.vertical(
+                      bottom: Radius.circular(2),
                     ),
-                    // Nom visible seulement sur l'onglet actif, qui s'étire.
-                    AnimatedSize(
-                      duration: Biz.medium,
-                      curve: Curves.easeOutCubic,
-                      child: selected
-                          ? Padding(
-                              padding: const EdgeInsets.only(left: 8),
-                              child: Text(
-                                item.label,
-                                maxLines: 1,
-                                textScaler: MediaQuery.textScalerOf(context)
-                                    .clamp(maxScaleFactor: 1.2),
-                                style: t.labelLarge?.copyWith(
-                                  color: Colors.white,
-                                  fontWeight: FontWeight.w800,
-                                ),
-                              ),
-                            )
-                          : const SizedBox.shrink(),
-                    ),
-                  ],
+                  ),
                 ),
               ),
-            ),
+              Center(
+                child: FittedBox(
+                  fit: BoxFit.scaleDown,
+                  child: Column(
+                    mainAxisSize: MainAxisSize.min,
+                    children: [
+                      Badge(
+                        isLabelVisible: item.badge > 0,
+                        backgroundColor: Biz.red,
+                        label: Text('${item.badge}'),
+                        child: Icon(item.icon, size: 23, color: fg),
+                      ),
+                      const SizedBox(height: 3),
+                      AnimatedDefaultTextStyle(
+                        duration: Biz.fast,
+                        style: (t.labelSmall ?? const TextStyle()).copyWith(
+                          color: fg,
+                          fontWeight: selected
+                              ? FontWeight.w700
+                              : FontWeight.w500,
+                        ),
+                        child: Text(
+                          item.label,
+                          maxLines: 1,
+                          textScaler: MediaQuery.textScalerOf(context)
+                              .clamp(maxScaleFactor: 1.2),
+                        ),
+                      ),
+                    ],
+                  ),
+                ),
+              ),
+            ],
           ),
         ),
       ),
@@ -835,31 +812,20 @@ class _CreateButton extends StatelessWidget {
       onTap: onTap,
       child: BizPressable(
         onTap: onTap,
-        scale: 0.88,
+        scale: 0.9,
         child: Container(
-          width: 58,
-          height: 50,
-          margin: const EdgeInsets.symmetric(horizontal: 4),
+          width: 48,
+          height: 40,
+          margin: const EdgeInsets.symmetric(horizontal: 6),
           decoration: BoxDecoration(
-            gradient: const LinearGradient(
-              begin: Alignment.topLeft,
-              end: Alignment.bottomRight,
-              colors: [Color(0xFFFF3B4C), Biz.red],
-            ),
-            borderRadius: BorderRadius.circular(25),
-            boxShadow: [
-              BoxShadow(
-                color: Biz.red.withValues(alpha: 0.38),
-                blurRadius: 16,
-                offset: const Offset(0, 6),
-              ),
-            ],
+            color: Biz.navy,
+            borderRadius: BorderRadius.circular(10),
           ),
           child: AnimatedRotation(
             turns: open ? 0.125 : 0,
             duration: Biz.medium,
-            curve: Biz.spring,
-            child: const Icon(Icons.add_rounded, color: Colors.white, size: 30),
+            curve: Curves.easeOutCubic,
+            child: const Icon(Icons.add_rounded, color: Colors.white, size: 26),
           ),
         ),
       ),

@@ -92,7 +92,7 @@ class _HomeTabState extends ConsumerState<HomeTab> {
     final error = errorOf(inboxValue);
     if (p == null) return const Center(child: CircularProgressIndicator());
     return AnnotatedRegion<SystemUiOverlayStyle>(
-      value: SystemUiOverlayStyle.light,
+      value: SystemUiOverlayStyle.dark,
       child: RefreshIndicator(
         color: P.green,
         onRefresh: () async {
@@ -193,28 +193,25 @@ class _Header extends StatelessWidget {
     final p = profile;
     final receiving = p.isOpen || p.onDuty || p.open24h;
     final top = MediaQuery.paddingOf(context).top;
-    Widget kpi(int value, String label) => Expanded(
-      child: Container(
-        padding: const EdgeInsets.fromLTRB(12, 10, 8, 10),
-        decoration: BoxDecoration(
-          color: P.greenDeep,
-          borderRadius: BorderRadius.circular(16),
-        ),
-        child: Semantics(
-          container: true,
-          label: '$value $label',
-          excludeSemantics: true,
+    Widget kpi(int value, String label, Color color) => Expanded(
+      child: Semantics(
+        container: true,
+        label: '$value $label',
+        excludeSemantics: true,
+        child: Padding(
+          padding: const EdgeInsets.fromLTRB(12, 12, 8, 12),
           child: Column(
             crossAxisAlignment: CrossAxisAlignment.start,
             children: [
-              Text('$value', style: PText.figure.copyWith(color: Colors.white)),
+              Text(
+                '$value',
+                style: PText.figure.copyWith(color: value > 0 ? color : P.ink),
+              ),
               Text(
                 label,
                 maxLines: 1,
                 overflow: TextOverflow.ellipsis,
-                style: PText.body.copyWith(
-                  color: IviaPharmacyColors.onGreenMuted,
-                ),
+                style: PText.small,
               ),
             ],
           ),
@@ -222,20 +219,17 @@ class _Header extends StatelessWidget {
       ),
     );
     return Container(
-      padding: EdgeInsets.fromLTRB(P.gutter, top + 26, P.gutter, 18),
+      padding: EdgeInsets.fromLTRB(P.gutter, top + 14, P.gutter, 16),
       decoration: const BoxDecoration(
-        color: P.green,
-        borderRadius: BorderRadius.vertical(bottom: Radius.circular(28)),
+        color: Colors.white,
+        border: Border(bottom: BorderSide(color: P.line)),
       ),
       child: Column(
         crossAxisAlignment: CrossAxisAlignment.stretch,
         children: [
           Row(
             children: [
-              IviaLogoTile(
-                size: 44,
-                color: Colors.white.withValues(alpha: 0.16),
-              ),
+              IviaLogoTile(size: 40, color: P.green),
               const SizedBox(width: 10),
               Expanded(
                 child: Column(
@@ -245,17 +239,24 @@ class _Header extends StatelessWidget {
                       header: true,
                       child: Text(
                         p.name,
-                        style: PText.figure.copyWith(
-                          color: Colors.white,
-                          fontSize: 20,
-                        ),
+                        maxLines: 1,
+                        overflow: TextOverflow.ellipsis,
+                        style: PText.header.copyWith(color: P.ink),
                       ),
                     ),
-                    Text(
-                      line,
-                      style: PText.body.copyWith(
-                        color: IviaPharmacyColors.onGreenMuted,
-                      ),
+                    Row(
+                      children: [
+                        Container(
+                          width: 7,
+                          height: 7,
+                          decoration: BoxDecoration(
+                            color: receiving ? P.green : P.muted,
+                            shape: BoxShape.circle,
+                          ),
+                        ),
+                        const SizedBox(width: 6),
+                        Flexible(child: Text(line, style: PText.small)),
+                      ],
                     ),
                   ],
                 ),
@@ -264,10 +265,10 @@ class _Header extends StatelessWidget {
           ),
           const SizedBox(height: 16),
           Container(
-            padding: const EdgeInsets.fromLTRB(14, 8, 8, 8),
+            padding: const EdgeInsets.fromLTRB(14, 6, 8, 6),
             decoration: BoxDecoration(
-              color: P.greenDeep,
               borderRadius: BorderRadius.circular(P.radius),
+              border: Border.all(color: P.line),
             ),
             child: MergeSemantics(
               child: Row(
@@ -278,37 +279,46 @@ class _Header extends StatelessWidget {
                       children: [
                         Text(
                           p.isOpen ? 'En service' : 'Hors service',
-                          style: PText.cardTitle.copyWith(color: Colors.white),
+                          style: PText.cardTitle.copyWith(color: P.ink),
                         ),
                         Text(
                           receiving
                               ? 'Vous recevez les alertes'
                               : "Vous ne recevez pas d'alertes",
-                          style: PText.body.copyWith(
-                            color: IviaPharmacyColors.onGreenMuted,
-                          ),
+                          style: PText.small,
                         ),
                       ],
                     ),
                   ),
                   PSwitch(
                     value: p.isOpen,
-                    onColor: IviaPharmacyColors.switchOn,
+                    onColor: P.green,
                     onChanged: busy ? null : onOpen,
                   ),
                 ],
               ),
             ),
           ),
-          const SizedBox(height: 14),
-          Row(
-            children: [
-              kpi(stats.received, 'Alertes'),
-              const SizedBox(width: 8),
-              kpi(stats.responded, 'Répondues'),
-              const SizedBox(width: 8),
-              kpi(stats.confirmed, 'Confirmées'),
-            ],
+          const SizedBox(height: 12),
+          Text("Aujourd'hui", style: PText.label),
+          const SizedBox(height: 6),
+          Container(
+            decoration: BoxDecoration(
+              borderRadius: BorderRadius.circular(P.radius),
+              border: Border.all(color: P.line),
+            ),
+            child: IntrinsicHeight(
+              child: Row(
+                crossAxisAlignment: CrossAxisAlignment.stretch,
+                children: [
+                  kpi(stats.received, 'Alertes', P.green),
+                  const VerticalDivider(width: 1, color: P.line),
+                  kpi(stats.responded, 'Répondues', P.blue),
+                  const VerticalDivider(width: 1, color: P.line),
+                  kpi(stats.confirmed, 'Confirmées', P.greenDeep),
+                ],
+              ),
+            ),
           ),
         ],
       ),
