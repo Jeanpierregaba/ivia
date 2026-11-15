@@ -31,7 +31,8 @@ func TestProductPromotionAppliesToCartAndCheckout(t *testing.T) {
 	s := newSeller(t, 10)
 	b := newBuyer(t, s.lat, s.lng)
 	adm := admin(t)
-	path := "/v1/admin/products/" + s.untrackedID + "/marketing"
+	// Le marchand gère lui-même promotion, badges et mise en avant de ses produits.
+	path := "/v1/seller/products/" + s.untrackedID + "/marketing"
 
 	// Validation : promotion au moins égale au prix, badge inconnu, rang hors bornes.
 	for _, body := range []map[string]any{
@@ -39,16 +40,21 @@ func TestProductPromotionAppliesToCartAndCheckout(t *testing.T) {
 		{"badges": []string{"gratuit"}},
 		{"featured_rank": 0},
 	} {
-		if r := call(t, adm, "PUT", path, body); r.Status != http.StatusBadRequest {
+		if r := call(t, s.token, "PUT", path, body); r.Status != http.StatusBadRequest {
 			t.Fatalf("%v accepté : %d %s", body, r.Status, r.Raw)
 		}
 	}
-	// Le marchand n'y a pas accès.
-	if r := call(t, s.token, "PUT", path, map[string]any{"featured_rank": 1}); r.Status != http.StatusForbidden {
-		t.Fatalf("marchand : %d", r.Status)
+	// L'admin ne touche pas aux produits d'une boutique : ils sont à la boutique.
+	if r := call(t, adm, "PUT", "/v1/admin/products/"+s.untrackedID+"/marketing", map[string]any{"featured_rank": 1}); r.Status != http.StatusForbidden || r.code() != "shop_managed_by_merchant" {
+		t.Fatalf("admin sur une boutique : %d %s", r.Status, r.Raw)
+	}
+	// Un autre marchand non plus (404).
+	other := newSeller(t, 1)
+	if r := call(t, other.token, "PUT", path, map[string]any{"featured_rank": 1}); r.Status != http.StatusNotFound {
+		t.Fatalf("autre marchand : %d", r.Status)
 	}
 
-	p := mustStatus(t, call(t, adm, "PUT", path, map[string]any{
+	p := mustStatus(t, call(t, s.token, "PUT", path, map[string]any{
 		"promo_price_xof": 3500, "badges": []string{"promotion", "featured", "promotion"},
 		"featured_rank": 1, "features": []string{"Eau minérale naturelle", " ", "Faiblement minéralisée"},
 	}), http.StatusOK)
@@ -82,13 +88,13 @@ func TestProductPromotionAppliesToCartAndCheckout(t *testing.T) {
 
 	// Promotion à venir : prix normal.
 	start := time.Now().Add(48 * time.Hour).UTC().Format(time.RFC3339)
-	p = mustStatus(t, call(t, adm, "PUT", path, map[string]any{"promo_price_xof": 3000, "promo_starts_at": start}), http.StatusOK)
+	p = mustStatus(t, call(t, s.token, "PUT", path, map[string]any{"promo_price_xof": 3000, "promo_starts_at": start}), http.StatusOK)
 	if p.Body["effective_price_xof"].(float64) != 5000 || p.Body["promo_active"] != false || p.Body["featured_rank"] != nil {
 		t.Fatalf("promotion à venir : %s", p.Raw)
 	}
 	// Prix normal abaissé sous la promotion : refusé par la base (contrainte), message clair.
 	cur := mustStatus(t, call(t, adm, "GET", "/v1/admin/products/"+s.untrackedID, nil), http.StatusOK)
-	r := call(t, adm, "PATCH", "/v1/admin/products/"+s.untrackedID, map[string]any{
+	r := call(t, s.token, "PATCH", "/v1/seller/products/"+s.untrackedID, map[string]any{
 		"category_id": cur.str("category_id"), "name": cur.str("name"), "price_xof": 2500, "parcel_size": cur.str("parcel_size"),
 	})
 	if r.Status != http.StatusBadRequest {
@@ -100,6 +106,18 @@ func TestAdminManagesPlatformShopProducts(t *testing.T) {
 	requireApp(t)
 	s := newSeller(t, 1)
 	adm := admin(t)
+
+	// Boutique d'un marchand : l'admin ne peut ni créer ni modifier ses produits.
+	if r := call(t, adm, "POST", "/v1/admin/shops/"+s.shopID+"/products", map[string]any{
+		"category_id": category(t), "name": "Intrus", "price_xof": 100, "parcel_size": "small", "stock_mode": "untracked",
+	}); r.Status != http.StatusForbidden || r.code() != "shop_managed_by_merchant" {
+		t.Fatalf("création dans une boutique de marchand : %d %s", r.Status, r.Raw)
+	}
+	if r := call(t, adm, "PUT", "/v1/admin/products/"+s.trackedID+"/stock", map[string]any{"quantity": 3}); r.Status != http.StatusForbidden {
+		t.Fatalf("stock d'une boutique de marchand : %d", r.Status)
+	}
+	// Boutique confiée à ivia (IVI) : l'admin gère ses produits.
+	mustStatus(t, call(t, adm, "POST", "/v1/admin/shops/"+s.shopID+"/platform-managed", map[string]any{"managed": true}), http.StatusOK)
 
 	// Brouillon à prix « à renseigner » (0), avec une photo envoyée par l'admin.
 	key := uploadImage(t, adm, "product_image")

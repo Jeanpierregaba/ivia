@@ -216,178 +216,182 @@ class _NavigationScreenState extends ConsumerState<NavigationScreen> {
         ? null
         : (route.durationS * remaining / route.distanceM).round();
     return Scaffold(
-      body: Stack(
-        children: [
-          Positioned.fill(
-            child: IviaMap(
-              center: _follow && here != null ? here : (here ?? widget.to),
-              zoom: 17,
-              bearing: _follow ? _heading : null,
-              tilt: _follow ? 45 : 0,
-              route: _path,
-              markers: [
-                if (here != null)
+      // Plein écran : le corps du Scaffold a une hauteur libre ; sans taille
+      // imposée, la pile prendrait la hauteur du seul bandeau du haut.
+      body: SizedBox.expand(
+        child: Stack(
+          children: [
+            Positioned.fill(
+              child: IviaMap(
+                center: _follow && here != null ? here : (here ?? widget.to),
+                zoom: 17,
+                bearing: _follow ? _heading : null,
+                tilt: _follow ? 45 : 0,
+                route: _path,
+                markers: [
+                  if (here != null)
+                    IviaMapMarker(
+                      id: 'moi',
+                      point: here,
+                      color: IviaColors.cobaltBlue,
+                      icon: Icons.navigation_rounded,
+                    ),
                   IviaMapMarker(
-                    id: 'moi',
-                    point: here,
-                    color: IviaColors.cobaltBlue,
-                    icon: Icons.navigation_rounded,
+                    id: 'arrivee',
+                    point: widget.to,
+                    color: IviaColors.imperialRed,
+                    icon: Icons.flag_rounded,
                   ),
-                IviaMapMarker(
-                  id: 'arrivee',
-                  point: widget.to,
-                  color: IviaColors.imperialRed,
-                  icon: Icons.flag_rounded,
-                ),
-              ],
-              onCameraIdle: (_) {},
+                ],
+                onCameraIdle: (_) {},
+              ),
             ),
-          ),
-          // Bandeau du haut : temps et distance restants, destination.
-          SafeArea(
-            child: Padding(
-              padding: const EdgeInsets.all(IviaSpacing.md),
-              child: IviaReveal(
-                child: Material(
-                  color: IviaColors.berkeleyBlue,
-                  borderRadius: BorderRadius.circular(22),
-                  elevation: 8,
-                  shadowColor: Colors.black38,
-                  child: Padding(
-                    padding: const EdgeInsets.fromLTRB(8, 10, 18, 14),
-                    child: Row(
-                      children: [
-                        IconButton(
-                          tooltip: 'Quitter la navigation',
-                          onPressed: () => Navigator.of(context).pop(false),
-                          icon: const Icon(
-                            Icons.close_rounded,
-                            color: Colors.white,
-                          ),
-                        ),
-                        const SizedBox(width: IviaSpacing.xs),
-                        Expanded(
-                          child: Column(
-                            crossAxisAlignment: CrossAxisAlignment.start,
-                            mainAxisSize: MainAxisSize.min,
-                            children: [
-                              AnimatedSwitcher(
-                                duration: IviaMotion.medium,
-                                child: Text(
-                                  here == null
-                                      ? 'Recherche de votre position…'
-                                      : [
-                                          if (seconds != null)
-                                            _duration(seconds),
-                                          _meters(remaining),
-                                        ].join('  ·  '),
-                                  key: ValueKey(
-                                    '${seconds ?? 0}-${remaining ~/ 50}',
-                                  ),
-                                  style: t.titleLarge?.copyWith(
-                                    color: Colors.white,
-                                    fontWeight: FontWeight.w800,
-                                  ),
-                                ),
-                              ),
-                              const SizedBox(height: 2),
-                              Text(
-                                'Vers ${widget.label}',
-                                maxLines: 1,
-                                overflow: TextOverflow.ellipsis,
-                                style: t.bodyMedium?.copyWith(
-                                  color: Colors.white70,
-                                ),
-                              ),
-                            ],
-                          ),
-                        ),
-                        if (_routing)
-                          const SizedBox.square(
-                            dimension: 18,
-                            child: CircularProgressIndicator(
-                              strokeWidth: 2,
+            // Bandeau du haut : temps et distance restants, destination.
+            SafeArea(
+              child: Padding(
+                padding: const EdgeInsets.all(IviaSpacing.md),
+                child: IviaReveal(
+                  child: Material(
+                    color: IviaColors.berkeleyBlue,
+                    borderRadius: BorderRadius.circular(22),
+                    elevation: 8,
+                    shadowColor: Colors.black38,
+                    child: Padding(
+                      padding: const EdgeInsets.fromLTRB(8, 10, 18, 14),
+                      child: Row(
+                        children: [
+                          IconButton(
+                            tooltip: 'Quitter la navigation',
+                            onPressed: () => Navigator.of(context).pop(false),
+                            icon: const Icon(
+                              Icons.close_rounded,
                               color: Colors.white,
                             ),
                           ),
-                      ],
-                    ),
-                  ),
-                ),
-              ),
-            ),
-          ),
-          if (route?.approximate ?? false)
-            Positioned(
-              left: IviaSpacing.md,
-              right: IviaSpacing.md,
-              top: MediaQuery.paddingOf(context).top + 104,
-              child: const IviaReveal(
-                index: 1,
-                child: _Hint(
-                  text: 'Trajet estimé : suivez les routes, le tracé exact arrive bientôt.',
-                ),
-              ),
-            ),
-          if (_error != null)
-            Positioned(
-              left: IviaSpacing.md,
-              right: IviaSpacing.md,
-              top: MediaQuery.paddingOf(context).top + 104,
-              child: _Hint(text: _error!),
-            ),
-          // Bas : recentrer et arrivée.
-          Positioned(
-            left: IviaSpacing.md,
-            right: IviaSpacing.md,
-            bottom: MediaQuery.paddingOf(context).bottom + IviaSpacing.md,
-            child: IviaReveal(
-              index: 2,
-              child: Row(
-                children: [
-                  AnimatedScale(
-                    scale: _follow ? 0 : 1,
-                    duration: IviaMotion.medium,
-                    curve: Curves.easeOutBack,
-                    child: FloatingActionButton(
-                      heroTag: 'recentrer',
-                      backgroundColor: IviaColors.surface,
-                      foregroundColor: IviaColors.cobaltBlue,
-                      onPressed: () => setState(() => _follow = true),
-                      tooltip: 'Recentrer',
-                      child: const Icon(Icons.my_location_rounded),
-                    ),
-                  ),
-                  const SizedBox(width: IviaSpacing.md),
-                  Expanded(
-                    child: SizedBox(
-                      height: 56,
-                      child: FilledButton.icon(
-                        style: FilledButton.styleFrom(
-                          backgroundColor: IviaColors.success,
-                          shape: const StadiumBorder(),
-                        ),
-                        onPressed: _arrived,
-                        icon: const Icon(Icons.flag_rounded),
-                        label: const Text('Je suis arrivé'),
+                          const SizedBox(width: IviaSpacing.xs),
+                          Expanded(
+                            child: Column(
+                              crossAxisAlignment: CrossAxisAlignment.start,
+                              mainAxisSize: MainAxisSize.min,
+                              children: [
+                                AnimatedSwitcher(
+                                  duration: IviaMotion.medium,
+                                  child: Text(
+                                    here == null
+                                        ? 'Recherche de votre position…'
+                                        : [
+                                            if (seconds != null)
+                                              _duration(seconds),
+                                            _meters(remaining),
+                                          ].join('  ·  '),
+                                    key: ValueKey(
+                                      '${seconds ?? 0}-${remaining ~/ 50}',
+                                    ),
+                                    style: t.titleLarge?.copyWith(
+                                      color: Colors.white,
+                                      fontWeight: FontWeight.w800,
+                                    ),
+                                  ),
+                                ),
+                                const SizedBox(height: 2),
+                                Text(
+                                  'Vers ${widget.label}',
+                                  maxLines: 1,
+                                  overflow: TextOverflow.ellipsis,
+                                  style: t.bodyMedium?.copyWith(
+                                    color: Colors.white70,
+                                  ),
+                                ),
+                              ],
+                            ),
+                          ),
+                          if (_routing)
+                            const SizedBox.square(
+                              dimension: 18,
+                              child: CircularProgressIndicator(
+                                strokeWidth: 2,
+                                color: Colors.white,
+                              ),
+                            ),
+                        ],
                       ),
                     ),
                   ),
-                ],
+                ),
               ),
             ),
-          ),
-          // Déplacer la carte à la main arrête le suivi (« Recentrer »).
-          if (_follow)
-            Positioned.fill(
-              child: Listener(
-                behavior: HitTestBehavior.translucent,
-                onPointerMove: (e) {
-                  if (e.delta.distance > 6) setState(() => _follow = false);
-                },
+            if (route?.approximate ?? false)
+              Positioned(
+                left: IviaSpacing.md,
+                right: IviaSpacing.md,
+                top: MediaQuery.paddingOf(context).top + 104,
+                child: const IviaReveal(
+                  index: 1,
+                  child: _Hint(
+                    text: 'Trajet estimé : suivez les routes, le tracé exact arrive bientôt.',
+                  ),
+                ),
+              ),
+            if (_error != null)
+              Positioned(
+                left: IviaSpacing.md,
+                right: IviaSpacing.md,
+                top: MediaQuery.paddingOf(context).top + 104,
+                child: _Hint(text: _error!),
+              ),
+            // Bas : recentrer et arrivée.
+            Positioned(
+              left: IviaSpacing.md,
+              right: IviaSpacing.md,
+              bottom: MediaQuery.paddingOf(context).bottom + IviaSpacing.md,
+              child: IviaReveal(
+                index: 2,
+                child: Row(
+                  children: [
+                    AnimatedScale(
+                      scale: _follow ? 0 : 1,
+                      duration: IviaMotion.medium,
+                      curve: Curves.easeOutBack,
+                      child: FloatingActionButton(
+                        heroTag: 'recentrer',
+                        backgroundColor: IviaColors.surface,
+                        foregroundColor: IviaColors.cobaltBlue,
+                        onPressed: () => setState(() => _follow = true),
+                        tooltip: 'Recentrer',
+                        child: const Icon(Icons.my_location_rounded),
+                      ),
+                    ),
+                    const SizedBox(width: IviaSpacing.md),
+                    Expanded(
+                      child: SizedBox(
+                        height: 56,
+                        child: FilledButton.icon(
+                          style: FilledButton.styleFrom(
+                            backgroundColor: IviaColors.success,
+                            shape: const StadiumBorder(),
+                          ),
+                          onPressed: _arrived,
+                          icon: const Icon(Icons.flag_rounded),
+                          label: const Text('Je suis arrivé'),
+                        ),
+                      ),
+                    ),
+                  ],
+                ),
               ),
             ),
-        ],
+            // Déplacer la carte à la main arrête le suivi (« Recentrer »).
+            if (_follow)
+              Positioned.fill(
+                child: Listener(
+                  behavior: HitTestBehavior.translucent,
+                  onPointerMove: (e) {
+                    if (e.delta.distance > 6) setState(() => _follow = false);
+                  },
+                ),
+              ),
+          ],
+        ),
       ),
     );
   }

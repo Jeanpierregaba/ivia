@@ -368,7 +368,8 @@ func (a *App) SeedDemo(ctx context.Context, logf func(format string, args ...any
 				if p.PromoPriceXOF != nil {
 					ends = &end
 				}
-				if _, err := a.Catalog.SetMarketing(ctx, adminID, created.ID, catalog.MarketingInput{
+				// Promotions des boutiques : posées par le marchand lui-même.
+				if _, err := a.Catalog.SellerSetMarketing(ctx, owner.ID, created.ID, catalog.MarketingInput{
 					PromoPriceXOF: p.PromoPriceXOF, PromoEndsAt: ends, Badges: p.Badges,
 				}); err != nil {
 					return out, fmt.Errorf("promotion %s : %w", p.Name, err)

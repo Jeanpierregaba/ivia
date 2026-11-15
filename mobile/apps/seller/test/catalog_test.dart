@@ -517,6 +517,40 @@ void main() {
       );
     });
 
+    testWidgets('promotion gérée par la boutique : prix barré, vedette', (
+      tester,
+    ) async {
+      final product = catalog.seed(name: 'Riz parfumé 5 kg');
+      final id = product['id'] as String;
+      server.on(
+        'PUT',
+        '/v1/seller/products/$id/marketing',
+        (r) => FakeResponse.json(200, {
+          ...product,
+          'promo_price_xof': 4000,
+          'promo_active': true,
+          'effective_price_xof': 4000,
+          'featured_rank': 100,
+          'badges': ['promotion'],
+        }),
+      );
+      await openCatalog(tester);
+      await tapText(tester, 'Riz parfumé 5 kg');
+      await tapText(tester, 'Promotion et mise en avant');
+      await tester.enterText(find.byType(TextField).last, '4000');
+      await tapText(tester, 'Promotion');
+      await tester.tap(find.byType(Switch).last);
+      await tester.pump();
+      await tapText(tester, 'Enregistrer');
+      final body =
+          server.calls('PUT', '/v1/seller/products/$id/marketing').single.body!
+              as Map;
+      expect(body['promo_price_xof'], 4000);
+      expect(body['featured_rank'], 100);
+      expect(body['badges'], ['promotion']);
+      expect(find.text('Promotion enregistrée'), findsOneWidget);
+    });
+
     testWidgets('affichage en grille', (tester) async {
       catalog.seed(name: 'Riz parfumé 5 kg');
       await openCatalog(tester);

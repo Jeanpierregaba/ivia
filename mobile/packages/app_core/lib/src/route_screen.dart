@@ -201,67 +201,71 @@ class _RouteScreenState extends ConsumerState<RouteScreen> {
         : decodePolyline6(route.polyline);
     return Scaffold(
       appBar: AppBar(title: Text(widget.title)),
-      body: Stack(
-        children: [
-          Positioned.fill(
-            child: IviaMap(
-              // Nouveau trajet : la carte se recadre dessus.
-              key: ValueKey(
-                '${_from?.point.lat}|${_to?.point.lat}|${route?.distanceM}',
-              ),
-              center: center,
-              zoom: zoom,
-              route: polyline,
-              markers: [
-                if (_from != null)
-                  IviaMapMarker(
-                    id: 'from',
-                    point: _from!.point,
-                    color: IviaColors.cobaltBlue,
-                    icon: Icons.trip_origin,
-                  ),
-                if (_to != null)
-                  IviaMapMarker(
-                    id: 'to',
-                    point: _to!.point,
-                    color: IviaColors.primary,
-                    icon: Icons.place,
-                  ),
-              ],
-            ),
-          ),
-          Positioned(
-            top: 10,
-            left: 12,
-            right: 12,
-            child: Material(
-              elevation: 3,
-              color: Colors.white,
-              borderRadius: BorderRadius.circular(14),
-              clipBehavior: Clip.antiAlias,
-              child: Column(
-                mainAxisSize: MainAxisSize.min,
-                children: [
-                  _place(
-                    Icons.trip_origin,
-                    IviaColors.cobaltBlue,
-                    'Point de départ',
-                    _from,
-                    () => _pick(origin: true),
-                  ),
-                  const Divider(height: 1),
-                  _place(
-                    Icons.place,
-                    IviaColors.primary,
-                    'Où allez-vous ?',
-                    _to,
-                    () => _pick(origin: false),
-                  ),
+      // Plein écran : le corps du Scaffold a une hauteur libre ; sans taille
+      // imposée, la pile prendrait la hauteur du seul bandeau du haut.
+      body: SizedBox.expand(
+        child: Stack(
+          children: [
+            Positioned.fill(
+              child: IviaMap(
+                // Nouveau trajet : la carte se recadre dessus.
+                key: ValueKey(
+                  '${_from?.point.lat}|${_to?.point.lat}|${route?.distanceM}',
+                ),
+                center: center,
+                zoom: zoom,
+                route: polyline,
+                markers: [
+                  if (_from != null)
+                    IviaMapMarker(
+                      id: 'from',
+                      point: _from!.point,
+                      color: IviaColors.cobaltBlue,
+                      icon: Icons.trip_origin,
+                    ),
+                  if (_to != null)
+                    IviaMapMarker(
+                      id: 'to',
+                      point: _to!.point,
+                      color: IviaColors.primary,
+                      icon: Icons.place,
+                    ),
                 ],
               ),
             ),
-          ),
-        ],
+            Positioned(
+              top: 10,
+              left: 12,
+              right: 12,
+              child: Material(
+                elevation: 3,
+                color: Colors.white,
+                borderRadius: BorderRadius.circular(14),
+                clipBehavior: Clip.antiAlias,
+                child: Column(
+                  mainAxisSize: MainAxisSize.min,
+                  children: [
+                    _place(
+                      Icons.trip_origin,
+                      IviaColors.cobaltBlue,
+                      'Point de départ',
+                      _from,
+                      () => _pick(origin: true),
+                    ),
+                    const Divider(height: 1),
+                    _place(
+                      Icons.place,
+                      IviaColors.primary,
+                      'Où allez-vous ?',
+                      _to,
+                      () => _pick(origin: false),
+                    ),
+                  ],
+                ),
+              ),
+            ),
+          ],
+        ),
       ),
       bottomNavigationBar: Material(
         elevation: 8,

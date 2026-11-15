@@ -180,16 +180,24 @@ class _RouteViewState extends ConsumerState<_RouteView> {
 
   /// Navigation guidée dans l'app (jamais d'app de cartes externe).
   Future<void> _openNavigation(GeoPoint to) async {
+    final m = widget.mission;
+    // « Naviguer » démarre la course si elle ne l'est pas encore.
+    if (!widget.toClient && !m.pharmacy && m.startedAt == null) {
+      await widget.onStart();
+      if (!mounted) return;
+    }
     final vehicle =
         ref.read(driverDossierProvider).value?.vehicleType ??
         VehicleType.motorbike;
     final target = _target;
-    await openInAppNavigation(
+    final arrived = await openInAppNavigation(
       context,
       to: to,
       label: widget.toClient ? 'le client' : (target?.name ?? 'la boutique'),
       profile: routeProfile(vehicle),
     );
+    // « Je suis arrivé » dans la navigation : arrivée enregistrée.
+    if (arrived && mounted) await widget.onArrived();
   }
 
   Future<void> _call(String phone) async {

@@ -417,138 +417,142 @@ class _PlacePickerScreenState extends ConsumerState<PlacePickerScreen> {
     final t = Theme.of(context).textTheme;
     return Scaffold(
       appBar: AppBar(title: Text(widget.title)),
-      body: Stack(
-        children: [
-          Positioned.fill(
-            child: Stack(
-              alignment: Alignment.center,
-              children: [
-                IviaMap(
-                  center: _target,
-                  zoom: 16,
-                  onCameraIdle: (p) {
-                    _center = p;
-                    _reverse(p);
-                  },
-                ),
-                // La pointe du repère désigne le centre de la carte.
-                const IgnorePointer(
-                  child: Padding(
-                    padding: EdgeInsets.only(bottom: 44),
-                    child: Icon(
-                      Icons.location_on,
-                      size: 44,
-                      color: IviaColors.primary,
-                    ),
-                  ),
-                ),
-              ],
-            ),
-          ),
-          Positioned(
-            top: 10,
-            left: 12,
-            right: 12,
-            child: Material(
-              elevation: 3,
-              borderRadius: BorderRadius.circular(14),
-              color: Colors.white,
-              clipBehavior: Clip.antiAlias,
-              child: Column(
-                mainAxisSize: MainAxisSize.min,
+      // Plein écran : le corps du Scaffold a une hauteur libre ; sans taille
+      // imposée, la pile prendrait la hauteur du seul bandeau du haut.
+      body: SizedBox.expand(
+        child: Stack(
+          children: [
+            Positioned.fill(
+              child: Stack(
+                alignment: Alignment.center,
                 children: [
-                  TextField(
-                    controller: _search,
-                    onChanged: _onSearch,
-                    decoration: InputDecoration(
-                      hintText: 'Rechercher un lieu',
-                      prefixIcon: const Icon(Icons.search),
-                      suffixIcon: _searching
-                          ? const Padding(
-                              padding: EdgeInsets.all(12),
-                              child: SizedBox.square(
-                                dimension: 18,
-                                child: CircularProgressIndicator(
-                                  strokeWidth: 2,
-                                ),
-                              ),
-                            )
-                          : null,
-                      filled: true,
-                      fillColor: Colors.white,
-                      border: InputBorder.none,
-                      enabledBorder: InputBorder.none,
-                      focusedBorder: InputBorder.none,
+                  IviaMap(
+                    center: _target,
+                    zoom: 16,
+                    onCameraIdle: (p) {
+                      _center = p;
+                      _reverse(p);
+                    },
+                  ),
+                  // La pointe du repère désigne le centre de la carte.
+                  const IgnorePointer(
+                    child: Padding(
+                      padding: EdgeInsets.only(bottom: 44),
+                      child: Icon(
+                        Icons.location_on,
+                        size: 44,
+                        color: IviaColors.primary,
+                      ),
                     ),
                   ),
-                  if (_results.isEmpty &&
-                      _search.text.isEmpty &&
-                      _mine.isNotEmpty)
-                    SizedBox(
-                      height: 46,
-                      child: ListView(
-                        scrollDirection: Axis.horizontal,
-                        padding: const EdgeInsets.symmetric(horizontal: 10),
-                        children: [
-                          for (final m in _mine.take(6))
-                            Padding(
-                              padding: const EdgeInsets.only(
-                                right: 6,
-                                bottom: 6,
-                              ),
-                              child: ActionChip(
-                                avatar: Icon(
-                                  m.type == 'home'
-                                      ? Icons.home_outlined
-                                      : m.type == 'work'
-                                      ? Icons.work_outline
-                                      : Icons.history,
-                                  size: 16,
-                                ),
-                                label: Text(m.label),
-                                onPressed: () => setState(() {
-                                  _target = m.point;
-                                  _center = m.point;
-                                  _label = m.address;
-                                }),
-                              ),
-                            ),
-                        ],
-                      ),
-                    ),
-                  if (_results.isNotEmpty)
-                    ConstrainedBox(
-                      constraints: const BoxConstraints(maxHeight: 260),
-                      child: ListView(
-                        shrinkWrap: true,
-                        padding: EdgeInsets.zero,
-                        children: [
-                          for (final s in _results)
-                            ListTile(
-                              dense: true,
-                              leading: Icon(
-                                s.source == 'personal'
-                                    ? Icons.star_outline
-                                    : Icons.place_outlined,
-                              ),
-                              title: Text(s.name),
-                              subtitle: s.address.isEmpty
-                                  ? null
-                                  : Text(
-                                      s.address,
-                                      maxLines: 1,
-                                      overflow: TextOverflow.ellipsis,
-                                    ),
-                              onTap: () => _choose(s),
-                            ),
-                        ],
-                      ),
-                    ),
                 ],
               ),
             ),
-          ),
-        ],
+            Positioned(
+              top: 10,
+              left: 12,
+              right: 12,
+              child: Material(
+                elevation: 3,
+                borderRadius: BorderRadius.circular(14),
+                color: Colors.white,
+                clipBehavior: Clip.antiAlias,
+                child: Column(
+                  mainAxisSize: MainAxisSize.min,
+                  children: [
+                    TextField(
+                      controller: _search,
+                      onChanged: _onSearch,
+                      decoration: InputDecoration(
+                        hintText: 'Rechercher un lieu',
+                        prefixIcon: const Icon(Icons.search),
+                        suffixIcon: _searching
+                            ? const Padding(
+                                padding: EdgeInsets.all(12),
+                                child: SizedBox.square(
+                                  dimension: 18,
+                                  child: CircularProgressIndicator(
+                                    strokeWidth: 2,
+                                  ),
+                                ),
+                              )
+                            : null,
+                        filled: true,
+                        fillColor: Colors.white,
+                        border: InputBorder.none,
+                        enabledBorder: InputBorder.none,
+                        focusedBorder: InputBorder.none,
+                      ),
+                    ),
+                    if (_results.isEmpty &&
+                        _search.text.isEmpty &&
+                        _mine.isNotEmpty)
+                      SizedBox(
+                        height: 46,
+                        child: ListView(
+                          scrollDirection: Axis.horizontal,
+                          padding: const EdgeInsets.symmetric(horizontal: 10),
+                          children: [
+                            for (final m in _mine.take(6))
+                              Padding(
+                                padding: const EdgeInsets.only(
+                                  right: 6,
+                                  bottom: 6,
+                                ),
+                                child: ActionChip(
+                                  avatar: Icon(
+                                    m.type == 'home'
+                                        ? Icons.home_outlined
+                                        : m.type == 'work'
+                                        ? Icons.work_outline
+                                        : Icons.history,
+                                    size: 16,
+                                  ),
+                                  label: Text(m.label),
+                                  onPressed: () => setState(() {
+                                    _target = m.point;
+                                    _center = m.point;
+                                    _label = m.address;
+                                  }),
+                                ),
+                              ),
+                          ],
+                        ),
+                      ),
+                    if (_results.isNotEmpty)
+                      ConstrainedBox(
+                        constraints: const BoxConstraints(maxHeight: 260),
+                        child: ListView(
+                          shrinkWrap: true,
+                          padding: EdgeInsets.zero,
+                          children: [
+                            for (final s in _results)
+                              ListTile(
+                                dense: true,
+                                leading: Icon(
+                                  s.source == 'personal'
+                                      ? Icons.star_outline
+                                      : Icons.place_outlined,
+                                ),
+                                title: Text(s.name),
+                                subtitle: s.address.isEmpty
+                                    ? null
+                                    : Text(
+                                        s.address,
+                                        maxLines: 1,
+                                        overflow: TextOverflow.ellipsis,
+                                      ),
+                                onTap: () => _choose(s),
+                              ),
+                          ],
+                        ),
+                      ),
+                  ],
+                ),
+              ),
+            ),
+          ],
+        ),
       ),
       bottomNavigationBar: Material(
         elevation: 6,

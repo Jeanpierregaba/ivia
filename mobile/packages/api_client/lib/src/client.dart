@@ -276,6 +276,30 @@ class IviaApiClient {
       _items(await _send('GET', '/v1/neighborhoods'));
 
   /// Crée une boutique, en attente de validation par l'admin.
+  /// Promotion et mise en avant d'un produit, gérées par sa boutique : prix
+  /// barré ([promoPriceXof] `null` : aucune), fin de la promotion, badges,
+  /// vedette ([featuredRank] `null` : non), caractéristiques.
+  Future<Product> setProductMarketing(
+    String productId, {
+    int? promoPriceXof,
+    DateTime? promoEndsAt,
+    List<ProductBadge> badges = const [],
+    int? featuredRank,
+    List<String> features = const [],
+  }) async => Product.fromJson(
+    await _send(
+      'PUT',
+      '/v1/seller/products/$productId/marketing',
+      data: {
+        'promo_price_xof': promoPriceXof,
+        'promo_ends_at': promoEndsAt?.toUtc().toIso8601String(),
+        'badges': [for (final b in badges) b.code],
+        'featured_rank': featuredRank,
+        'features': features,
+      },
+    ),
+  );
+
   /// Déplace la boutique (lieu cherché ou position du téléphone) ; le reste
   /// ne change pas. [addressText] vide : adresse écrite gardée.
   Future<Shop> setShopLocation(

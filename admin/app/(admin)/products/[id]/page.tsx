@@ -19,16 +19,78 @@ export default async function ProductPage({ params }: Props) {
   const { id } = await params;
   let p: Schemas["Product"];
   let categories: Schemas["Category"][];
+  let shop: Schemas["Shop"];
   try {
     [p, categories] = await Promise.all([
       api<Schemas["Product"]>(`/v1/admin/products/${id}`),
       api<{ items: Schemas["Category"][] }>("/v1/admin/categories").then((r) => r.items),
     ]);
+    shop = await api<Schemas["Shop"]>(`/v1/admin/shops/${p.shop_id}`);
   } catch (err) {
     if (err instanceof ApiError) return <ErrorState message={err.message} />;
     throw err;
   }
   const needsPrice = p.price_xof === 0;
+
+  // Produit d'une boutique : il appartient à la boutique, le back-office ne le modifie pas.
+  if (!shop.managed_by_platform) {
+    return (
+      <>
+        <PageHeader
+          overline="Produits"
+          title={p.name}
+          description={
+            p.promo_active
+              ? `En promotion : ${formatXOF(p.effective_price_xof)} au lieu de ${formatXOF(p.price_xof)}.`
+              : `Prix : ${formatXOF(p.price_xof)}.`
+          }
+          actions={
+            <Link href="/products" className="font-semibold text-secondary hover:underline">
+              Tous les produits
+            </Link>
+          }
+        />
+        <Card>
+          <CardTitle icon={<Package size={18} />}>Produit géré par la boutique</CardTitle>
+          <p className="mb-4 text-text-secondary">
+            Ce produit appartient à{" "}
+            <Link href={`/shops/${shop.id}`} className="font-semibold text-secondary hover:underline">
+              {shop.name}
+            </Link>
+            . Seule la boutique peut le modifier : prix, photos, stock, promotions, badges et mise en avant,
+            depuis Ivia Business. Le back-office ne gère que les produits IVI.
+          </p>
+          <dl className="grid grid-cols-1 gap-3 text-[14px] sm:grid-cols-2">
+            <div>
+              <dt className="text-text-muted">État</dt>
+              <dd className="font-semibold">
+                {p.status === "active" ? "En vente" : p.status === "draft" ? "Brouillon" : "Retiré"}
+              </dd>
+            </div>
+            <div>
+              <dt className="text-text-muted">Stock</dt>
+              <dd className="font-semibold">
+                {p.stock_mode === "tracked" ? (p.stock_quantity ?? 0) : "Non suivi"}
+              </dd>
+            </div>
+          </dl>
+          {p.images.length > 0 && (
+            <div className="mt-4 flex flex-wrap gap-3">
+              {p.images.map((img) => (
+                // eslint-disable-next-line @next/next/no-img-element
+                <img
+                  key={img.object_key}
+                  src={img.url}
+                  alt=""
+                  className="size-24 rounded-[10px] border border-border object-cover"
+                />
+              ))}
+            </div>
+          )}
+        </Card>
+      </>
+    );
+  }
 
   return (
     <>

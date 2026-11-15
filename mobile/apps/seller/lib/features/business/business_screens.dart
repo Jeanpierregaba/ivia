@@ -2337,17 +2337,19 @@ Future<void> _moveShop(BuildContext context, WidgetRef ref) async {
   final shop = ref.read(sellerShopProvider).value;
   if (shop == null) return;
   final messenger = ScaffoldMessenger.of(context);
-  final picked = await Navigator.of(context, rootNavigator: true).push<PickedPlace>(
-    MaterialPageRoute(
-      builder: (_) => PlacePickerScreen(
-        initial: shop.location,
-        title: 'Emplacement de la boutique',
-        hint: 'Cherchez un lieu ou déplacez la carte : le repère marque '
-            "l'entrée de la boutique.",
-        confirmLabel: 'Enregistrer cet emplacement',
-      ),
-    ),
-  );
+  final picked = await Navigator.of(context, rootNavigator: true)
+      .push<PickedPlace>(
+        MaterialPageRoute(
+          builder: (_) => PlacePickerScreen(
+            initial: shop.location,
+            title: 'Emplacement de la boutique',
+            hint:
+                'Cherchez un lieu ou déplacez la carte : le repère marque '
+                "l'entrée de la boutique.",
+            confirmLabel: 'Enregistrer cet emplacement',
+          ),
+        ),
+      );
   if (picked == null) return;
   try {
     await ref

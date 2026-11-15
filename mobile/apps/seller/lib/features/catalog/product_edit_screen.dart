@@ -10,6 +10,7 @@ import '../../app/seller_shop.dart';
 import 'catalog_actions.dart';
 import 'catalog_labels.dart';
 import 'catalog_providers.dart';
+import 'marketing_sheet.dart';
 import 'product_fields.dart';
 import 'product_form.dart';
 import 'product_preview.dart';
@@ -437,6 +438,31 @@ class _ProductEditScreenState extends ConsumerState<ProductEditScreen> {
               error: _errors['stock_quantity'],
               onTap: enabled ? () => _editStock(form) : null,
             ),
+            if (form.saved case final saved?) ...[
+              const Divider(),
+              // Prix barré, badges et vedette : gérés par la boutique.
+              _SettingRow(
+                label: 'Promotion et mise en avant',
+                value: marketingSummary(saved),
+                onTap: enabled
+                    ? () async {
+                        final updated = await showMarketingSheet(
+                          context,
+                          saved,
+                        );
+                        if (updated == null || !mounted) return;
+                        setState(() => form.saved = updated);
+                        refreshCatalog(
+                          ProviderScope.containerOf(context, listen: false),
+                        );
+                        showMessage(
+                          ScaffoldMessenger.of(context),
+                          'Promotion enregistrée',
+                        );
+                      }
+                    : null,
+              ),
+            ],
           ],
         ),
       ),

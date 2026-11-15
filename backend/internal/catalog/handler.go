@@ -30,6 +30,7 @@ func (h *Handler) Register(rt *httpapi.Router) {
 	rt.Roles("GET /v1/seller/products/{id}", h.sellerGet, identity.RoleSeller)
 	rt.Roles("PATCH /v1/seller/products/{id}", h.update, identity.RoleSeller)
 	rt.Roles("PUT /v1/seller/products/{id}/stock", h.setStock, identity.RoleSeller)
+	rt.Roles("PUT /v1/seller/products/{id}/marketing", h.sellerSetMarketing, identity.RoleSeller)
 	rt.Roles("GET /v1/seller/products/{id}/stock-movements", h.stockMovements, identity.RoleSeller)
 
 	rt.Roles("GET /v1/admin/categories", h.adminListCategories, identity.RoleAdmin)
@@ -326,6 +327,22 @@ func (h *Handler) adminSetStock(w http.ResponseWriter, r *http.Request) error {
 		return err
 	}
 	p, err := h.svc.AdminSetStock(r.Context(), principal(r).UserID, id, in.Quantity, in.Note)
+	if err != nil {
+		return err
+	}
+	return httpapi.OK(w, p)
+}
+
+func (h *Handler) sellerSetMarketing(w http.ResponseWriter, r *http.Request) error {
+	id, err := httpapi.PathUUID(r, "id")
+	if err != nil {
+		return err
+	}
+	var in MarketingInput
+	if err := httpapi.Decode(r, &in); err != nil {
+		return err
+	}
+	p, err := h.svc.SellerSetMarketing(r.Context(), principal(r).UserID, id, in)
 	if err != nil {
 		return err
 	}

@@ -174,14 +174,7 @@ class ProductRow extends StatelessWidget {
                 if (stacked)
                   _trailing(context, stacked: true)
                 else
-                  Text(
-                    formatXof(p.priceXof),
-                    style: t.titleMedium?.copyWith(
-                      fontWeight: FontWeight.w800,
-                      color: Biz.navy,
-                      fontFeatures: Biz.tabular,
-                    ),
-                  ),
+                  _price(context),
               ],
             ),
           ),
@@ -277,14 +270,34 @@ class ProductRow extends StatelessWidget {
     return active ? _menu(context) : const SizedBox(width: 8);
   }
 
-  Widget _price(BuildContext context) => Text(
-    formatXof(product.priceXof),
-    style: Theme.of(context).textTheme.titleMedium?.copyWith(
-      fontWeight: FontWeight.w800,
-      color: Biz.navy,
-      fontFeatures: Biz.tabular,
-    ),
-  );
+  /// Prix ; en promotion : prix promotionnel, et prix normal barré.
+  Widget _price(BuildContext context) {
+    final t = Theme.of(context).textTheme;
+    final p = product;
+    final main = Text(
+      formatXof(p.promoActive ? p.effectivePriceXof : p.priceXof),
+      style: t.titleMedium?.copyWith(
+        fontWeight: FontWeight.w800,
+        color: p.promoActive ? Biz.red : Biz.navy,
+        fontFeatures: Biz.tabular,
+      ),
+    );
+    if (!p.promoActive) return main;
+    return Wrap(
+      spacing: 8,
+      crossAxisAlignment: WrapCrossAlignment.center,
+      children: [
+        main,
+        Text(
+          formatXof(p.priceXof),
+          style: t.bodySmall?.copyWith(
+            color: Biz.muted,
+            decoration: TextDecoration.lineThrough,
+          ),
+        ),
+      ],
+    );
+  }
 
   // Cible tactile de 48 dp (taille par défaut du bouton).
   Widget _menu(BuildContext context) => PopupMenuButton<_RowAction>(

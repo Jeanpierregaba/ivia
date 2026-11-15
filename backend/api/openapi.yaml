@@ -7974,6 +7974,40 @@ paths:
             application/json:
               schema:
                 "$ref": "#/components/schemas/Error"
+  "/v1/seller/products/{id}/marketing":
+    put:
+      summary: "Promotion et mise en avant de mon produit (prix barré, badges, vedette)"
+      tags:
+        - Admin
+      operationId: putSellerProductsByIdMarketing
+      parameters:
+        - name: id
+          in: path
+          required: true
+          schema:
+            type: string
+            format: uuid
+      x-roles:
+        - seller
+      requestBody:
+        required: true
+        content:
+          application/json:
+            schema:
+              "$ref": "#/components/schemas/ProductMarketingInput"
+      responses:
+        "200":
+          description: "Succès"
+          content:
+            application/json:
+              schema:
+                "$ref": "#/components/schemas/Product"
+        default:
+          description: "Erreur (voir `code`)"
+          content:
+            application/json:
+              schema:
+                "$ref": "#/components/schemas/Error"
   "/v1/admin/products/{id}/marketing":
     put:
       summary: "Promotion, badges, mise en avant et caractéristiques d'un produit"

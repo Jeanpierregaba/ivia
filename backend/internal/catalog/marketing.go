@@ -50,12 +50,50 @@ func nonNil(v []string) []string {
 	return v
 }
 
-// SetMarketing enregistre promotion, badges, mise en avant et caractéristiques (admin, journalisé).
+// errMerchantShop : l'admin ne gère que les produits des boutiques gérées par ivia (IVI) ; ceux des
+// autres boutiques (prix, photos, stock, promotions, badges, mise en avant) sont aux marchands.
+var errMerchantShop = apperr.Forbidden("shop_managed_by_merchant",
+	"Les produits de cette boutique sont gérés par la boutique elle-même.")
+
+// requirePlatformShop refuse toute modification par l'admin d'un produit d'une boutique qui n'est
+// pas gérée par ivia.
+func (s *Service) requirePlatformShop(ctx context.Context, shopID uuid.UUID) error {
+	sh, err := s.shops.Get(ctx, shopID)
+	if err != nil {
+		return err
+	}
+	if !sh.ManagedByPlatform {
+		return errMerchantShop
+	}
+	return nil
+}
+
+// SetMarketing enregistre promotion, badges, mise en avant et caractéristiques d'un produit IVI
+// (admin, journalisé).
 func (s *Service) SetMarketing(ctx context.Context, adminID, productID uuid.UUID, in MarketingInput) (Product, error) {
 	cur, err := s.get(ctx, productID)
 	if err != nil {
 		return Product{}, err
 	}
+	if err := s.requirePlatformShop(ctx, cur.ShopID); err != nil {
+		return Product{}, err
+	}
+	return s.setMarketing(ctx, &adminID, cur, in)
+}
+
+// SellerSetMarketing : le marchand gère lui-même le prix barré, les badges, la mise en avant et
+// les caractéristiques de ses produits.
+func (s *Service) SellerSetMarketing(ctx context.Context, sellerID, productID uuid.UUID, in MarketingInput) (Product, error) {
+	cur, err := s.RequireOwned(ctx, sellerID, productID)
+	if err != nil {
+		return Product{}, err
+	}
+	return s.setMarketing(ctx, nil, cur, in)
+}
+
+// setMarketing valide et enregistre ; journalisé quand c'est un admin.
+func (s *Service) setMarketing(ctx context.Context, adminID *uuid.UUID, cur Product, in MarketingInput) (Product, error) {
+	productID := cur.ID
 	v := validate.New()
 	if in.PromoPriceXOF != nil {
 		v.Check(cur.PriceXOF > 0, "promo_price_xof", "Indiquez d'abord le prix normal.")
@@ -86,15 +124,18 @@ func (s *Service) SetMarketing(ctx context.Context, adminID, productID uuid.UUID
 	if err := v.Err(); err != nil {
 		return Product{}, err
 	}
-	err = s.db.InTx(ctx, func(ctx context.Context) error {
+	err := s.db.InTx(ctx, func(ctx context.Context) error {
 		if err := store.New(s.db.Conn(ctx)).SetProductMarketing(ctx, store.SetProductMarketingParams{
 			ID: productID, PromoPriceXof: in.PromoPriceXOF, PromoStartsAt: in.PromoStartsAt, PromoEndsAt: in.PromoEndsAt,
 			Badges: in.Badges, FeaturedRank: in.FeaturedRank, Features: features,
 		}); err != nil {
 			return fmt.Errorf("promotion du produit : %w", err)
 		}
+		if adminID == nil {
+			return nil
+		}
 		return s.audit.Record(ctx, admin.AuditEntry{
-			AdminID: &adminID, Action: "product.marketing", TargetType: "product", TargetID: productID.String(),
+			AdminID: adminID, Action: "product.marketing", TargetType: "product", TargetID: productID.String(),
 			Before: map[string]any{"promo_price_xof": cur.PromoPriceXOF, "badges": cur.Badges, "featured_rank": cur.FeaturedRank},
 			After:  map[string]any{"promo_price_xof": in.PromoPriceXOF, "badges": in.Badges, "featured_rank": in.FeaturedRank},
 		})
@@ -147,9 +188,9 @@ func (s *Service) AdminGet(ctx context.Context, productID uuid.UUID) (Product, e
 	return s.get(ctx, productID)
 }
 
-// AdminCreate crée un produit dans une boutique (journalisé).
+// AdminCreate crée un produit dans une boutique gérée par ivia (journalisé).
 func (s *Service) AdminCreate(ctx context.Context, adminID, shopID uuid.UUID, in ProductInput) (Product, error) {
-	if _, err := s.shops.Get(ctx, shopID); err != nil {
+	if err := s.requirePlatformShop(ctx, shopID); err != nil {
 		return Product{}, err
 	}
 	p, err := s.create(ctx, adminID, shopID, in)
@@ -162,10 +203,13 @@ func (s *Service) AdminCreate(ctx context.Context, adminID, shopID uuid.UUID, in
 	})
 }
 
-// AdminUpdate modifie un produit (journalisé).
+// AdminUpdate modifie un produit d'une boutique gérée par ivia (journalisé).
 func (s *Service) AdminUpdate(ctx context.Context, adminID, productID uuid.UUID, in ProductInput) (Product, error) {
 	cur, err := s.get(ctx, productID)
 	if err != nil {
+		return Product{}, err
+	}
+	if err := s.requirePlatformShop(ctx, cur.ShopID); err != nil {
 		return Product{}, err
 	}
 	p, err := s.update(ctx, adminID, cur, in)
@@ -183,6 +227,9 @@ func (s *Service) AdminUpdate(ctx context.Context, adminID, productID uuid.UUID,
 func (s *Service) AdminSetStock(ctx context.Context, adminID, productID uuid.UUID, qty int32, note string) (Product, error) {
 	p, err := s.get(ctx, productID)
 	if err != nil {
+		return Product{}, err
+	}
+	if err := s.requirePlatformShop(ctx, p.ShopID); err != nil {
 		return Product{}, err
 	}
 	if p.StockMode != StockTracked {
