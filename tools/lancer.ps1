@@ -185,7 +185,7 @@ foreach ($a in $apps) {
   if (Repond $url) { Ok ("{0,-13}{1}" -f $a.Nom, $url) } else { Ko ("{0,-13}{1} ne répond pas" -f $a.Nom, $url) }
 }
 $bo = 'http://localhost:3000'
-$t = (Get-Date).AddSeconds(30)
+$t = (Get-Date).AddSeconds(90)
 while ((Get-Date) -lt $t -and -not (Repond $bo)) { Start-Sleep -Seconds 2 }
 if (Repond $bo) { Ok "Back-office  $bo" } else { Ko "Back-office  $bo ne répond pas" }
 
