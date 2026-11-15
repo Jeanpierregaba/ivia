@@ -178,16 +178,19 @@ Write-Host '    Base, API, apps et back-office en cours de démarrage...'
 Etape 'Vérifications'
 $limite = (Get-Date).AddMinutes(4)
 while ((Get-Date) -lt $limite -and -not (Repond 'http://localhost:8080/ready')) { Start-Sleep -Seconds 3 }
-if (Repond 'http://localhost:8080/ready') { Ok 'API          http://localhost:8080' } else { Ko "API          http://localhost:8080 ne répond pas (journal : backend\var\api.err.log)" }
+if (Repond 'http://localhost:8080/ready') { Ok 'API             http://localhost:8080' } else { Ko "API             http://localhost:8080 ne répond pas (journal : backend\var\api.err.log)" }
 Start-Sleep -Seconds 2
 foreach ($a in $apps) {
   $url = "http://localhost:$($a.Port)"
-  if (Repond $url) { Ok ("{0,-13}{1}" -f $a.Nom, $url) } else { Ko ("{0,-13}{1} ne répond pas" -f $a.Nom, $url) }
+  # Les serveurs des apps peuvent mettre quelques secondes à répondre.
+  $t = (Get-Date).AddSeconds(30)
+  while ((Get-Date) -lt $t -and -not (Repond $url)) { Start-Sleep -Seconds 2 }
+  if (Repond $url) { Ok ("{0,-16}{1}" -f $a.Nom, $url) } else { Ko ("{0,-16}{1} ne répond pas" -f $a.Nom, $url) }
 }
 $bo = 'http://localhost:3000'
 $t = (Get-Date).AddSeconds(90)
 while ((Get-Date) -lt $t -and -not (Repond $bo)) { Start-Sleep -Seconds 2 }
-if (Repond $bo) { Ok "Back-office  $bo" } else { Ko "Back-office  $bo ne répond pas" }
+if (Repond $bo) { Ok "Back-office     $bo" } else { Ko "Back-office     $bo ne répond pas" }
 
 Write-Host "`nTout est lancé. Pour arrêter : tools\lancer.ps1 -Arreter (ou « Arreter ivia » sur le bureau)." -ForegroundColor Cyan
 Write-Host 'Codes de connexion de démonstration : affichés dans backend\var\api.log (local seulement).'
