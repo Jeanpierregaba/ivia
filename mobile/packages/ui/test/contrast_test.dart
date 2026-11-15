@@ -39,6 +39,16 @@ void main() {
         IviaColors.secondarySoft,
       ),
       'Cornell sur surface': (IviaColors.primaryStrong, IviaColors.surface),
+      'success sur successSoft': (IviaColors.success, IviaColors.successSoft),
+      'warning sur warningSoft': (IviaColors.warning, IviaColors.warningSoft),
+      'Cobalt sur secondarySoft': (
+        IviaColors.cobaltBlue,
+        IviaColors.secondarySoft,
+      ),
+      'textSecondary sur background (pastille neutre)': (
+        IviaColors.textSecondary,
+        IviaColors.background,
+      ),
     };
     pairs.forEach((name, pair) {
       expect(
@@ -57,6 +67,47 @@ void main() {
     expect(
       contrast(IviaColors.borderInput, IviaColors.background),
       greaterThanOrEqualTo(3),
+    );
+  });
+
+  test('pictogrammes et indicateurs des apps visibles (3:1)', () {
+    for (final brand in [
+      IviaAppBrand.buyer,
+      IviaAppBrand.seller,
+      IviaAppBrand.driver,
+    ]) {
+      expect(contrast(brand.accent, brand.accentSoft), greaterThanOrEqualTo(3));
+      expect(
+        contrast(brand.accent, IviaColors.surface),
+        greaterThanOrEqualTo(3),
+      );
+    }
+  });
+
+  test('couleurs d\'action des apps lisibles (AA, 4,5:1)', () {
+    for (final brand in [
+      IviaAppBrand.buyer,
+      IviaAppBrand.seller,
+      IviaAppBrand.driver,
+    ]) {
+      // Liens : texte courant sur le fond d'écran et sur blanc.
+      expect(
+        contrast(brand.link, IviaColors.background),
+        greaterThanOrEqualTo(4.5),
+      );
+      expect(
+        contrast(brand.link, IviaColors.surface),
+        greaterThanOrEqualTo(4.5),
+      );
+    }
+    // Marchand : blanc sur les boutons Berkeley, titres Cobalt sur le fond.
+    expect(
+      contrast(white, IviaAppBrand.seller.action),
+      greaterThanOrEqualTo(4.5),
+    );
+    expect(
+      contrast(IviaAppBrand.seller.highlight, IviaColors.background),
+      greaterThanOrEqualTo(4.5),
     );
   });
 

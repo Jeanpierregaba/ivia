@@ -42,3 +42,6 @@ app.*.map.json
 
 # Widget Preview related
 .widget_preview/
+
+# Caches Gradle (créés par une compilation lancée depuis mobile/)
+**/.gradle/

@@ -1,0 +1,110 @@
+# sqlc génère le code Go typé des requêtes SQL (ADR 0004). Régénérer : `sqlc generate` (depuis backend/).
+# Chaque module a son fichier de requêtes et son paquet généré `internal/<module>/store` :
+# un module n'écrit des requêtes que sur ses propres tables.
+version: "2"
+
+overrides:
+  go:
+    overrides:
+      - db_type: uuid
+        go_type: github.com/google/uuid.UUID
+      - db_type: uuid
+        nullable: true
+        go_type:
+          import: github.com/google/uuid
+          type: UUID
+          pointer: true
+      - db_type: timestamptz
+        go_type: time.Time
+      - db_type: timestamptz
+        nullable: true
+        go_type:
+          import: time
+          type: Time
+          pointer: true
+      - db_type: date
+        go_type: time.Time
+      - db_type: date
+        nullable: true
+        go_type:
+          import: time
+          type: Time
+          pointer: true
+
+sql:
+  - &module
+    engine: postgresql
+    schema: db/migrations
+    queries: internal/geo/queries.sql
+    gen:
+      go: &gen
+        package: store
+        out: internal/geo/store
+        sql_package: pgx/v5
+        emit_pointers_for_null_types: true
+        emit_empty_slices: true
+        emit_methods_with_db_argument: false
+        omit_unused_structs: true
+  - <<: *module
+    queries: internal/users/queries.sql
+    gen: { go: { <<: *gen, out: internal/users/store } }
+  - <<: *module
+    queries: internal/business/queries.sql
+    gen: { go: { <<: *gen, out: internal/business/store } }
+  - <<: *module
+    queries: internal/mapping/queries.sql
+    gen: { go: { <<: *gen, out: internal/mapping/store } }
+  - <<: *module
+    queries: internal/properties/queries.sql
+    gen: { go: { <<: *gen, out: internal/properties/store } }
+  - <<: *module
+    queries: internal/auth/queries.sql
+    gen: { go: { <<: *gen, out: internal/auth/store } }
+  - <<: *module
+    queries: internal/admin/queries.sql
+    gen: { go: { <<: *gen, out: internal/admin/store } }
+  - <<: *module
+    queries: internal/notifications/queries.sql
+    gen: { go: { <<: *gen, out: internal/notifications/store } }
+  - <<: *module
+    queries: internal/shops/queries.sql
+    gen: { go: { <<: *gen, out: internal/shops/store } }
+  - <<: *module
+    queries: internal/stock/queries.sql
+    gen: { go: { <<: *gen, out: internal/stock/store } }
+  - <<: *module
+    queries: internal/catalog/queries.sql
+    gen: { go: { <<: *gen, out: internal/catalog/store } }
+  - <<: *module
+    queries: internal/search/queries.sql
+    gen: { go: { <<: *gen, out: internal/search/store } }
+  - <<: *module
+    queries: internal/cart/queries.sql
+    gen: { go: { <<: *gen, out: internal/cart/store } }
+  - <<: *module
+    queries: internal/orders/queries.sql
+    gen: { go: { <<: *gen, out: internal/orders/store } }
+  - <<: *module
+    queries: internal/payments/queries.sql
+    gen: { go: { <<: *gen, out: internal/payments/store } }
+  - <<: *module
+    queries: internal/delivery/queries.sql
+    gen: { go: { <<: *gen, out: internal/delivery/store } }
+  - <<: *module
+    queries: internal/settlements/queries.sql
+    gen: { go: { <<: *gen, out: internal/settlements/store } }
+  - <<: *module
+    queries: internal/promo/queries.sql
+    gen: { go: { <<: *gen, out: internal/promo/store } }
+  - <<: *module
+    queries: internal/pharmacy/queries.sql
+    gen: { go: { <<: *gen, out: internal/pharmacy/store } }
+  - <<: *module
+    queries: internal/coupons/queries.sql
+    gen: { go: { <<: *gen, out: internal/coupons/store } }
+  - <<: *module
+    queries: internal/ratings/queries.sql
+    gen: { go: { <<: *gen, out: internal/ratings/store } }
+  - <<: *module
+    queries: internal/chat/queries.sql
+    gen: { go: { <<: *gen, out: internal/chat/store } }

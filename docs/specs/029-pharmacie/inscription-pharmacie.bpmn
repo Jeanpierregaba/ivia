@@ -1,0 +1,98 @@
+<?xml version="1.0" encoding="UTF-8"?>
+<bpmn:definitions xmlns:bpmn="http://www.omg.org/spec/BPMN/20100524/MODEL" xmlns:bpmndi="http://www.omg.org/spec/BPMN/20100524/DI" xmlns:dc="http://www.omg.org/spec/DD/20100524/DC" xmlns:di="http://www.omg.org/spec/DD/20100524/DI" id="Defs_InscriptionPharmacie" targetNamespace="https://ivia.tg/bpmn" exporter="ivia" exporterVersion="1.0">
+  <bpmn:collaboration id="Collab_InscriptionPharmacie">
+    <bpmn:participant id="Pool_InscriptionPharmacie" name="Inscription et validation d'une pharmacie" processRef="Process_InscriptionPharmacie" />
+    <bpmn:textAnnotation id="Note_1"><bpmn:text>Sans validation de l'admin, aucune alerte n'est envoyée à la pharmacie (comme pour les boutiques et les livreurs).</bpmn:text></bpmn:textAnnotation>
+    <bpmn:association id="Assoc_Note_1" sourceRef="A_Verifier" targetRef="Note_1" />
+  </bpmn:collaboration>
+  <bpmn:process id="Process_InscriptionPharmacie" isExecutable="false">
+    <bpmn:laneSet id="LaneSet_InscriptionPharmacie">
+      <bpmn:lane id="Lane_Ph" name="Pharmacie (app pharmacie)">
+        <bpmn:flowNodeRef>Start_Rejoindre</bpmn:flowNodeRef>
+        <bpmn:flowNodeRef>P_Compte</bpmn:flowNodeRef>
+        <bpmn:flowNodeRef>P_Infos</bpmn:flowNodeRef>
+        <bpmn:flowNodeRef>P_Pieces</bpmn:flowNodeRef>
+        <bpmn:flowNodeRef>P_Bienvenue</bpmn:flowNodeRef>
+        <bpmn:flowNodeRef>P_Corriger</bpmn:flowNodeRef>
+        <bpmn:flowNodeRef>End_Active</bpmn:flowNodeRef>
+      </bpmn:lane>
+      <bpmn:lane id="Lane_Sys" name="Système ivia">
+        <bpmn:flowNodeRef>S_Notifier</bpmn:flowNodeRef>
+        <bpmn:flowNodeRef>S_Activer</bpmn:flowNodeRef>
+        <bpmn:flowNodeRef>S_Refus</bpmn:flowNodeRef>
+      </bpmn:lane>
+      <bpmn:lane id="Lane_Admin" name="Back-office admin">
+        <bpmn:flowNodeRef>A_Verifier</bpmn:flowNodeRef>
+        <bpmn:flowNodeRef>G_Conforme</bpmn:flowNodeRef>
+        <bpmn:flowNodeRef>A_Valider</bpmn:flowNodeRef>
+        <bpmn:flowNodeRef>A_Refuser</bpmn:flowNodeRef>
+      </bpmn:lane>
+    </bpmn:laneSet>
+    <bpmn:startEvent id="Start_Rejoindre" name="La pharmacie veut rejoindre ivia"><bpmn:outgoing>Flow_1</bpmn:outgoing></bpmn:startEvent>
+    <bpmn:userTask id="P_Compte" name="Créer le compte (e-mail, mot de passe, code de vérification)"><bpmn:incoming>Flow_1</bpmn:incoming><bpmn:outgoing>Flow_2</bpmn:outgoing></bpmn:userTask>
+    <bpmn:userTask id="P_Infos" name="Renseigner la pharmacie : nom, adresse GPS, horaires, garde, téléphone"><bpmn:incoming>Flow_2</bpmn:incoming><bpmn:outgoing>Flow_3</bpmn:outgoing></bpmn:userTask>
+    <bpmn:userTask id="P_Pieces" name="Déposer les pièces (autorisation, Ordre, titulaire)"><bpmn:incoming>Flow_3</bpmn:incoming><bpmn:incoming>Flow_14</bpmn:incoming><bpmn:outgoing>Flow_4</bpmn:outgoing></bpmn:userTask>
+    <bpmn:sendTask id="S_Notifier" name="Notifier les admins : pharmacie à valider"><bpmn:incoming>Flow_4</bpmn:incoming><bpmn:outgoing>Flow_5</bpmn:outgoing></bpmn:sendTask>
+    <bpmn:userTask id="A_Verifier" name="Vérifier le dossier et les pièces"><bpmn:incoming>Flow_5</bpmn:incoming><bpmn:outgoing>Flow_6</bpmn:outgoing></bpmn:userTask>
+    <bpmn:exclusiveGateway id="G_Conforme" name="Dossier conforme ?"><bpmn:incoming>Flow_6</bpmn:incoming><bpmn:outgoing>Flow_7</bpmn:outgoing><bpmn:outgoing>Flow_8</bpmn:outgoing></bpmn:exclusiveGateway>
+    <bpmn:userTask id="A_Valider" name="Valider la pharmacie"><bpmn:incoming>Flow_7</bpmn:incoming><bpmn:outgoing>Flow_9</bpmn:outgoing></bpmn:userTask>
+    <bpmn:userTask id="A_Refuser" name="Refuser avec un motif"><bpmn:incoming>Flow_8</bpmn:incoming><bpmn:outgoing>Flow_10</bpmn:outgoing></bpmn:userTask>
+    <bpmn:serviceTask id="S_Activer" name="Activer la pharmacie : elle reçoit les alertes"><bpmn:incoming>Flow_9</bpmn:incoming><bpmn:outgoing>Flow_11</bpmn:outgoing></bpmn:serviceTask>
+    <bpmn:sendTask id="S_Refus" name="Notifier le refus et son motif"><bpmn:incoming>Flow_10</bpmn:incoming><bpmn:outgoing>Flow_12</bpmn:outgoing></bpmn:sendTask>
+    <bpmn:receiveTask id="P_Bienvenue" name="Recevoir la confirmation, ouvrir l'espace pharmacie"><bpmn:incoming>Flow_11</bpmn:incoming><bpmn:outgoing>Flow_13</bpmn:outgoing></bpmn:receiveTask>
+    <bpmn:userTask id="P_Corriger" name="Corriger le dossier"><bpmn:incoming>Flow_12</bpmn:incoming><bpmn:outgoing>Flow_14</bpmn:outgoing></bpmn:userTask>
+    <bpmn:endEvent id="End_Active" name="Pharmacie active"><bpmn:incoming>Flow_13</bpmn:incoming></bpmn:endEvent>
+    <bpmn:sequenceFlow id="Flow_1" sourceRef="Start_Rejoindre" targetRef="P_Compte" />
+    <bpmn:sequenceFlow id="Flow_2" sourceRef="P_Compte" targetRef="P_Infos" />
+    <bpmn:sequenceFlow id="Flow_3" sourceRef="P_Infos" targetRef="P_Pieces" />
+    <bpmn:sequenceFlow id="Flow_4" sourceRef="P_Pieces" targetRef="S_Notifier" />
+    <bpmn:sequenceFlow id="Flow_5" sourceRef="S_Notifier" targetRef="A_Verifier" />
+    <bpmn:sequenceFlow id="Flow_6" sourceRef="A_Verifier" targetRef="G_Conforme" />
+    <bpmn:sequenceFlow id="Flow_7" name="Oui" sourceRef="G_Conforme" targetRef="A_Valider" />
+    <bpmn:sequenceFlow id="Flow_8" name="Non" sourceRef="G_Conforme" targetRef="A_Refuser" />
+    <bpmn:sequenceFlow id="Flow_9" sourceRef="A_Valider" targetRef="S_Activer" />
+    <bpmn:sequenceFlow id="Flow_10" sourceRef="A_Refuser" targetRef="S_Refus" />
+    <bpmn:sequenceFlow id="Flow_11" sourceRef="S_Activer" targetRef="P_Bienvenue" />
+    <bpmn:sequenceFlow id="Flow_12" sourceRef="S_Refus" targetRef="P_Corriger" />
+    <bpmn:sequenceFlow id="Flow_13" sourceRef="P_Bienvenue" targetRef="End_Active" />
+    <bpmn:sequenceFlow id="Flow_14" name="Renvoyer les pièces" sourceRef="P_Corriger" targetRef="P_Pieces" />
+  </bpmn:process>
+  <bpmndi:BPMNDiagram id="Diagram_InscriptionPharmacie">
+    <bpmndi:BPMNPlane id="Plane_InscriptionPharmacie" bpmnElement="Collab_InscriptionPharmacie">
+      <bpmndi:BPMNShape id="Pool_InscriptionPharmacie_di" bpmnElement="Pool_InscriptionPharmacie" isHorizontal="true"><dc:Bounds x="160" y="80" width="1676" height="720" /></bpmndi:BPMNShape>
+      <bpmndi:BPMNShape id="Lane_Ph_di" bpmnElement="Lane_Ph" isHorizontal="true"><dc:Bounds x="190" y="80" width="1646" height="260" /></bpmndi:BPMNShape>
+      <bpmndi:BPMNShape id="Lane_Sys_di" bpmnElement="Lane_Sys" isHorizontal="true"><dc:Bounds x="190" y="340" width="1646" height="220" /></bpmndi:BPMNShape>
+      <bpmndi:BPMNShape id="Lane_Admin_di" bpmnElement="Lane_Admin" isHorizontal="true"><dc:Bounds x="190" y="560" width="1646" height="240" /></bpmndi:BPMNShape>
+      <bpmndi:BPMNShape id="Start_Rejoindre_di" bpmnElement="Start_Rejoindre"><dc:Bounds x="252" y="182" width="36" height="36" /><bpmndi:BPMNLabel><dc:Bounds x="215.0" y="224" width="110" height="40" /></bpmndi:BPMNLabel></bpmndi:BPMNShape>
+      <bpmndi:BPMNShape id="P_Compte_di" bpmnElement="P_Compte"><dc:Bounds x="330" y="160" width="110" height="80" /></bpmndi:BPMNShape>
+      <bpmndi:BPMNShape id="P_Infos_di" bpmnElement="P_Infos"><dc:Bounds x="490" y="160" width="110" height="80" /></bpmndi:BPMNShape>
+      <bpmndi:BPMNShape id="P_Pieces_di" bpmnElement="P_Pieces"><dc:Bounds x="650" y="160" width="110" height="80" /></bpmndi:BPMNShape>
+      <bpmndi:BPMNShape id="S_Notifier_di" bpmnElement="S_Notifier"><dc:Bounds x="810" y="400" width="110" height="80" /></bpmndi:BPMNShape>
+      <bpmndi:BPMNShape id="A_Verifier_di" bpmnElement="A_Verifier"><dc:Bounds x="970" y="640" width="110" height="80" /></bpmndi:BPMNShape>
+      <bpmndi:BPMNShape id="G_Conforme_di" bpmnElement="G_Conforme" isMarkerVisible="true"><dc:Bounds x="1130" y="655" width="50" height="50" /><bpmndi:BPMNLabel><dc:Bounds x="1100.0" y="711" width="110" height="40" /></bpmndi:BPMNLabel></bpmndi:BPMNShape>
+      <bpmndi:BPMNShape id="A_Valider_di" bpmnElement="A_Valider"><dc:Bounds x="1230" y="580" width="110" height="80" /></bpmndi:BPMNShape>
+      <bpmndi:BPMNShape id="A_Refuser_di" bpmnElement="A_Refuser"><dc:Bounds x="1230" y="690" width="110" height="80" /></bpmndi:BPMNShape>
+      <bpmndi:BPMNShape id="S_Activer_di" bpmnElement="S_Activer"><dc:Bounds x="1390" y="360" width="110" height="80" /></bpmndi:BPMNShape>
+      <bpmndi:BPMNShape id="S_Refus_di" bpmnElement="S_Refus"><dc:Bounds x="1390" y="460" width="110" height="80" /></bpmndi:BPMNShape>
+      <bpmndi:BPMNShape id="P_Bienvenue_di" bpmnElement="P_Bienvenue"><dc:Bounds x="1550" y="100" width="110" height="80" /></bpmndi:BPMNShape>
+      <bpmndi:BPMNShape id="P_Corriger_di" bpmnElement="P_Corriger"><dc:Bounds x="1550" y="230" width="110" height="80" /></bpmndi:BPMNShape>
+      <bpmndi:BPMNShape id="End_Active_di" bpmnElement="End_Active"><dc:Bounds x="1720" y="122" width="36" height="36" /><bpmndi:BPMNLabel><dc:Bounds x="1683.0" y="164" width="110" height="40" /></bpmndi:BPMNLabel></bpmndi:BPMNShape>
+      <bpmndi:BPMNEdge id="Flow_1_di" bpmnElement="Flow_1"><di:waypoint x="288" y="200" /><di:waypoint x="330" y="200" /></bpmndi:BPMNEdge>
+      <bpmndi:BPMNEdge id="Flow_2_di" bpmnElement="Flow_2"><di:waypoint x="440" y="200" /><di:waypoint x="490" y="200" /></bpmndi:BPMNEdge>
+      <bpmndi:BPMNEdge id="Flow_3_di" bpmnElement="Flow_3"><di:waypoint x="600" y="200" /><di:waypoint x="650" y="200" /></bpmndi:BPMNEdge>
+      <bpmndi:BPMNEdge id="Flow_4_di" bpmnElement="Flow_4"><di:waypoint x="760" y="200" /><di:waypoint x="785" y="200" /><di:waypoint x="785" y="440" /><di:waypoint x="810" y="440" /></bpmndi:BPMNEdge>
+      <bpmndi:BPMNEdge id="Flow_5_di" bpmnElement="Flow_5"><di:waypoint x="920" y="440" /><di:waypoint x="945" y="440" /><di:waypoint x="945" y="680" /><di:waypoint x="970" y="680" /></bpmndi:BPMNEdge>
+      <bpmndi:BPMNEdge id="Flow_6_di" bpmnElement="Flow_6"><di:waypoint x="1080" y="680" /><di:waypoint x="1130" y="680" /></bpmndi:BPMNEdge>
+      <bpmndi:BPMNEdge id="Flow_7_di" bpmnElement="Flow_7"><di:waypoint x="1180" y="680" /><di:waypoint x="1200" y="680" /><di:waypoint x="1200" y="620" /><di:waypoint x="1230" y="620" /><bpmndi:BPMNLabel><dc:Bounds x="1204" y="640" width="30" height="27" /></bpmndi:BPMNLabel></bpmndi:BPMNEdge>
+      <bpmndi:BPMNEdge id="Flow_8_di" bpmnElement="Flow_8"><di:waypoint x="1180" y="680" /><di:waypoint x="1200" y="680" /><di:waypoint x="1200" y="730" /><di:waypoint x="1230" y="730" /><bpmndi:BPMNLabel><dc:Bounds x="1204" y="700" width="30" height="27" /></bpmndi:BPMNLabel></bpmndi:BPMNEdge>
+      <bpmndi:BPMNEdge id="Flow_9_di" bpmnElement="Flow_9"><di:waypoint x="1340" y="620" /><di:waypoint x="1365" y="620" /><di:waypoint x="1365" y="400" /><di:waypoint x="1390" y="400" /></bpmndi:BPMNEdge>
+      <bpmndi:BPMNEdge id="Flow_10_di" bpmnElement="Flow_10"><di:waypoint x="1340" y="730" /><di:waypoint x="1375" y="730" /><di:waypoint x="1375" y="500" /><di:waypoint x="1390" y="500" /></bpmndi:BPMNEdge>
+      <bpmndi:BPMNEdge id="Flow_11_di" bpmnElement="Flow_11"><di:waypoint x="1500" y="400" /><di:waypoint x="1525" y="400" /><di:waypoint x="1525" y="140" /><di:waypoint x="1550" y="140" /></bpmndi:BPMNEdge>
+      <bpmndi:BPMNEdge id="Flow_12_di" bpmnElement="Flow_12"><di:waypoint x="1500" y="500" /><di:waypoint x="1535" y="500" /><di:waypoint x="1535" y="270" /><di:waypoint x="1550" y="270" /></bpmndi:BPMNEdge>
+      <bpmndi:BPMNEdge id="Flow_13_di" bpmnElement="Flow_13"><di:waypoint x="1660" y="140" /><di:waypoint x="1720" y="140" /></bpmndi:BPMNEdge>
+      <bpmndi:BPMNEdge id="Flow_14_di" bpmnElement="Flow_14"><di:waypoint x="1605" y="310" /><di:waypoint x="1605" y="325" /><di:waypoint x="705" y="325" /><di:waypoint x="705" y="240" /><bpmndi:BPMNLabel><dc:Bounds x="711" y="272" width="90" height="27" /></bpmndi:BPMNLabel></bpmndi:BPMNEdge>
+      <bpmndi:BPMNShape id="Note_1_di" bpmnElement="Note_1"><dc:Bounds x="960" y="470" width="260" height="55" /></bpmndi:BPMNShape>
+      <bpmndi:BPMNEdge id="Assoc_Note_1_di" bpmnElement="Assoc_Note_1"><di:waypoint x="1025" y="640" /><di:waypoint x="970" y="525" /></bpmndi:BPMNEdge>
+    </bpmndi:BPMNPlane>
+  </bpmndi:BPMNDiagram>
+</bpmn:definitions>

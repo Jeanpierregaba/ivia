@@ -1,6 +1,6 @@
 # 0006 — Connexion par OTP multi-canal et sessions opaques
 
-- **Statut** : Accepté
+- **Statut** : Remplacé en partie par [0011](0011-mot-de-passe-google-double-verification.md) (connexion par mot de passe et Google ; les sessions opaques restent)
 - **Date** : 2026-10-30
 
 ## Contexte

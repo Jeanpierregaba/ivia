@@ -7,13 +7,17 @@
 	<key>CFBundleDevelopmentRegion</key>
 	<string>$(DEVELOPMENT_LANGUAGE)</string>
 	<key>CFBundleDisplayName</key>
-	<string>ivia Livreur</string>
+	<string>Ivia Driver</string>
 	<key>CFBundleExecutable</key>
 	<string>$(EXECUTABLE_NAME)</string>
 	<key>CFBundleIdentifier</key>
 	<string>$(PRODUCT_BUNDLE_IDENTIFIER)</string>
 	<key>CFBundleInfoDictionaryVersion</key>
 	<string>6.0</string>
+	<!-- Exigé par l'App Store : le plugin de position est embarqué (app_core) ;
+	     la position du livreur servira aux missions (fonctionnalité 019). -->
+	<key>NSLocationWhenInUseUsageDescription</key>
+	<string>ivia utilise votre position pour vous proposer des livraisons proches de vous.</string>
 	<key>CFBundleName</key>
 	<string>ivia_driver</string>
 	<key>CFBundlePackageType</key>
@@ -26,6 +30,15 @@
 	<string>$(FLUTTER_BUILD_NUMBER)</string>
 	<key>LSRequiresIPhoneOS</key>
 	<true/>
+	<key>NSAppTransportSecurity</key>
+	<dict>
+		<key>NSAllowsLocalNetworking</key>
+		<true/>
+	</dict>
+	<key>NSCameraUsageDescription</key>
+	<string>ivia utilise l'appareil photo pour photographier les documents de votre dossier de livreur.</string>
+	<key>NSPhotoLibraryUsageDescription</key>
+	<string>ivia utilise les photos choisies comme documents de votre dossier de livreur.</string>
 	<key>UIApplicationSceneManifest</key>
 	<dict>
 		<key>UIApplicationSupportsMultipleScenes</key>
@@ -53,11 +66,11 @@
 	<string>LaunchScreen</string>
 	<key>UIMainStoryboardFile</key>
 	<string>Main</string>
+	<key>UIStatusBarHidden</key>
+	<false/>
 	<key>UISupportedInterfaceOrientations</key>
 	<array>
 		<string>UIInterfaceOrientationPortrait</string>
-		<string>UIInterfaceOrientationLandscapeLeft</string>
-		<string>UIInterfaceOrientationLandscapeRight</string>
 	</array>
 	<key>UISupportedInterfaceOrientations~ipad</key>
 	<array>

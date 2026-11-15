@@ -1,0 +1,8 @@
+# Splash natif de l'app pharmacie (docs/specs/031-ecrans-pharmacie, F00) : vert
+# uni, puis le splash Flutter (tuile, titre et slogan) en fondu.
+# Après modification : dart run flutter_native_splash:create (depuis ce dossier).
+flutter_native_splash:
+  color: "#0B7A55"
+  android_12:
+    color: "#0B7A55"
+  web: false

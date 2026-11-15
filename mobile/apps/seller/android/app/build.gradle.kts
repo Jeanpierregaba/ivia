@@ -1,3 +1,14 @@
+import java.util.Properties
+
+// Clé Google Maps Android (restreinte au paquet et au SHA-1), lue dans
+// android/local.properties (MAPS_API_KEY=…), jamais committée.
+val mapsApiKey: String =
+    Properties()
+        .apply {
+            val file = rootProject.file("local.properties")
+            if (file.exists()) file.inputStream().use { load(it) }
+        }.getProperty("MAPS_API_KEY", "")
+
 plugins {
     id("com.android.application")
     // The Flutter Gradle Plugin must be applied after the Android and Kotlin Gradle plugins.
@@ -21,6 +32,7 @@ android {
         // For more information, see: https://flutter.dev/to/review-gradle-config.
         minSdk = flutter.minSdkVersion
         targetSdk = flutter.targetSdkVersion
+        manifestPlaceholders["MAPS_API_KEY"] = mapsApiKey
         // Uses the version code from pubspec.yaml. When using split APKs, 1000 * ABI_VERSION
         // is added automatically by Flutter. (https://developer.android.com/studio/build/configure-apk-splits#configure-APK-versions)
         // You can force using the value of versionCode by specifying the `-P force-version-code-ignoring-abi=true`
@@ -46,4 +58,9 @@ kotlin {
 
 flutter {
     source = "../.."
+}
+
+// Notifications push : actif dès que le fichier du projet Firebase est posé (non commité).
+if (file("google-services.json").exists()) {
+    apply(plugin = "com.google.gms.google-services")
 }
