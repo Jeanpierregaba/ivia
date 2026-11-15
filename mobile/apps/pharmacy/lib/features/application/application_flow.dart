@@ -1,0 +1,143 @@
+import 'dart:typed_data';
+
+import 'package:flutter/material.dart';
+import 'package:flutter_riverpod/flutter_riverpod.dart';
+import 'package:ivia_api_client/ivia_api_client.dart';
+
+import '../../common/ui.dart';
+import '../push/push.dart';
+import '../planning/planning_screen.dart';
+import 'payout_screen.dart';
+import 'step_details.dart';
+import 'step_documents.dart';
+
+/// Nombre d'étapes du dossier : fiche, carte, pièces, planning, versement.
+const dossierSteps = 5;
+
+/// Étape où reprendre un dossier : la première incomplète. Des compléments
+/// demandés ou un refus rouvrent la fiche, où s'affiche le motif.
+int initialDossierStep(PharmacyProfile? p) {
+  if (p == null) return 1;
+  if (p.reviewStatus != 'draft' && p.reviewNote.isNotEmpty) return 1;
+  if (p.missingDocuments.isNotEmpty) return 3;
+  if (!p.hasPayout) return 4;
+  return 5;
+}
+
+/// Dossier en 5 étapes (F06 à F07), avec la pastille « n sur 5 ». Le retour
+/// ramène à l'étape précédente ; depuis la fiche, il déconnecte.
+class ApplicationFlow extends ConsumerStatefulWidget {
+  const ApplicationFlow({super.key, required this.profile});
+  final PharmacyProfile? profile;
+
+  @override
+  ConsumerState<ApplicationFlow> createState() => _ApplicationFlowState();
+}
+
+class _ApplicationFlowState extends ConsumerState<ApplicationFlow> {
+  late var _step = initialDossierStep(widget.profile);
+
+  /// Devanture choisie à l'étape 1, envoyée une fois la pharmacie créée.
+  Uint8List? _storefront;
+
+  /// « Je certifie… » (étape 3), gardé en revenant en arrière.
+  var _certified = false;
+
+  /// L'utilisateur a changé d'étape : sa position ne bouge plus d'elle-même.
+  var _moved = false;
+
+  @override
+  void didUpdateWidget(ApplicationFlow old) {
+    super.didUpdateWidget(old);
+    // Fiche lue après l'ouverture : reprise à la première étape incomplète.
+    if (old.profile == null && widget.profile != null && !_moved) {
+      _step = initialDossierStep(widget.profile);
+    }
+  }
+
+  void _go(int step) => setState(() {
+    _moved = true;
+    _step = step;
+  });
+
+  void _back() {
+    switch (_step) {
+      case 1:
+        _confirmSignOut();
+      case 3:
+        _go(1);
+      default:
+        _go(_step - 1);
+    }
+  }
+
+  /// Retour depuis la fiche : quitter le dossier, c'est se déconnecter.
+  Future<void> _confirmSignOut() async {
+    final ok = await showDialog<bool>(
+      context: context,
+      builder: (c) => AlertDialog(
+        title: const Text('Quitter le dossier ?'),
+        content: const Text(
+          'Vous serez déconnecté. Ce qui n\'est pas enregistré sera perdu.',
+        ),
+        actions: [
+          TextButton(
+            onPressed: () => Navigator.pop(c, false),
+            child: const Text('Rester'),
+          ),
+          TextButton(
+            onPressed: () => Navigator.pop(c, true),
+            child: const Text('Me déconnecter'),
+          ),
+        ],
+      ),
+    );
+    if (ok == true && mounted) await signOutPharmacy(ref);
+  }
+
+  PHeader _header(String title) => PHeader(
+    title: title,
+    trailing: PStepPill(step: _step, of: dossierSteps),
+    onBack: _back,
+  );
+
+  @override
+  Widget build(BuildContext context) {
+    final profile = widget.profile;
+    final Widget body;
+    if (_step == 1) {
+      body = DetailsStep(
+        profile: profile,
+        storefront: _storefront,
+        onStorefront: (bytes) => setState(() => _storefront = bytes),
+        onSaved: () => _go(3),
+        header: _header('Votre pharmacie'),
+      );
+    } else if (profile == null) {
+      // Pharmacie tout juste créée : relecture en cours.
+      body = const Center(child: CircularProgressIndicator());
+    } else if (_step == 3) {
+      body = DocumentsStep(
+        profile: profile,
+        certified: _certified,
+        onCertified: (v) => setState(() => _certified = v),
+        onNext: () => _go(4),
+        header: _header('Documents'),
+      );
+    } else if (_step == 4) {
+      body = PlanningScreen(step: 4, onBack: _back, onNext: () => _go(5));
+    } else {
+      body = PayoutScreen(step: 5, onBack: _back);
+    }
+    return PopScope(
+      canPop: false,
+      onPopInvokedWithResult: (didPop, _) {
+        if (!didPop) _back();
+      },
+      child: Scaffold(
+        backgroundColor: P.page,
+        body: SafeArea(child: body),
+      ),
+    );
+  }
+}

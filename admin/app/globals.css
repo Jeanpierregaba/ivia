@@ -1,0 +1,534 @@
+@import "tailwindcss";
+
+/* Tokens de docs/DESIGN.md, nommés par rôle. Les composants n'écrivent jamais une couleur en dur. */
+@theme {
+  --font-sans: var(--font-parkinsans), ui-sans-serif, system-ui, sans-serif;
+
+  --color-primary: #ed1c2f;
+  --color-primary-strong: #aa0e1b;
+  --color-primary-soft: #fde8ea;
+  --color-secondary: #004da8;
+  --color-secondary-soft: #e5eef8;
+  --color-tertiary: #0e2e54;
+
+  --color-surface: #ffffff;
+  --color-background: #f3f4f6;
+  --color-background-alt: #f6f7f9;
+  --color-border: #e3e6eb;
+  --color-border-input: #7f8c9e;
+  --color-text: #0a1a30;
+  --color-text-secondary: #3a4a60;
+  --color-text-muted: #5a6a80;
+
+  --color-success: #1e7a4c;
+  --color-warning: #b45309;
+  --color-error: #aa0e1b;
+  --color-info: #004da8;
+
+  --radius-tile: 6px;
+  --radius-card: 14px;
+  --radius-field: 18px;
+
+  /* Animations : entrées discrètes, données qui se mettent à jour (DESIGN.md « Mouvement »). */
+  --animate-tile-in: tile-in 700ms cubic-bezier(0.2, 0.8, 0.2, 1) both;
+  --animate-rise: rise 420ms cubic-bezier(0.2, 0.8, 0.2, 1) both;
+  --animate-grow: grow 700ms cubic-bezier(0.2, 0.8, 0.2, 1) both;
+  --animate-live: live 1.8s ease-in-out infinite;
+  --animate-flash: flash 1.2s ease-out;
+
+  @keyframes tile-in {
+    from {
+      opacity: 0;
+      transform: translateX(40px) scale(0.92);
+    }
+    to {
+      opacity: 1;
+      transform: none;
+    }
+  }
+  @keyframes rise {
+    from {
+      opacity: 0;
+      transform: translateY(10px);
+    }
+    to {
+      opacity: 1;
+      transform: none;
+    }
+  }
+  @keyframes grow {
+    from {
+      transform: scaleY(0);
+    }
+    to {
+      transform: scaleY(1);
+    }
+  }
+  @keyframes live {
+    0%,
+    100% {
+      opacity: 1;
+    }
+    50% {
+      opacity: 0.35;
+    }
+  }
+  @keyframes flash {
+    from {
+      background-color: #fff4d6;
+    }
+    to {
+      background-color: transparent;
+    }
+  }
+}
+
+/* Mouvement réduit à la demande du système : aucune animation. */
+@media (prefers-reduced-motion: reduce) {
+  *,
+  *::before,
+  *::after {
+    animation-duration: 1ms !important;
+    animation-iteration-count: 1 !important;
+    transition-duration: 1ms !important;
+  }
+}
+
+body {
+  background: var(--color-background);
+  color: var(--color-text);
+}
+
+/* Focus toujours visible (navigation au clavier, DESIGN.md « Accessibilité »). */
+:focus-visible {
+  outline: 2px solid var(--color-secondary);
+  outline-offset: 2px;
+}
+
+/* ---------- Mouvement « moelleux » du back-office ---------- */
+
+html {
+  scroll-behavior: smooth;
+}
+
+/* Entrée de page : fondu, glissement et netteté qui revient. */
+.page-enter {
+  animation: page-enter 620ms cubic-bezier(0.16, 1, 0.3, 1) both;
+}
+@keyframes page-enter {
+  from {
+    opacity: 0;
+    transform: translateY(14px) scale(0.995);
+    filter: blur(4px);
+  }
+  to {
+    opacity: 1;
+    transform: none;
+    filter: none;
+  }
+}
+
+/* Cartes : chaque bloc de la page arrive l'un après l'autre. */
+.page-enter > * > .card-soft,
+.page-enter .card-soft {
+  animation: rise 520ms cubic-bezier(0.16, 1, 0.3, 1) both;
+  transition:
+    box-shadow 400ms cubic-bezier(0.16, 1, 0.3, 1),
+    transform 400ms cubic-bezier(0.16, 1, 0.3, 1);
+}
+.page-enter .card-soft:nth-of-type(2) {
+  animation-delay: 60ms;
+}
+.page-enter .card-soft:nth-of-type(3) {
+  animation-delay: 120ms;
+}
+.page-enter .card-soft:nth-of-type(n + 4) {
+  animation-delay: 180ms;
+}
+.card-soft:hover {
+  box-shadow: 0 18px 40px -28px rgba(14, 46, 84, 0.45);
+}
+
+/* Lignes de tableau : survol doux. */
+tbody tr {
+  transition: background-color 250ms ease;
+}
+tbody tr:hover {
+  background-color: var(--color-background-alt);
+}
+
+/* Liens de la barre latérale : glissement de l'icône au survol. */
+.nav-item {
+  transition:
+    background-color 320ms cubic-bezier(0.16, 1, 0.3, 1),
+    color 320ms ease,
+    box-shadow 420ms ease,
+    padding 500ms cubic-bezier(0.16, 1, 0.3, 1);
+}
+.nav-item .nav-icon {
+  transition: transform 420ms cubic-bezier(0.34, 1.56, 0.64, 1);
+}
+.nav-item:hover .nav-icon {
+  transform: translateX(2px) scale(1.12);
+}
+.nav-item:active {
+  transform: scale(0.97);
+}
+.nav-item[aria-current="page"] .nav-icon {
+  animation: nav-pop 520ms cubic-bezier(0.34, 1.56, 0.64, 1);
+}
+@keyframes nav-pop {
+  0% {
+    transform: scale(0.7);
+  }
+  60% {
+    transform: scale(1.18);
+  }
+  100% {
+    transform: none;
+  }
+}
+
+/* Défilement fin dans la barre latérale. */
+.sidebar-scroll {
+  scrollbar-width: thin;
+  scrollbar-color: rgba(255, 255, 255, 0.18) transparent;
+}
+
+/* Fenêtres de confirmation : ouverture en douceur. */
+.soft-dialog[open] {
+  animation: dialog-in 420ms cubic-bezier(0.16, 1, 0.3, 1) both;
+}
+.soft-dialog[open]::backdrop {
+  animation: fade-in 320ms ease both;
+}
+@keyframes dialog-in {
+  from {
+    opacity: 0;
+    transform: translateY(16px) scale(0.96);
+  }
+  to {
+    opacity: 1;
+    transform: none;
+  }
+}
+@keyframes fade-in {
+  from {
+    opacity: 0;
+  }
+}
+
+/* ---------- Splash du premier chargement ---------- */
+
+.splash {
+  position: fixed;
+  inset: 0;
+  z-index: 100;
+  display: grid;
+  place-content: center;
+  justify-items: center;
+  gap: 18px;
+  overflow: hidden;
+  background: radial-gradient(120% 90% at 50% 40%, #16365f 0%, var(--color-tertiary) 60%, #0a2242 100%);
+  animation: splash-out 650ms cubic-bezier(0.7, 0, 0.84, 0) 1650ms forwards;
+}
+.splash-seen .splash {
+  display: none;
+}
+.splash-logo {
+  animation: splash-bounce 1100ms cubic-bezier(0.34, 1.56, 0.64, 1) both;
+  filter: drop-shadow(0 22px 34px rgba(0, 0, 0, 0.35));
+}
+.splash-title {
+  color: rgba(255, 255, 255, 0.85);
+  font-size: 18px;
+  font-weight: 700;
+  letter-spacing: 0.18em;
+  text-transform: uppercase;
+  animation: rise 700ms cubic-bezier(0.16, 1, 0.3, 1) 450ms both;
+}
+.splash-bar {
+  position: relative;
+  width: 140px;
+  height: 4px;
+  overflow: hidden;
+  border-radius: 999px;
+  background: rgba(255, 255, 255, 0.14);
+  animation: fade-in 400ms ease 600ms both;
+}
+.splash-bar > span {
+  position: absolute;
+  inset: 0;
+  border-radius: inherit;
+  background: var(--color-primary);
+  transform-origin: left;
+  animation: splash-load 1100ms cubic-bezier(0.65, 0, 0.35, 1) 600ms both;
+}
+.splash-mosaic {
+  position: absolute;
+  right: -70px;
+  top: 50%;
+  display: grid;
+  grid-template-columns: 150px 150px;
+  gap: 12px;
+  transform: translateY(-60%);
+  opacity: 0.22;
+}
+.splash-mosaic > span {
+  height: 150px;
+  border-radius: 18px;
+  animation: tile-in 900ms cubic-bezier(0.2, 0.8, 0.2, 1) both;
+}
+.splash-mosaic > span:first-child {
+  border-top-left-radius: 46px;
+}
+.splash-mosaic > span:nth-child(3) {
+  border-bottom-left-radius: 46px;
+}
+@keyframes splash-bounce {
+  0% {
+    opacity: 0;
+    transform: translateY(40px) scale(0.3) rotate(-12deg);
+  }
+  45% {
+    opacity: 1;
+    transform: translateY(-14px) scale(1.12) rotate(4deg);
+  }
+  65% {
+    transform: translateY(4px) scale(0.95) rotate(-2deg);
+  }
+  82% {
+    transform: translateY(-3px) scale(1.03);
+  }
+  100% {
+    transform: none;
+  }
+}
+@keyframes splash-load {
+  from {
+    transform: scaleX(0);
+  }
+  to {
+    transform: scaleX(1);
+  }
+}
+@keyframes splash-out {
+  to {
+    opacity: 0;
+    visibility: hidden;
+    transform: scale(1.06);
+    filter: blur(6px);
+  }
+}
+
+/* ---------- Carte de la flotte ---------- */
+
+.fleet-pin {
+  position: relative;
+  width: 44px;
+  height: 44px;
+  display: grid;
+  place-items: center;
+  transition: transform 400ms cubic-bezier(0.34, 1.56, 0.64, 1);
+}
+.fleet-pin:hover,
+.fleet-pin.is-selected {
+  transform: scale(1.18);
+}
+.fleet-dot {
+  position: relative;
+  z-index: 1;
+  display: grid;
+  place-items: center;
+  width: 34px;
+  height: 34px;
+  border-radius: 999px;
+  background: var(--c);
+  border: 3px solid white;
+  box-shadow: 0 8px 18px -6px rgba(10, 26, 48, 0.55);
+}
+.fleet-pin.is-selected .fleet-dot {
+  box-shadow:
+    0 0 0 4px var(--r),
+    0 8px 18px -6px rgba(10, 26, 48, 0.55);
+}
+.fleet-name {
+  position: absolute;
+  right: -2px;
+  bottom: -2px;
+  z-index: 2;
+  display: grid;
+  place-items: center;
+  min-width: 18px;
+  height: 18px;
+  padding: 0 4px;
+  border-radius: 999px;
+  background: #0e2e54;
+  color: white;
+  font-size: 10px;
+  font-weight: 800;
+}
+.fleet-pulse {
+  position: absolute;
+  inset: 4px;
+  border-radius: 999px;
+  background: var(--c);
+  opacity: 0.35;
+  animation: fleet-pulse 2.2s ease-out infinite;
+}
+@keyframes fleet-pulse {
+  from {
+    transform: scale(0.8);
+    opacity: 0.45;
+  }
+  to {
+    transform: scale(1.9);
+    opacity: 0;
+  }
+}
+.fleet-origin {
+  display: grid;
+  place-items: center;
+  height: 26px;
+  border-radius: 999px;
+  background: #0e2e54;
+  color: white;
+  font-size: 11px;
+  font-weight: 800;
+  box-shadow: 0 6px 14px -6px rgba(10, 26, 48, 0.6);
+}
+.leaflet-container {
+  font-family: inherit;
+  background: #eef1f5;
+}
+
+/* Bulles des événements en direct. */
+.live-toast {
+  animation: toast-in 520ms cubic-bezier(0.16, 1, 0.3, 1) both;
+}
+.live-toast.is-leaving {
+  animation: toast-out 380ms cubic-bezier(0.7, 0, 0.84, 0) both;
+}
+@keyframes toast-in {
+  from {
+    opacity: 0;
+    transform: translateX(24px) scale(0.96);
+  }
+  to {
+    opacity: 1;
+    transform: none;
+  }
+}
+@keyframes toast-out {
+  to {
+    opacity: 0;
+    transform: translateX(24px) scale(0.96);
+  }
+}
+
+/* ---------- Tableau de bord « chic et soft » ---------- */
+
+.dash-hero {
+  background:
+    radial-gradient(120% 140% at 0% 0%, #16365f 0%, transparent 55%),
+    linear-gradient(135deg, var(--color-tertiary) 0%, #123d70 55%, var(--color-secondary) 100%);
+  box-shadow: 0 30px 60px -36px rgba(14, 46, 84, 0.8);
+}
+.dash-hero-glow {
+  pointer-events: none;
+  position: absolute;
+  border-radius: 999px;
+  filter: blur(40px);
+  opacity: 0.55;
+}
+.dash-hero-glow-a {
+  right: 8%;
+  top: -40px;
+  width: 220px;
+  height: 160px;
+  background: rgba(237, 28, 47, 0.45);
+  animation: dash-float 9s ease-in-out infinite;
+}
+.dash-hero-glow-b {
+  left: 30%;
+  bottom: -60px;
+  width: 260px;
+  height: 140px;
+  background: rgba(0, 77, 168, 0.6);
+  animation: dash-float 11s ease-in-out infinite reverse;
+}
+@keyframes dash-float {
+  0%,
+  100% {
+    transform: translate(0, 0);
+  }
+  50% {
+    transform: translate(24px, 12px);
+  }
+}
+.dash-hero button[aria-haspopup="menu"] {
+  height: 3rem;
+  background: rgba(255, 255, 255, 0.12);
+  color: white;
+  box-shadow: inset 0 0 0 1px rgba(255, 255, 255, 0.2);
+  backdrop-filter: blur(8px);
+}
+.dash-hero button[aria-haspopup="menu"]:hover {
+  background: rgba(255, 255, 255, 0.2);
+}
+.dash-hero [role="menu"] {
+  color: var(--color-text);
+}
+
+.dash-section {
+  display: flex;
+  align-items: center;
+  gap: 8px;
+  font-size: 12px;
+  font-weight: 800;
+  letter-spacing: 0.14em;
+  text-transform: uppercase;
+  color: var(--color-text-secondary);
+}
+.dash-section::before {
+  content: "";
+  width: 6px;
+  height: 6px;
+  border-radius: 999px;
+  background: var(--color-primary);
+}
+
+.dash-card {
+  box-shadow:
+    0 1px 0 rgba(14, 46, 84, 0.04),
+    0 18px 40px -32px rgba(14, 46, 84, 0.35);
+  transition:
+    transform 420ms cubic-bezier(0.16, 1, 0.3, 1),
+    box-shadow 420ms cubic-bezier(0.16, 1, 0.3, 1);
+}
+a.dash-card:hover,
+.dash-card:hover {
+  transform: translateY(-3px);
+  box-shadow:
+    0 1px 0 rgba(14, 46, 84, 0.04),
+    0 26px 50px -30px rgba(14, 46, 84, 0.45);
+}
+.dash-chip {
+  color: var(--tone);
+  background: color-mix(in srgb, var(--tone) 12%, white);
+  transition: transform 420ms cubic-bezier(0.34, 1.56, 0.64, 1);
+}
+.dash-card:hover .dash-chip {
+  transform: scale(1.08) rotate(-4deg);
+}
+.dash-card-hot::after {
+  content: "";
+  position: absolute;
+  inset: auto -30% -60% auto;
+  width: 160px;
+  height: 160px;
+  border-radius: 999px;
+  background: var(--tone);
+  opacity: 0.07;
+  filter: blur(10px);
+}

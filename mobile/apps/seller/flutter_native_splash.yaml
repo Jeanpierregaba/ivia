@@ -1,0 +1,11 @@
+# Splash natif de l'app marchand (docs/specs/027-splash-onboarding).
+# Après modification : dart run flutter_native_splash:create (depuis ce dossier).
+flutter_native_splash:
+  color: "#0E2E54"
+  # Image à 4x : tuile blanche de 172 pt, logotype Berkeley.
+  image: assets/splash/splash.png
+  android_12:
+    color: "#0E2E54"
+    # 1152 px, contenu inscrit dans le cercle de 768 px imposé par Android 12+.
+    image: assets/splash/splash_android12.png
+  web: false

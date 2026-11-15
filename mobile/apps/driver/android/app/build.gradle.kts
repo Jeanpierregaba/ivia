@@ -27,6 +27,8 @@ android {
         // flag during build.
         versionCode = flutter.versionCode
         versionName = flutter.versionName
+        // Clé restreinte à l'app, fournie à la compilation (docs/mise-en-service-carte.md).
+        manifestPlaceholders["MAPS_API_KEY"] = System.getenv("MAPS_API_KEY") ?: ""
     }
 
     buildTypes {
@@ -46,4 +48,9 @@ kotlin {
 
 flutter {
     source = "../.."
+}
+
+// Notifications push : actif dès que le fichier du projet Firebase est posé (non commité).
+if (file("google-services.json").exists()) {
+    apply(plugin = "com.google.gms.google-services")
 }

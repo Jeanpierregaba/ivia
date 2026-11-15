@@ -1,5 +1,7 @@
 import 'package:flutter/material.dart';
 
+import 'brand.dart';
+import 'motion.dart';
 import 'tokens.dart';
 import 'typography.dart';
 
@@ -9,15 +11,17 @@ import 'typography.dart';
 /// Règle de contraste (docs/DESIGN.md) : Imperial Red ne sert jamais de
 /// couleur de texte sur fond clair ; les textes rouges utilisent Cornell Red.
 abstract final class IviaTheme {
-  static ThemeData light() {
+  /// Thème d'une app : l'acheteur par défaut. Couleurs d'action de
+  /// [IviaAppBrand] (Berkeley pour le marchand).
+  static ThemeData light([IviaAppBrand brand = IviaAppBrand.buyer]) {
     // Tous les rôles sont déclarés : un rôle omis prend la valeur d'un autre
     // (ex. secondaryContainer = Cobalt), ce qui casse les contrastes.
-    const colorScheme = ColorScheme(
+    final colorScheme = ColorScheme(
       brightness: Brightness.light,
-      primary: IviaColors.primary,
+      primary: brand.action,
       onPrimary: Colors.white,
-      primaryContainer: IviaColors.primarySoft,
-      onPrimaryContainer: IviaColors.primaryStrong,
+      primaryContainer: brand.accentSoft,
+      onPrimaryContainer: brand.link,
       secondary: IviaColors.secondary,
       onSecondary: Colors.white,
       secondaryContainer: IviaColors.secondarySoft,
@@ -46,7 +50,9 @@ abstract final class IviaTheme {
     const buttonShape = RoundedRectangleBorder(
       borderRadius: BorderRadius.all(Radius.circular(IviaRadius.button)),
     );
-    const buttonMinimumSize = Size(64, 48);
+    // Boutons pleins et à contour : pilules de 54 dp (maquettes du 2026-10-31).
+    const pillShape = StadiumBorder();
+    const buttonMinimumSize = Size(64, 54);
     const buttonPadding = EdgeInsets.symmetric(horizontal: IviaSpacing.xxl);
     const largeShape = RoundedRectangleBorder(
       borderRadius: BorderRadius.all(Radius.circular(IviaRadius.large)),
@@ -61,7 +67,9 @@ abstract final class IviaTheme {
         );
 
     return ThemeData(
+      pageTransitionsTheme: iviaPageTransitionsTheme,
       useMaterial3: true,
+      extensions: [IviaBrandTheme(brand)],
       colorScheme: colorScheme,
       scaffoldBackgroundColor: IviaColors.background,
       fontFamily: IviaTextStyles.fontFamily,
@@ -79,24 +87,28 @@ abstract final class IviaTheme {
         style: FilledButton.styleFrom(
           minimumSize: buttonMinimumSize,
           padding: buttonPadding,
-          shape: buttonShape,
+          shape: pillShape,
           textStyle: IviaTextStyles.button,
+          disabledBackgroundColor: IviaColors.border,
+          disabledForegroundColor: IviaColors.textMuted,
         ),
       ),
       outlinedButtonTheme: OutlinedButtonThemeData(
         style: OutlinedButton.styleFrom(
-          foregroundColor: IviaColors.primaryStrong,
+          foregroundColor: brand.link,
+          backgroundColor: IviaColors.surface,
           minimumSize: buttonMinimumSize,
           padding: buttonPadding,
-          shape: buttonShape,
+          shape: pillShape,
           textStyle: IviaTextStyles.button,
           side: const BorderSide(color: IviaColors.borderInput),
+          disabledForegroundColor: IviaColors.textMuted,
         ),
       ),
       textButtonTheme: TextButtonThemeData(
         style: TextButton.styleFrom(
-          foregroundColor: IviaColors.primaryStrong,
-          minimumSize: buttonMinimumSize,
+          foregroundColor: brand.link,
+          minimumSize: const Size(48, 48),
           shape: buttonShape,
           textStyle: IviaTextStyles.button,
         ),
@@ -111,16 +123,28 @@ abstract final class IviaTheme {
             color: states.contains(WidgetState.error)
                 ? IviaColors.error
                 : states.contains(WidgetState.focused)
-                ? IviaColors.primaryStrong
+                ? brand.link
                 : IviaColors.textSecondary,
           ),
         ),
         border: inputBorder(IviaColors.borderInput),
         enabledBorder: inputBorder(IviaColors.borderInput),
-        focusedBorder: inputBorder(IviaColors.primary, width: 2),
+        focusedBorder: inputBorder(brand.action, width: 2),
         errorBorder: inputBorder(IviaColors.error),
         focusedErrorBorder: inputBorder(IviaColors.error, width: 2),
         disabledBorder: inputBorder(IviaColors.border),
+      ),
+      checkboxTheme: CheckboxThemeData(
+        shape: const RoundedRectangleBorder(
+          borderRadius: BorderRadius.all(Radius.circular(IviaRadius.tile)),
+        ),
+        side: const BorderSide(color: IviaColors.borderInput, width: 1.5),
+        fillColor: WidgetStateProperty.resolveWith(
+          (states) => states.contains(WidgetState.selected)
+              ? brand.action
+              : IviaColors.surface,
+        ),
+        checkColor: const WidgetStatePropertyAll(Colors.white),
       ),
       cardTheme: const CardThemeData(
         color: IviaColors.surface,
@@ -137,9 +161,9 @@ abstract final class IviaTheme {
         labelStyle: textTheme.labelMedium,
       ),
       tabBarTheme: TabBarThemeData(
-        labelColor: IviaColors.primaryStrong,
+        labelColor: brand.link,
         unselectedLabelColor: IviaColors.textSecondary,
-        indicatorColor: IviaColors.primary,
+        indicatorColor: brand.action,
         labelStyle: IviaTextStyles.bodyStrong,
         unselectedLabelStyle: IviaTextStyles.body,
         dividerColor: IviaColors.border,
@@ -183,8 +207,29 @@ abstract final class IviaTheme {
         thickness: 1,
         space: 1,
       ),
+      // Option choisie d'une liste : couleur des liens (Imperial n'est jamais
+      // une couleur de texte courant).
+      listTileTheme: ListTileThemeData(
+        selectedColor: brand.link,
+        iconColor: IviaColors.textSecondary,
+      ),
+      // Interrupteurs : partie colorée des titres (Cobalt pour le marchand).
+      switchTheme: SwitchThemeData(
+        trackColor: WidgetStateProperty.resolveWith(
+          (states) => states.contains(WidgetState.selected)
+              ? brand.highlight
+              : IviaColors.border,
+        ),
+        thumbColor: const WidgetStatePropertyAll(Colors.white),
+        trackOutlineColor: WidgetStateProperty.resolveWith(
+          (states) => states.contains(WidgetState.selected)
+              ? Colors.transparent
+              : IviaColors.borderInput,
+        ),
+      ),
       snackBarTheme: SnackBarThemeData(
         behavior: SnackBarBehavior.floating,
+        actionTextColor: IviaColors.secondarySoft,
         backgroundColor: IviaColors.berkeleyBlue,
         contentTextStyle: IviaTextStyles.body.copyWith(color: Colors.white),
         shape: buttonShape,

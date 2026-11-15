@@ -7,5 +7,13 @@ environment:
   sdk: ^3.13.5
 resolution: workspace
 
+dependencies:
+  web_socket_channel: ^3.0.3
+  flutter:
+    sdk: flutter
+  dio: ^5.11.1
+  flutter_secure_storage: ^11.2.0
+
 dev_dependencies:
-  test: ^1.26.0
+  flutter_test:
+    sdk: flutter

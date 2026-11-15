@@ -21,6 +21,10 @@ abstract final class IviaColors {
   static const primarySoft = Color(0xFFFDE8EA);
   static const secondarySoft = Color(0xFFE5EEF8);
 
+  // Teintes pâles des états : fonds des pastilles de statut
+  static const successSoft = Color(0xFFEDF7F1);
+  static const warningSoft = Color(0xFFFEF5EC);
+
   // Neutres
   static const surface = Color(0xFFFFFFFF);
   static const background = Color(0xFFF3F4F6);
@@ -36,14 +40,6 @@ abstract final class IviaColors {
   static const warning = Color(0xFFB45309);
   static const error = cornellRed;
   static const info = cobaltBlue;
-}
-
-/// Couleur de chaque famille de services (tuiles, pictogrammes, en-têtes).
-abstract final class IviaServiceColors {
-  static const shopping = IviaColors.imperialRed;
-  static const delivery = IviaColors.cornellRed;
-  static const mobility = IviaColors.cobaltBlue;
-  static const health = IviaColors.berkeleyBlue;
 }
 
 /// Espacements sur une grille de 4 px.
@@ -79,13 +75,23 @@ abstract final class IviaRadius {
   static const pill = 999.0;
 }
 
-/// Ombres : les cartes n'en ont pas, seules les feuilles modales en portent une.
+/// Ombres : les cartes n'en ont pas ; seules les feuilles et la barre du bas
+/// flottante en portent une.
 abstract final class IviaShadows {
   static const sheet = [
     BoxShadow(
       color: Color(0x1F0E2E54), // Berkeley Blue à 12 %
       offset: Offset(0, -8),
       blurRadius: 24,
+    ),
+  ];
+
+  /// Barre du bas flottante, au-dessus du contenu qui défile.
+  static const navigation = [
+    BoxShadow(
+      color: Color(0x1A0E2E54), // Berkeley Blue à 10 %
+      offset: Offset(0, 6),
+      blurRadius: 20,
     ),
   ];
 }

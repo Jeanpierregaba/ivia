@@ -16,6 +16,8 @@ dev_dependencies:
     sdk: flutter
 
 flutter:
+  assets:
+    - assets/brand/
   fonts:
     - family: Parkinsans
       fonts:

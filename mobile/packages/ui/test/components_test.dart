@@ -1,0 +1,160 @@
+import 'package:flutter/material.dart';
+import 'package:flutter/services.dart';
+import 'package:flutter_test/flutter_test.dart';
+import 'package:ivia_ui/ivia_ui.dart';
+
+void main() {
+  Future<void> pump(WidgetTester tester, Widget child) => tester.pumpWidget(
+    MaterialApp(
+      theme: IviaTheme.light(),
+      home: Scaffold(body: Center(child: child)),
+    ),
+  );
+
+  testWidgets('bouton retour : 48 dp, libellé « Retour »', (tester) async {
+    var pressed = 0;
+    await pump(tester, IviaBackButton(onPressed: () => pressed++));
+    expect(tester.getSize(find.byType(IviaBackButton)).height, 48);
+    await tester.tap(find.byTooltip('Retour'));
+    expect(pressed, 1);
+  });
+
+  testWidgets('libellé de champ lu avec le champ', (tester) async {
+    final semantics = tester.ensureSemantics();
+    await pump(
+      tester,
+      const IviaFieldLabel(label: 'Adresse e-mail', child: TextField()),
+    );
+    expect(find.bySemanticsLabel(RegExp('Adresse e-mail')), findsOneWidget);
+    semantics.dispose();
+  });
+
+  testWidgets('tuile du logo annoncée « ivia »', (tester) async {
+    final semantics = tester.ensureSemantics();
+    await pump(tester, const IviaLogoTile(size: 76));
+    expect(find.bySemanticsLabel('ivia'), findsOneWidget);
+    expect(tester.getSize(find.byType(IviaLogoTile)), const Size(76, 76));
+    semantics.dispose();
+  });
+
+  testWidgets('boutons pleins en pilule de 54 dp, gris si désactivés', (
+    tester,
+  ) async {
+    await pump(
+      tester,
+      const FilledButton(onPressed: null, child: Text('Valider')),
+    );
+    final button = find.byType(FilledButton);
+    expect(tester.getSize(button).height, 54);
+    final material = tester.widget<Material>(
+      find.descendant(of: button, matching: find.byType(Material)),
+    );
+    expect(material.shape, isA<StadiumBorder>());
+    expect(material.color, IviaColors.border);
+  });
+
+  testWidgets('splash de chargement : slogan, chargement annoncé', (
+    tester,
+  ) async {
+    final semantics = tester.ensureSemantics();
+    await pump(
+      tester,
+      const IviaLoadingSplash(
+        brand: IviaAppBrand.buyer,
+        tagline: 'Tout, près de chez vous.',
+      ),
+    );
+    await tester.pump(const Duration(milliseconds: 500));
+    expect(find.text('Tout, près de chez vous.'), findsOneWidget);
+    expect(find.bySemanticsLabel('Chargement'), findsOneWidget);
+    // Logo au centre exact de l'écran, comme le splash natif.
+    final logo = tester.getCenter(find.byType(IviaLogo));
+    expect(logo, tester.getCenter(find.byType(Scaffold)));
+    expect(tester.getSize(find.byType(IviaLogo)).width, closeTo(174, 0.5));
+    // Slogan 40 dp sous le logo.
+    final logoBottom = tester.getBottomLeft(find.byType(IviaLogo)).dy;
+    final taglineTop = tester
+        .getTopLeft(find.text('Tout, près de chez vous.'))
+        .dy;
+    expect(taglineTop - logoBottom, closeTo(40, 0.5));
+    semantics.dispose();
+  });
+
+  testWidgets('splash pharmacie : tuile de 132 dp, groupe centré', (
+    tester,
+  ) async {
+    await pump(
+      tester,
+      const IviaLoadingSplash(
+        brand: IviaAppBrand.pharmacy,
+        tile: true,
+        title: 'Pharmacie',
+        tagline: 'Répondez aux urgences de votre quartier.',
+        tileStyle: IviaSplashTile(
+          size: 132,
+          radiusRatio: 0.242,
+          logoRatio: 0.595,
+          logoTint: IviaPharmacyColors.green,
+        ),
+        centerGroup: true,
+      ),
+    );
+    final logo = tester.widget<IviaLogo>(find.byType(IviaLogo));
+    expect(logo.tint, IviaPharmacyColors.green);
+    expect(
+      tester.getSize(find.byType(IviaLogo)).width,
+      closeTo(132 * 0.595, 0.5),
+    );
+    // Ensemble centré : autant de place au-dessus de la tuile que sous le
+    // slogan.
+    final screen = tester.getSize(find.byType(Scaffold)).height;
+    final top =
+        tester.getTopLeft(find.byType(IviaLogo)).dy -
+        (132 - 132 * 0.595 / IviaLogo.aspectRatio) / 2;
+    final bottom = tester
+        .getBottomLeft(find.text('Répondez aux urgences de votre quartier.'))
+        .dy;
+    expect(top, closeTo(screen - bottom, 1));
+  });
+
+  testWidgets('splash : barre d\'état claire', (tester) async {
+    await pump(
+      tester,
+      const IviaLoadingSplash(brand: IviaAppBrand.buyer, tagline: 'x'),
+    );
+    final region = tester.widget<AnnotatedRegion<SystemUiOverlayStyle>>(
+      find.byType(AnnotatedRegion<SystemUiOverlayStyle>).last,
+    );
+    expect(region.value, SystemUiOverlayStyle.light);
+  });
+
+  testWidgets('pastille sombre : texte blanc sur Berkeley', (tester) async {
+    await pump(
+      tester,
+      const CheckPill(
+        label: 'Mission terminée',
+        checkColor: IviaColors.cobaltBlue,
+        dark: true,
+      ),
+    );
+    final text = tester.widget<Text>(find.text('Mission terminée'));
+    expect(text.style?.color, Colors.white);
+  });
+
+  testWidgets('liste d\'étapes : pied dans la carte', (tester) async {
+    await pump(
+      tester,
+      const IviaStepList(
+        steps: [IviaStep(title: 'Étape', state: IviaStepState.current)],
+        footer: Text('Ouvrir'),
+      ),
+    );
+    expect(
+      find.descendant(
+        of: find.byType(IviaStepList),
+        matching: find.text('Ouvrir'),
+      ),
+      findsOneWidget,
+    );
+  });
+}
