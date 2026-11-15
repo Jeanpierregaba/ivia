@@ -45,6 +45,52 @@ class IviaMapMarker {
   final IconData icon;
 }
 
+/// Trajet restant devant [here] : la portion déjà parcourue disparaît et la
+/// ligne part de la position actuelle (comme sur une app de navigation).
+List<GeoPoint> routeAhead(List<GeoPoint> path, GeoPoint? here) {
+  if (here == null || path.length < 2) return path;
+  var best = 0;
+  var bestD = double.infinity;
+  for (var i = 0; i < path.length; i++) {
+    final dLat = path[i].lat - here.lat;
+    final dLng = (path[i].lng - here.lng) * cos(here.lat * pi / 180);
+    final d = dLat * dLat + dLng * dLng;
+    if (d < bestD) {
+      bestD = d;
+      best = i;
+    }
+  }
+  return [here, ...path.sublist(min(best + 1, path.length - 1))];
+}
+
+/// Position qui glisse en douceur vers [to] à chaque nouvelle valeur (le
+/// marqueur avance au lieu de sauter d'un point à l'autre).
+class SmoothPosition extends StatelessWidget {
+  const SmoothPosition({
+    super.key,
+    required this.to,
+    required this.builder,
+    this.duration = const Duration(milliseconds: 1600),
+  });
+
+  final GeoPoint? to;
+  final Widget Function(BuildContext context, GeoPoint? at) builder;
+  final Duration duration;
+
+  @override
+  Widget build(BuildContext context) {
+    final p = to;
+    if (p == null) return builder(context, null);
+    return TweenAnimationBuilder<Offset>(
+      tween: Tween(end: Offset(p.lat, p.lng)),
+      duration: duration,
+      curve: Curves.easeInOut,
+      builder: (context, v, _) =>
+          builder(context, GeoPoint(lat: v.dx, lng: v.dy)),
+    );
+  }
+}
+
 /// Décode une polyline6 d'OSRM.
 List<GeoPoint> decodePolyline6(String encoded) {
   final out = <GeoPoint>[];

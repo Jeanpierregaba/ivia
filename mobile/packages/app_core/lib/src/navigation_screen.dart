@@ -40,11 +40,16 @@ Future<bool> openInAppNavigation(
   required GeoPoint to,
   required String label,
   String profile = 'moto',
+  IconData meIcon = Icons.navigation_rounded,
 }) async =>
     await Navigator.of(context, rootNavigator: true).push<bool>(
       MaterialPageRoute(
-        builder: (_) =>
-            NavigationScreen(to: to, label: label, profile: profile),
+        builder: (_) => NavigationScreen(
+          to: to,
+          label: label,
+          profile: profile,
+          meIcon: meIcon,
+        ),
       ),
     ) ??
     false;
@@ -58,10 +63,14 @@ class NavigationScreen extends ConsumerStatefulWidget {
     required this.to,
     required this.label,
     this.profile = 'moto',
+    this.meIcon = Icons.navigation_rounded,
   });
 
   final GeoPoint to;
   final String label;
+
+  /// Marqueur de sa propre position (moto ou voiture pour le livreur).
+  final IconData meIcon;
 
   /// `moto` ou `car`.
   final String profile;
@@ -221,29 +230,34 @@ class _NavigationScreenState extends ConsumerState<NavigationScreen> {
       body: SizedBox.expand(
         child: Stack(
           children: [
+            // Le marqueur glisse d'une position à l'autre et la ligne rouge
+            // part de lui jusqu'à l'arrivée.
             Positioned.fill(
-              child: IviaMap(
-                center: _follow && here != null ? here : (here ?? widget.to),
-                zoom: 17,
-                bearing: _follow ? _heading : null,
-                tilt: _follow ? 45 : 0,
-                route: _path,
-                markers: [
-                  if (here != null)
+              child: SmoothPosition(
+                to: here,
+                builder: (context, at) => IviaMap(
+                  center: _follow && at != null ? at : (at ?? widget.to),
+                  zoom: 17,
+                  bearing: _follow ? _heading : null,
+                  tilt: _follow ? 45 : 0,
+                  route: routeAhead(_path, at),
+                  markers: [
+                    if (at != null)
+                      IviaMapMarker(
+                        id: 'moi',
+                        point: at,
+                        color: IviaColors.cobaltBlue,
+                        icon: widget.meIcon,
+                      ),
                     IviaMapMarker(
-                      id: 'moi',
-                      point: here,
-                      color: IviaColors.cobaltBlue,
-                      icon: Icons.navigation_rounded,
+                      id: 'arrivee',
+                      point: widget.to,
+                      color: IviaColors.imperialRed,
+                      icon: Icons.flag_rounded,
                     ),
-                  IviaMapMarker(
-                    id: 'arrivee',
-                    point: widget.to,
-                    color: IviaColors.imperialRed,
-                    icon: Icons.flag_rounded,
-                  ),
-                ],
-                onCameraIdle: (_) {},
+                  ],
+                  onCameraIdle: (_) {},
+                ),
               ),
             ),
             // Bandeau du haut : temps et distance restants, destination.

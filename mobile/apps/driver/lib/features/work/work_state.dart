@@ -319,6 +319,15 @@ final herePositionProvider = StreamProvider.autoDispose<GeoPoint?>((
   }
 
   yield await read();
-  // Position relue toutes les 4 s : le marqueur avance avec le livreur (spec 036).
-  yield* Stream.periodic(const Duration(seconds: 4)).asyncMap((_) => read());
+  // Position suivie en continu par le GPS : la moto avance avec le livreur.
+  // Suivi indisponible (navigateur sans autorisation, tests) : relue toutes
+  // les 3 s.
+  try {
+    await for (final fix in ref.read(navigationFixesProvider)()) {
+      yield fix.point;
+    }
+  } on Object {
+    // Repli plus bas.
+  }
+  yield* Stream.periodic(const Duration(seconds: 3)).asyncMap((_) => read());
 });

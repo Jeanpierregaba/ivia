@@ -195,6 +195,9 @@ class _RouteViewState extends ConsumerState<_RouteView> {
       to: to,
       label: widget.toClient ? 'le client' : (target?.name ?? 'la boutique'),
       profile: routeProfile(vehicle),
+      meIcon: vehicle == VehicleType.car
+          ? Icons.directions_car_rounded
+          : Icons.two_wheeler_rounded,
     );
     // « Je suis arrivé » dans la navigation : arrivée enregistrée.
     if (arrived && mounted) await widget.onArrived();
@@ -253,6 +256,9 @@ class _RouteViewState extends ConsumerState<_RouteView> {
                       toClient: widget.toClient,
                       pharmacy: m.pharmacy,
                       route: _route,
+                      vehicleIcon: vehicle == VehicleType.car
+                          ? Icons.directions_car_rounded
+                          : Icons.two_wheeler_rounded,
                     ),
                   ),
                 ),
@@ -354,10 +360,14 @@ class _TripMap extends StatelessWidget {
     required this.toClient,
     required this.pharmacy,
     required this.route,
+    this.vehicleIcon = Icons.two_wheeler_rounded,
   });
   final GeoPoint? here, target;
   final bool toClient, pharmacy;
   final GeoRoute? route;
+
+  /// Moto ou voiture : le livreur se voit avancer sur la carte.
+  final IconData vehicleIcon;
 
   @override
   Widget build(BuildContext context) {
@@ -383,11 +393,23 @@ class _TripMap extends StatelessWidget {
         ? 13.0
         : 12.0;
     final polyline = route?.polyline ?? '';
+    final path = polyline.isEmpty
+        ? const <GeoPoint>[]
+        : decodePolyline6(polyline);
+    // La moto glisse d'une position à l'autre ; la ligne rouge part d'elle.
+    return SmoothPosition(
+      to: a,
+      builder: (context, at) => _map(center, zoom, path, at),
+    );
+  }
+
+  Widget _map(GeoPoint center, double zoom, List<GeoPoint> path, GeoPoint? a) {
+    final b = target;
     return IviaMap(
       center: center,
       zoom: zoom,
       interactive: false,
-      route: polyline.isEmpty ? const [] : decodePolyline6(polyline),
+      route: routeAhead(path, a),
       markers: [
         if (b != null)
           IviaMapMarker(
@@ -401,12 +423,7 @@ class _TripMap extends StatelessWidget {
                 : Icons.storefront_rounded,
           ),
         if (a != null)
-          IviaMapMarker(
-            id: 'here',
-            point: a,
-            color: D.blue,
-            icon: Icons.navigation_rounded,
-          ),
+          IviaMapMarker(id: 'here', point: a, color: D.blue, icon: vehicleIcon),
       ],
     );
   }

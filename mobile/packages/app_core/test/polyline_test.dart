@@ -1,4 +1,5 @@
 import 'package:flutter_test/flutter_test.dart';
+import 'package:ivia_api_client/ivia_api_client.dart';
 import 'package:ivia_app_core/ivia_app_core.dart';
 
 void main() {
@@ -16,5 +17,19 @@ void main() {
       expect(p.lat, inInclusiveRange(6.1, 6.2));
       expect(p.lng, inInclusiveRange(1.2, 1.25));
     }
+  });
+
+  test('trajet devant soi : la portion parcourue disparaît', () {
+    const path = [
+      GeoPoint(lat: 6.130, lng: 1.220),
+      GeoPoint(lat: 6.132, lng: 1.220),
+      GeoPoint(lat: 6.134, lng: 1.220),
+      GeoPoint(lat: 6.136, lng: 1.220),
+    ];
+    const here = GeoPoint(lat: 6.1321, lng: 1.2201);
+    final ahead = routeAhead(path, here);
+    expect(ahead.first, here);
+    expect(ahead.skip(1).toList(), path.sublist(2));
+    expect(routeAhead(path, null), path);
   });
 }
