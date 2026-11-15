@@ -520,3 +520,30 @@ func (s *Service) PendingOverview(ctx context.Context) (int64, *time.Time, error
 	}
 	return r.N, &r.Oldest, nil
 }
+
+// LocationInput déplace une boutique.
+type LocationInput struct {
+	Location    geo.Point `json:"location"`
+	AddressText string    `json:"address_text"`
+}
+
+// UpdateLocation déplace une boutique du marchand (sinon 404) ; l'adresse écrite change si elle est
+// donnée.
+func (s *Service) UpdateLocation(ctx context.Context, ownerID, shopID uuid.UUID, in LocationInput) (Shop, error) {
+	if _, err := s.RequireOwned(ctx, ownerID, shopID); err != nil {
+		return Shop{}, err
+	}
+	in.AddressText = validate.Clean(in.AddressText)
+	v := validate.New()
+	v.Coordinates("location.", in.Location.Lat, in.Location.Lng)
+	v.Check(len([]rune(in.AddressText)) <= 200, "address_text", "200 caractères au plus.")
+	if err := v.Err(); err != nil {
+		return Shop{}, err
+	}
+	if err := store.New(s.db.Conn(ctx)).UpdateShopLocation(ctx, store.UpdateShopLocationParams{
+		ID: shopID, Lat: in.Location.Lat, Lng: in.Location.Lng, AddressText: in.AddressText,
+	}); err != nil {
+		return Shop{}, fmt.Errorf("position de la boutique : %w", err)
+	}
+	return s.get(ctx, shopID)
+}

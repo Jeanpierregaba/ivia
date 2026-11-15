@@ -798,6 +798,46 @@ class _AddressesScreenState extends ConsumerState<AddressesScreen> {
                           ),
                         ),
                         IconButton(
+                          tooltip: 'Déplacer sur la carte',
+                          icon: const Icon(Icons.edit_location_alt_outlined),
+                          onPressed: () async {
+                            // Recherche d'un lieu ou position actuelle,
+                            // repère ajusté sur la carte.
+                            final picked = await Navigator.of(context)
+                                .push<PickedPlace>(
+                                  MaterialPageRoute(
+                                    builder: (_) => PlacePickerScreen(
+                                      initial: a.location,
+                                      title: 'Déplacer « ${a.label} »',
+                                      confirmLabel: 'Enregistrer ce lieu',
+                                    ),
+                                  ),
+                                );
+                            if (picked == null || !mounted) return;
+                            try {
+                              await ref
+                                  .read(apiClientProvider)
+                                  .updateAddress(
+                                    a.id,
+                                    label: a.label,
+                                    addressText: picked.label.isEmpty
+                                        ? a.addressText
+                                        : picked.label,
+                                    location: picked.point,
+                                    instructions: a.instructions,
+                                  );
+                              _reload();
+                            } on ApiException catch (e) {
+                              if (context.mounted) {
+                                showMessage(
+                                  ScaffoldMessenger.of(context),
+                                  e.message,
+                                );
+                              }
+                            }
+                          },
+                        ),
+                        IconButton(
                           tooltip: 'Supprimer',
                           icon: const Icon(Icons.delete_outline),
                           onPressed: () async {

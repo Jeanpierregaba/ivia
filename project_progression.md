@@ -16,6 +16,14 @@
 | Connexion v2 (001, ADR 0012) | **~95 %** | Tout est codé (changement de numéro compris) ; reste la mise en service WhatsApp (voir docs/whatsapp-mise-en-service.md) et le fournisseur SMS |
 | Démarches hors code         |  **~10 %** | Société, agrégateur de paiement, Play Store, Meta, domaine                 |
 
+## Dernières avancées (2026-11-15)
+
+- **Itinéraire corrigé et en rouge partout** : sur le web, le tracé était faux (« 300 340 km », lignes hors de la carte) à cause d'un décodage incorrect ; corrigé. L'itinéraire du livreur jusqu'à la boutique puis jusqu'au client est tracé en rouge chez le livreur, le client et la boutique, et au back-office une couleur par livreur en course, avec une légende.
+- **Code de commande et code-barres** : chaque commande a un code alphanumérique (« W8MB-QRCH »), imprimé en code-barres scannable sur le reçu (avec le logo Flooz ou T-Money), dans le détail Business, chez le livreur au retrait et au back-office.
+- **Messagerie** : comme WhatsApp, mes messages à droite en vert, ceux de l'autre à gauche en blanc ; plus d'identifiant interne affiché.
+- **Déplacer sa position** : la boutique (Profil › Emplacement de la boutique) et les adresses du client se déplacent en cherchant un lieu ou avec la position actuelle, repère ajusté sur la carte.
+- **Lancement en une commande** : `tools/lancer.ps1` et raccourcis sur le bureau.
+
 ## Dernières avancées (2026-11-14)
 
 - **Notifications façon push partout** : les bandeaux bleus du bas de l'écran sont remplacés par de jolies notifications qui descendent du haut de l'écran (succès en vert, erreur en rouge, bouton « Annuler » le cas échéant), dans les quatre apps.

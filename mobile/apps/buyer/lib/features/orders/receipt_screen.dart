@@ -4,6 +4,7 @@ import 'package:flutter/foundation.dart';
 import 'package:flutter/material.dart';
 import 'package:flutter/rendering.dart';
 import 'package:gal/gal.dart';
+import 'package:ivia_api_client/ivia_api_client.dart';
 import 'package:ivia_app_core/ivia_app_core.dart';
 import 'package:ivia_ui/ivia_ui.dart';
 import 'package:share_plus/share_plus.dart';
@@ -267,6 +268,11 @@ class _Ticket extends StatelessWidget {
                 fontWeight: FontWeight.w700,
               ),
             ),
+            if (invoice.code.isNotEmpty) ...[
+              const SizedBox(height: IviaSpacing.lg),
+              // Code-barres scannable de la commande (Code 128).
+              IviaBarcode(code: invoice.code, height: 58),
+            ],
             if (!invoice.isReceipt) ...[
               const SizedBox(height: IviaSpacing.md),
               DecoratedBox(
@@ -336,14 +342,34 @@ class _Ticket extends StatelessWidget {
             const SizedBox(height: IviaSpacing.sm),
             amount('Montant total', invoice.totalXof, strong: true),
             divider,
-            Text(
-              invoice.paymentNote,
-              style: t.bodyMedium?.copyWith(
-                color: invoice.isReceipt
-                    ? IviaColors.success
-                    : IviaColors.secondary,
-                fontWeight: FontWeight.w700,
-              ),
+            Row(
+              children: [
+                if (invoice.operator case final op?) ...[
+                  // Logo de l'opérateur Mobile Money du paiement.
+                  ClipRRect(
+                    borderRadius: BorderRadius.circular(8),
+                    child: Image.asset(
+                      'assets/payment/${op == PaymentOperator.flooz ? 'flooz' : 'tmoney'}.png',
+                      height: 34,
+                      semanticLabel: op == PaymentOperator.flooz
+                          ? 'Flooz'
+                          : 'T-Money',
+                    ),
+                  ),
+                  const SizedBox(width: IviaSpacing.md),
+                ],
+                Expanded(
+                  child: Text(
+                    invoice.paymentNote,
+                    style: t.bodyMedium?.copyWith(
+                      color: invoice.isReceipt
+                          ? IviaColors.success
+                          : IviaColors.secondary,
+                      fontWeight: FontWeight.w700,
+                    ),
+                  ),
+                ),
+              ],
             ),
           ],
         ),

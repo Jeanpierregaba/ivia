@@ -1668,7 +1668,12 @@ void main() {
       expect(find.text('Retrait'), findsOneWidget);
       expect(find.text('1 sur 2'), findsOneWidget);
       expect(find.text('Chez Afi'), findsOneWidget);
-      expect(find.text('Commande #1042 · payée'), findsOneWidget);
+      // Code alphanumérique de la commande n° 1042.
+      expect(find.text('Commande W8MB-QRCH · payée'), findsOneWidget);
+      expect(
+        find.bySemanticsLabel(RegExp('Code-barres de la commande W8MB-QRCH')),
+        findsOneWidget,
+      );
       expect(find.text('Vérifiez le colis'), findsOneWidget);
       // Course de boutique : pas de code de retrait.
       expect(find.text('VOTRE CODE DE RETRAIT'), findsNothing);

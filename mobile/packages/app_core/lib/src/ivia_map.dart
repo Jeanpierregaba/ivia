@@ -56,7 +56,9 @@ List<GeoPoint> decodePolyline6(String encoded) {
       result |= (b & 0x1f) << shift;
       shift += 5;
     } while (b >= 0x20);
-    return (result & 1) != 0 ? ~(result >> 1) : result >> 1;
+    // Pas de « ~ » : sur le web, Dart le calcule en entier non signé de
+    // 32 bits et un écart négatif deviendrait +4 294 degrés.
+    return (result & 1) != 0 ? -((result >> 1) + 1) : result >> 1;
   }
 
   while (i < encoded.length) {
@@ -75,6 +77,7 @@ class IviaMap extends StatefulWidget {
     this.zoom = 14.5,
     this.markers = const [],
     this.route = const [],
+    this.routeColor = IviaColors.imperialRed,
     this.interactive = true,
     this.onCameraIdle,
     this.bearing,
@@ -90,6 +93,9 @@ class IviaMap extends StatefulWidget {
   final double tilt;
   final List<IviaMapMarker> markers;
   final List<GeoPoint> route;
+
+  /// Couleur du tracé : rouge par défaut.
+  final Color routeColor;
   final bool interactive;
 
   /// Centre de la carte à l'arrêt du mouvement, jamais pendant.
@@ -188,7 +194,7 @@ class _IviaMapState extends State<IviaMap> {
             ),
             gm.Polyline(
               polylineId: const gm.PolylineId('route'),
-              color: IviaColors.cobaltBlue,
+              color: w.routeColor,
               width: 6,
               zIndex: 2,
               startCap: gm.Cap.roundCap,
@@ -233,7 +239,7 @@ class _IviaMapState extends State<IviaMap> {
               osm.Polyline(
                 points: [for (final p in w.route) ll.LatLng(p.lat, p.lng)],
                 strokeWidth: 6,
-                color: IviaColors.cobaltBlue,
+                color: w.routeColor,
                 borderStrokeWidth: 3,
                 borderColor: Colors.white,
               ),
@@ -584,9 +590,18 @@ class _PlacePickerScreenState extends ConsumerState<PlacePickerScreen> {
 /// Suivi d'une livraison : marqueur du livreur, déplacé en douceur entre deux positions. Rien tant
 /// qu'aucune position n'est reçue (ou dans un navigateur, sans temps réel).
 class LiveTrackingMap extends ConsumerStatefulWidget {
-  const LiveTrackingMap({super.key, required this.orderId, this.height = 200});
+  const LiveTrackingMap({
+    super.key,
+    required this.orderId,
+    this.height = 200,
+    this.target,
+  });
   final String orderId;
   final double height;
+
+  /// Destination de l'étape : l'itinéraire du livreur jusqu'à elle est tracé
+  /// en rouge, et recalculé quand il avance.
+  final GeoPoint? target;
 
   @override
   ConsumerState<LiveTrackingMap> createState() => _LiveTrackingMapState();
@@ -596,6 +611,43 @@ class _LiveTrackingMapState extends ConsumerState<LiveTrackingMap> {
   StreamSubscription<dynamic>? _sub;
   GeoPoint? _position;
   Timer? _retry;
+  List<GeoPoint> _route = const [];
+  GeoPoint? _routedFrom;
+  GeoPoint? _routedTo;
+
+  /// Itinéraire position → destination ; recalculé après 150 m ou si la
+  /// destination change (retrait fait : direction le client).
+  Future<void> _routeFrom(GeoPoint from) async {
+    final to = widget.target;
+    if (to == null) return;
+    final last = _routedFrom;
+    if (last != null && _routedTo == to && _metres(last, from) < 150) {
+      return;
+    }
+    _routedFrom = from;
+    _routedTo = to;
+    try {
+      final r = await ref.read(apiClientProvider).geoRoute(from, to);
+      if (!mounted) return;
+      setState(
+        () => _route = r.polyline.isEmpty
+            ? [from, to]
+            : decodePolyline6(r.polyline),
+      );
+    } on ApiException {
+      if (mounted) setState(() => _route = [from, to]);
+    }
+  }
+
+  static double _metres(GeoPoint a, GeoPoint b) {
+    const r = 6371000.0;
+    final dLat = (b.lat - a.lat) * pi / 180;
+    final dLng = (b.lng - a.lng) * pi / 180;
+    final h =
+        pow(sin(dLat / 2), 2) +
+        cos(a.lat * pi / 180) * cos(b.lat * pi / 180) * pow(sin(dLng / 2), 2);
+    return 2 * r * asin(sqrt(h));
+  }
 
   @override
   void initState() {
@@ -612,12 +664,12 @@ class _LiveTrackingMapState extends ConsumerState<LiveTrackingMap> {
       (raw) {
         final j = jsonDecode(raw as String) as Map<String, dynamic>;
         if (mounted) {
-          setState(
-            () => _position = GeoPoint(
-              lat: (j['lat'] as num).toDouble(),
-              lng: (j['lng'] as num).toDouble(),
-            ),
+          final p = GeoPoint(
+            lat: (j['lat'] as num).toDouble(),
+            lng: (j['lng'] as num).toDouble(),
           );
+          setState(() => _position = p);
+          unawaited(_routeFrom(p));
         }
       },
       onError: (_) => _later(),
@@ -652,9 +704,11 @@ class _LiveTrackingMapState extends ConsumerState<LiveTrackingMap> {
             duration: const Duration(seconds: 2),
             builder: (_, v, _) {
               final at = GeoPoint(lat: v.dx, lng: v.dy);
+              final to = widget.target;
               return IviaMap(
                 center: at,
                 interactive: false,
+                route: _route,
                 markers: [
                   IviaMapMarker(
                     id: 'driver',
@@ -662,6 +716,13 @@ class _LiveTrackingMapState extends ConsumerState<LiveTrackingMap> {
                     color: IviaColors.cobaltBlue,
                     icon: Icons.two_wheeler,
                   ),
+                  if (to != null)
+                    IviaMapMarker(
+                      id: 'target',
+                      point: to,
+                      color: IviaColors.imperialRed,
+                      icon: Icons.flag_rounded,
+                    ),
                 ],
               );
             },

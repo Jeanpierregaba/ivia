@@ -1,6 +1,7 @@
 import 'package:flutter/material.dart';
 import 'package:flutter_riverpod/flutter_riverpod.dart';
 import 'package:ivia_api_client/ivia_api_client.dart';
+import 'package:ivia_app_core/ivia_app_core.dart';
 import 'package:ivia_ui/ivia_ui.dart';
 
 import '../../common/ui.dart';
@@ -96,7 +97,7 @@ class _PickupViewState extends ConsumerState<PickupView> {
                               Text(
                                 [
                                   if (m.reference.isNotEmpty)
-                                    'Commande ${shortRef(m.reference)}',
+                                    'Commande ${orderCodeOfReference(m.reference)}',
                                   m.awaitingPayment
                                       ? 'paiement en attente'
                                       : 'payée',
@@ -122,6 +123,17 @@ class _PickupViewState extends ConsumerState<PickupView> {
                     ],
                   ),
                 ),
+                // Code-barres de la commande, à montrer à la boutique.
+                if (!m.pharmacy && m.reference.isNotEmpty) ...[
+                  const SizedBox(height: 12),
+                  DCard(
+                    padding: const EdgeInsets.fromLTRB(16, 14, 16, 12),
+                    child: IviaBarcode(
+                      code: orderCodeOfReference(m.reference),
+                      height: 50,
+                    ),
+                  ),
+                ],
                 if (byCode) ...[
                   const SizedBox(height: 12),
                   DCard.dark(

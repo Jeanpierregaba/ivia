@@ -2331,6 +2331,35 @@ class _AvailabilityScreenState extends ConsumerState<AvailabilityScreen> {
   );
 }
 
+/// Déplace la boutique : recherche d'un lieu ou position actuelle, repère
+/// ajusté sur la carte (comme sur une app de transport).
+Future<void> _moveShop(BuildContext context, WidgetRef ref) async {
+  final shop = ref.read(sellerShopProvider).value;
+  if (shop == null) return;
+  final messenger = ScaffoldMessenger.of(context);
+  final picked = await Navigator.of(context, rootNavigator: true).push<PickedPlace>(
+    MaterialPageRoute(
+      builder: (_) => PlacePickerScreen(
+        initial: shop.location,
+        title: 'Emplacement de la boutique',
+        hint: 'Cherchez un lieu ou déplacez la carte : le repère marque '
+            "l'entrée de la boutique.",
+        confirmLabel: 'Enregistrer cet emplacement',
+      ),
+    ),
+  );
+  if (picked == null) return;
+  try {
+    await ref
+        .read(apiClientProvider)
+        .setShopLocation(shop.id, picked.point, addressText: picked.label);
+    await ref.read(sellerShopProvider.notifier).refresh();
+    showMessage(messenger, 'Emplacement de la boutique enregistré');
+  } on ApiException catch (e) {
+    showMessage(messenger, e.message);
+  }
+}
+
 /// Profil commun aux modules.
 class ProProfile extends ConsumerWidget {
   const ProProfile({super.key});
@@ -2409,6 +2438,13 @@ class ProProfile extends ConsumerWidget {
                           'Codes promo',
                           () => _open(context, const PromoCodesScreen()),
                           sub: 'Attirez des clients avec une réduction',
+                        ),
+                        const Divider(height: 1),
+                        row(
+                          Icons.edit_location_alt_outlined,
+                          'Emplacement de la boutique',
+                          () => _moveShop(context, ref),
+                          sub: 'Chercher un lieu ou prendre ma position',
                         ),
                         const Divider(height: 1),
                       ],

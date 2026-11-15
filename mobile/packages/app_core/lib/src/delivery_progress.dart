@@ -92,7 +92,11 @@ class _DeliveryProgressState extends ConsumerState<DeliveryProgress> {
                   crossAxisAlignment: CrossAxisAlignment.stretch,
                   children: [
                     if (d.step.moving)
-                      LiveTrackingMap(orderId: widget.orderId, height: 190),
+                      LiveTrackingMap(
+                        orderId: widget.orderId,
+                        height: 190,
+                        target: d.target,
+                      ),
                     Padding(
                       padding: const EdgeInsets.all(IviaSpacing.md),
                       child: Column(

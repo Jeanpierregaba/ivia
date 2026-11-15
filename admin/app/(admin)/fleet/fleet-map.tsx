@@ -23,6 +23,7 @@ export type FleetDriver = {
   located_at: string;
   mission_order_id?: string | null;
   mission_status: string;
+  route?: { lat: number; lng: number }[];
 };
 type TrailPoint = { lat: number; lng: number; recorded_at: string };
 
@@ -45,6 +46,9 @@ function lookOf(d: FleetDriver, now: number): Look {
     return { label: "En course", color: "#ed1c2f", ring: "#fde8ea" };
   return { label: "Disponible", color: "#1e7a4c", ring: "#e6f2ec" };
 }
+
+// Couleurs des itinéraires en cours (le premier en rouge).
+const ROUTE_COLORS = ["#ed1c2f", "#004da8", "#1e8e55", "#7a3fd6", "#e07b00", "#0f766e", "#c2185b", "#5d4037"];
 
 const MISSION: Record<string, string> = {
   assigned: "course acceptée, vers la boutique",
@@ -239,6 +243,15 @@ export function FleetMap({
     engine.current?.trail(trail);
   }, [trail, engineKind]);
 
+  // Itinéraires des livreurs en course : le premier en rouge, les suivants d'une autre couleur.
+  const routed = drivers.filter((d) => d.mission_order_id && (d.route?.length ?? 0) > 1);
+  useEffect(() => {
+    engine.current?.routes(
+      routed.map((d, i) => ({ id: d.id, color: ROUTE_COLORS[i % ROUTE_COLORS.length]!, points: d.route! })),
+    );
+    // eslint-disable-next-line react-hooks/exhaustive-deps
+  }, [drivers, engineKind]);
+
   const focus = (d: FleetDriver) => {
     if (d.id !== selected) setTrail(null);
     setSelected(d.id);
@@ -270,6 +283,25 @@ export function FleetMap({
     <div className="grid gap-4 xl:grid-cols-[minmax(0,1fr)_360px]">
       <div className="relative overflow-hidden rounded-field bg-surface shadow-[0_18px_40px_-28px_rgba(14,46,84,0.45)]">
         <div ref={box} className="h-[62vh] min-h-[420px] w-full xl:h-[calc(100vh-220px)]" />
+        {routed.length > 0 && (
+          <div className="absolute bottom-4 left-4 z-[500] max-w-[260px] rounded-[12px] border border-border bg-white/95 px-3 py-2 text-[12px] shadow-sm">
+            <p className="mb-1 font-bold text-text">Itinéraires en cours</p>
+            {routed.map((d, i) => (
+              <button
+                key={d.id}
+                type="button"
+                onClick={() => setSelected(d.id)}
+                className="flex w-full items-center gap-2 py-0.5 text-left hover:underline"
+              >
+                <span
+                  className="inline-block h-1.5 w-5 rounded-full"
+                  style={{ background: ROUTE_COLORS[i % ROUTE_COLORS.length] }}
+                />
+                <span className="truncate">{d.first_name || "Livreur"}</span>
+              </button>
+            ))}
+          </div>
+        )}
         <div className="pointer-events-none absolute left-4 top-4 z-[500] flex flex-wrap gap-2">
           {(
             [

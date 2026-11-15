@@ -2193,6 +2193,49 @@ paths:
             application/json:
               schema:
                 "$ref": "#/components/schemas/Error"
+  "/v1/seller/shops/{id}/location":
+    put:
+      summary: "Déplacer ma boutique"
+      description: "Nouvelle position (lieu cherché sur la carte ou position du téléphone) ; l'adresse écrite change si elle est donnée. Le reste de la boutique ne change pas."
+      tags:
+        - Marchand
+      operationId: putSellerShopsByIdLocation
+      parameters:
+        - name: id
+          in: path
+          required: true
+          schema:
+            type: string
+            format: uuid
+      x-roles:
+        - seller
+      requestBody:
+        required: true
+        content:
+          application/json:
+            schema:
+              type: object
+              properties:
+                location:
+                  "$ref": "#/components/schemas/Point"
+                address_text:
+                  type: string
+                  maxLength: 200
+              required:
+                - location
+      responses:
+        "200":
+          description: "Succès"
+          content:
+            application/json:
+              schema:
+                "$ref": "#/components/schemas/Shop"
+        default:
+          description: "Erreur (voir `code`)"
+          content:
+            application/json:
+              schema:
+                "$ref": "#/components/schemas/Error"
   "/v1/seller/shops/{id}/stats":
     get:
       summary: "Tableau de bord de ma boutique"
@@ -14245,6 +14288,11 @@ components:
             - string
             - "null"
           format: uuid
+        target:
+          description: "Destination de l'étape en cours (boutique avant le retrait, client ensuite)."
+          oneOf:
+            - "$ref": "#/components/schemas/Point"
+            - type: "null"
         mission_status:
           type: string
       required:
@@ -16194,6 +16242,11 @@ components:
     DeliveryInfo:
       type: object
       properties:
+        target:
+          description: "Destination de l'étape en cours : la boutique avant le retrait, le client ensuite (tracé de l'itinéraire)."
+          oneOf:
+            - "$ref": "#/components/schemas/Point"
+            - type: "null"
         step:
           type: string
           enum: [accepted, heading_to_shop, at_shop, heading_to_customer, at_customer, delivered, returning, ended]

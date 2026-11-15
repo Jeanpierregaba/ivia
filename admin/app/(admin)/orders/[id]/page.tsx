@@ -6,6 +6,8 @@ import { ActionForm } from "@/components/action-form";
 import { Card, CardTitle, DefinitionList, ErrorState, StatusBadge, Table, Td } from "@/components/ui";
 import { api, ApiError, type Schemas } from "@/lib/api";
 import { formatDateTime, formatXOF, ORDER_STATUS, PAYMENT_STATUS, statusOf, VEHICLE } from "@/lib/format";
+import { orderCodeOfReference } from "@/lib/order-code";
+
 import { orderAction } from "../actions";
 
 export const metadata = { title: "Commande" };
@@ -44,6 +46,9 @@ export default async function OrderPage({ params }: { params: Promise<{ id: stri
             Commande · {o.fulfillment === "delivery" ? "Livraison" : "Retrait en boutique"}
           </p>
           <h1 className="text-[24px] font-bold leading-8 tracking-[-0.02em]">{o.reference}</h1>
+          <p className="mt-1 font-mono text-[15px] font-bold tracking-[0.2em] text-white/90">
+            {orderCodeOfReference(o.reference)}
+          </p>
           <p className="mt-1 text-white/75">Créée le {formatDateTime(o.created_at)}</p>
         </div>
         <div className="text-right">

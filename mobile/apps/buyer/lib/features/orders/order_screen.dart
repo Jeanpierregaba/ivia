@@ -369,7 +369,26 @@ class _OrderScreenState extends ConsumerState<OrderScreen> {
                 };
                 final invoice = Invoice.fromOrder(order, me);
                 return OutlinedButton.icon(
-                  onPressed: () => showReceipt(context, invoice),
+                  onPressed: () async {
+                    // Opérateur du paiement réussi : son logo sur le reçu.
+                    PaymentOperator? operator;
+                    try {
+                      final pays = await ref
+                          .read(apiClientProvider)
+                          .orderPayments(order.id);
+                      operator = pays
+                          .where((p) => p.status == PaymentStatus.succeeded)
+                          .firstOrNull
+                          ?.operator;
+                    } on ApiException {
+                      operator = null;
+                    }
+                    if (!context.mounted) return;
+                    await showReceipt(
+                      context,
+                      Invoice.fromOrder(order, me, operator: operator),
+                    );
+                  },
                   icon: const Icon(Icons.receipt_long_outlined),
                   label: Text(
                     invoice.isReceipt

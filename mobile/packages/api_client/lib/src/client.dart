@@ -276,6 +276,20 @@ class IviaApiClient {
       _items(await _send('GET', '/v1/neighborhoods'));
 
   /// Crée une boutique, en attente de validation par l'admin.
+  /// Déplace la boutique (lieu cherché ou position du téléphone) ; le reste
+  /// ne change pas. [addressText] vide : adresse écrite gardée.
+  Future<Shop> setShopLocation(
+    String shopId,
+    GeoPoint location, {
+    String addressText = '',
+  }) async => Shop.fromJson(
+    await _send(
+      'PUT',
+      '/v1/seller/shops/$shopId/location',
+      data: {'location': location.toJson(), 'address_text': addressText},
+    ),
+  );
+
   Future<Shop> createShop(ShopDraft draft) async =>
       Shop.fromJson(await _send('POST', '/v1/shops', data: draft.toJson()));
 

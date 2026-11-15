@@ -8,6 +8,7 @@ environment:
 resolution: workspace
 
 dependencies:
+  barcode: ^2.2.9
   flutter:
     sdk: flutter
   firebase_core: ^4.2.0

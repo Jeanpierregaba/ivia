@@ -73,9 +73,11 @@ type DeliveryAddress struct {
 
 // Order est une commande. Les champs `json:"-"` ne sont exposés que par les vues qui y ont droit.
 type Order struct {
-	ID                uuid.UUID        `json:"id"`
-	Number            int64            `json:"number"`
-	Reference         string           `json:"reference"`
+	ID        uuid.UUID `json:"id"`
+	Number    int64     `json:"number"`
+	Reference string    `json:"reference"`
+	// Code : code alphanumérique de la commande (« K7P2-9QXA »), imprimé en code-barres.
+	Code              string           `json:"code"`
 	Status            Status           `json:"status"`
 	Fulfillment       Fulfillment      `json:"fulfillment"`
 	VehicleType       *Vehicle         `json:"vehicle_type"`
@@ -214,7 +216,7 @@ func (s *Service) get(ctx context.Context, id uuid.UUID) (Order, error) {
 // buildOrder assemble une commande à partir de ses lignes et de son historique.
 func buildOrder(r store.GetOrderRow, items []store.OrderItem, events []store.OrderStatusEvent) Order {
 	o := Order{
-		ID: r.ID, Number: r.Number, Reference: Reference(r.Number), Status: Status(r.Status),
+		ID: r.ID, Number: r.Number, Reference: Reference(r.Number), Code: Code(r.Number), Status: Status(r.Status),
 		Fulfillment: Fulfillment(r.Fulfillment), ParcelSize: r.ParcelSize,
 		SubtotalXOF: r.SubtotalXof, DeliveryFeeXOF: r.DeliveryFeeXof, TotalXOF: r.TotalXof,
 		CancelReason: r.CancelReason, PaymentDeadlineAt: r.PaymentDeadlineAt, SellerDeadlineAt: r.SellerDeadlineAt,

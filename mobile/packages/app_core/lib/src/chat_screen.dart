@@ -219,11 +219,9 @@ class _ChatScreenState extends ConsumerState<ChatScreen> {
                     overflow: TextOverflow.ellipsis,
                   ),
                   if (th != null)
+                    // Rôle seulement : pas d'identifiant interne affiché.
                     Text(
-                      [
-                        role,
-                        th.orderReference,
-                      ].where((s) => s.isNotEmpty).join(' · '),
+                      role,
                       style: t.bodySmall?.copyWith(color: Colors.white70),
                     ),
                 ],

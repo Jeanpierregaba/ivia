@@ -299,10 +299,14 @@ class BuyerAddress {
     : id = j['id'] as String,
       label = j['label'] as String? ?? '',
       addressText = j['address_text'] as String? ?? '',
-      location = GeoPoint.fromJson(j['location'] as Map<String, dynamic>);
+      location = GeoPoint.fromJson(j['location'] as Map<String, dynamic>),
+      instructions = j['instructions'] as String? ?? '';
 
   final String id, label, addressText;
   final GeoPoint location;
+
+  /// Indications pour le livreur (gardées quand l'adresse est déplacée).
+  final String instructions;
 }
 
 /// Appels de l'alerte médicament.
@@ -458,6 +462,26 @@ extension PharmacyApi on IviaApiClient {
 
   Future<void> deleteAddress(String id) =>
       _send('DELETE', '/v1/me/addresses/$id');
+
+  /// Modifie une adresse (déplacée sur la carte, renommée).
+  Future<BuyerAddress> updateAddress(
+    String id, {
+    required String label,
+    required String addressText,
+    required GeoPoint location,
+    String instructions = '',
+  }) async => BuyerAddress.fromJson(
+    await _send(
+      'PUT',
+      '/v1/me/addresses/$id',
+      data: {
+        'label': label,
+        'address_text': addressText,
+        'location': {'lat': location.lat, 'lng': location.lng},
+        'instructions': instructions,
+      },
+    ),
+  );
 
   Future<BuyerAddress> createAddress({
     required String label,

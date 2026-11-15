@@ -38,3 +38,4 @@ export 'src/delivery_progress.dart';
 export 'src/realtime.dart';
 export 'src/ringer.dart';
 export 'src/route_screen.dart';
+export 'src/barcode_view.dart';

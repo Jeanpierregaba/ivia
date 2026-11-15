@@ -265,6 +265,7 @@ class Shop {
     required this.categoryName,
     required this.logoUrl,
     this.merchantDocuments,
+    this.location,
   });
 
   factory Shop.fromJson(Map<String, dynamic> json) => Shop(
@@ -279,7 +280,17 @@ class Shop {
       final List<dynamic> docs => merchantDocumentKinds(docs),
       _ => null,
     },
+    location: switch (json['location']) {
+      {'lat': final num lat, 'lng': final num lng} => GeoPoint(
+        lat: lat.toDouble(),
+        lng: lng.toDouble(),
+      ),
+      _ => null,
+    },
   );
+
+  /// Position de la boutique ; `null` : absente de la réponse.
+  final GeoPoint? location;
 
   final String id;
   final String name;
@@ -305,6 +316,7 @@ class Shop {
     categoryName: categoryName,
     logoUrl: logoUrl,
     merchantDocuments: documents,
+    location: location,
   );
 }
 

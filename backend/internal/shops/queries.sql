@@ -118,3 +118,11 @@ UPDATE shops SET managed_by_platform = sqlc.arg(managed), updated_at = now() WHE
 
 -- name: ListManagedShopIDs :many
 SELECT id FROM shops WHERE managed_by_platform ORDER BY created_at;
+
+-- name: UpdateShopLocation :exec
+-- Déplace la boutique (recherche sur la carte ou position du téléphone) ; le reste ne change pas.
+UPDATE shops
+SET location     = ST_SetSRID(ST_MakePoint(sqlc.arg(lng)::float8, sqlc.arg(lat)::float8), 4326)::geography,
+    address_text = CASE WHEN sqlc.arg(address_text)::text = '' THEN address_text ELSE sqlc.arg(address_text)::text END,
+    updated_at   = now()
+WHERE id = sqlc.arg(id);

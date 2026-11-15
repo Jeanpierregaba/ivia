@@ -48,12 +48,22 @@ class OrderDelivery {
       arrivedShopAt = _d(j['arrived_shop_at']),
       pickedUpAt = _d(j['picked_up_at']),
       arrivedCustomerAt = _d(j['arrived_customer_at']),
-      deliveredAt = _d(j['delivered_at']);
+      deliveredAt = _d(j['delivered_at']),
+      target = switch (j['target']) {
+        {'lat': final num lat, 'lng': final num lng} => GeoPoint(
+          lat: lat.toDouble(),
+          lng: lng.toDouble(),
+        ),
+        _ => null,
+      };
 
   final String driverFirstName, vehicleType, vehiclePlate;
   final DeliveryStep step;
   final DateTime? assignedAt, startedAt, arrivedShopAt, pickedUpAt;
   final DateTime? arrivedCustomerAt, deliveredAt;
+
+  /// Destination de l'étape en cours (boutique, puis client).
+  final GeoPoint? target;
 }
 
 extension DeliveryLiveApi on IviaApiClient {

@@ -518,6 +518,13 @@ void main() {
         ),
         findsOneWidget,
       );
+      // Code de la commande n° 1042 en code-barres sous l'en-tête.
+      expect(find.text('W8MB-QRCH'), findsOneWidget);
+      await tester.scrollUntilVisible(
+        find.text('3 articles'),
+        200,
+        scrollable: find.byType(Scrollable).first,
+      );
       expect(find.text('3 articles'), findsOneWidget);
       expect(find.text('2 × Pagne wax'), findsOneWidget);
       expect(textPlain('9 000 F'), findsOneWidget);

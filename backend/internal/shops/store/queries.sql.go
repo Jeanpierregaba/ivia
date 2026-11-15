@@ -703,3 +703,29 @@ func (q *Queries) UpdateShopCategory(ctx context.Context, arg UpdateShopCategory
 	)
 	return i, err
 }
+
+const updateShopLocation = `-- name: UpdateShopLocation :exec
+UPDATE shops
+SET location     = ST_SetSRID(ST_MakePoint($1::float8, $2::float8), 4326)::geography,
+    address_text = CASE WHEN $3::text = '' THEN address_text ELSE $3::text END,
+    updated_at   = now()
+WHERE id = $4
+`
+
+type UpdateShopLocationParams struct {
+	Lng         float64
+	Lat         float64
+	AddressText string
+	ID          uuid.UUID
+}
+
+// Déplace la boutique (recherche sur la carte ou position du téléphone) ; le reste ne change pas.
+func (q *Queries) UpdateShopLocation(ctx context.Context, arg UpdateShopLocationParams) error {
+	_, err := q.db.Exec(ctx, updateShopLocation,
+		arg.Lng,
+		arg.Lat,
+		arg.AddressText,
+		arg.ID,
+	)
+	return err
+}

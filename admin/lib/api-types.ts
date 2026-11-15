@@ -1032,6 +1032,26 @@ export interface paths {
         patch?: never;
         trace?: never;
     };
+    "/v1/seller/shops/{id}/location": {
+        parameters: {
+            query?: never;
+            header?: never;
+            path?: never;
+            cookie?: never;
+        };
+        get?: never;
+        /**
+         * Déplacer ma boutique
+         * @description Nouvelle position (lieu cherché sur la carte ou position du téléphone) ; l'adresse écrite change si elle est donnée. Le reste de la boutique ne change pas.
+         */
+        put: operations["putSellerShopsByIdLocation"];
+        post?: never;
+        delete?: never;
+        options?: never;
+        head?: never;
+        patch?: never;
+        trace?: never;
+    };
     "/v1/seller/shops/{id}/stats": {
         parameters: {
             query?: never;
@@ -6532,6 +6552,8 @@ export interface components {
             located_at: string;
             /** Format: uuid */
             mission_order_id?: string | null;
+            /** @description Destination de l'étape en cours (boutique avant le retrait, client ensuite). */
+            target?: components["schemas"]["Point"] | null;
             mission_status?: string;
         };
         TrailPoint: {
@@ -7338,6 +7360,8 @@ export interface components {
             failure_reason: string;
         };
         DeliveryInfo: {
+            /** @description Destination de l'étape en cours : la boutique avant le retrait, le client ensuite (tracé de l'itinéraire). */
+            target?: components["schemas"]["Point"] | null;
             /** @enum {string} */
             step?: "accepted" | "heading_to_shop" | "at_shop" | "heading_to_customer" | "at_customer" | "delivered" | "returning" | "ended";
             /** Format: date-time */
@@ -10703,6 +10727,44 @@ export interface operations {
                 };
                 content: {
                     "application/json": components["schemas"]["PharmacyStats"];
+                };
+            };
+            /** @description Erreur (voir `code`) */
+            default: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["Error"];
+                };
+            };
+        };
+    };
+    putSellerShopsByIdLocation: {
+        parameters: {
+            query?: never;
+            header?: never;
+            path: {
+                id: string;
+            };
+            cookie?: never;
+        };
+        requestBody: {
+            content: {
+                "application/json": {
+                    location: components["schemas"]["Point"];
+                    address_text?: string;
+                };
+            };
+        };
+        responses: {
+            /** @description Succès */
+            200: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["Shop"];
                 };
             };
             /** @description Erreur (voir `code`) */

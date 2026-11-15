@@ -169,7 +169,7 @@ func (s *Service) Get(ctx context.Context, userID uuid.UUID, role string, orderI
 		out.OtherReadAt = &at
 	}
 	for i, r := range rows {
-		out.Messages[i] = Message{ID: r.ID, Mine: r.SenderID == userID, SenderRole: r.SenderRole, Body: r.Body, CreatedAt: r.CreatedAt}
+		out.Messages[i] = Message{ID: r.ID, Mine: r.SenderRole == role, SenderRole: r.SenderRole, Body: r.Body, CreatedAt: r.CreatedAt}
 	}
 	// L'autre participant voit ses messages passer « lus ».
 	_ = s.notify.Signal(ctx, p.other, p.otherApp, "chat_read", map[string]string{"order_id": orderID.String(), "thread": thread})

@@ -14,9 +14,13 @@ export interface MapEngine {
   ids(): string[];
   /** Trajet avec son point de départ ; null l'efface. */
   trail(points: LatLng[] | null): void;
+  /** Itinéraires des livreurs en course, une couleur chacun (remplace les précédents). */
+  routes(list: RouteLine[]): void;
   focus(at: LatLng, zoom: number): void;
   destroy(): void;
 }
+
+export type RouteLine = { id: string; color: string; points: LatLng[] };
 
 const LOME: LatLng = { lat: 6.1725, lng: 1.2314 };
 const TRAIL = "#004da8";
@@ -122,6 +126,7 @@ async function googleEngine(box: HTMLElement, key: string, onAuthFailure: () => 
   }
 
   const markers = new Map<string, HtmlMarker>();
+  const routeLines: google.maps.Polyline[] = [];
   let line: google.maps.Polyline | null = null;
   let origin: HtmlMarker | null = null;
 
@@ -166,6 +171,31 @@ async function googleEngine(box: HTMLElement, key: string, onAuthFailure: () => 
       for (const p of points) b.extend(p);
       map.fitBounds(b, 60);
     },
+    routes(list) {
+      for (const l of routeLines) l.setMap(null);
+      routeLines.length = 0;
+      for (const r of list) {
+        if (r.points.length < 2) continue;
+        routeLines.push(
+          new g.Polyline({
+            path: r.points,
+            map,
+            strokeColor: "#ffffff",
+            strokeOpacity: 0.9,
+            strokeWeight: 8,
+            zIndex: 1,
+          }),
+          new g.Polyline({
+            path: r.points,
+            map,
+            strokeColor: r.color,
+            strokeOpacity: 0.95,
+            strokeWeight: 5,
+            zIndex: 2,
+          }),
+        );
+      }
+    },
     focus(at, zoom) {
       map.panTo(at);
       if ((map.getZoom() ?? 0) < zoom) map.setZoom(zoom);
@@ -193,6 +223,7 @@ async function osmEngine(box: HTMLElement): Promise<MapEngine> {
   const icon = (html: string, size: [number, number]) =>
     L.divIcon({ html, className: "", iconSize: size, iconAnchor: [size[0] / 2, size[1] / 2] });
   const markers = new Map<string, { m: import("leaflet").Marker; html: string }>();
+  const routeLines: import("leaflet").Polyline[] = [];
   let line: import("leaflet").Polyline | null = null;
   let origin: import("leaflet").Marker | null = null;
 
@@ -234,6 +265,24 @@ async function osmEngine(box: HTMLElement): Promise<MapEngine> {
       }).addTo(map);
       origin = L.marker(pts[0]!, { icon: icon(ORIGIN_HTML, [64, 26]) }).addTo(map);
       map.flyToBounds(line.getBounds(), { padding: [60, 60], duration: 1.1 });
+    },
+    routes(list) {
+      for (const l of routeLines) l.remove();
+      routeLines.length = 0;
+      for (const r of list) {
+        if (r.points.length < 2) continue;
+        const pts = r.points.map((p) => [p.lat, p.lng] as [number, number]);
+        routeLines.push(
+          L.polyline(pts, { color: "#ffffff", weight: 8, opacity: 0.9 }).addTo(map),
+          L.polyline(pts, {
+            color: r.color,
+            weight: 5,
+            opacity: 0.95,
+            lineCap: "round",
+            lineJoin: "round",
+          }).addTo(map),
+        );
+      }
     },
     focus(at, zoom) {
       map.flyTo([at.lat, at.lng], Math.max(map.getZoom(), zoom), { duration: 1.1 });

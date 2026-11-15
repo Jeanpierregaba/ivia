@@ -3,6 +3,7 @@ package delivery
 import (
 	"context"
 	"fmt"
+	"ivia/backend/internal/geo"
 	"net/http"
 	"time"
 
@@ -27,6 +28,8 @@ type FleetDriver struct {
 	LocatedAt      time.Time `json:"located_at"`
 	MissionOrderID *string   `json:"mission_order_id"`
 	MissionStatus  string    `json:"mission_status"`
+	// Target : destination de l'étape en cours (itinéraire tracé au back-office).
+	Target *geo.Point `json:"target"`
 }
 
 // TrailPoint est une position du trajet d'un livreur.
@@ -56,6 +59,9 @@ func (s *Service) Fleet(ctx context.Context, hours int) ([]FleetDriver, error) {
 		}
 		if r.MissionOrderID != "" {
 			f.MissionOrderID = &r.MissionOrderID
+			if id, err := uuid.Parse(r.MissionOrderID); err == nil {
+				f.Target = s.targetOf(ctx, id, r.MissionStatus == "picked_up" || r.MissionStatus == "at_customer")
+			}
 		}
 		out = append(out, f)
 	}

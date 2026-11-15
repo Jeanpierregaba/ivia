@@ -448,6 +448,9 @@ class _Header extends ConsumerWidget {
           ),
           const SizedBox(height: IviaSpacing.md),
           Text(who, style: textTheme.titleMedium),
+          const SizedBox(height: IviaSpacing.md),
+          // Code de la commande, scannable (Code 128).
+          IviaBarcode(code: orderCode(order.number), height: 46),
           if (paidAt != null) ...[
             const SizedBox(height: IviaSpacing.xs),
             Text(

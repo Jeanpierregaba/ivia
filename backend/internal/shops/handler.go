@@ -23,6 +23,7 @@ func (h *Handler) Register(rt *httpapi.Router) {
 	rt.Roles("GET /v1/seller/shops", h.listMine, identity.RoleSeller)
 	rt.Roles("GET /v1/seller/shops/{id}", h.getMine, identity.RoleSeller)
 	rt.Roles("PATCH /v1/seller/shops/{id}", h.update, identity.RoleSeller)
+	rt.Roles("PUT /v1/seller/shops/{id}/location", h.updateLocation, identity.RoleSeller)
 	rt.Roles("GET /v1/seller/documents", h.listDocuments, identity.RoleSeller)
 	rt.Roles("POST /v1/seller/documents", h.addDocument, identity.RoleSeller)
 
@@ -153,6 +154,22 @@ func (h *Handler) update(w http.ResponseWriter, r *http.Request) error {
 		return err
 	}
 	if shop, err = h.svc.WithDocuments(r.Context(), shop, false); err != nil {
+		return err
+	}
+	return httpapi.OK(w, shop)
+}
+
+func (h *Handler) updateLocation(w http.ResponseWriter, r *http.Request) error {
+	id, err := httpapi.PathUUID(r, "id")
+	if err != nil {
+		return err
+	}
+	var in LocationInput
+	if err := httpapi.Decode(r, &in); err != nil {
+		return err
+	}
+	shop, err := h.svc.UpdateLocation(r.Context(), identity.MustFromContext(r.Context()).UserID, id, in)
+	if err != nil {
 		return err
 	}
 	return httpapi.OK(w, shop)

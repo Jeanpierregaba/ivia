@@ -69,6 +69,9 @@ type DeliveryInfo struct {
 	ArrivedShopAt     *time.Time `json:"arrived_shop_at"`
 	ArrivedCustomerAt *time.Time `json:"arrived_customer_at"`
 	DeliveredAt       *time.Time `json:"delivered_at"`
+	// Target : destination de l'étape en cours (boutique avant le retrait, client ensuite), pour
+	// tracer l'itinéraire du livreur chez le client et le marchand.
+	Target *geo.Point `json:"target"`
 }
 
 // stepOf traduit la mission en étape lisible par les apps : accepted, heading_to_shop, at_shop,
@@ -408,10 +411,30 @@ func (s *Service) info(ctx context.Context, orderID uuid.UUID) (*DeliveryInfo, e
 	if err != nil {
 		return nil, err
 	}
-	return &DeliveryInfo{
+	out := &DeliveryInfo{
 		Status: m.Status, DriverFirstName: c.FirstName, VehicleType: d.VehicleType, VehiclePlate: d.VehiclePlate,
 		AssignedAt: m.AssignedAt, PickedUpAt: m.PickedUpAt,
 		Step: stepOf(m), StartedAt: m.StartedAt, ArrivedShopAt: m.ArrivedShopAt,
 		ArrivedCustomerAt: m.ArrivedCustomerAt, DeliveredAt: m.DeliveredAt,
-	}, nil
+	}
+	out.Target = s.targetOf(ctx, orderID, m.PickedUpAt != nil)
+	return out, nil
+}
+
+// targetOf : destination de l'étape en cours d'une commande (boutique avant le retrait, client
+// ensuite) ; nil si elle est introuvable.
+func (s *Service) targetOf(ctx context.Context, orderID uuid.UUID, pickedUp bool) *geo.Point {
+	order, err := s.orders.ForDelivery(ctx, orderID)
+	if err != nil {
+		return nil
+	}
+	if pickedUp {
+		loc := order.Address.Location
+		return &loc
+	}
+	shop, err := s.shops.Get(ctx, order.ShopID)
+	if err != nil {
+		return nil
+	}
+	return &shop.Location
 }

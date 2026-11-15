@@ -29,7 +29,16 @@ class Invoice {
     this.closedLabel,
     this.discountXof = 0,
     this.promoCode,
+    this.code = '',
+    this.operator,
   });
+
+  /// Code de la commande (« K7P2-9QXA »), imprimé en code-barres ; vide pour
+  /// une réservation pharmacie.
+  final String code;
+
+  /// Opérateur Mobile Money du paiement (logo sur le reçu) ; `null` : inconnu.
+  final PaymentOperator? operator;
 
   /// Réduction d'un code promo (déjà retirée du total).
   final int discountXof;
@@ -46,8 +55,14 @@ class Invoice {
       isReceipt ? 'Reçu de paiement' : 'Récapitulatif de commande';
 
   /// Facture d'une commande de boutique.
-  factory Invoice.fromOrder(BuyerOrder o, User? me) => Invoice(
+  factory Invoice.fromOrder(
+    BuyerOrder o,
+    User? me, {
+    PaymentOperator? operator,
+  }) => Invoice(
     number: 'IVIA-C${o.number.toString().padLeft(6, '0')}',
+    code: orderCode(o.number),
+    operator: operator,
     date: o.paidAt ?? o.createdAt,
     seller: o.shop.name,
     sellerAddress: [
